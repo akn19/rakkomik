@@ -258,6 +258,16 @@ Inventarisasi hasil grep (bukan perkiraan):
 
 Dampak format download (`Settings.chapterFormat`): yang dipertahankan = **Folder, CBZ, EPUB (novel)**. Opsi **PDF ikut dihapus** (tidak disebut dalam skope) — konsekuensinya `pdfkit.standalone.js` (2,5 MB, lib terbesar!) bisa ikut dibuang. Bila ternyata PDF masih dibutuhkan, pertahankan sebagai pengecualian eksplisit.
 
+**Aturan novel (diputuskan, mengikat): novel WAJIB format teks — format gambar DILARANG untuk novel.** Halaman novel sebagai screenshot (`html2canvas`) tidak lagi diterima sebagai output, untuk semua format (folder/CBZ/PDF/EPUB-gambar). Gambar ilustrasi di dalam chapter novel boleh ikut sebagai **bagian konten** (diunduh + direferensikan relatif: `![](001.png)` di Markdown, `<img>` di EPUB-teks), tetapi tidak boleh MENJADI kontennya.
+
+Konsekuensi:
+
+- Format novel yang sah: **Markdown** (F-B1) dan **EPUB-teks** (EPUB yang ada hari ini mengemas screenshot → wajib dibangun ulang sebagai XHTML teks untuk novel). Folder/CBZ/PDF-screenshot tertutup untuk novel.
+- Bila format terpilih image-based tetapi konten terdeteksi novel → fallback otomatis ke format teks (Markdown default; EPUB-teks bila user memilih EPUB). Deteksi novel diputuskan saat eksekusi (bentuk payload: screenshot-dataURL vs teks/HTML, dan/atau deklarasi kapabilitas konektor novel).
+- Jalur screenshot `html2canvas` (`_getPagesNovel`) pensiun untuk output — diganti jalur teks (§F-B1). CDN runtime-nya ikut hilang.
+
+**Tambahan (diputuskan): format Markdown untuk novel.** Fakta penentu: halaman novel hari ini adalah **screenshot gambar** (`html2canvas` → dataURL, dikemas seperti manga), sehingga Markdown TIDAK bisa menumpang pipeline gambar — butuh jalur teks tersendiri: ambil HTML chapter (`novelContentQuery`, buang `novelObstaclesQuery`) → konversi HTML→Markdown → simpan satu `.md` per chapter (sebutir granularity format lain) dengan frontmatter YAML (manga, chapter, URL sumber, waktu unduh). Konverter: paket publik kecil (`turndown`, ±30 KB, MIT) atau walker DOM hand-rolled di atas `createDOM` — putuskan saat eksekusi, dilarang CDN runtime (selaras offline-safe). Detail eksekusi: backlog F-B1 di AGENTIC-PLAN.
+
 ### 6.2 Hapus paket privat → paket umum
 
 | Paket privat | Dipakai oleh | Pengganti / aksi |

@@ -80,7 +80,19 @@
 **Verify per sub-fase:** typecheck + lint + daftar `frontend@react` bisa dipilih berdampingan classic · benchmark virtualisasi (Bacami 10.389 judul) · tidak ada CDN (grep `http` di bundle UI kecuali icon/font lokal).
 **Exit:** classic + polyfill terhapus, woff2 FA + `theme.html` terhapus.
 
-## 3. Larangan fase (definisi selesai yang ditolak)
+## 3. Backlog fitur (di luar modernisasi, dikerjakan kapan saja)
+
+### F-B1 — Novel wajib teks: Markdown + EPUB-teks (diputuskan, audit §6.1)
+**Tujuan:** novel tidak boleh keluar sebagai gambar. Opsi `chapterFormat` Markdown (`.md`) + EPUB novel dibangun ulang sebagai teks.
+1. Baca: `Storage.saveChapterPages` (+ `_saveChapterPagesEPUB` sebagai pola), `Settings.chapterFormat`, `templates/WordPressMadaraNovel._getPagesNovel`, `DownloadJob._downloadPages*`.
+2. Tambah opsi format + cabang simpan `.md` (satu file per chapter + frontmatter YAML); ilustrasi diunduh + direferensikan relatif, bukan sebagai halaman.
+3. Sediakan jalur teks: pilihan (a) `_getPagesText` per konektor novel, atau (b) fallback generik re-fetch + ekstraksi; putuskan saat eksekusi (dilarang CDN runtime; konverter: `turndown` atau hand-rolled). Pensiunkan jalur screenshot `html2canvas` untuk output.
+4. EPUB-teks untuk novel: `EbookGenerator` + `_saveChapterPagesEPUB` mendukung halaman XHTML teks (bukan screenshot). Manga tidak berubah.
+5. Fallback otomatis: format image-based + konten novel → simpan sebagai teks (Markdown default; EPUB-teks bila EPUB dipilih). Mekanisme deteksi novel diputuskan saat eksekusi.
+**Verify:** `pnpm run lint` · unduh 1 chapter novel sebagai `.md` (frontmatter + body terbaca, tanpa tag HTML bocor; ilustrasi berupa file + referensi, bukan screenshot) · unduh 1 chapter novel sebagai EPUB-teks (terbuka di reader, teks terseleksi) · unduh novel dengan format folder/CBZ terpilih → jatuh ke teks otomatis · unduh 1 chapter manga CBZ tetap identik.
+**Exit:** aturan novel-wajib-teks berlaku untuk semua format + semua smoke hijau.
+
+## 4. Larangan fase (definisi selesai yang ditolak)
 
 - Me-rename global `Engine` (audit §8).
 - Bulk `--write` formatter / rename massal / upgrade versi di luar cakupan fase.
