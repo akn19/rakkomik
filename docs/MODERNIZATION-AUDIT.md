@@ -275,7 +275,7 @@ Konsekuensi:
 | `@hakuneko/ffmpeg-binaries` | Jalur video `DownloadJob` + hack `PATH` `App.js` + tahap `_bundleStaticBinary` di `build-app.js` | **Hapus total** (paket + 3 pemakaian). Tidak ada pengganti — fitur videonya dihapus (§6.1) |
 | `@hakuneko/imagemagick-binaries` | Tidak ada pemakaian otomatis di kode (satu-satunya rujukan harfiah `convert` hanyalah **contoh teks** di setting `postChapterDownloadCommand` milik user) | **Hapus** paket + tahap bundle. Fitur post-command generik tetap; contoh teks disesuaikan (user yang butuh pasang ImageMagick sistem sendiri) |
 | `@hakuneko/kindlegen-binaries` | **Nol rujukan** di seluruh `src/` — dead weight yang ikut dibundle | **Hapus** paket + tahap bundle |
-| `@logtrine/logtrine` | `ConsoleLogger` di 6 file `src/app` + `FileLogger` di 4 file test | Ganti logger **publik**: rekomendasi `pino` (cepat, API kecil) atau `winston`. Effort S–M (bungkus kompatibilitas `ConsoleLogger`/`FileLogger(level)` bila ingin minim diff) |
+| `@logtrine/logtrine` | `ConsoleLogger` di 6 file `src/app` + `FileLogger` di 4 file test | Ganti **pino (diputuskan)** — cepat, API kecil, paket publik. Effort S–M (bungkus kompatibilitas `ConsoleLogger`/`FileLogger(level)` bila ingin minim diff) |
 
 Setelah §6.2, `build-app.js` kehilangan 3 pemanggilan `_bundleStaticBinary` (+ helper-nya bila tak dipakai lagi) dan ukuran installer menyusut signifikan (3 set biner × 3 platform hilang). Tidak ada lagi dependensi pada registry/scope privat — instalasi full dari npm publik.
 
