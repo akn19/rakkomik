@@ -55,7 +55,7 @@
 | `polymer-build` 3.1.4 (+ transitif `vinyl-fs`, `merge-stream`) | Usang, rapuh di Node 20+ | → Vite (§4) |
 | `eslint` 8.57.1 (+ `.eslintrc.json`) | v8 EOL; di repo ini merangkap **formatter** (skrip `format:*` = `eslint --fix`). Tidak ada prettier (tidak ada config/dependensi/rujukan CI) | → **oxc**: `oxlint` (lint) + `oxfmt` (format), lihat rencana §2.6 |
 | `jest` 30.4.2 (+ `jest-junit`) | Sudah modern | Tetap **atau** → `vitest` bila pindah Vite (keselarasan tooling, bukan keharusan) |
-| `puppeteer-core` 25.5.0 | Modern; hanya dipakai `src/__tests__/Connectors.e2e.js` | Tetap |
+| `puppeteer-core` 25.5.0 | Hanya dipakai `src/__tests__/Connectors.e2e.js` (spawn app + `connect` CDP `:9200`) | → **Playwright** (backlog F-B2 di AGENTIC-PLAN) |
 | `asar` 3.2.0 | **Deprecated** upstream | → `@electron/asar` (drop-in, S) |
 | `rcedit` 5.0.2, `innosetup-compiler`, `win-7zip` | Tooling Windows installer | Tetap; uji ulang di Node modern |
 | `electron` (root devDep, untuk `electron .`) | 8.3.4 | Ikut target 44.x |
