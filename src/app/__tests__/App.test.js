@@ -12,6 +12,10 @@ const fs = require('fs-extra');
 
 jest.mock('electron', () => {
     return {
+        ipcMain: {
+            handle: jest.fn(),
+            on: jest.fn()
+        },
         app: {
             getAppPath: jest.fn(() => '/usr/bin'),
             getPath: jest.fn(type => {
@@ -24,7 +28,11 @@ jest.mock('electron', () => {
                 }
             }),
             name: 'HakuNeko'
-        }
+        },
+        dialog: {},
+        shell: {},
+        session: {},
+        BrowserWindow: jest.fn()
     };
 });
 

@@ -12,10 +12,10 @@
     <script src="./js/sql.min.js" defer></script>
     <script src="./js/exif-js.min.js" defer></script>
     <script type="module">
-        const electronDialog = require('electron').remote.dialog
         import HakuNeko from './mjs/HakuNeko.mjs'
 
         // https://github.com/electron/electron/blob/master/docs/api/dialog.md#dialogshowmessageboxbrowserwindow-options
+        // Fase 1: dialogs via preload bridge (window.hakuneko) instead of electron.remote.
         function replaceDialogs() {
             alert = async (message, title, type) => {
                 let options = {
@@ -24,7 +24,7 @@
                     message: message,
                     buttons: [ 'OK' ]
                 };
-                let response = await electronDialog.showMessageBox(options);
+                let response = await window.hakuneko.dialog.showMessageBox(options);
                 return response === options.buttons.indexOf('OK');
             };
             confirm = async (message, title, type, buttons) => {
@@ -34,7 +34,7 @@
                     message: message,
                     buttons: buttons || [ 'Yes', 'No' ]
                 };
-                let response = await electronDialog.showMessageBox(options);
+                let response = await window.hakuneko.dialog.showMessageBox(options);
                 return response.response === 0;
             };
         }
@@ -88,22 +88,21 @@
         main();
     </script>
     <script>
-        this.win=require('electron').remote.getCurrentWindow();
-
+        // Fase 1: window controls via preload bridge (window.hakuneko) instead of electron.remote.
         function minimizeWindow(){
-            this.win.minimize();
+            window.hakuneko.window.minimize();
         }
 
-        function maximizeWindow(){
-            if (! this.win.isMaximized()) {
-                this.win.maximize();
+        async function maximizeWindow(){
+            if (! await window.hakuneko.window.isMaximized()) {
+                window.hakuneko.window.maximize();
             } else {
-                this.win.unmaximize();
+                window.hakuneko.window.unmaximize();
             }
         }
 
         function closeWindow(){
-            this.win.close();
+            window.hakuneko.window.close();
         }
     </script>
     <style>

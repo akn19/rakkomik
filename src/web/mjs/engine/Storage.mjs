@@ -17,15 +17,15 @@ export default class Storage {
 
     // TODO: use dependency injection instead of globals for EbookGenerator
     constructor() {
-        let electron = require('electron');
-        this.dialog = electron.remote.dialog;
-        this.platform = electron.remote.process.platform;
-        this.shell = electron.remote.shell;
-        this.exec = electron.remote.require('child_process').exec;
+        // Fase 1: dialog/shell/platform/paths via preload bridge (window.hakuneko).
+        // this.fs/this.path/require('os') stay node requires until the contextIsolation flip.
+        this.dialog = window.hakuneko.dialog;
+        this.platform = window.hakuneko.platform;
+        this.shell = window.hakuneko.shell;
         // TODO: Use fs-extra which provides more convenience functions (e.g. delete recursive)
         this.fs = require('fs');
         this.path = require('path');
-        this.config = this.path.join(electron.remote.app.getPath('userData'), 'hakuneko.');
+        this.config = this.path.join(window.hakuneko.app.getPath('userData'), 'hakuneko.');
         this.temp = this.path.join(require('os').tmpdir(), 'hakuneko');
         this._createDirectoryChain(this.temp);
 
@@ -46,6 +46,15 @@ export default class Storage {
      */
     showFolderContent(chapter) {
         this.shell.showItemInFolder(this._chapterOutputPath(chapter));
+    }
+
+    /**
+     * Execute a post-download command in the main process (Fase 1: IPC).
+     */
+    exec(command, options, callback) {
+        window.hakuneko.exec(command, options)
+            .then(result => callback(result.error ? new Error(result.error) : undefined))
+            .catch(error => callback(error));
     }
 
     /**
@@ -106,6 +115,8 @@ export default class Storage {
             defaultPath: rootPath,
             properties: ['openDirectory']
         });
+        // preload bridge returns the dialog result unchanged (or undefined when unsupported)
+        result = result || { canceled: true, filePaths: [] };
         return !result.canceled && result.filePaths.length ? result.filePaths[0] : null;
     }
 

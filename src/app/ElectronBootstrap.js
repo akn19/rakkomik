@@ -69,8 +69,14 @@ module.exports = class ElectronBootstrap {
             /*
              * HACK: prevent default in main process, because it cannot be done in render process:
              *       see: https://github.com/electron/electron/issues/9428#issuecomment-300669586
+             * Proxy credentials are provided by the renderer (Request._loginHandler).
              */
-            electron.app.on('login', evt => evt.preventDefault());
+            electron.app.on('login', (event, webContents, request, authInfo, callback) => {
+                event.preventDefault();
+                this._provideLoginCredentials(authInfo)
+                    .then(credentials => credentials ? callback(...credentials) : callback())
+                    .catch(() => callback());
+            });
             electron.app.on('activate', this._createWindow.bind(this));
             electron.app.on('window-all-closed', this._allWindowsClosedHandler.bind(this));
             electron.app.on('certificate-error', this._certificateErrorHandler.bind(this));
@@ -117,6 +123,19 @@ module.exports = class ElectronBootstrap {
                 callback(undefined);
             }
         });
+    }
+
+    /**
+     * Ask the renderer for proxy credentials (Fase 1: replaces remote.app 'login').
+     * @returns {Promise<Array<string>|null>} [username, password] or null
+     */
+    async _provideLoginCredentials(authInfo) {
+        try {
+            return await this._ipcSend('login', authInfo);
+        } catch(error) {
+            this._logger.warn(error);
+            return null;
+        }
     }
 
     /**
@@ -258,6 +277,8 @@ module.exports = class ElectronBootstrap {
             webPreferences: {
                 experimentalFeatures: true,
                 nodeIntegration: true,
+                contextIsolation: false, // Fase 1: flipped to true once renderer drops node requires
+                preload: path.join(__dirname, 'preload.js'),
                 webSecurity: false // required to open local images in browser
             },
             frame: false

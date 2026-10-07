@@ -37,7 +37,7 @@ export default class Settings extends EventTarget {
     // TODO: use dependency injection instead of globals for Engine.Storage, Engine.Conenctors
     constructor() {
         super();
-        let app = require('electron').remote.app;
+        let app = window.hakuneko.app;
         let path = require('path');
         let docs = undefined;
         try {

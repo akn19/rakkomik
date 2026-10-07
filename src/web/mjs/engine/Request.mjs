@@ -5,12 +5,14 @@ export default class Request {
 
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Blacklist, Enums
     constructor(ipc, settings) {
+        // Fase 1: session/cookies/proxy/login via preload bridge + IPC.
+        // this.browser (fetch windows) still needs remote until Slice B.
         let electron = require('electron');
         this.electronRemote = electron.remote;
         this.browser = this.electronRemote.BrowserWindow;
         this.userAgent = HeaderGenerator.randomUA();
 
-        this.electronRemote.app.on('login', this._loginHandler);
+        ipc.listen('login', this._loginRequestHandler.bind(this));
         ipc.listen('on-before-send-headers', this.onBeforeSendHeadersHandler.bind(this));
         ipc.listen('on-headers-received', this.onHeadersReceivedHandler.bind(this));
 
@@ -20,7 +22,7 @@ export default class Request {
     }
 
     async _initializeHCaptchaUUID(settings) {
-        let hcCookies = await this.electronRemote.session.defaultSession.cookies.get({ name: 'hc_accessibility' });
+        let hcCookies = await window.hakuneko.session.getCookies({ name: 'hc_accessibility' });
         let isCookieAvailable = hcCookies.some(cookie => cookie.expirationDate > Date.now() / 1000 + 1800);
         if (settings.hCaptchaAccessibilityUUID.value && !isCookieAvailable) {
             let script = `
@@ -61,7 +63,7 @@ export default class Request {
         if (settings.proxyRules.value) {
             proxy['proxyRules'] = settings.proxyRules.value;
         }
-        this.electronRemote.session.defaultSession.setProxy(proxy, () => { });
+        window.hakuneko.session.setProxy(proxy);
     }
 
     _onSettingsChanged(event) {
@@ -70,17 +72,19 @@ export default class Request {
     }
 
     /**
-     *
+     * Answer the main process 'login' request (Fase 1: replaces remote.app 'login').
+     * @returns {Promise<Array<string>|null>} [username, password] or null
      */
-    _loginHandler(evt, webContent, request, authInfo, callback) {
+    async _loginRequestHandler(authInfo) {
         let proxyAuth = this._settings.proxyAuth.value;
         if (authInfo.isProxy && proxyAuth && proxyAuth.includes(':')) {
             let auth = proxyAuth.split(':');
             let username = auth[0];
             let password = auth[1];
             console.log('login event', authInfo.isProxy, username, password);
-            callback(username, password);
+            return [username, password];
         }
+        return null;
     }
 
     /**
