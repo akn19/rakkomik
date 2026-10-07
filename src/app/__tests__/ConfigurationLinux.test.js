@@ -85,7 +85,7 @@ var suite = function() {
     describe('applicationUpdateURL', function() {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
-            expect(testee.applicationUpdateURL).toEqual('https://manga-download.github.io/hakuneko/master/latest');
+            expect(testee.applicationUpdateURL).toEqual('https://github.com/akn19/rakkomik/releases/download/web-master/latest');
         });
         it('should be overwritten by update URL from options', () => {
             let testee = new Configuration(expected);
