@@ -1,0 +1,8 @@
+# Instalasi mandiri src/app (nested, lihat pnpm-workspace.yaml root).
+# Menampung `overrides` + `allowBuilds` untuk resolusi discord-rpc.
+packages:
+  - .
+overrides:
+  register-scheme: 0.0.2
+allowBuilds:
+  register-scheme: true

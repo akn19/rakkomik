@@ -1,0 +1,23 @@
+# Fase 0: nested-install layout (opsi b, AGENTIC-PLAN).
+# `src/app` BUKAN workspace member — ia diinstal mandiri via
+# `pnpm --dir src/app install` (postinstall) agar app.asar berisi file fisik,
+# bukan symlink store pnpm.
+packages:
+  - .
+overrides:
+  # discord-rpc@4.0.1 menarik `register-scheme` via URL git; ganti dengan
+  # versi registry 0.0.2 (kode sama, tanpa dependensi eksotik yang ditolak pnpm).
+  register-scheme: 0.0.2
+# Catatan pin (per 2026-10-07, lihat laporan Fase 0):
+# - knip 6.39.0 (bukan latest 6.40.0) — 6.40.0 lebih muda dari kebijakan
+#   default minimumReleaseAge pnpm; naikkan saat usianya cukup.
+# - puppeteer-core 24.43.1 (bukan latest 25.x) — 25.x ESM-only dan harness
+#   e2e masih CJS `require()`; migrasi ke Playwright adalah backlog F-B2.
+allowBuilds:
+  # pnpm memblokir skrip install secara default; paket di bawah ini disetujui
+  # karena dibutuhkan tooling (dikelola via `pnpm approve-builds`).
+  '@parcel/watcher': true
+  core-js: true
+  electron: true # unduh biner Electron saat install — wajib untuk start/test
+  register-scheme: true
+  unrs-resolver: true

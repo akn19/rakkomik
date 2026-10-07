@@ -1,0 +1,25 @@
+{
+    "$schema": "https://unpkg.com/knip@6/schema.json",
+    "entry": [
+        "src/web/mjs/HakuNeko.mjs"
+    ],
+    "project": [
+        "src/**/*.{js,mjs}"
+    ],
+    "ignore": [
+        "src/web/js/**",
+        "src/web/lib/**",
+        "src/web/mjs/connectors/**",
+        "src/web/mjs/videostreams/**",
+        "src/web/mjs/engine/HistoryWorker.mjs"
+    ],
+    "ignoreDependencies": [
+        "@hakuneko/ffmpeg-binaries",
+        "@hakuneko/imagemagick-binaries",
+        "@hakuneko/kindlegen-binaries",
+        "innosetup-compiler",
+        "jest-junit",
+        "rcedit",
+        "win-7zip"
+    ]
+}

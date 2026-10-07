@@ -79,7 +79,12 @@ class TestFixture {
      *
      */
     serverStop() {
+        // Node 19+ enables HTTP keep-alive by default, so the client's pooled
+        // sockets would otherwise be reused dead across server restarts
+        // (ECONNRESET). Destroy both ends deterministically per test.
+        this._server.closeAllConnections();
         this._server.close();
+        http.globalAgent.destroy();
     }
 }
 
@@ -212,7 +217,7 @@ describe('UpdateServerManager', function () {
                 await testee.getUpdateArchive({link: 'foobar'});
                 assert.fail('Expected error not thrown!');
             } catch(error) {
-                assert.equal(error.message, 'Invalid URL: foobar');
+                assert.equal(error.message, 'Invalid URL');
             }
         });
 
