@@ -174,28 +174,16 @@ class ElectronPackagerLinux extends ElectronPackager {
      */
     constructor(configuration) {
         super(configuration);
+        // Desktop-only (Fase 0.7): x86_64 + arm64. i386/armv7l/armhf dropped
+        // (upstream Electron no longer ships them). RISC-V stays conditional
+        // on upstream Electron providing riscv64 builds (none as of this phase).
         this.architectures = {
-            '32': {
-                name: 'i386',
-                suffix: 'linux_i386',
-                platform: 'linux-ia32'
-            },
             '64': {
                 name: 'amd64',
                 suffix: 'linux_amd64',
                 platform: 'linux-x64'
             },
-            'ARMv7': {
-                name: 'armv7l',
-                suffix: 'linux_armv7l',
-                platform: 'linux-armv7l'
-            },
-            'ARMHF': {
-                name: 'armhf',
-                suffix: 'linux_armhf',
-                platform: 'linux-armv7l'
-            },
-            'ARMv8': {
+            'ARM64': {
                 name: 'arm64',
                 suffix: 'linux_arm64',
                 platform: 'linux-arm64'
@@ -477,19 +465,9 @@ class ElectronPackagerWindows extends ElectronPackager {
      */
     constructor(configuration) {
         super(configuration);
+        // Desktop-only (Fase 0.7): x86_64 + arm64. i386 dropped
+        // (upstream Electron deprecated it).
         this.architectures = {
-            '32': {
-                is: {
-                    name: 'i386',
-                    suffix: 'windows-setup_i386',
-                    platform: 'win32-ia32'
-                },
-                zip: {
-                    name: 'i386',
-                    suffix: 'windows-portable_i386',
-                    platform: 'win32-ia32'
-                }
-            },
             '64': {
                 is: {
                     name: 'amd64',
@@ -500,6 +478,18 @@ class ElectronPackagerWindows extends ElectronPackager {
                     name: 'amd64',
                     suffix: 'windows-portable_amd64',
                     platform: 'win32-x64'
+                }
+            },
+            'ARM64': {
+                is: {
+                    name: 'arm64',
+                    suffix: 'windows-setup_arm64',
+                    platform: 'win32-arm64'
+                },
+                zip: {
+                    name: 'arm64',
+                    suffix: 'windows-portable_arm64',
+                    platform: 'win32-arm64'
                 }
             }
         };
@@ -536,12 +526,14 @@ class ElectronPackagerWindows extends ElectronPackager {
     async buildIS(architecture) {
         this._architecture = this.architectures[architecture].is;
 
-        await this._validateCommands('7z --help', 'asar --version', 'innosetup-compiler /?');
+        // NOTE: `innosetup-compiler /?` exits non-zero by design, so probe presence instead.
+        await this._validateCommands('7z --help', 'asar --version', 'where innosetup-compiler');
 
         await fs.remove(this._dirBuildRoot);
         await this._bundleElectron(false);
         await this._editResource();
-        let setup = this._createScriptIS(architecture === '64');
+        // All remaining architectures are 64-bit (i386 was dropped in Fase 0.7).
+        let setup = this._createScriptIS(true);
 
         await this._executeCommand(`innosetup-compiler "${setup}"`);
         await fs.remove(setup);
@@ -661,12 +653,25 @@ class ElectronPackagerDarwin extends ElectronPackager {
      */
     constructor(configuration) {
         super(configuration);
+        // Desktop-only (Fase 0.7): x86_64 now, arm64 declared (see main()).
+        // Minimum macOS version follows the Electron/Chromium target and is
+        // set with the Fase 1 upgrade (LSMinimumSystemVersion below is the
+        // pre-upgrade value, kept intentionally). Notarization is OPTIONAL:
+        // it needs a paid Apple Developer account; without it macOS users
+        // bypass Gatekeeper manually. Not a prerequisite for any phase.
         this.architectures = {
             '64': {
                 dmg: {
                     name: 'amd64',
                     suffix: 'macos_amd64',
                     platform: 'darwin-x64'
+                }
+            },
+            'ARM64': {
+                dmg: {
+                    name: 'arm64',
+                    suffix: 'macos_arm64',
+                    platform: 'darwin-arm64'
                 }
             }
         };
@@ -822,23 +827,22 @@ async function main() {
     if(process.platform === 'win32') {
         let packager = new ElectronPackagerWindows(config);
         await packager.buildIS('64');
-        await packager.buildIS('32');
+        await packager.buildIS('ARM64');
         await packager.buildZIP('64');
-        await packager.buildZIP('32');
+        await packager.buildZIP('ARM64');
     }
     if(process.platform === 'linux') {
         let packager = new ElectronPackagerLinux(config);
         await packager.buildDEB('64');
-        await packager.buildDEB('32');
-        await packager.buildDEB('ARMv8');
-        await packager.buildDEB('ARMHF');
-        await packager.buildDEB('ARMv7');
+        await packager.buildDEB('ARM64');
         await packager.buildRPM('64');
-        await packager.buildRPM('32');
+        await packager.buildRPM('ARM64');
     }
     if(process.platform === 'darwin') {
         let packager = new ElectronPackagerDarwin(config);
         await packager.buildDMG('64');
+        // TODO(Fase 1): + await packager.buildDMG('ARM64') once Electron >= 11
+        // (darwin-arm64 has no 8.x build upstream — 404 as of this phase).
     }
 }
 

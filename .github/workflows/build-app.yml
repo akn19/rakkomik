@@ -1,0 +1,50 @@
+# https://help.github.com/en/articles/workflow-syntax-for-github-actions
+# https://help.github.com/en/articles/contexts-and-expression-syntax-for-github-actions
+
+name: Build Desktop Installers
+
+on:
+  push:
+    branches:
+      - master
+      - '*.*.*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macOS-latest]
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ github.ref }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - name: Install NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install packages
+        run: pnpm install
+      - name: Install packaging tools (Linux)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: sudo apt-get update && sudo apt-get install -y fakeroot lintian rpm unzip
+      - name: Lint
+        run: pnpm run lint
+      - name: Check deprecated dependencies
+        run: pnpm run check:deprecated
+      - name: Build (app)
+        run: pnpm run build:app
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: build/*
+          if-no-files-found: error
