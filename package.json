@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@electron/asar": "4.3.1",
-    "electron": "14.2.9",
+    "electron": "25.9.8",
     "fs-extra": "11.4.1",
     "innosetup-compiler": "6.3.1",
     "jest": "30.5.2",

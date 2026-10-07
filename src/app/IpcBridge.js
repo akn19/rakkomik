@@ -12,10 +12,27 @@ module.exports = class IpcBridge {
     }
 
     register() {
-        // Synchronous: legacy call sites (Storage, Settings) need the value inline.
+        // Synchronous: legacy call sites (Storage, Settings, preload) need values inline.
         electron.ipcMain.on('hakuneko:app:getPath', (event, name) => {
             event.returnValue = electron.app.getPath(name);
         });
+        electron.ipcMain.on('hakuneko:app:platform', event => {
+            event.returnValue = process.platform;
+        });
+        electron.ipcMain.on('hakuneko:app:env', event => {
+            event.returnValue = { HAKUNEKO_PORTABLE: process.env.HAKUNEKO_PORTABLE };
+        });
+        electron.ipcMain.on('hakuneko:os:tmpdir', event => {
+            event.returnValue = require('os').tmpdir();
+        });
+        electron.ipcMain.on('hakuneko:path:sep', event => {
+            event.returnValue = require('path').sep;
+        });
+        for (const method of ['join', 'dirname', 'basename', 'extname', 'parse', 'normalize']) {
+            electron.ipcMain.on(`hakuneko:path:${method}`, (event, ...args) => {
+                event.returnValue = require('path')[method](...args);
+            });
+        }
         electron.ipcMain.handle('hakuneko:dialog:showMessageBox', async (event, options) => {
             // dialog.showMessageBox resolves to a button index on old Electron
             // and to { response, checkboxChecked } on new ones — normalize to

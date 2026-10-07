@@ -83,44 +83,71 @@ module.exports = class ElectronBootstrap {
         });
     }
 
+    // Explicit MIME map for protocol.handle (Fase 1 Slice D). The legacy
+    // registerBufferProtocol relied on Chromium content sniffing ("autodetect")
+    // which no longer exists; module scripts additionally require an explicit
+    // JavaScript MIME type. Extensionless connector icons fall back to
+    // application/octet-stream (still rendered by <img>).
+    _mimeType(file) {
+        if(file.endsWith('.mjs') || file.endsWith('.js')) {
+            return 'text/javascript';
+        }
+        if(file.endsWith('.html')) {
+            return 'text/html';
+        }
+        if(file.endsWith('.json') || file.endsWith('.map')) {
+            return 'application/json';
+        }
+        if(file.endsWith('.png')) {
+            return 'image/png';
+        }
+        if(file.endsWith('.ico')) {
+            return 'image/x-icon';
+        }
+        if(file.endsWith('.woff2')) {
+            return 'font/woff2';
+        }
+        return 'application/octet-stream';
+    }
+
     /**
      *
      */
     _registerCacheProtocol() {
-        electron.protocol.registerBufferProtocol(this._configuration.applicationProtocol, async (request, callback) => {
+        electron.protocol.handle(this._configuration.applicationProtocol, async request => {
             try {
                 let uri = new URL(request.url);
                 let endpoint = path.join(this._directoryMap[uri.hostname], path.normalize(uri.pathname));
                 if(!await fs.exists(endpoint)) {
-                    throw -6; // https://cs.chromium.org/chromium/src/net/base/net_error_list.h
+                    return new Response('Not Found', { status: 404 });
                 }
                 let stats = await fs.stat(endpoint);
-                let mime;
-                let buffer;
                 if(stats.isDirectory()) {
-                    mime = 'application/json';
-                    buffer = Buffer.from(JSON.stringify(await fs.readdir(endpoint)));
+                    let buffer = Buffer.from(JSON.stringify(await fs.readdir(endpoint)));
+                    return new Response(buffer, { headers: { 'Content-Type': 'application/json' } });
                 }
-                if(stats.isFile()) {
-                    mime = endpoint.endsWith('.mjs') ? 'text/javascript' : undefined;
-                    buffer = await fs.readFile(endpoint);
-                }
-                callback({
-                    mimeType: mime, // leaving this blank seems to use autodetect
-                    data: buffer
-                });
+                let buffer = await fs.readFile(endpoint);
+                return new Response(buffer, { headers: { 'Content-Type': this._mimeType(endpoint) } });
             } catch(error) {
-                callback(error);
+                this._logger.warn(error);
+                return new Response('Internal Error', { status: 500 });
             }
         });
     }
 
     _registerConnectorProtocol() {
-        electron.protocol.registerBufferProtocol(this._configuration.connectorProtocol, async (request, callback) => {
+        electron.protocol.handle(this._configuration.connectorProtocol, async request => {
             try {
-                callback(await this._ipcSend('on-connector-protocol-handler', request));
+                // Only the URL is serializable (the legacy handler received the
+                // whole request object via remote); the renderer only uses it.
+                let result = await this._ipcSend('on-connector-protocol-handler', { url: request.url });
+                if(!result || !result.data) {
+                    return new Response('Not Found', { status: 404 });
+                }
+                return new Response(result.data, { headers: { 'Content-Type': result.mimeType || 'application/octet-stream' } });
             } catch(error) {
-                callback(undefined);
+                this._logger.warn(error);
+                return new Response('Not Found', { status: 404 });
             }
         });
     }

@@ -1,28 +1,26 @@
+// Only require('electron') is available here: preloads run sandboxed on new
+// Electron (module not found: path/os otherwise). Everything platform-specific
+// is computed in main via synchronous IPC (same modules, same platform).
 const { contextBridge, ipcRenderer } = require('electron');
-const path = require('path');
-const os = require('os');
 
 // Renderer-facing bridge (Fase 1: remote -> preload + IPC).
-// Slice C: contextBridge + sync path/os helpers (same modules, same platform).
 // Synchronous (sendSync) where legacy call sites need values inline,
 // Promise-based (invoke) everywhere else. Binary payloads cross IPC as
 // Uint8Array (structured clone).
 contextBridge.exposeInMainWorld('hakuneko', {
-    platform: process.platform,
-    env: {
-        HAKUNEKO_PORTABLE: process.env.HAKUNEKO_PORTABLE
-    },
+    platform: ipcRenderer.sendSync('hakuneko:app:platform'),
+    env: ipcRenderer.sendSync('hakuneko:app:env'),
     os: {
-        tmpdir: os.tmpdir()
+        tmpdir: ipcRenderer.sendSync('hakuneko:os:tmpdir')
     },
     path: {
-        sep: path.sep,
-        join: (...parts) => path.join(...parts),
-        dirname: p => path.dirname(p),
-        basename: (p, ext) => path.basename(p, ext),
-        extname: p => path.extname(p),
-        parse: p => ({ ...path.parse(p) }),
-        normalize: p => path.normalize(p)
+        sep: ipcRenderer.sendSync('hakuneko:path:sep'),
+        join: (...parts) => ipcRenderer.sendSync('hakuneko:path:join', ...parts),
+        dirname: p => ipcRenderer.sendSync('hakuneko:path:dirname', p),
+        basename: (p, ext) => ipcRenderer.sendSync('hakuneko:path:basename', p, ext),
+        extname: p => ipcRenderer.sendSync('hakuneko:path:extname', p),
+        parse: p => ipcRenderer.sendSync('hakuneko:path:parse', p),
+        normalize: p => ipcRenderer.sendSync('hakuneko:path:normalize', p)
     },
     fs: {
         existsSync: p => ipcRenderer.sendSync('hakuneko:fs:existsSync', p),
