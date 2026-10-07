@@ -1,6 +1,6 @@
 const http = require('http');
 const path = require('path');
-const fs = require('fs-extra');
+const fs = require('fs');
 const assert = require('assert');
 const { FileLogger } = require('../Logger');
 const UpdateServerManager = require('../UpdateServerManager');
@@ -75,7 +75,7 @@ class TestFixture {
 
     deleteMockDirectory() {
         try {
-            fs.removeSync(this.applicationCacheDirectory);
+            fs.rmSync(this.applicationCacheDirectory, { recursive: true, force: true });
         } catch(error) {
             logger.error('[TestFixture] Failed to delete (mock) cache directory!', error);
         }
@@ -83,7 +83,7 @@ class TestFixture {
 
     createMockDirectory() {
         try {
-            fs.ensureDirSync(path.join(this.applicationCacheDirectory, 'directory'), '0755');
+            fs.mkdirSync(path.join(this.applicationCacheDirectory, 'directory'), { recursive: true });
             fs.writeFileSync(this.version.file, this.version.content);
             fs.writeFileSync(this.dummy.file, this.dummy.content);
         } catch(error) {

@@ -1,6 +1,6 @@
 const path = require('path');
 const os = require('os');
-const fs = require('fs-extra');
+const fs = require('fs/promises');
 const exec = require('child_process').exec;
 const config = require('./deploy-web.config');
 
@@ -103,7 +103,7 @@ async function main() {
         let directory = path.resolve(config.build);
         await publishRelease(tag, [path.join(directory, archive), path.join(directory, config.meta)]);
     } finally {
-        await fs.remove(path.dirname(keyFile));
+        await fs.rm(path.dirname(keyFile), { recursive: true, force: true });
     }
 }
 

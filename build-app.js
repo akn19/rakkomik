@@ -1,5 +1,5 @@
 const path = require('path');
-const fs = require('fs-extra');
+const fs = require('fs');
 const zlib = require('zlib');
 const asar = require('@electron/asar');
 const https = require('https');
@@ -118,11 +118,11 @@ class ElectronPackager {
         if(!fs.existsSync(file)) {
             await this._download(uri, file);
         }
-        await fs.ensureDir(directory);
+        await fs.promises.mkdir(directory, { recursive: true });
         await this._extractArchive(file, directory);
-        await fs.remove(path.join(directory, 'version'));
-        await fs.remove(path.join(directory, 'LICENSE'));
-        await fs.remove(path.join(directory, 'LICENSES.chromium.html'));
+        await fs.promises.rm(path.join(directory, 'version'), { recursive: true, force: true });
+        await fs.promises.rm(path.join(directory, 'LICENSE'), { recursive: true, force: true });
+        await fs.promises.rm(path.join(directory, 'LICENSES.chromium.html'), { recursive: true, force: true });
     }
 
     /**
@@ -223,7 +223,7 @@ class ElectronPackagerLinux extends ElectronPackager {
 
         await this._validateCommands('unzip --help', 'asar --version', 'fakeroot --version', 'dpkg --version', 'lintian --version');
 
-        await fs.remove(this._dirBuildRoot);
+        await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._copySkeletonDEB();
         await this._bundleElectron();
         this._createManpage();
@@ -236,7 +236,7 @@ class ElectronPackagerLinux extends ElectronPackager {
         await this._createChecksumsDEB();
 
         let deb = this._dirBuildRoot + '.deb';
-        await fs.remove(deb);
+        await fs.promises.rm(deb, { recursive: true, force: true });
         await this._executeCommand(`fakeroot dpkg-deb -v -b "${this._dirBuildRoot}" "${deb}"`);
         await this._executeCommand(`lintian --profile debian "${deb}" || true`);
     }
@@ -249,7 +249,7 @@ class ElectronPackagerLinux extends ElectronPackager {
 
         await this._validateCommands('unzip --help', 'asar --version', 'fakeroot --version', 'rpm --version');
 
-        await fs.remove(this._dirBuildRoot);
+        await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._copySkeletonRPM();
         await this._bundleElectron();
         this._createManpage();
@@ -259,10 +259,10 @@ class ElectronPackagerLinux extends ElectronPackager {
         let specs = await this._createSpecsRPM();
 
         let rpm = this._dirBuildRoot + '.rpm';
-        await fs.remove(rpm);
+        await fs.promises.rm(rpm, { recursive: true, force: true });
         await this._executeCommand(`rpmbuild -bb --noclean --define "_topdir $(pwd)/${this._dirBuildRoot}" --define "buildroot %{_topdir}" "${specs}"`);
         await this._executeCommand(`mv -f ${this._dirBuildRoot}/RPMS/*/*.rpm ${rpm}`);
-        await fs.remove(specs);
+        await fs.promises.rm(specs, { recursive: true, force: true });
     }
 
     /**
@@ -272,11 +272,11 @@ class ElectronPackagerLinux extends ElectronPackager {
         console.log('Bundle electron ...');
         let folder = this._stagingExecutableDirectory;
         await this._downloadElectron(this._configuration.version, this._architecture.platform, folder);
-        await fs.remove(path.join(folder, 'resources', 'default_app.asar'));
+        await fs.promises.rm(path.join(folder, 'resources', 'default_app.asar'), { recursive: true, force: true });
         await asar.createPackage(config.src, path.join(folder, 'resources', 'app.asar'));
-        await fs.move(path.join(folder, 'electron'), path.join(folder, this._configuration.binary.linux));
+        await fs.promises.rename(path.join(folder, 'electron'), path.join(folder, this._configuration.binary.linux));
         // chmod 4755 fixes https://github.com/electron/electron/issues/17972
-        await fs.chmod(path.join(folder, 'chrome-sandbox'), '4755');
+        await fs.promises.chmod(path.join(folder, 'chrome-sandbox'), '4755');
         // remove executable flag from libraries => avoid lintian errors
         await this._executeCommand(`find "${folder}" -type f -iname "*.so" -exec chmod -x {} \\;`);
     }
@@ -287,7 +287,7 @@ class ElectronPackagerLinux extends ElectronPackager {
     async _copySkeletonDEB() {
         console.log('Copy DEB Skeleton ...');
         //await this._executeCommand(`cp -r "redist/deb" "${this._dirBuildRoot}"`);
-        await fs.copy(path.join('redist', 'deb'), this._dirBuildRoot);
+        await fs.promises.cp(path.join('redist', 'deb'), this._dirBuildRoot, { recursive: true });
     }
 
     /**
@@ -296,7 +296,7 @@ class ElectronPackagerLinux extends ElectronPackager {
     async _copySkeletonRPM() {
         console.log('Copy RPM Skeleton ...');
         //await this._executeCommand(`cp -r "redist/rpm" "${this._dirBuildRoot}"`);
-        await fs.copy(path.join('redist', 'rpm'), this._dirBuildRoot);
+        await fs.promises.cp(path.join('redist', 'rpm'), this._dirBuildRoot, { recursive: true });
     }
 
     /**
@@ -529,14 +529,14 @@ class ElectronPackagerWindows extends ElectronPackager {
         // NOTE: `innosetup-compiler /?` exits non-zero by design, so probe presence instead.
         await this._validateCommands('7z --help', 'asar --version', 'where innosetup-compiler');
 
-        await fs.remove(this._dirBuildRoot);
+        await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(false);
         await this._editResource();
         // All remaining architectures are 64-bit (i386 was dropped in Fase 0.7).
         let setup = this._createScriptIS(true);
 
         await this._executeCommand(`innosetup-compiler "${setup}"`);
-        await fs.remove(setup);
+        await fs.promises.rm(setup, { recursive: true, force: true });
     }
 
     /**
@@ -548,12 +548,12 @@ class ElectronPackagerWindows extends ElectronPackager {
 
         await this._validateCommands('7z --help', 'asar --version');
 
-        await fs.remove(this._dirBuildRoot);
+        await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(true);
         await this._editResource();
 
         let zip = this._dirBuildRoot + '.zip';
-        await fs.remove(zip);
+        await fs.promises.rm(zip, { recursive: true, force: true });
         await this._compressArchive('.\\' + this._dirBuildRoot, zip);
     }
 
@@ -565,12 +565,12 @@ class ElectronPackagerWindows extends ElectronPackager {
         console.log('Bundle electron ...');
         let folder = this._stagingExecutableDirectory;
         await this._downloadElectron(this._configuration.version, this._architecture.platform, folder);
-        await fs.remove(path.join(folder, 'resources', 'default_app.asar'));
+        await fs.promises.rm(path.join(folder, 'resources', 'default_app.asar'), { recursive: true, force: true });
         if(portable) {
             this._saveFile(path.join(folder, this._configuration.binary.windows + '.portable'), 'Delete this File to disable Portable Mode');
         }
         await asar.createPackage(config.src, path.join(folder, 'resources', 'app.asar'));
-        await fs.move(path.join(folder, 'electron.exe'), path.join(folder, this._configuration.binary.windows));
+        await fs.promises.rename(path.join(folder, 'electron.exe'), path.join(folder, this._configuration.binary.windows));
     }
 
     /**
@@ -715,14 +715,14 @@ class ElectronPackagerDarwin extends ElectronPackager {
 
         await this._validateCommands('hdiutil info');
 
-        await fs.remove(this._dirBuildRoot);
+        await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(false);
         await this._createPList();
 
         let dmg = this._dirBuildRoot + '.dmg';
-        await fs.remove(dmg);
+        await fs.promises.rm(dmg, { recursive: true, force: true });
         let tmp = this._dirBuildRoot + '.tmp';
-        await fs.remove(tmp + '.dmg');
+        await fs.promises.rm(tmp + '.dmg', { recursive: true, force: true });
         await this._executeCommand(`hdiutil create -volname "${this._configuration.name.product}" -srcfolder "${this._dirBuildRoot}" -fs "HFS+" -fsargs "-c c=64,a=16,e=16" -format "UDRW" "${tmp}"`);
         let device = (await this._executeCommand(`hdiutil attach -readwrite -noverify -noautoopen "${tmp}.dmg" | egrep '^/dev/' | sed 1q | awk '{print $1}'`)).trim();
         await this._wait(5000);
@@ -733,7 +733,7 @@ class ElectronPackagerDarwin extends ElectronPackager {
         await this._executeCommand(`hdiutil detach "${device}"`);
         await this._wait(5000);
         await this._executeCommand(`hdiutil convert "${tmp}.dmg" -format "UDZO" -imagekey zlib-level=9 -o "${dmg}"`);
-        await fs.remove(tmp + '.dmg');
+        await fs.promises.rm(tmp + '.dmg', { recursive: true, force: true });
     }
 
     /**
@@ -743,14 +743,14 @@ class ElectronPackagerDarwin extends ElectronPackager {
         console.log('Bundle electron ...');
         let folder = path.join(this._dirBuildRoot, 'Electron.app', 'Contents');
         await this._downloadElectron(this._configuration.version, this._architecture.platform, this._dirBuildRoot);
-        await fs.remove(path.join(folder, 'Resources', 'default_app.asar'));
+        await fs.promises.rm(path.join(folder, 'Resources', 'default_app.asar'), { recursive: true, force: true });
         await asar.createPackage(config.src, path.join(folder, 'Resources', 'app.asar'));
-        await fs.move(path.join(folder, 'MacOS', 'Electron'), path.join(folder, 'MacOS', this._configuration.binary.darwin));
-        await fs.remove(path.join(folder, 'Resources', 'electron.icns'));
-        await fs.copy('res/icon.icns', path.join(folder, 'Resources', this._configuration.binary.darwin + '.icns'));
-        await fs.ensureDir(path.join(this._dirBuildRoot, '.images'));
-        await fs.copy('res/OSXSetup.png', path.join(this._dirBuildRoot, '.images', 'OSXSetup.png'));
-        await fs.move(path.join(this._dirBuildRoot, 'Electron.app'), path.join(this._dirBuildRoot, this._configuration.name.product + '.app'));
+        await fs.promises.rename(path.join(folder, 'MacOS', 'Electron'), path.join(folder, 'MacOS', this._configuration.binary.darwin));
+        await fs.promises.rm(path.join(folder, 'Resources', 'electron.icns'), { recursive: true, force: true });
+        await fs.promises.cp('res/icon.icns', path.join(folder, 'Resources', this._configuration.binary.darwin + '.icns'), { recursive: true });
+        await fs.promises.mkdir(path.join(this._dirBuildRoot, '.images'), { recursive: true });
+        await fs.promises.cp('res/OSXSetup.png', path.join(this._dirBuildRoot, '.images', 'OSXSetup.png'), { recursive: true });
+        await fs.promises.rename(path.join(this._dirBuildRoot, 'Electron.app'), path.join(this._dirBuildRoot, this._configuration.name.product + '.app'));
     }
 
     /**

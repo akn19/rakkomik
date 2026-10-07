@@ -18,7 +18,7 @@ export default class Storage {
     // TODO: use dependency injection instead of globals for EbookGenerator
     constructor() {
         // Fase 1 Slice C: filesystem/paths via preload bridge (window.hakuneko).
-        // TODO: Use fs-extra which provides more convenience functions (e.g. delete recursive)
+        // TODO: Use recursive native fs helpers where bulk operations are needed
         this.dialog = window.hakuneko.dialog;
         this.platform = window.hakuneko.platform;
         this.shell = window.hakuneko.shell;

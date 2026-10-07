@@ -1,8 +1,8 @@
 const path = require('path');
 const Configuration = require('../Configuration.js');
 
-jest.mock('fs-extra');
-const fs = require('fs-extra');
+jest.mock('fs');
+const fs = require('fs');
 
 jest.mock('electron', () => {
     return {

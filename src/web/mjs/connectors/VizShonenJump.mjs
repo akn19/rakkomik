@@ -280,7 +280,16 @@ export default class VizShonenJump extends Connector {
             response = await fetch(request);
             const blob = await response.blob();
             const bitmap = await createImageBitmap(blob);
-            const exif = EXIF.readFromBinaryFile(await blob.arrayBuffer());
+            // Image dimensions equal the bitmap dimensions (no orientation applied),
+            // the shuffle map is the only datum without a native equivalent.
+            const exif = {
+                ImageWidth: bitmap.width,
+                ImageHeight: bitmap.height,
+                ImageUniqueID: this._getImageUniqueID(await blob.arrayBuffer())
+            };
+            if(!exif.ImageUniqueID) {
+                throw new Error('Failed to retrieve image data. Please report at https://github.com/manga-download/hakuneko/issues');
+            }
 
             let canvas = document.createElement('canvas');
             canvas.width = exif.ImageWidth;
@@ -336,6 +345,82 @@ export default class VizShonenJump extends Connector {
             return this._blobToBuffer(data);
         } catch (error) {
             throw new Error('Failed to retrieve image data. Please report at https://github.com/manga-download/hakuneko/issues');
+        }
+    }
+
+    /**
+     * Minimal EXIF reader for the ImageUniqueID tag (0xA420, ASCII) inside the
+     * EXIF sub-IFD (0x8769). Replaces exif-js for this connector; returns the
+     * tag value or null when absent/unparseable.
+     */
+    _getImageUniqueID(buffer) {
+        try {
+            let view = new DataView(buffer);
+            // JPEG SOI + segment scan for APP1 (Exif)
+            if(view.getUint16(0) !== 0xFFD8) {
+                return null;
+            }
+            let offset = 2;
+            let tiff = null;
+            while(offset + 4 < view.byteLength) {
+                if(view.getUint8(offset) !== 0xFF) {
+                    break;
+                }
+                let marker = view.getUint8(offset + 1);
+                let length = view.getUint16(offset + 2);
+                if(marker === 0xE1 && length > 8
+                    && view.getUint32(offset + 4) === 0x45786966 // 'Exif'
+                    && view.getUint16(offset + 8) === 0x0000) {
+                    tiff = offset + 10;
+                    break;
+                }
+                if(marker === 0xDA) { // start of scan: no metadata beyond
+                    break;
+                }
+                offset += 2 + length;
+            }
+            if(tiff === null) {
+                return null;
+            }
+            // NOTE: helpers take absolute file offsets; stored numbers that
+            // are TIFF-relative offsets get tiff added at use (ifd0, sub-IFD,
+            // string value). Short ASCII values live inline at the entry.
+            let little = view.getUint16(tiff) === 0x4949; // 'II' vs 'MM'
+            let get16 = at => little ? view.getUint16(at, true) : view.getUint16(at);
+            let get32 = at => little ? view.getUint32(at, true) : view.getUint32(at);
+            let readASCII = (at, count) => {
+                let chars = [];
+                for(let i = 0; i < count; i++) {
+                    chars.push(String.fromCharCode(view.getUint8(at + i)));
+                }
+                return chars.join('').replace(/\0.*$/, '');
+            };
+            let findTag = ifd => {
+                let count = get16(ifd);
+                for(let i = 0; i < count; i++) {
+                    let entry = ifd + 2 + i * 12;
+                    if(get16(entry) === 0xA420 && get16(entry + 2) === 2) { // ASCII
+                        let count = get32(entry + 4);
+                        let value = get32(entry + 8);
+                        return readASCII(count <= 4 ? entry + 8 : tiff + value, count);
+                    }
+                }
+                return null;
+            };
+            let ifd0 = tiff + get32(tiff + 4);
+            // EXIF sub-IFD first, plain IFD0 as fallback
+            let count = get16(ifd0);
+            for(let i = 0; i < count; i++) {
+                if(get16(ifd0 + 2 + i * 12) === 0x8769) {
+                    let sub = findTag(tiff + get32(ifd0 + 2 + i * 12 + 8));
+                    if(sub) {
+                        return sub;
+                    }
+                }
+            }
+            return findTag(ifd0);
+        } catch(error) {
+            return null;
         }
     }
 

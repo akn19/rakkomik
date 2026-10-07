@@ -4,8 +4,8 @@ const CacheDirectoryManager = require('../CacheDirectoryManager');
 var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
 logger.clear();
 
-jest.mock('fs-extra');
-const fs = require('fs-extra');
+jest.mock('fs/promises');
+const fs = require('fs/promises');
 
 jest.mock('jszip');
 const jszip = require('jszip');
@@ -44,7 +44,7 @@ describe('CacheDirectoryManager', function () {
 
     describe('_extractZipEntry()', function () {
         it('should skip directory entries', async () => {
-            fs.ensureDir.mockReturnValueOnce(Promise.resolve());
+            fs.mkdir.mockReturnValueOnce(Promise.resolve());
             fs.writeFile.mockReturnValueOnce(Promise.resolve());
             let archiveMock = {
                 files: {
@@ -56,12 +56,12 @@ describe('CacheDirectoryManager', function () {
             };
             let testee = new CacheDirectoryManager('/cache', logger);
             await testee._extractZipEntry(archiveMock, '/cache', 'dir/sub');
-            expect(fs.ensureDir).not.toHaveBeenCalled();
+            expect(fs.mkdir).not.toHaveBeenCalled();
             expect(fs.writeFile).not.toHaveBeenCalled();
             expect(archiveMock.files['dir/sub'].async).not.toHaveBeenCalled();
         });
         it('should create directory and extract file', async () => {
-            fs.ensureDir.mockReturnValueOnce(Promise.resolve());
+            fs.mkdir.mockReturnValueOnce(Promise.resolve());
             fs.writeFile.mockReturnValueOnce(Promise.resolve());
             let archiveMock = {
                 files: {
@@ -73,8 +73,8 @@ describe('CacheDirectoryManager', function () {
             };
             let testee = new CacheDirectoryManager('/cache', logger);
             await testee._extractZipEntry(archiveMock, '/cache', 'dir/sub/file');
-            expect(fs.ensureDir).toHaveBeenCalledTimes(1);
-            expect(fs.ensureDir).toHaveBeenLastCalledWith(path.normalize('/cache/dir/sub'));
+            expect(fs.mkdir).toHaveBeenCalledTimes(1);
+            expect(fs.mkdir).toHaveBeenLastCalledWith(path.normalize('/cache/dir/sub'), { recursive: true });
             expect(fs.writeFile).toHaveBeenCalledTimes(1);
             expect(fs.writeFile).toHaveBeenLastCalledWith(path.normalize('/cache/dir/sub/file'), 'RAW BYTES');
             expect(archiveMock.files['dir/sub/file'].async).toHaveBeenCalledTimes(1);
@@ -93,7 +93,7 @@ describe('CacheDirectoryManager', function () {
             } catch(error) {
                 expect(loadAsyncMock).toHaveBeenCalledTimes(1);
                 expect(loadAsyncMock).toHaveBeenLastCalledWith('ARCHIVE BYTES', {});
-                expect(fs.remove).not.toHaveBeenCalled();
+                expect(fs.rm).not.toHaveBeenCalled();
                 expect(fs.writeFile).not.toHaveBeenCalled();
                 expect(testee._extractZipEntry).not.toHaveBeenCalled();
             }
@@ -112,8 +112,8 @@ describe('CacheDirectoryManager', function () {
             await testee.applyUpdateArchive('1.0.0', 'ARCHIVE BYTES');
             expect(loadAsyncMock).toHaveBeenCalledTimes(1);
             expect(loadAsyncMock).toHaveBeenLastCalledWith('ARCHIVE BYTES', {});
-            expect(fs.remove).toHaveBeenCalled();
-            expect(fs.remove).toHaveBeenLastCalledWith(path.normalize('/cache'));
+            expect(fs.rm).toHaveBeenCalled();
+            expect(fs.rm).toHaveBeenLastCalledWith(path.normalize('/cache'), { recursive: true, force: true });
             expect(fs.writeFile).toHaveBeenCalled();
             expect(fs.writeFile).toHaveBeenLastCalledWith(path.normalize('/cache/version'), '1.0.0');
             expect(testee._extractZipEntry).toHaveBeenCalledTimes(3);

@@ -1,5 +1,5 @@
 const path = require('path');
-const fs = require('fs-extra');
+const fs = require('fs/promises');
 const exec = require('child_process').exec;
 const vinyl = require('vinyl-fs');
 const mergeStream = require('merge-stream');
@@ -83,7 +83,7 @@ async function createVersionInfo(file) {
 
 async function main() {
     let stashID = await gitStashPush();
-    await fs.remove(config.target);
+    await fs.rm(config.target, { recursive: true, force: true });
     await polymerBuild(config.polymer);
     await createVersionInfo(path.join(config.target, config.version));
     await gitStashPop(stashID);

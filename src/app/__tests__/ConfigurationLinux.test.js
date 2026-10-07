@@ -1,8 +1,8 @@
 const path = require('path');
 const Configuration = require('../ConfigurationLinux.js');
 
-jest.mock('fs-extra');
-const fs = require('fs-extra');
+jest.mock('fs');
+const fs = require('fs');
 
 jest.mock('electron', () => {
     let path = require('path');

@@ -1,5 +1,5 @@
 const path = require('path');
-const fs = require('fs-extra');
+const fs = require('fs/promises');
 const jszip = require('jszip');
 const { ConsoleLogger } = require('./Logger');
 
@@ -33,7 +33,7 @@ module.exports = class CacheDirectoryManager {
         if(!archive.files[entry].dir) {
             let file = path.join(directory, entry);
             this._logger.verbose('Extracting:', file);
-            return fs.ensureDir(path.dirname(file))
+            return fs.mkdir(path.dirname(file), { recursive: true })
                 .then(() => archive.files[entry].async('uint8array'))
                 .then(data => fs.writeFile(file, data));
         } else {
@@ -59,7 +59,7 @@ module.exports = class CacheDirectoryManager {
     async applyUpdateArchive(version, data) {
         let zip = new jszip();
         let archive = await zip.loadAsync(data, {});
-        await fs.remove(this._applicationCacheDirectory);
+        await fs.rm(this._applicationCacheDirectory, { recursive: true, force: true });
         let entries = Object.keys(archive.files);
         let promises = entries.map(entry => this._extractZipEntry(archive, this._applicationCacheDirectory, entry));
         await Promise.all(promises);
