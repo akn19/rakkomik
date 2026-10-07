@@ -2,6 +2,19 @@
 
 > Pasangan dari `MODERNIZATION-AUDIT.md` (baca itu dulu — dokumen ini mengatur CARA kerja, audit mengatur APA yang dikerjakan).
 > Repo ini BUKAN hasil rewrite, melainkan titik awal (clone murni HakuNeko). Fase dikerjakan berurutan, satu fase per sesi tugas.
+>
+> ## Status fase (tag git `fase-*` = selesai; tabel ini = cermin)
+>
+> | Fase | Status | Penanda |
+> |---|---|---|
+> | 0 Persiapan | ✅ selesai | `fase-0` |
+> | 0.5 Skope cut | ✅ selesai | `fase-0.5` |
+> | 0.6 Distribusi | ✅ selesai | `fase-0.6` |
+> | 0.7 Matriks build | ✅ selesai | `fase-0.7` |
+> | 1 Runtime Electron 44 | 🔶 kode selesai, verifikasi situs-live tertunda (sandbox) | — |
+> | 2 Lib → native | 🔶 parsial (fs-extra/oauth/exif ✅, crypto-js ⏳) | — |
+> | 3 Build Vite | ⬜ belum | — |
+> | 4 UI React | ⬜ belum | — |
 
 ## 0. Aturan operasi global (tidak bisa ditawar)
 
