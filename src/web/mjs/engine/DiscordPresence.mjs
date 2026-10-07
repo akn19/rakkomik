@@ -1,13 +1,8 @@
-const discordPresenceId = '726702836775256094';
-const DiscordRPC = require('discord-rpc');
-DiscordRPC.register(discordPresenceId);
-
 export default class DiscordPresence {
 
     constructor(settings) {
-        this.rpc = null;
         this.updater = null;
-        this.IpcBytes = 0; // keep track of IPC connection
+        this.statusNew = false;
 
         this._settings = settings; // Engine.Settings
         this.enabled = false;
@@ -22,7 +17,6 @@ export default class DiscordPresence {
             largeImageKey: 'logo',
             largeImageText: 'Manga & Anime Downloader for Linux, Windows & MacOS'
         };
-        this.statusNew = true;
 
         // EventListener
         document.addEventListener( EventListener.onSelectConnector, this._onSelectConnector.bind(this) );
@@ -30,15 +24,15 @@ export default class DiscordPresence {
         document.addEventListener( EventListener.onSelectChapter, this._onSelectChapter.bind(this) );
     }
 
-    _onSettingsChanged() {
+    async _onSettingsChanged() {
         this.enabled = this._settings.discordPresence.value !== 'none';
         this.enabledHentai = this._settings.discordPresence.value === 'hentai';
 
         if (this.enabled) {
             this.statusNew = true;
-            this.startDiscordPresence();
+            await this.startDiscordPresence();
         } else {
-            this.stopDiscordPresence();
+            await this.stopDiscordPresence();
         }
     }
 
@@ -48,7 +42,7 @@ export default class DiscordPresence {
         if (this.status.state) delete this.status.state;
         this.status.startTimestamp = + new Date();
         this.statusNew = true;
-        if (this.enabled && !this.rpc) this.startDiscordPresence();
+        if (this.enabled) this.startDiscordPresence();
     }
 
     _onSelectManga(event) {
@@ -57,7 +51,7 @@ export default class DiscordPresence {
         this.status['state'] = 'Looking at ' + event.detail.title;
         this.status.startTimestamp = + new Date();
         this.statusNew = true;
-        if (this.enabled && !this.rpc) this.startDiscordPresence();
+        if (this.enabled) this.startDiscordPresence();
     }
 
     _onSelectChapter(event) {
@@ -66,7 +60,7 @@ export default class DiscordPresence {
         this.status['state'] = event.detail.title.padEnd(2); // State min. length is 2 char
         this.status.startTimestamp = + new Date();
         this.statusNew = true;
-        if (this.enabled && !this.rpc) this.startDiscordPresence();
+        if (this.enabled) this.startDiscordPresence();
     }
 
     isThisHentai(tags) {
@@ -80,92 +74,48 @@ export default class DiscordPresence {
     }
 
     async updateStatus() {
-        if(this.rpc) {
-            if (this.enabled && this.statusNew) {
-                this.IpcBytes = this.rpc.transport.socket.bytesWritten;
-                if( !this.hentai || this.hentai && this.enabledHentai) {
-                    this.rpc.setActivity(this.status);
-                } else {
+        if(this.enabled && this.statusNew) {
+            if(!this.hentai || this.hentai && this.enabledHentai) {
+                // Fase 1 Slice C: transport lives in main (DiscordBridge);
+                // success clears the pending flag (replaces socket heuristics).
+                if(await window.hakuneko.presence.setActivity(this.status)) {
                     this.statusNew = false;
                 }
-            }
-
-            // Test if IPC is still active
-            if ( this.statusNew && this.rpc.transport.socket.bytesWritten > this.IpcBytes) {
-                this.IpcBytes = this.rpc.transport.socket.bytesWritten;
+            } else {
                 this.statusNew = false;
-            } else if (this.rpc.transport.socket.bytesWritten == this.IpcBytes && this.statusNew) {
-                console.warn('WARNING: DiscordPresence - Lost connection to Discord.');
-                this.stopDiscordPresence();
             }
         }
     }
 
-    stopDiscordPresence() {
+    async stopDiscordPresence() {
         this.statusNew = false;
         clearInterval(this.updater);
-        if (this.rpc) {
-            this.rpc.clearActivity();
-            this.rpc.destroy();
-        }
-        this.rpc = null;
+        this.updater = null;
+        await window.hakuneko.presence.clearAndDestroy();
     }
 
     async startDiscordPresence() {
-        if(this.rpc) {
-            return; // already running ...
-        }
-        this.rpc = new DiscordRPC.Client({ transport: 'ipc' });
-        this.rpc.on('ready', () => {
+        // NOTE: main side is idempotent, safe to call on every selection event
+        if(await window.hakuneko.presence.ensureStarted()) {
             this.status.startTimestamp = + new Date();
 
             // some delay for Discord to be receptive
-            setTimeout( () => {
+            setTimeout(() => {
                 this.updateStatus();
             }, 2000);
 
             // activity can only be set every 15 seconds (API limit)
-            this.updater = setInterval(() => {
-                this.updateStatus();
-            }, 15200);
-        });
-
-        try {
-            await this.rpc.login({ clientId: discordPresenceId });
-        } catch (error) {
-            if (typeof error !== 'undefined') { // discord-rpc error handling
-                if (/Could not connect/i.test(error.message)) {
-                    console.warn('WARNING: DiscordPresence - Could not connect (Is Discord running?)');
-                    return;
-                }
-
-                if (/RPC_CONNECTION_TIMEOUT/i.test(error.message)) {
-                    console.warn('WARNING: DiscordPresence - RPC connection timed out.');
-                    // Reset
-                    this.rpc = null;
-
-                    // Waiting delay for Discord API to allow new connection
-                    setTimeout( () => {
-                        // Re-evaluate if enabled
-                        this._onSettingsChanged();
-                    }, 120000);
-
-                    return;
-                }
-
-                throw error; // Unknown error
-
-            } else { // Javascript error handling
-                console.warn('WARNING: DiscordPresence - Connection was closed unexpectedly.');
-                // Reset
-                this.rpc = null;
-
-                // Waiting delay for Discord API to allow new connection
-                setTimeout( () => {
-                    // Re-evaluate if still enabled
-                    this._onSettingsChanged();
+            if(!this.updater) {
+                this.updater = setInterval(() => {
+                    this.updateStatus();
                 }, 15200);
             }
+        } else {
+            // Waiting delay for Discord API to allow new connection
+            setTimeout(() => {
+                // Re-evaluate if enabled
+                this._onSettingsChanged();
+            }, 120000);
         }
     }
 }

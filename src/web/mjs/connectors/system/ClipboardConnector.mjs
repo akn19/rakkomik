@@ -15,7 +15,7 @@ export default class ClipboardConnector {
         this.tags = [];
         this.url = undefined;
 
-        this.clipboard = require('electron').clipboard;
+        this.clipboard = window.hakuneko.clipboard;
         this.mangaCache = [];
     }
 
@@ -44,7 +44,7 @@ export default class ClipboardConnector {
      *
      */
     async _getMangaList(callback) {
-        let text = this.clipboard.readText();
+        let text = await this.clipboard.readText();
         let promises = !text ? [] : text.split(/\r?\n/).map(async line => {
             try {
                 let uri = new URL(line);

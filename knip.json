@@ -14,6 +14,7 @@
         "src/web/mjs/engine/HistoryWorker.mjs"
     ],
     "ignoreDependencies": [
+        "discord-rpc",
         "pino",
         "innosetup-compiler",
         "jest-junit",

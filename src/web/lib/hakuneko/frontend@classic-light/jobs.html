@@ -124,7 +124,7 @@
                 super.ready();
                 // HACK: electron specific code should not be added to UI elements, but due to the
                 //       close confirmation bug this workaround is currently the best solution...
-                this.ipc = require( 'electron' ).ipcRenderer;
+                this.ipc = window.hakuneko;
                 this.popupVisibility = false;
                 this.jobList = [];
                 // register callbacks for events published by download manager

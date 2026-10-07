@@ -17,16 +17,15 @@ export default class Storage {
 
     // TODO: use dependency injection instead of globals for EbookGenerator
     constructor() {
-        // Fase 1: dialog/shell/platform/paths via preload bridge (window.hakuneko).
-        // this.fs/this.path/require('os') stay node requires until the contextIsolation flip.
+        // Fase 1 Slice C: filesystem/paths via preload bridge (window.hakuneko).
+        // TODO: Use fs-extra which provides more convenience functions (e.g. delete recursive)
         this.dialog = window.hakuneko.dialog;
         this.platform = window.hakuneko.platform;
         this.shell = window.hakuneko.shell;
-        // TODO: Use fs-extra which provides more convenience functions (e.g. delete recursive)
-        this.fs = require('fs');
-        this.path = require('path');
+        this.fs = window.hakuneko.fs;
+        this.path = window.hakuneko.path;
         this.config = this.path.join(window.hakuneko.app.getPath('userData'), 'hakuneko.');
-        this.temp = this.path.join(require('os').tmpdir(), 'hakuneko');
+        this.temp = this.path.join(window.hakuneko.os.tmpdir, 'hakuneko');
         this._createDirectoryChain(this.temp);
 
         this.pdfTargetHeight = 1600;
@@ -61,15 +60,7 @@ export default class Storage {
      * Save the given value for the given key in the persistant storage
      */
     saveConfig(key, value, indentation) {
-        return new Promise((resolve, reject) => {
-            this.fs.writeFile(this.config + key, JSON.stringify(value, undefined, indentation), function (error) {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve();
-                }
-            });
-        });
+        return this.fs.writeFile(this.config + key, JSON.stringify(value, undefined, indentation)).then(() => undefined);
     }
 
     /**
@@ -77,18 +68,8 @@ export default class Storage {
      */
     async loadConfig(key) {
         //return fetch( this.config + key ).then( response => response.json() );
-        return new Promise((resolve, reject) => {
-            this.fs.readFile(this.config + key, 'utf8', (error, data) => {
-                try {
-                    if (error) {
-                        throw error;
-                    }
-                    resolve(JSON.parse(data));
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        });
+        let data = await this.fs.readFile(this.config + key, 'utf8');
+        return JSON.parse(data);
     }
 
     /**
@@ -124,21 +105,10 @@ export default class Storage {
      * Return a promise that will be fulfilled if the corresponding path is an existing directory.
      */
     async directoryExist(path) {
-        return new Promise((resolve, reject) => {
-            this.fs.stat(path, (error, stats) => {
-                try {
-                    if (error) {
-                        throw error;
-                    }
-                    if (!stats.isDirectory()) {
-                        throw new Error(`The given path "${path}" is not a directory!`);
-                    }
-                    resolve();
-                } catch (error) {
-                    reject(error);
-                }
-            });
-        });
+        let stats = await this.fs.stat(path);
+        if (!stats.isDirectory) {
+            throw new Error(`The given path "${path}" is not a directory!`);
+        }
     }
 
     /**
@@ -153,15 +123,7 @@ export default class Storage {
      * Wrapper for fs.readdir that fill return a promise instead of using a callback
      */
     _readDirectoryEntries(directory) {
-        return new Promise((resolve, reject) => {
-            this.fs.readdir(directory, (error, entries) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(entries);
-                }
-            });
-        });
+        return this.fs.readdir(directory);
     }
 
     /**
@@ -240,15 +202,7 @@ export default class Storage {
      * Return a promise with the loaded opened zip archive data
      */
     _openZipArchive(file) {
-        return new Promise((resolve, reject) => {
-            this.fs.readFile(file, (error, data) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(data);
-                }
-            });
-        })
+        return this.fs.readFile(file)
             .then(data => {
                 let zip = new JSZip();
                 return zip.loadAsync(data, {});
@@ -265,15 +219,7 @@ export default class Storage {
                 let name = this.path.join(this.temp, this.path.basename(file));
                 // attach timestamp to force reload of already existing, but overwritten temp files
                 let page = encodeURI('file://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
-                return new Promise((resolve, reject) => {
-                    this.fs.writeFile(name, data, error => {
-                        if (error) {
-                            reject(error);
-                        } else {
-                            resolve(page);
-                        }
-                    });
-                });
+                return this.fs.writeFile(name, data).then(() => page);
             });
     }
 
@@ -332,15 +278,7 @@ export default class Storage {
      * and a reference to the page list (undefined on error).
      */
     _loadChapterPagesFolder(directory) {
-        return new Promise((resolve, reject) => {
-            this.fs.readdir(directory, (error, files) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(files);
-                }
-            });
-        })
+        return this.fs.readdir(directory)
             .then(files => {
                 let pages = files.map(file => this._makeValidFileURL(directory, file));
                 return Promise.resolve(pages);
@@ -550,15 +488,7 @@ export default class Storage {
      * Wrap the async write file function into a promise
      */
     _writeFile(path, data) {
-        return new Promise((resolve, reject) => {
-            this.fs.writeFile(path, data, error => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(path);
-                }
-            });
-        });
+        return this.fs.writeFile(path, data).then(() => path);
     }
 
     async saveTempFile(name, data) {
@@ -724,13 +654,7 @@ export default class Storage {
      */
     saveBookmarks(key, value, indentation) {
         return new Promise((resolve, reject) => {
-            this.fs.writeFile(this._bookmarkOutputPath + key, JSON.stringify(value, undefined, indentation), function (error) {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve();
-                }
-            });
+            this.fs.writeFile(this._bookmarkOutputPath + key, JSON.stringify(value, undefined, indentation)).then(() => resolve(), error => reject(error));
         });
     }
 
@@ -738,17 +662,6 @@ export default class Storage {
      * Load the value for the given key from the bookmark storage
      */
     async loadBookmarks(key) {
-        return new Promise((resolve, reject) => {
-            this.fs.readFile(this._bookmarkOutputPath + key, 'utf8', (error, data) => {
-                try {
-                    if (error) {
-                        throw error;
-                    }
-                    resolve(JSON.parse(data));
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        });
+        return this.fs.readFile(this._bookmarkOutputPath + key, 'utf8').then(data => JSON.parse(data));
     }
 }

@@ -38,7 +38,7 @@ export default class Settings extends EventTarget {
     constructor() {
         super();
         let app = window.hakuneko.app;
-        let path = require('path');
+        let path = window.hakuneko.path;
         let docs = undefined;
         try {
             // on some circumstances the documents directory might not be found by electron
@@ -82,7 +82,7 @@ export default class Settings extends EventTarget {
                 'The directory where the bookmark and chaptermark files will be stored.',
                 'This setting has no effect when the application is in portable mode!'
             ].join('\n'),
-            input: process.env.HAKUNEKO_PORTABLE ? types.disabled : types.directory,
+            input: window.hakuneko.env.HAKUNEKO_PORTABLE ? types.disabled : types.directory,
             value: app.getPath('userData')
         };
 

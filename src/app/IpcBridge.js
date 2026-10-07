@@ -28,6 +28,9 @@ module.exports = class IpcBridge {
         electron.ipcMain.handle('hakuneko:shell:showItemInFolder', (event, path) => {
             electron.shell.showItemInFolder(path);
         });
+        electron.ipcMain.handle('hakuneko:clipboard:readText', () => {
+            return electron.clipboard.readText();
+        });
         electron.ipcMain.handle('hakuneko:window:minimize', event => {
             this._window(event).minimize();
         });

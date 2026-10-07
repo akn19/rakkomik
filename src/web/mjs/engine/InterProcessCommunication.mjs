@@ -1,17 +1,18 @@
 export default class InterProcessCommunication {
 
     constructor() {
-        this._ipc = require('electron').ipcRenderer;
+        // Fase 1 Slice C: main-to-renderer subscriptions via preload bridge.
+        // Replies use the dynamic response channel created by the main side.
     }
 
     listen(channel, handler) {
-        this._ipc.on(channel, async (event, responseChannelID, payload) => {
+        window.hakuneko.on(channel, async (responseChannelID, payload) => {
             try {
                 let data = await handler(payload);
-                event.sender.send(responseChannelID, data);
+                window.hakuneko.send(responseChannelID, data);
             } catch(error) {
                 console.error(error);
-                event.sender.send(responseChannelID, undefined);
+                window.hakuneko.send(responseChannelID, undefined);
             }
         });
     }

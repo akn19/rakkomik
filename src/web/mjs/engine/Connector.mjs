@@ -692,7 +692,7 @@ export default class Connector {
                 resolve({
                     mimeType: blob.type,
                     // NOTE: Uint8Array() seems slightly better than Buffer.from(), but both are blazing fast
-                    data: Buffer.from(event.target.result) // new Uint8Array( event.target.result )
+                    data: new Uint8Array(event.target.result)
                 });
             };
             reader.onerror = event => {

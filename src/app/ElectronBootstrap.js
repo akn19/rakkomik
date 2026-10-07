@@ -276,8 +276,8 @@ module.exports = class ElectronBootstrap {
             backgroundColor: '#f8f8f8',
             webPreferences: {
                 experimentalFeatures: true,
-                nodeIntegration: true,
-                contextIsolation: false, // Fase 1: flipped to true once renderer drops node requires
+                nodeIntegration: false,
+                contextIsolation: true, // Fase 1 Slice C: renderer is de-privileged, preload bridge only
                 preload: path.join(__dirname, 'preload.js'),
                 webSecurity: false // required to open local images in browser
             },
