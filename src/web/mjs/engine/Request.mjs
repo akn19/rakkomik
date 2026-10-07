@@ -5,11 +5,7 @@ export default class Request {
 
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Blacklist, Enums
     constructor(ipc, settings) {
-        // Fase 1: session/cookies/proxy/login via preload bridge + IPC.
-        // this.browser (fetch windows) still needs remote until Slice B.
-        let electron = require('electron');
-        this.electronRemote = electron.remote;
-        this.browser = this.electronRemote.BrowserWindow;
+        // Fase 1 Slice B: fetch windows run in the main process (FetchWindowManager).
         this.userAgent = HeaderGenerator.randomUA();
 
         ipc.listen('login', this._loginRequestHandler.bind(this));
@@ -207,135 +203,22 @@ export default class Request {
         };
     }
 
-    async fetchJapscan(request, preloadScript, runtimeScript, action, preferences, timeout) {
-        timeout = timeout || 60000;
-        preferences = preferences || {};
-        let preloadScriptFile = undefined;
-        if (preloadScript) {
-            preloadScriptFile = await Engine.Storage.saveTempFile(Math.random().toString(36), preloadScript);
-        }
-        let win = new this.browser({
-            show: false,
-            webPreferences: {
-                //partition: 'japscan',
-                preload: preloadScriptFile,
-                nodeIntegration: preferences.nodeIntegration || false,
-                webSecurity: preferences.webSecurity || false,
-                images: preferences.images || false
-            }
-        });
-        //win.webContents.openDevTools();
-
-        if (preferences.onBeforeRequest) {
-            win.webContents.session.webRequest.onBeforeRequest((details, callback) => {
-                if (details.webContentsId === win.webContents.id) {
-                    preferences.onBeforeRequest(details, callback);
-                } else {
-                    callback({ cancel: false });
-                }
-            });
-        }
-
-        return new Promise((resolve, reject) => {
-            let preventCallback = false;
-
-            let abortAction = setTimeout(() => {
-                this._fetchUICleanup(win, abortAction);
-                if (!preventCallback) {
-                    reject(new Error(`Failed to load "${request.url}" within the given timeout of ${Math.floor(timeout / 1000)} seconds!`));
-                }
-            }, timeout);
-
-            win.webContents.on('dom-ready', () => win.webContents.executeJavaScript(this._domPreparationScript));
-
-            win.webContents.on('did-fail-load', (event, errCode, errMessage, uri, isMain) => {
-                // this will get called whenever any of the requests is blocked by the client (e.g. by the blacklist feature)
-                if (!preventCallback && errCode && errCode !== -3 && (isMain || uri === request.url)) {
-                    this._fetchUICleanup(win, abortAction);
-                    reject(new Error(errMessage + ' ' + uri));
-                }
-            });
-
-            win.webContents.on('did-finish-load', async () => {
-                try {
-                    if (await this._checkScrapingRedirection(win)) {
-                        return;
-                    }
-                    let jsResult = await win.webContents.executeJavaScript(runtimeScript);
-                    win.webContents.debugger.attach('1.3');
-                    let actionResult = await action(jsResult, win.webContents);
-                    preventCallback = true; // no other event shall resolve/reject this promise anymore
-                    this._fetchUICleanup(win, abortAction);
-                    resolve(actionResult);
-                } catch (error) {
-                    preventCallback = true; // no other event shall resolve/reject this promise anymore
-                    this._fetchUICleanup(win, abortAction);
-                    reject(error);
-                }
-            });
-
-            win.loadURL(request.url, this._extractRequestOptions(request));
-        });
-    }
-
+    /**
+     * Run the request in a hidden main-process window (FetchWindowManager).
+     * fetchJapscan was removed in Slice B (zero callers); preferences must be
+     * serializable (no callbacks can cross the IPC boundary).
+     */
     async fetchBrowser(request, preloadScript, runtimeScript, preferences, timeout) {
-        timeout = timeout || 60000;
-        preferences = preferences || {};
-        let preloadScriptFile = undefined;
-        if (preloadScript) {
-            preloadScriptFile = await Engine.Storage.saveTempFile(Math.random().toString(36), preloadScript);
-        }
-        let win = new this.browser({
-            show: false,
-            webPreferences: {
-                preload: preloadScriptFile,
-                nodeIntegration: preferences.nodeIntegration || false,
-                webSecurity: preferences.webSecurity || false,
-                images: preferences.images || false
-            }
-        });
-        //win.webContents.openDevTools();
-
-        // TODO: blacklist seems to be applied to all web requests, not just to the one in this browser window
-        win.webContents.session.webRequest.onBeforeRequest({ urls: Engine.Blacklist.patterns }, (_, callback) => callback({ cancel: true }));
-
-        return new Promise((resolve, reject) => {
-            let preventCallback = false;
-
-            let abortAction = setTimeout(() => {
-                this._fetchUICleanup(win, abortAction);
-                if (!preventCallback) {
-                    reject(new Error(`Failed to load "${request.url}" within the given timeout of ${Math.floor(timeout / 1000)} seconds!`));
-                }
-            }, timeout);
-
-            win.webContents.on('dom-ready', () => win.webContents.executeJavaScript(this._domPreparationScript));
-
-            win.webContents.on('did-fail-load', (event, errCode, errMessage, uri, isMain) => {
-                // this will get called whenever any of the requests is blocked by the client (e.g. by the blacklist feature)
-                if (!preventCallback && errCode && errCode !== -3 && (isMain || uri === request.url)) {
-                    this._fetchUICleanup(win, abortAction);
-                    reject(new Error(errMessage + ' ' + uri));
-                }
-            });
-
-            win.webContents.on('did-finish-load', async () => {
-                try {
-                    if (await this._checkScrapingRedirection(win)) {
-                        return;
-                    }
-                    let jsResult = await win.webContents.executeJavaScript(runtimeScript);
-                    preventCallback = true; // no other event shall resolve/reject this promise anymore
-                    this._fetchUICleanup(win, abortAction);
-                    resolve(jsResult);
-                } catch (error) {
-                    preventCallback = true; // no other event shall resolve/reject this promise anymore
-                    this._fetchUICleanup(win, abortAction);
-                    reject(error);
-                }
-            });
-
-            win.loadURL(request.url, this._extractRequestOptions(request));
+        return window.hakuneko.fetch({
+            url: request.url,
+            loadOptions: this._extractRequestOptions(request),
+            preloadScript: preloadScript,
+            runtimeScript: runtimeScript,
+            domPreparationScript: this._domPreparationScript,
+            scrapingCheckScript: this._scrapingCheckScript,
+            blacklist: Engine.Blacklist.patterns,
+            preferences: preferences || {},
+            timeout: timeout || 60000
         });
     }
 
@@ -344,80 +227,20 @@ export default class Request {
      * it will be closed after injecting the script (or after 60 seconds in case an error occured)
      */
     async fetchUI(request, injectionScript, timeout, images) {
-        timeout = timeout || 60000;
-        return new Promise((resolve, reject) => {
-            let win = new this.browser({
-                show: false,
-                webPreferences: {
-                    nodeIntegration: false,
-                    webSecurity: false,
-                    images: images || false
-                }
-            });
-            //win.webContents.openDevTools();
-
-            // TODO: blacklist seems to be applied to all web requests, not just to the one in this browser window
-
-            win.webContents.session.webRequest.onBeforeRequest({ urls: Engine.Blacklist.patterns }, (details, callback) => {
-                callback({ cancel: true });
-            });
-
-            let preventCallback = false;
-
-            let abortAction = setTimeout(() => {
-                this._fetchUICleanup(win, abortAction);
-                if (!preventCallback) {
-                    reject(new Error(`Failed to load "${request.url}" within the given timeout of ${Math.floor(timeout / 1000)} seconds!`));
-                }
-            }, timeout);
-
-            win.webContents.on('dom-ready', () => win.webContents.executeJavaScript(this._domPreparationScript));
-
-            win.webContents.on('did-finish-load', async () => {
-                try {
-                    if (await this._checkScrapingRedirection(win)) {
-                        return;
-                    }
-                    let jsResult = await win.webContents.executeJavaScript(injectionScript);
-                    preventCallback = true; // no other event shall resolve/reject this promise anymore
-                    this._fetchUICleanup(win, abortAction);
-                    resolve(jsResult);
-                } catch (error) {
-                    preventCallback = true; // no other event shall resolve/reject this promise anymore
-                    this._fetchUICleanup(win, abortAction);
-                    reject(error);
-                }
-            });
-
-            win.webContents.on('did-fail-load', (event, errCode, errMessage, uri, isMain) => {
-                // this will get called whenever any of the requests is blocked by the client (e.g. by the blacklist feature)
-                if (!preventCallback && errCode && errCode !== -3 && (isMain || uri === request.url)) {
-                    this._fetchUICleanup(win, abortAction);
-                    reject(new Error(errMessage + ' ' + uri));
-                }
-            });
-
-            win.loadURL(request.url, this._extractRequestOptions(request));
+        return window.hakuneko.fetch({
+            url: request.url,
+            loadOptions: this._extractRequestOptions(request),
+            runtimeScript: injectionScript,
+            domPreparationScript: this._domPreparationScript,
+            scrapingCheckScript: this._scrapingCheckScript,
+            blacklist: Engine.Blacklist.patterns,
+            preferences: {
+                nodeIntegration: false,
+                webSecurity: false,
+                images: images || false
+            },
+            timeout: timeout || 60000
         });
-    }
-
-    /**
-     * Close window and clear the given timeout function
-     */
-    _fetchUICleanup(browserWindow, abortAction) {
-        if (abortAction) {
-            clearTimeout(abortAction);
-        }
-        abortAction = null;
-        if (browserWindow) {
-            if (browserWindow.webContents.debugger.isAttached()) {
-                browserWindow.webContents.debugger.detach();
-            }
-            // unsubscribe events from session
-            browserWindow.webContents.session.webRequest.onBeforeRequest(null);
-            browserWindow.close();
-        }
-        browserWindow = null;
     }
 
     /**

@@ -27,6 +27,7 @@ window.hakuneko = {
         close: () => ipcRenderer.invoke('hakuneko:window:close')
     },
     exec: (command, options) => ipcRenderer.invoke('hakuneko:exec', command, options),
+    fetch: job => ipcRenderer.invoke('hakuneko:fetch', job),
     session: {
         getCookies: filter => ipcRenderer.invoke('hakuneko:session:getCookies', filter),
         setCookie: details => ipcRenderer.invoke('hakuneko:session:setCookie', details),
