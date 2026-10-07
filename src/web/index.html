@@ -34,8 +34,11 @@
                     message: message,
                     buttons: buttons || [ 'Yes', 'No' ]
                 };
+                // NOTE: the bridge normalizes showMessageBox to the button index
+                // on every Electron version (it used to resolve to an object on
+                // some versions, which made confirm() always falsy).
                 let response = await window.hakuneko.dialog.showMessageBox(options);
-                return response.response === 0;
+                return response === 0;
             };
         }
 

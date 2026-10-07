@@ -16,8 +16,12 @@ module.exports = class IpcBridge {
         electron.ipcMain.on('hakuneko:app:getPath', (event, name) => {
             event.returnValue = electron.app.getPath(name);
         });
-        electron.ipcMain.handle('hakuneko:dialog:showMessageBox', (event, options) => {
-            return electron.dialog.showMessageBox(options);
+        electron.ipcMain.handle('hakuneko:dialog:showMessageBox', async (event, options) => {
+            // dialog.showMessageBox resolves to a button index on old Electron
+            // and to { response, checkboxChecked } on new ones — normalize to
+            // the index (Fase 1: version-proof across the 8 -> 44 upgrade).
+            let result = await electron.dialog.showMessageBox(options);
+            return typeof result === 'number' ? result : result.response;
         });
         electron.ipcMain.handle('hakuneko:dialog:showOpenDialog', (event, options) => {
             return electron.dialog.showOpenDialog(options);
@@ -67,8 +71,19 @@ module.exports = class IpcBridge {
             return electron.session.defaultSession.cookies.remove(url, name);
         });
         electron.ipcMain.handle('hakuneko:session:setProxy', (event, config) => {
-            return new Promise(resolve => {
-                electron.session.defaultSession.setProxy(config, () => resolve());
+            // setProxy is callback-based on old Electron, Promise-based on new —
+            // single call, settle on whichever signal fires first.
+            return new Promise((resolve, reject) => {
+                let result;
+                try {
+                    result = electron.session.defaultSession.setProxy(config, () => resolve());
+                } catch (error) {
+                    reject(error);
+                    return;
+                }
+                if (result && typeof result.then === 'function') {
+                    result.then(() => resolve(), reject);
+                }
             });
         });
     }

@@ -15,8 +15,8 @@ importers:
         specifier: 4.3.1
         version: 4.3.1
       electron:
-        specifier: 8.3.4
-        version: 8.3.4(supports-color@8.1.1)
+        specifier: 14.2.9
+        version: 14.2.9(supports-color@8.1.1)
       fs-extra:
         specifier: 11.4.1
         version: 11.4.1
@@ -1280,6 +1280,9 @@ packages:
   '@types/node@12.20.55':
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
 
+  '@types/node@14.18.63':
+    resolution: {integrity: sha512-fAtCfv4jJg+ExtXhvCkCqUKZ+4ok/JQk01qDKhL5BDDoS3AxKXhV5/MAVUZyQnSEd2GT92fkgZl0pz0Q0AzcIQ==}
+
   '@types/node@26.6.4':
     resolution: {integrity: sha512-ldVPDCzj7fsaGZrLB0NuHuTvJcsNasysBAqMolr/cgxrLd1xbqxIr3XJiPnHHJUCxj5sNF1vnRj9aWnrVh5Jcg==}
 
@@ -2141,8 +2144,8 @@ packages:
   electron-to-chromium@1.5.445:
     resolution: {integrity: sha512-iX7o1nF+qNb3Bv5mLYgqfgF9Znh9e/8MKXdmbb8Gv2Q47OKIzTwEPD1oda1HrgEwYatTLJj0wQjHvIFt8Db53Q==}
 
-  electron@8.3.4:
-    resolution: {integrity: sha512-aSYXBV0PxYHmXhjGFpR0x38zbO7UTDex2JrT5tcqJpUZTY+sKdfo9PA1TpiyrHNjA5+Q8UseRUsydRedOTeZQA==}
+  electron@14.2.9:
+    resolution: {integrity: sha512-7LdJFmqVzO9NLKO0hwOwPA6Kv4GSybGMcej8f2q7fVT4O8mIfL9oo/v4axVjVWm0+58ROQtHv8hYnnAs3ygG0Q==}
     engines: {node: '>= 8.6'}
     hasBin: true
 
@@ -5449,6 +5452,8 @@ snapshots:
 
   '@types/node@12.20.55': {}
 
+  '@types/node@14.18.63': {}
+
   '@types/node@26.6.4':
     dependencies:
       undici-types: 8.9.0
@@ -6293,10 +6298,10 @@ snapshots:
 
   electron-to-chromium@1.5.445: {}
 
-  electron@8.3.4(supports-color@8.1.1):
+  electron@14.2.9(supports-color@8.1.1):
     dependencies:
       '@electron/get': 1.14.1(supports-color@8.1.1)
-      '@types/node': 12.20.55
+      '@types/node': 14.18.63
       extract-zip: 1.7.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
