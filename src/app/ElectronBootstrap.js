@@ -12,20 +12,27 @@ module.exports = class ElectronBootstrap {
         this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
         this._configuration = configuration;
         this._window = null;
+        // NOTE: corsEnabled:true is mandatory on modern Chromium, otherwise
+        // fetch() to these schemes fails with CorsDisabledScheme.
         this._schemes = [
             {
                 scheme: this._configuration.applicationProtocol,
                 privileges: {
                     secure: true,
                     standard: true,
-                    supportFetchAPI: true
+                    supportFetchAPI: true,
+                    corsEnabled: true
                 }
             },
+            // NOTE: connector:// needs secure:true — fetch() from the secure
+            // app scheme to a non-secure scheme is blocked as mixed content.
             {
                 scheme: this._configuration.connectorProtocol,
                 privileges: {
+                    secure: true,
                     standard: true,
-                    supportFetchAPI: true
+                    supportFetchAPI: true,
+                    corsEnabled: true
                 }
             }
         ];
@@ -121,13 +128,16 @@ module.exports = class ElectronBootstrap {
                 if(!await fs.exists(endpoint)) {
                     return new Response('Not Found', { status: 404 });
                 }
+                // NOTE: cross-scheme consumers (connector:// images, fetch windows)
+                // require explicit CORS headers on modern Chromium.
+                let cors = { 'Access-Control-Allow-Origin': '*' };
                 let stats = await fs.stat(endpoint);
                 if(stats.isDirectory()) {
                     let buffer = Buffer.from(JSON.stringify(await fs.readdir(endpoint)));
-                    return new Response(buffer, { headers: { 'Content-Type': 'application/json' } });
+                    return new Response(buffer, { headers: { ...cors, 'Content-Type': 'application/json' } });
                 }
                 let buffer = await fs.readFile(endpoint);
-                return new Response(buffer, { headers: { 'Content-Type': this._mimeType(endpoint) } });
+                return new Response(buffer, { headers: { ...cors, 'Content-Type': this._mimeType(endpoint) } });
             } catch(error) {
                 this._logger.warn(error);
                 return new Response('Internal Error', { status: 500 });
@@ -141,10 +151,11 @@ module.exports = class ElectronBootstrap {
                 // Only the URL is serializable (the legacy handler received the
                 // whole request object via remote); the renderer only uses it.
                 let result = await this._ipcSend('on-connector-protocol-handler', { url: request.url });
+                let cors = { 'Access-Control-Allow-Origin': '*' };
                 if(!result || !result.data) {
-                    return new Response('Not Found', { status: 404 });
+                    return new Response('Not Found', { status: 404, headers: cors });
                 }
-                return new Response(result.data, { headers: { 'Content-Type': result.mimeType || 'application/octet-stream' } });
+                return new Response(result.data, { headers: { ...cors, 'Content-Type': result.mimeType || 'application/octet-stream' } });
             } catch(error) {
                 this._logger.warn(error);
                 return new Response('Not Found', { status: 404 });

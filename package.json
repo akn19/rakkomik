@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@electron/asar": "4.3.1",
-    "electron": "25.9.8",
+    "electron": "44.6.0",
     "fs-extra": "11.4.1",
     "innosetup-compiler": "6.3.1",
     "jest": "30.5.2",
@@ -28,7 +28,7 @@
     "win-7zip": "0.1.1"
   },
   "scripts": {
-    "postinstall": "cd src/app && pnpm install --no-optional",
+    "postinstall": "node node_modules/electron/install.js && cd src/app && pnpm install --no-optional",
     "start": "pnpm run start:dev",
     "start:dev": "electron . --update-url=DISABLED --cache-directory=./src/web --disable-http-cache",
     "start:build": "pnpm run build:web && electron . --update-url=DISABLED --cache-directory=./build/latest",

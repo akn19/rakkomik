@@ -21,3 +21,5 @@ allowBuilds:
   electron: true # unduh biner Electron saat install — wajib untuk start/test
   register-scheme: true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - electron@44.6.0
