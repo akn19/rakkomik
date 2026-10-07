@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs-extra');
 const jszip = require('jszip');
-const { ConsoleLogger } = require('@logtrine/logtrine');
+const { ConsoleLogger } = require('./Logger');
 
 module.exports = class CacheDirectoryManager {
 

@@ -13,10 +13,8 @@
  * - `rcedit`: deprecated upstream ("Package no longer supported"), no
  *   maintained drop-in; build-time only (Windows exe metadata), isolated
  *   from runtime. Re-evaluate in Fase 0.7 (build matrix).
- * - `@hakuneko/*-binaries` (3x): scheduled for total removal in Fase 0.5
- *   (skope cut); temporary.
- * - `@logtrine/logtrine`: scheduled for replacement with `pino` in
- *   Fase 0.5; temporary.
+ *   (Fase 0.5 removed the former `@hakuneko/*` + `@logtrine/logtrine`
+ *   exceptions with the packages themselves.)
  */
 const fs = require('fs');
 const path = require('path');
@@ -26,10 +24,6 @@ const ROOT = path.resolve(__dirname, '..');
 
 const ALLOWLIST = new Map([
     ['rcedit', 'deprecated upstream, no maintained drop-in; build-time Windows-only; re-evaluate Fase 0.7'],
-    ['@hakuneko/ffmpeg-binaries', 'temporary: removed in Fase 0.5 (skope cut)'],
-    ['@hakuneko/imagemagick-binaries', 'temporary: removed in Fase 0.5 (skope cut)'],
-    ['@hakuneko/kindlegen-binaries', 'temporary: removed in Fase 0.5 (skope cut)'],
-    ['@logtrine/logtrine', 'temporary: replaced by pino in Fase 0.5'],
 ]);
 
 function declaredPackages() {

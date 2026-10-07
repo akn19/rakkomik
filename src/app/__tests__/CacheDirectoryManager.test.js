@@ -1,5 +1,5 @@
 const path = require('path');
-const { FileLogger } = require('@logtrine/logtrine');
+const { FileLogger } = require('../Logger');
 const CacheDirectoryManager = require('../CacheDirectoryManager');
 var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
 logger.clear();

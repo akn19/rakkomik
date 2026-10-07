@@ -6,11 +6,7 @@ const extensions = {
     img: 'img',
     cbz: '.cbz',
     pdf: '.pdf',
-    epub: '.epub',
-    // episode format
-    m3u8: '.m3u8',
-    mkv: '.mkv',
-    mp4: '.mp4'
+    epub: '.epub'
 };
 
 const statusDefinitions = {
@@ -187,16 +183,11 @@ export default class Storage {
                 /*
                  * TODO: only add supported files / folders
                  * file that ends with any of the supported extension,
-                 * folders that not ends with m3u8
-                 * folders that contains m3u8?
                  * folders that contains any image?
                  */
                 /*
                  * entries = entries.filter( path => {
                  * return (
-                 * path.endsWith( extensions.m3u8 ) ||
-                 * path.endsWith( extensions.mkv ) ||
-                 * path.endsWith( extensions.mp4 ) ||
                  * path.endsWith( extensions.epub ) ||
                  * path.endsWith( extensions.cbz ) ||
                  * path.endsWith( extensions.pdf )
@@ -223,15 +214,6 @@ export default class Storage {
         if (typeof path !== 'string') {
             return Promise.reject(new Error('Invalid parameter "chapter", must be <String> or <Chapter> type!'));
         }
-        if (path.endsWith(extensions.m3u8)) {
-            return this._loadEpisodeM3U8(path);
-        }
-        if (path.endsWith(extensions.mkv)) {
-            return this._loadEpisodeMKV(path);
-        }
-        if (path.endsWith(extensions.mp4)) {
-            return this._loadEpisodeMP4(path);
-        }
         if (path.endsWith(extensions.epub)) {
             return this._loadChapterPagesEPUB(path);
         }
@@ -243,63 +225,6 @@ export default class Storage {
         }
         return this._loadChapterPagesFolder(path);
     }
-
-    /**
-     *
-     */
-    _loadEpisodeM3U8(directory) {
-        return new Promise((resolve, reject) => {
-            this.fs.readdir(directory, (error, files) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(files);
-                }
-            });
-        })
-            .then(files => {
-                let playlist = files.find(file => file.endsWith(extensions.m3u8));
-                let subtitles = files.filter(file => file.endsWith('.ass') || file.endsWith('.ssa'));
-                let media = {
-                    mirrors: [this._makeValidFileURL(directory, playlist)],
-                    subtitles: subtitles.sort().map(subtitle => {
-                        let parts = subtitle.split('.');
-                        return {
-                            format: parts[parts.length - 1],
-                            locale: parts[parts.length - 2],
-                            url: this._makeValidFileURL(directory, subtitle),
-                            content: this.fs.readFileSync(this.path.join(directory, subtitle), { encoding: 'utf-8' })
-                        };
-                    })
-                };
-                return Promise.resolve(media);
-            });
-    }
-
-    /**
-     *
-     */
-    _loadEpisodeMKV(matroska) {
-        // TODO: load subtitles
-        let media = {
-            video: this._makeValidFileURL(matroska, ''),
-            subtitles: []
-        };
-        return Promise.resolve(media);
-    }
-
-    /**
-     *
-     */
-    _loadEpisodeMP4(mpeg4) {
-        // TODO: load subtitles
-        let media = {
-            video: this._makeValidFileURL(mpeg4, ''),
-            subtitles: []
-        };
-        return Promise.resolve(media);
-    }
-
     /**
      * Return a promise with the loaded opened zip archive data
      */
@@ -449,11 +374,6 @@ export default class Storage {
             if (Engine.Settings.chapterFormat.value === extensions.cbz) {
                 this._createDirectoryChain(this.path.dirname(output));
                 promise = this._saveChapterPagesCBZ(output, pageData, chapter.manga.title, chapter.title)
-                    .then(() => this._runPostChapterDownloadCommand(chapter, output));
-            }
-            if (Engine.Settings.chapterFormat.value === extensions.pdf) {
-                this._createDirectoryChain(this.path.dirname(output));
-                promise = this._saveChapterPagesPDF(output, pageData)
                     .then(() => this._runPostChapterDownloadCommand(chapter, output));
             }
             if (Engine.Settings.chapterFormat.value === extensions.epub) {
@@ -638,72 +558,6 @@ export default class Storage {
             return Promise.reject(error);
         }
     }
-
-    async saveVideoChunkTemp(content) {
-        return this.saveTempFile(content.name, content.data);
-    }
-
-    /**
-     *
-     */
-    concatVideoChunks(chapter, files, index, fileOut) {
-        return new Promise((resolve, reject) => {
-            index = index || 0;
-            if (index >= files.length) {
-                return resolve();
-            }
-            if (!fileOut) {
-                let directory = this._mangaOutputPath(chapter.manga);
-                this._createDirectoryChain(directory);
-                let file = this.path.join(directory, this.sanatizePath(chapter.title + extensions.mp4));
-                fileOut = this.fs.openSync(file, 'w');
-            }
-            let data = this.fs.readFileSync(files[index]);
-            this.fs.appendFileSync(fileOut, data);
-            this.fs.unlinkSync(files[index]);
-            this.concatVideoChunks(chapter, files, index + 1, fileOut)
-                .then(() => resolve())
-                .catch(error => reject(error));
-        });
-    }
-
-    /**
-     * Store a file directly in the chapter directory
-     */
-    saveChapterFileM3U8(chapter, content) {
-        try {
-            let file = this._mangaOutputPath(chapter.manga);
-            file = this.path.join(file, this.sanatizePath(chapter.title + extensions.m3u8));
-            this._createDirectoryChain(file);
-            file = this.path.join(file, this.sanatizePath(content.name));
-            return this._writeFile(file, content.data);
-        } catch (error) {
-            return Promise.reject(error);
-        }
-    }
-
-    /**
-     * Multiplex chapter playlist/streams using the given ffmpeg command (without output format & file!).
-     * The chapter directory is the working directory, and will be deleted after muxing.
-     * The output file will be stored directly in the manga directory.
-     */
-    muxPlaylistM3U8(chapter, ffmpeg) {
-        return new Promise((resolve, reject) => {
-            let directory = this._mangaOutputPath(chapter.manga);
-            this._createDirectoryChain(directory);
-            let file = this.path.join(directory, this.sanatizePath(chapter.title + extensions.mkv));
-            directory = this.path.join(directory, this.sanatizePath(chapter.title + extensions.m3u8));
-            ffmpeg += ` -f matroska -y "${file}"`;
-            this.exec(ffmpeg, { cwd: directory, windowsHide: true }, error => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    }
-
     /**
      * Helper function to generate the path where the bookmarks and markers are stored.
      */
@@ -744,18 +598,6 @@ export default class Storage {
         output = this.path.join(output, this.sanatizePath(chapter.title));
         if (chapter.status === statusDefinitions.offline) {
             return output;
-        }
-        // only valid for loading anime episodes, ignored when save pages
-        if (this.fs.existsSync(output + extensions.m3u8)) {
-            return output + extensions.m3u8;
-        }
-        // only valid for loading anime episodes, ignored when save pages
-        if (this.fs.existsSync(output + extensions.mkv)) {
-            return output + extensions.mkv;
-        }
-        // only valid for loading anime episodes, ignored when save pages
-        if (this.fs.existsSync(output + extensions.mp4)) {
-            return output + extensions.mp4;
         }
         // used when loading and saving manga chapters
         if (Engine.Settings.chapterFormat.value !== extensions.img) {

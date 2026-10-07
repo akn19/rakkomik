@@ -11,10 +11,6 @@
   },
   "devDependencies": {
     "@electron/asar": "4.3.1",
-    "@hakuneko/ffmpeg-binaries": "4.2.1-1",
-    "@hakuneko/imagemagick-binaries": "7.0.8-58-3",
-    "@hakuneko/kindlegen-binaries": "2.9.0-3",
-    "@logtrine/logtrine": "1.1.2",
     "discord-rpc": "4.0.1",
     "electron": "8.3.4",
     "fs-extra": "11.4.1",

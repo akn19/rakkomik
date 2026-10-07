@@ -10,13 +10,10 @@
         "src/web/js/**",
         "src/web/lib/**",
         "src/web/mjs/connectors/**",
-        "src/web/mjs/videostreams/**",
         "src/web/mjs/engine/HistoryWorker.mjs"
     ],
     "ignoreDependencies": [
-        "@hakuneko/ffmpeg-binaries",
-        "@hakuneko/imagemagick-binaries",
-        "@hakuneko/kindlegen-binaries",
+        "pino",
         "innosetup-compiler",
         "jest-junit",
         "rcedit",

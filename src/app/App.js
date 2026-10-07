@@ -1,5 +1,4 @@
-const path = require('path');
-const { ConsoleLogger } = require('@logtrine/logtrine');
+const { ConsoleLogger } = require('./Logger');
 const Configuration = require('./Configuration');
 const ConfigurationLinux = require('./ConfigurationLinux');
 const ConfigurationDarwin = require('./ConfigurationDarwin');
@@ -61,8 +60,6 @@ module.exports = class App {
             this._extractor.printInfo();
             this.printInfo();
             this._configuration.printInfo();
-            // add HakuNeko's application directory to the environment variable path (make ffmpeg available on windows)
-            process.env.PATH = path.dirname(process.execPath) + (process.platform === 'win32' ? ';' : ':') + process.env.PATH;
             // add HakuNeko's portable mode as environment variable to be easily available in render process
             if(Configuration.isPortableMode) {
                 process.env.HAKUNEKO_PORTABLE = 'TRUE';

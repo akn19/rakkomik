@@ -111,7 +111,7 @@ export default class Chapter extends EventTarget {
                     this.manga.connector._getPageList( this.manga, this, ( error, pages ) => {
                         this.pageCache = [];
                         if( !error ) {
-                            if(pages.length || pages.video || pages.mirrors && pages.mirrors.length) {
+                            if(pages.length) {
                                 // HACK: bypass 'i0.wp.com' image CDN to ensure original images are loaded directly from host
                                 this.pageCache = Array.isArray(pages) ? pages.map(page => page.replace(/\/i\d+\.wp\.com/, '')) : pages;
                             } else {

@@ -126,7 +126,6 @@ export default class Settings extends EventTarget {
             options: [
                 { value: extensions.img, name: 'Folder with Images (*.jpg, *.png, *.webp)' },
                 { value: extensions.cbz, name: 'Comic Book Archive (*.cbz)' },
-                { value: extensions.pdf, name: 'Portable Document (*.pdf)' },
                 { value: extensions.epub, name: 'Ebook Reader (*.epub)' },
             ],
             value: extensions.img
@@ -245,8 +244,7 @@ export default class Settings extends EventTarget {
                 '  %O% - Chapter title',
                 '',
                 'Examples:',
-                '  convert "%PATH%\\*.webp" -scene 1 "%PATH%\\%03d.png"',
-                '  md "%O%_conv" & convert "%PATH%\\*.*" -scene 1 "%O%_conv\\%03d.png"'
+                '  echo "%C% | %M% | %O%" > "%PATH%.txt"'
             ].join('\n'),
             input: types.text,
             value: ''

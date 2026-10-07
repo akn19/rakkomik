@@ -14,18 +14,6 @@ importers:
       '@electron/asar':
         specifier: 4.3.1
         version: 4.3.1
-      '@hakuneko/ffmpeg-binaries':
-        specifier: 4.2.1-1
-        version: 4.2.1-1
-      '@hakuneko/imagemagick-binaries':
-        specifier: 7.0.8-58-3
-        version: 7.0.8-58-3
-      '@hakuneko/kindlegen-binaries':
-        specifier: 2.9.0-3
-        version: 2.9.0-3
-      '@logtrine/logtrine':
-        specifier: 1.1.2
-        version: 1.1.2
       discord-rpc:
         specifier: 4.0.1
         version: 4.0.1
@@ -489,21 +477,6 @@ packages:
     resolution: {integrity: sha512-kjotm7XJrJ6v+7knhPaRgaT6q8F8K2jiafwYdNHLzmV0uGLuZY43FK6smNSHUPrhq5kX2slCUy+RGG/xGqmIKA==}
     engines: {node: '>=10.13.0'}
 
-  '@hakuneko/ffmpeg-binaries@4.2.1-1':
-    resolution: {integrity: sha512-KEsmftQ6BUG+D80mcewXhpTp/iFnvaDlS1Ktz089RBSAPxlckDpsGWHMcwd/Jv3AmU7vbqDQyN6utj1AQR4aAQ==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-    hasBin: true
-
-  '@hakuneko/imagemagick-binaries@7.0.8-58-3':
-    resolution: {integrity: sha512-D/ZE9MWh8x3CDA6tkmuVFnF9BNXlSVhccndWEbS7PFYWrWH1eHFrLDVtpt1D2VTX1ycDDHysjYhFAg8gX4vkIg==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-    hasBin: true
-
-  '@hakuneko/kindlegen-binaries@2.9.0-3':
-    resolution: {integrity: sha512-k4A9tmMEHa/G5CHDvS3yq+kflizVoBb7IgoPgXSQOMYNTixyVA9etwCDZ3OXWI2+A2M3rleqyl4WGfmuC6f0+Q==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-    hasBin: true
-
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
     engines: {node: '>=12'}
@@ -613,10 +586,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
-
-  '@logtrine/logtrine@1.1.2':
-    resolution: {integrity: sha512-dcS0hU/o9OlKs8hhMZVuCROyxqXILdHXOr0/lpxYIPu+kmGYjbfDp1eO9eTslw5Z4eXJp4Zxk83a3zM60784VA==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@malept/cross-spawn-promise@1.1.1':
     resolution: {integrity: sha512-RTBGWL5FWQcg9orDOCcp4LvItNzUPcyEU9bwaeJX0rJ1IQxzucC48Y0/sQLp/g6t99IQgAlGIaesJS+gTn7tVQ==}
@@ -4850,12 +4819,6 @@ snapshots:
     dependencies:
       is-negated-glob: 1.0.0
 
-  '@hakuneko/ffmpeg-binaries@4.2.1-1': {}
-
-  '@hakuneko/imagemagick-binaries@7.0.8-58-3': {}
-
-  '@hakuneko/kindlegen-binaries@2.9.0-3': {}
-
   '@isaacs/cliui@8.0.2':
     dependencies:
       string-width: 5.1.2
@@ -5072,8 +5035,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
-
-  '@logtrine/logtrine@1.1.2': {}
 
   '@malept/cross-spawn-promise@1.1.1':
     dependencies:

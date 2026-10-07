@@ -127,51 +127,6 @@ class ElectronPackager {
 
     /**
      *
-     * @param {string} moduleName
-     * @param {string} imageName Name of the binary image (wihtout any extension)
-     * @param {string} platform
-     * @param {bool} is64
-     */
-    async _bundleStaticBinary(moduleName, imageName, platform, architecture) {
-        let binary = imageName + (process.platform === 'win32' ? '.exe' : '');
-        let source = path.join('node_modules', '@hakuneko', moduleName, 'bin', platform, architecture, binary);
-        let target = path.join(this._stagingExecutableDirectory, binary);
-        console.log(`Bundle '${source}' ...`);
-        if(await fs.exists(source)) {
-            await fs.copy(source, target);
-            await fs.chmod(target, '0755');
-            console.log(`  => File bundled: '${target}'`);
-        } else {
-            console.log('  => File not found: skipped');
-        }
-    }
-
-    /**
-     *
-     * @param {string} architecture
-     */
-    async _bundleFFMPEG(architecture) {
-        await this._bundleStaticBinary('ffmpeg-binaries', 'ffmpeg', process.platform, architecture);
-    }
-
-    /**
-     *
-     * @param {string} architecture
-     */
-    async _bundleImageMagick(architecture) {
-        await this._bundleStaticBinary('imagemagick-binaries', 'convert', process.platform, architecture);
-    }
-
-    /**
-     *
-     * @param {string} architecture
-     */
-    async _bundleKindleGenerate(architecture) {
-        await this._bundleStaticBinary('kindlegen-binaries', 'kindlegen', process.platform, architecture);
-    }
-
-    /**
-     *
      * @param {string} command
      * @param {bool} silent
      */
@@ -283,9 +238,6 @@ class ElectronPackagerLinux extends ElectronPackager {
         await fs.remove(this._dirBuildRoot);
         await this._copySkeletonDEB();
         await this._bundleElectron();
-        await this._bundleFFMPEG(this._architecture.name);
-        await this._bundleImageMagick(this._architecture.name);
-        await this._bundleKindleGenerate(this._architecture.name);
         this._createManpage();
         this._createChangelog();
         //this._createMenuEntry(); // => only menu or desktop is recommend
@@ -312,9 +264,6 @@ class ElectronPackagerLinux extends ElectronPackager {
         await fs.remove(this._dirBuildRoot);
         await this._copySkeletonRPM();
         await this._bundleElectron();
-        await this._bundleFFMPEG(this._architecture.name);
-        await this._bundleImageMagick(this._architecture.name);
-        await this._bundleKindleGenerate(this._architecture.name);
         this._createManpage();
         this._createChangelog();
         //this._createMenuEntry(); // => only menu or desktop is recommend
@@ -591,9 +540,6 @@ class ElectronPackagerWindows extends ElectronPackager {
 
         await fs.remove(this._dirBuildRoot);
         await this._bundleElectron(false);
-        await this._bundleFFMPEG(this._architecture.name);
-        await this._bundleImageMagick(this._architecture.name);
-        await this._bundleKindleGenerate(this._architecture.name);
         await this._editResource();
         let setup = this._createScriptIS(architecture === '64');
 
@@ -612,9 +558,6 @@ class ElectronPackagerWindows extends ElectronPackager {
 
         await fs.remove(this._dirBuildRoot);
         await this._bundleElectron(true);
-        await this._bundleFFMPEG(this._architecture.name);
-        await this._bundleImageMagick(this._architecture.name);
-        await this._bundleKindleGenerate(this._architecture.name);
         await this._editResource();
 
         let zip = this._dirBuildRoot + '.zip';
@@ -769,9 +712,6 @@ class ElectronPackagerDarwin extends ElectronPackager {
 
         await fs.remove(this._dirBuildRoot);
         await this._bundleElectron(false);
-        await this._bundleFFMPEG(this._architecture.name);
-        await this._bundleImageMagick(this._architecture.name);
-        await this._bundleKindleGenerate(this._architecture.name);
         await this._createPList();
 
         let dmg = this._dirBuildRoot + '.dmg';

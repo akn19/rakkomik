@@ -1,7 +1,7 @@
 const url = require('url');
 const http = require('http');
 const https = require('https');
-const { ConsoleLogger } = require('@logtrine/logtrine');
+const { ConsoleLogger } = require('./Logger');
 const UpdatePackageInfo = require('./UpdatePackageInfo');
 
 module.exports = class UpdateServerManager {

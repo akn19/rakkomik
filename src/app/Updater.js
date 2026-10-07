@@ -1,4 +1,4 @@
-const { ConsoleLogger } = require('@logtrine/logtrine');
+const { ConsoleLogger } = require('./Logger');
 
 module.exports = class Updater {
 

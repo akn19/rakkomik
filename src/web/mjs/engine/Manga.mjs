@@ -4,12 +4,6 @@ const events = {
     updated: 'updated'
 };
 
-const extensions = {
-    m3u8: '.m3u8',
-    mkv:  '.mkv',
-    mp4:  '.mp4'
-};
-
 const statusDefinitions = {
     offline: 'offline', // chapter/manga that cannot be downloaded, but exist in manga directory
     available: 'available', // chapter/manga that can be added to the download list
@@ -64,19 +58,13 @@ export default class Manga extends EventTarget {
         if( !this.existingChapters ) {
             return false;
         }
-        return this.existingChapters[chapter.file.full]
-            || this.existingChapters[chapter.file.name + extensions.mp4]
-            || this.existingChapters[chapter.file.name + extensions.mkv]
-            || this.existingChapters[chapter.file.name + extensions.m3u8];
+        return this.existingChapters[chapter.file.full];
     }
 
     isChapterFileCached( fileName ) {
         // use !! to convert result to bool
         return !!this.chapterCache.find( chapter => {
-            return fileName === chapter.file.full
-                || fileName === chapter.file.name + extensions.mp4
-                || fileName === chapter.file.name + extensions.mkv
-                || fileName === chapter.file.name + extensions.m3u8;
+            return fileName === chapter.file.full;
         } );
     }
 
