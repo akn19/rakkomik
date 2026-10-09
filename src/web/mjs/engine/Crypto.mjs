@@ -123,6 +123,14 @@ export function sha256Hex(data) {
     return bytesToHex(sha256Bytes(data));
 }
 
+export async function hmacSha256Hex(data, key) {
+    const keyBytes = typeof key === 'string' ? utf8ToBytes(key) : key;
+    const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const bytes = typeof data === 'string' ? utf8ToBytes(data) : data;
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, bytes);
+    return bytesToHex(new Uint8Array(signature));
+}
+
 export async function sha512Hex(data) {
     let bytes = typeof data === 'string' ? utf8ToBytes(data) : data;
     let digest = await crypto.subtle.digest('SHA-512', bytes);
