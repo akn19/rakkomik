@@ -7,19 +7,24 @@
  * This adapter only reads the global, so engine logic stays untouched and
  * dynamically-imported connectors are unaffected.
  *
- * The engine is fully initialized before mount, so a plain snapshot read is
- * enough for the shell. Missing pieces degrade to empty values (never throw)
- * so the shell can still paint its skeleton. Per-view live data
- * (TanStack Query territory) arrives with the later slices, extending this
- * same global-read pattern.
+ * Reads are snapshot-style (the engine is fully initialized before mount);
+ * live lists additionally expose subscribe/getSnapshot pairs for
+ * `useSyncExternalStore`. Missing pieces degrade to empty values (never
+ * throw, except the raw accessor) so the shell can still paint.
  */
-function readEngine() {
-    return typeof window !== 'undefined' ? window.Engine : undefined;
+export function getEngine() {
+    const engine = typeof window !== 'undefined' ? window.Engine : undefined;
+    if (!engine) {
+        throw new Error('Engine global is not available (loadEngine() must run before mount)!');
+    }
+    return engine;
 }
 
 export function getEngineStatus() {
-    const engine = readEngine();
-    if (!engine) {
+    let engine = null;
+    try {
+        engine = getEngine();
+    } catch {
         return { connectors: 0, frontend: '', version: '' };
     }
     let frontend = '';
@@ -43,4 +48,75 @@ export function getEngineStatus() {
         connectors = 0;
     }
     return { connectors, frontend, version };
+}
+
+export function getBookmarks() {
+    try {
+        return getEngine().BookmarkManager.bookmarks;
+    } catch {
+        return [];
+    }
+}
+
+export function subscribeBookmarks(notify) {
+    let manager = null;
+    try {
+        manager = getEngine().BookmarkManager;
+    } catch {
+        return () => undefined;
+    }
+    const handler = () => notify();
+    manager.addEventListener('added', handler);
+    manager.addEventListener('removed', handler);
+    manager.addEventListener('changed', handler);
+    return () => {
+        manager.removeEventListener('added', handler);
+        manager.removeEventListener('removed', handler);
+        manager.removeEventListener('changed', handler);
+    };
+}
+
+export function deleteBookmark(bookmark) {
+    return getEngine().BookmarkManager.deleteBookmark(bookmark);
+}
+
+export function getSettingsDraft() {
+    return getEngine().Settings.getCategorizedSettings().map(group => ({
+        category: group.category,
+        items: group.settings.map(ref => ({ ref, value: ref.value }))
+    }));
+}
+
+export async function saveSettingsDraft(draft) {
+    for (const group of draft) {
+        for (const item of group.items) {
+            let value = item.value;
+            // Mirror Settings._getValidValue clamping for numerics.
+            if (item.ref.input === 'numeric' && value !== '' && value !== undefined) {
+                value = Number(value);
+                if (item.ref.min !== undefined && value < item.ref.min) {
+                    value = item.ref.min;
+                }
+                if (item.ref.max !== undefined && value > item.ref.max) {
+                    value = item.ref.max;
+                }
+            }
+            item.ref.value = value;
+        }
+    }
+    await getEngine().Settings.save();
+}
+
+export async function browseDirectory(currentPath) {
+    return getEngine().Storage.folderBrowser(currentPath);
+}
+
+export async function browseFile() {
+    const hakuneko = typeof window !== 'undefined' ? window.hakuneko : undefined;
+    if (!hakuneko) {
+        return null;
+    }
+    const result = await hakuneko.dialog.showOpenDialog({ properties: ['openFile'] });
+    const filePaths = result && !result.canceled ? result.filePaths || [] : [];
+    return filePaths.length ? filePaths[0] : null;
 }
