@@ -112,7 +112,9 @@ export default class DownloadJob extends EventTarget {
         const result = [];
         for(let page of pages) {
             await this._wait(this.throttle);
-            const response = await fetch(page, this.requestOptions);
+            // NOTE: bounded per-page timeout — a stalled connection must fail
+            // the job instead of leaking activeCount and starving the queue.
+            const response = await fetch(page, { ...this.requestOptions, signal: AbortSignal.timeout(120000) });
             if(response.status !== 200 && !Engine.Settings.ignoreErrorOnDownload.value) {
                 throw new Error(`Page " ${page}" returned status: ${response.status} - ${response.statusText}`);
             }
@@ -127,7 +129,8 @@ export default class DownloadJob extends EventTarget {
         // get data for all pages of chapter
         let promises = pages.map(async (page, index) => {
             await this._wait(index * throttle);
-            const response = await fetch(page, this.requestOptions);
+            // NOTE: bounded per-page timeout — see _downloadPagesSequential.
+            const response = await fetch(page, { ...this.requestOptions, signal: AbortSignal.timeout(120000) });
             if(response.status !== 200 && !Engine.Settings.ignoreErrorOnDownload.value) {
                 throw new Error(`Page " ${page}" returned status: ${response.status} - ${response.statusText}`);
             }

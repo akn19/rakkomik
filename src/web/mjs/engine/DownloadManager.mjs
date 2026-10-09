@@ -46,9 +46,18 @@ export default class DownloadManager extends EventTarget {
             if( this.queue[connectorID].length > 0 && this.queue[connectorID].activeCount < 1 && !this.queue[connectorID][0].chapter.manga.connector.isLocked ) {
                 this.queue[connectorID].activeCount++;
                 let job = this.queue[connectorID].shift();
-                job.downloadPages( '', () => {
+                try {
+                    job.downloadPages( '', () => {
+                        this.queue[connectorID].activeCount--;
+                    });
+                } catch(error) {
+                    // never leak activeCount: a synchronous throw must not
+                    // starve all later jobs for this connector
+                    console.error(error);
+                    job.errors.push(error);
+                    job.setStatus('failed');
                     this.queue[connectorID].activeCount--;
-                });
+                }
             }
         }
     }
