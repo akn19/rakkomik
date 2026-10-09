@@ -1,5 +1,6 @@
 import React from 'react';
-import { getDownloadJobs, subscribeDownloads, mergeDownloadJobs, restartChapterDownload } from '../engine.js';
+import { restartChapterDownload } from '../engine.js';
+import { useDownloadJobs } from '../downloads.js';
 import { useToast } from '../notify.jsx';
 import { ConfirmDialog } from '../dialog.jsx';
 
@@ -22,13 +23,8 @@ function errorText(job) {
 
 export default function DownloadsView() {
     const { notify } = useToast();
-    const [jobs, setJobs] = React.useState(() => getDownloadJobs());
+    const jobs = useDownloadJobs();
     const [confirmRestart, setConfirmRestart] = React.useState(null);
-
-    // Classic onDownloadStatusUpdated parity: merge each manager event.
-    React.useEffect(() => subscribeDownloads(event => {
-        setJobs(current => mergeDownloadJobs(current, event.detail));
-    }), []);
 
     const restart = job => {
         try {

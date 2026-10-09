@@ -11,10 +11,10 @@
 > | 0.5 Skope cut | ✅ selesai | `fase-0.5` |
 > | 0.6 Distribusi | ✅ selesai | `fase-0.6` |
 > | 0.7 Matriks build | ✅ selesai | `fase-0.7` |
-> | 1 Runtime Electron 44 | 🔶 kode selesai, verifikasi situs-live tertunda (sandbox) | — |
+> | 1 Runtime Electron 44 | ✅ kode + live (fetchUI, 1320 konektor, unduh 18 PNG); jaring lumpuh total sebelum HeaderSurgery | — |
 > | 2 Lib → native | 🔶 kode selesai (crypto-js → `engine/Crypto.mjs` + `LegacyCrypto`; sisa tag exif mati dibersihkan), smoke situs-live tertunda (sandbox) | — |
 > | 3 Build Vite | 🔶 perkakas berdiri (`vite build` → `ui/dist`, dibawa `build:web`); pensiun `polymer-build` menunggu UI selesai | — |
-> | 4 UI React | 🔶 slice 1–5 selesai (shell, CRUD, list, reader, jobs); hapus classic menyusul | — |
+> | 4 UI React | 🔶 selaras classic (3 panel, tema terang, tanpa redesain); hapus classic menyusul | — |
 
 ## 0. Aturan operasi global (tidak bisa ditawar)
 

@@ -66,6 +66,9 @@
         async function loadReactShell() {
             // Fase 4 shell: bundled React UI (built by `pnpm run build:ui`),
             // mounted AFTER loadEngine() so window.Engine is ready.
+            // The classic window bar is hidden: the React shell brings its
+            // own titlebar with window controls.
+            document.querySelector('#default_menubar').style.display = 'none';
             let container = document.createElement('div');
             container.id = 'react-root';
             document.body.appendChild(container);

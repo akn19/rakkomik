@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { markChapterRead } from '../engine.js';
+import { useSelection } from '../selection.jsx';
 import Icon from '../icon.jsx';
 import { fetchPages, resolveChapter } from '../queries.js';
 import { useToast } from '../notify.jsx';
@@ -60,6 +61,13 @@ export default function ReaderView() {
         queryFn: () => resolveChapter(connectorId, mangaId, chapterId)
     });
     const resolved = resolvedQuery.data;
+    const { selectManga } = useSelection();
+    // Keep the panels coherent: resolving a deep link selects its manga.
+    React.useEffect(() => {
+        if (resolved) {
+            selectManga(resolved.manga);
+        }
+    }, [resolved, selectManga]);
     const chapter = resolved ? resolved.chapters[resolved.index] : null;
 
     const pagesQuery = useQuery({

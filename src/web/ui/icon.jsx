@@ -1,6 +1,7 @@
 import {
     ArrowLeft,
     ArrowDownToLine,
+    ArrowUpDown,
     BookOpen,
     Bookmark,
     ChevronLeft,
@@ -9,8 +10,10 @@ import {
     FolderOpen,
     House,
     Minus,
+    Menu,
     Moon,
     Plug,
+    RefreshCw,
     Settings as SettingsIcon,
     Square,
     Star,
@@ -37,9 +40,12 @@ const ICONS = {
     home: House,
     magicScroll: ArrowDownToLine,
     maximize: Square,
+    menu: Menu,
     minimize: Minus,
     moon: Moon,
+    refresh: RefreshCw,
     settings: SettingsIcon,
+    sort: ArrowUpDown,
     star: Star,
     sun: Sun
 };

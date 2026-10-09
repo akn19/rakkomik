@@ -25,6 +25,12 @@ const UIDIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'src', 'we
 export default {
     plugins: [react(), tailwindcss()],
     root: UIDIR,
+    // The bundle runs in a de-privileged renderer (no nodeIntegration):
+    // stub the only Node global the UI libs touch so dead dev branches
+    // fold away at build time instead of throwing at import time.
+    define: {
+        'process.env.NODE_ENV': JSON.stringify('production')
+    },
     build: {
         outDir: path.join(UIDIR, 'dist'),
         emptyOutDir: true,
