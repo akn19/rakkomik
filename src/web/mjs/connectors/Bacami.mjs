@@ -1,5 +1,6 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
+import { sha256Hex } from '../engine/Crypto.mjs';
 
 export default class Bacami extends Connector {
 
@@ -61,7 +62,7 @@ export default class Bacami extends Connector {
         let hash = '';
         while(!hash.startsWith('0000') && nonce < 500000) {
             nonce++;
-            hash = CryptoJS.SHA256(timeSeed + '_' + lettersStr + '_' + nonce).toString(CryptoJS.enc.Hex);
+            hash = sha256Hex(timeSeed + '_' + lettersStr + '_' + nonce);
         }
         if(!hash.startsWith('0000')) {
             throw new Error('Failed to solve proof-of-work for manga list!');

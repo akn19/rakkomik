@@ -1,5 +1,6 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
+import { sha256Bytes, bytesToHex } from '../engine/Crypto.mjs';
 
 export default class MangaFox extends Connector {
 
@@ -108,10 +109,8 @@ export default class MangaFox extends Connector {
 
         const lastImage = await super._handleConnectorURI(pageList.slice(-1));
         // perform advertisement check and may remove last image: pageList.pop()
-        const data = CryptoJS.lib.WordArray.create(lastImage.data);
-
         //hash picture data
-        const hash = CryptoJS.SHA256(data).toString(CryptoJS.enc.Hex);
+        const hash = bytesToHex(sha256Bytes(lastImage.data));
 
         //if picture hash is a known ad hash, remove picture
         if (this.adsHashes.includes(hash)) {

@@ -40,10 +40,10 @@
     "build:app": "node build-app.js",
     "build:web": "node build-web.js",
     "deploy:web": "pnpm run build:web && node deploy-web.js",
-    "test": "jest --color --reporters=default --reporters=jest-junit",
-    "test:app": "jest --color --reporters=default --reporters=jest-junit --testPathPatterns=/src/app",
-    "test:web": "jest --color --reporters=default --reporters=jest-junit --testPathPatterns=/src/web",
-    "test:e2e": "jest --color --reporters=default --reporters=jest-junit --testPathPatterns=/src/__tests__",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --color --reporters=default --reporters=jest-junit",
+    "test:app": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --color --reporters=default --reporters=jest-junit --testPathPatterns=/src/app",
+    "test:web": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --color --reporters=default --reporters=jest-junit --testPathPatterns=/src/web",
+    "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --color --reporters=default --reporters=jest-junit --testPathPatterns=/src/__tests__",
     "knip": "knip",
     "check:deprecated": "node scripts/check-deprecated.js"
   }

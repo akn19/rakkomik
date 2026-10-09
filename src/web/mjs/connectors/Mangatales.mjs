@@ -18,7 +18,7 @@ export default class MangaTales extends GManga {
         }
         let request = new Request(new URL(`/api/mangas/${manga.id}`, this.apiurl), this.requestOptions);
         let data = await this.fetchJSON(request);
-        data = data['iv'] ? this._haqiqa(data.data) : data;
+        data = data['iv'] ? await this._haqiqa(data.data) : data;
         data = data['isCompact'] ? this._unpack(data) : data;
         return data.mangaReleases.map(chapter => {
             const team = chapter.teams.find(t => t.id === chapter.team_id);

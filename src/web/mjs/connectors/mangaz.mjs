@@ -1,5 +1,6 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
+import { utf8ToBytes, bytesToUtf8, base64ToBytes, aesCbcDecrypt } from '../engine/Crypto.mjs';
 
 export default class Mangaz extends Connector {
 
@@ -64,11 +65,10 @@ export default class Mangaz extends Connector {
 
     async _handleConnectorURI(payload) {
         const response = await fetch(payload.url);
-        const encrypted = CryptoJS.lib.WordArray.create(await response.arrayBuffer());
-        const iv = CryptoJS.enc.Base64.parse(btoa(payload.iv));
-        const key = CryptoJS.enc.Utf8.parse(payload.key);
-        let decrypted = CryptoJS.AES.decrypt({ ciphertext: encrypted }, key, { iv: iv });
-        decrypted = decrypted.toString(CryptoJS.enc.Utf8);
+        const encrypted = new Uint8Array(await response.arrayBuffer());
+        const iv = base64ToBytes(btoa(payload.iv));
+        const key = utf8ToBytes(payload.key);
+        let decrypted = bytesToUtf8(await aesCbcDecrypt(encrypted, key, iv));
         decrypted = Uint8Array.from(atob(decrypted), char => char.charCodeAt(0));
         decrypted = {
             mimeType: response.headers.get('content-type'),

@@ -1,5 +1,6 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
+import { sha256Hex, sha256Bytes } from '../engine/Crypto.mjs';
 
 export default class PixivComics extends Connector {
 
@@ -86,7 +87,7 @@ export default class PixivComics extends Connector {
         const { pageProps: { salt } } = await this.fetchJSON(new Request(new URL(`/_next/data/${this.nextBuild}/viewer/stories/${chapter.id}.json?id=${chapter.id}`, this.url)));
 
         const timestamp = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
-        const hash = CryptoJS.SHA256(timestamp + salt).toString(CryptoJS.enc.Hex);
+        const hash = sha256Hex(timestamp + salt);
         const uri = new URL(`episodes/${chapter.id}/read_v4`, this.apiURL);
         const request = new Request(uri, this.requestOptions);
         request.headers.set('x-requested-with', 'pixivcomic');
@@ -157,32 +158,15 @@ class PixivShuffler {
 
 }
 
-function convertWordArrayToUint8Array (wordArray) {
-    var len = wordArray.words.length,
-        u8_array = new Uint8Array(len << 2),
-        offset = 0,
-        word,
-        i;
-    for (i = 0; i < len; i++) {
-        word = wordArray.words[i];
-        u8_array[offset++] = word >> 24;
-        u8_array[offset++] = word >> 16 & 255;
-        u8_array[offset++] = word >> 8 & 255;
-        u8_array[offset++] = word & 255;
-    }
-    return u8_array;
-}
-
 async function descrambleData(e, t, i, r, n, s, a, l, o) {
 
     let d = Math.ceil(r / s),
         c = Math.floor(i / n),
         u = Array(d).fill(null).map(() => Array.from(Array(c).keys()));
     {
-        let e = a +l;//new TextEncoder().encode(a + l); //key + magicvalue to bytes, for use with subtlecrypto SHA256
-        let t = convertWordArrayToUint8Array(CryptoJS.SHA256(e)); //subtle.digest('SHA-256", e) => return arraybuffer
-        let arrayBuffer = t.buffer.slice(t.byteOffset, t.byteLength + t.byteOffset); //we need to properly pass the ArrayBuffer to make the Uint32Array since we used CryptoJS
-        let i = new Uint32Array(arrayBuffer, 0, 4);
+        let e = a +l;//new TextEncoder().encode(a + l); //key + magicvalue to bytes, for use with subtle SHA-256
+        let t = sha256Bytes(e);
+        let i = new Uint32Array(t.buffer, t.byteOffset, 4);
         let r = new PixivShuffler(i);
 
         for (let e = 0; e < 100; e++) r.next();

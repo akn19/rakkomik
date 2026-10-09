@@ -1,5 +1,6 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
+import { sha512Hex, hexToBytes, base64ToBytes, bytesToUtf8, aesCbcDecrypt } from '../engine/Crypto.mjs';
 
 export default class CxC extends Connector {
 
@@ -142,17 +143,17 @@ export default class CxC extends Connector {
             )
         );
         const token = this.auth.accessToken ? this.auth.accessToken : 'freeforcxc2021reading'; //default free content token, may change in the future
-        const tokenHash = CryptoJS.SHA512(token).toString();
+        const tokenHash = await sha512Hex(token);
         const tokenCombo = {
             key: tokenHash.substr(0, 64),
             iv: tokenHash.substr(30, 32)
         };
-        let imageComboString = this._decrypt(payload.imageKey, tokenCombo).split(':');
+        let imageComboString = (await this._decrypt(payload.imageKey, tokenCombo)).split(':');
         const imageCombo = {
             key: imageComboString[0],
             iv: imageComboString[1]
         };
-        let decryptedImageResponse = this._decrypt(encTransformImage, imageCombo).split(",");
+        let decryptedImageResponse = (await this._decrypt(encTransformImage, imageCombo)).split(",");
         // from https://cxc.today/worker/base64ToBlob.js
         const e = decryptedImageResponse[0].indexOf("base64") >= 0 ? atob(decryptedImageResponse[1]) : decodeURI(decryptedImageResponse[1]);
         let n = new Uint8Array(e.length);
@@ -167,14 +168,10 @@ export default class CxC extends Connector {
         return data;
     }
 
-    _decrypt(encryptedBuffer, keyIvCombo) {
+    async _decrypt(encryptedBuffer, keyIvCombo) {
         // from https://cxc.today/worker/AESDecrypt.js
-        let decryptedBuffer = CryptoJS.AES.decrypt(encryptedBuffer, CryptoJS.enc.Hex.parse(keyIvCombo.key), {
-            iv: CryptoJS.enc.Hex.parse(keyIvCombo.iv),
-            mode: CryptoJS.mode.CBC,
-            padding: CryptoJS.pad.Pkcs7
-        });
-        return decryptedBuffer.toString(CryptoJS.enc.Utf8);
+        let decrypted = await aesCbcDecrypt(base64ToBytes(encryptedBuffer), hexToBytes(keyIvCombo.key), hexToBytes(keyIvCombo.iv));
+        return bytesToUtf8(decrypted);
     }
 
     async _getUUID() {

@@ -1,5 +1,6 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
+import { hexToBytes, aesCbcDecrypt } from '../engine/Crypto.mjs';
 
 export default class ComicFuz extends Connector {
 
@@ -77,19 +78,12 @@ export default class ComicFuz extends Connector {
         const response = await fetch(request);
         let buffer = await response.arrayBuffer();
         if (payload.encryptionKey) {
-            const key = CryptoJS.enc.Hex.parse(payload.encryptionKey);
-            const iv = CryptoJS.enc.Hex.parse(payload.iv);
-            const ciphertext = CryptoJS.lib.WordArray.create(buffer);
-            const encryptedCP = CryptoJS.lib.CipherParams.create({
-                ciphertext: ciphertext,
-                formatter: CryptoJS.format.OpenSSL
-            });
-            const decryptedWA = CryptoJS.AES.decrypt(encryptedCP, key, {
-                iv: iv
-            });
+            const key = hexToBytes(payload.encryptionKey);
+            const iv = hexToBytes(payload.iv);
+            const decrypted = await aesCbcDecrypt(new Uint8Array(buffer), key, iv);
             buffer = {
                 mimeType: response.headers.get('content-type'),
-                data: this.convertWordArrayToUint8Array(decryptedWA)
+                data: decrypted
             };
         } else {
             buffer = {
@@ -125,21 +119,5 @@ export default class ComicFuz extends Connector {
         };
         const request = await this._createPROTORequest(uri, requestType, payload);
         return this.fetchPROTO(request, this.protoTypes, responseType);
-    }
-
-    convertWordArrayToUint8Array (wordArray) {
-        var len = wordArray.words.length,
-            u8_array = new Uint8Array(len << 2),
-            offset = 0,
-            word,
-            i;
-        for (i = 0; i < len; i++) {
-            word = wordArray.words[i];
-            u8_array[offset++] = word >> 24;
-            u8_array[offset++] = word >> 16 & 255;
-            u8_array[offset++] = word >> 8 & 255;
-            u8_array[offset++] = word & 255;
-        }
-        return u8_array;
     }
 }

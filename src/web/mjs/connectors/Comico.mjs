@@ -1,5 +1,6 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
+import { sha256Hex, utf8ToBytes, bytesToUtf8, base64ToBytes, aesCbcDecrypt } from '../engine/Crypto.mjs';
 
 export default class Comico extends Connector {
 
@@ -19,7 +20,7 @@ export default class Comico extends Connector {
         const webkey = '9241d2f090d01716feac20ae08ba791a';
         const ip = '0.0.0.0';
         const tm = Math.round(new Date().getTime() / 1000);
-        const checksum = CryptoJS.SHA256(webkey + ip + tm).toString();
+        const checksum = sha256Hex(webkey + ip + tm);
         let uri = new URL(path, this.api);
         let request = new Request(uri, {
             method: 'GET',
@@ -88,17 +89,16 @@ export default class Comico extends Connector {
         if (data.data.content.chapterFileFormat == 'epub') {
             throw Error('This chapter is an Epub :/');
         }
-        return data.data.chapter.images.map(image => this.cookPictureUrl(image));
+        return Promise.all(data.data.chapter.images.map(image => this.cookPictureUrl(image)));
     }
 
-    cookPictureUrl(image) {
+    async cookPictureUrl(image) {
         const AESKey = 'a7fc9dc89f2c873d79397f8a0028a4cd';
-        const iv = CryptoJS.enc.Utf8.parse(CryptoJS.enc.Hex.parse(''));
-        const passPhrase = CryptoJS.enc.Utf8.parse(AESKey);
-        const decrypted = CryptoJS.AES.decrypt(image.url, passPhrase, {
-            iv,
-            mode: CryptoJS.mode.CBC
-        });
-        return new URL(CryptoJS.enc.Utf8.stringify(decrypted))+'?'+image.parameter;
+        // NOTE: the historic CryptoJS call passed an empty IV (Utf8 of empty Hex),
+        // which decrypts identically to a zero IV (verified against fixtures).
+        const iv = new Uint8Array(16);
+        const passPhrase = utf8ToBytes(AESKey);
+        const decrypted = await aesCbcDecrypt(base64ToBytes(image.url), passPhrase, iv);
+        return new URL(bytesToUtf8(decrypted))+'?'+image.parameter;
     }
 }

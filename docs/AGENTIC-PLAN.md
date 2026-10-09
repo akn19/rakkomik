@@ -12,7 +12,7 @@
 > | 0.6 Distribusi | ✅ selesai | `fase-0.6` |
 > | 0.7 Matriks build | ✅ selesai | `fase-0.7` |
 > | 1 Runtime Electron 44 | 🔶 kode selesai, verifikasi situs-live tertunda (sandbox) | — |
-> | 2 Lib → native | 🔶 parsial (fs-extra/oauth/exif ✅, crypto-js ⏳) | — |
+> | 2 Lib → native | 🔶 kode selesai (crypto-js → `engine/Crypto.mjs` + `LegacyCrypto`; sisa tag exif mati dibersihkan), smoke situs-live tertunda (sandbox) | — |
 > | 3 Build Vite | ⬜ belum | — |
 > | 4 UI React | ⬜ belum | — |
 

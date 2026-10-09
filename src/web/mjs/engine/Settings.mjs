@@ -1,3 +1,5 @@
+import { opensslAesEncrypt, opensslAesDecrypt } from './Crypto.mjs';
+
 const events = {
     loaded: 'loaded',
     saved: 'saved'
@@ -324,7 +326,7 @@ export default class Settings extends EventTarget {
                     && this[key]
                     && this[key].input
                     && this[key].input !== types.disabled) {
-                    this[key].value = this._getDecryptedValue(this[key].input, data[key]);
+                    this[key].value = await this._getDecryptedValue(this[key].input, data[key]);
                     this[key].value = this._getValidValue('General', this[key]);
                 }
             }
@@ -337,7 +339,7 @@ export default class Settings extends EventTarget {
                         && data.connectors[connector.id][key] !== undefined
                         && connector.config[key]
                         && connector.config[key].input) {
-                        connector.config[key].value = this._getDecryptedValue(connector.config[key].input, data.connectors[connector.id][key]);
+                        connector.config[key].value = await this._getDecryptedValue(connector.config[key].input, data.connectors[connector.id][key]);
                         connector.config[key].value = this._getValidValue(connector.label, connector.config[key], true);
                     }
                 }
@@ -354,7 +356,7 @@ export default class Settings extends EventTarget {
             // gather general settings
             for (let key in this) {
                 if (this[key] && this[key].input && this[key].input !== types.disabled) {
-                    data[key] = this._getEncryptedValue(this[key].input, this[key].value);
+                    data[key] = await this._getEncryptedValue(this[key].input, this[key].value);
                 }
             }
             // gather settings from each connector
@@ -362,7 +364,7 @@ export default class Settings extends EventTarget {
             for (let connector of Engine.Connectors) {
                 data.connectors[connector.id] = {};
                 for (let key in connector.config) {
-                    data.connectors[connector.id][key] = this._getEncryptedValue(connector.config[key].input, connector.config[key].value);
+                    data.connectors[connector.id][key] = await this._getEncryptedValue(connector.config[key].input, connector.config[key].value);
                 }
             }
             await Engine.Storage.saveConfig('settings', data, 2);
@@ -377,11 +379,11 @@ export default class Settings extends EventTarget {
      * @param inputType
      * @param decryptedValue
      */
-    _getEncryptedValue(inputType, decryptedValue) {
+    async _getEncryptedValue(inputType, decryptedValue) {
         if (inputType !== types.password || !decryptedValue || decryptedValue.length < 1) {
             return decryptedValue;
         }
-        return CryptoJS.AES.encrypt(decryptedValue, 'HakuNeko!').toString();
+        return opensslAesEncrypt(decryptedValue, 'HakuNeko!');
     }
 
     /**
@@ -389,11 +391,17 @@ export default class Settings extends EventTarget {
      * @param inputType
      * @param encryptedValue
      */
-    _getDecryptedValue(inputType, encryptedValue) {
+    async _getDecryptedValue(inputType, encryptedValue) {
         if (inputType !== types.password || !encryptedValue || encryptedValue.length < 1) {
             return encryptedValue;
         }
-        return CryptoJS.AES.decrypt(encryptedValue, 'HakuNeko!').toString(CryptoJS.enc.Utf8);
+        try {
+            return await opensslAesDecrypt(encryptedValue, 'HakuNeko!');
+        } catch (error) {
+            // tolerate corrupt/hand-edited values like the former CryptoJS path (which yielded '')
+            console.warn('Failed to decrypt settings value, falling back to empty!', error);
+            return '';
+        }
     }
 
     /**

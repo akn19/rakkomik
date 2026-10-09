@@ -1,4 +1,5 @@
 import Manga from './Manga.mjs';
+import { utf8ToBytes, bytesToUtf8, bytesToBase64, base64ToBytes } from './Crypto.mjs';
 
 /**
  * Base class for connector plugins
@@ -556,8 +557,7 @@ export default class Connector {
      */
     createConnectorURI( payload ) {
         let data = JSON.stringify( payload );
-        let bytes = CryptoJS.enc.Utf8.parse( data );
-        let encoded = CryptoJS.enc.Base64.stringify( bytes );
+        let encoded = bytesToBase64( utf8ToBytes( data ) );
         let uri = new URL( 'connector://' + this.id );
         uri.searchParams.set( 'payload', encoded );
         return uri.href;
@@ -658,8 +658,7 @@ export default class Connector {
      */
     handleConnectorURI( uri ) {
         let encoded = uri.searchParams.get( 'payload' );
-        let bytes = CryptoJS.enc.Base64.parse( encoded );
-        let data = bytes.toString( CryptoJS.enc.Utf8 );
+        let data = bytesToUtf8( base64ToBytes( encoded ) );
         let payload = JSON.parse( data );
         return this._handleConnectorURI( payload );
     }

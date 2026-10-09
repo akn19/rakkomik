@@ -1,5 +1,6 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
+import { sha256Hex, hexToBytes, base64ToBytes, bytesToUtf8, aesCbcDecrypt } from '../engine/Crypto.mjs';
 
 export default class GManga extends Connector {
 
@@ -50,7 +51,7 @@ export default class GManga extends Connector {
         let request = new Request(new URL('/api/mangas/search', this.apiurl), this.requestOptions);
         this._clearRequestOptions();
         let data = await this.fetchJSON(request);
-        data = data['iv'] ? this._haqiqa(data.data) : data;
+        data = data['iv'] ? await this._haqiqa(data.data) : data;
         data = data.mangas || [];
         return data.map(manga => {
             return {
@@ -67,7 +68,7 @@ export default class GManga extends Connector {
         }
         let request = new Request(new URL(`/api/mangas/${manga.id}/releases`, this.apiurl), this.requestOptions);
         let data = await this.fetchJSON(request);
-        data = data['iv'] ? this._haqiqa(data.data) : data;
+        data = data['iv'] ? await this._haqiqa(data.data) : data;
         data = data['isCompact'] ? this._unpack(data) : data;
         return data.releases.map(chapter => {
             const team = data.teams.find(t => t.id === chapter.team_id);
@@ -169,21 +170,17 @@ export default class GManga extends Connector {
         return "object" === this._a(t) ? e && 0 !== Object.keys(t).length : "" !== t && void 0 !== t && e;
     }
 
-    _haqiqa(t) {
-        let c = { default: CryptoJS };
+    async _haqiqa(t) {
+        // NOTE: kept verbatim except for the native crypto calls (was: CryptoJS)
         if (!this._dataExists(t) || "string" != typeof t)
             return !1;
         var e = t.split("|")
             , n = e[0]
             , r = e[2]
             , o = e[3]
-            , i = c.default.SHA256(o).toString()
-            , a = c.default.AES.decrypt({
-                ciphertext: c.default.enc.Base64.parse(n)
-            }, c.default.enc.Hex.parse(i), {
-                iv: c.default.enc.Base64.parse(r)
-            });
-        return JSON.parse(c.default.enc.Utf8.stringify(a));
+            , i = sha256Hex(o)
+            , a = await aesCbcDecrypt(base64ToBytes(n), hexToBytes(i), base64ToBytes(r));
+        return JSON.parse(bytesToUtf8(a));
     }
 
     _unpack(t) {
