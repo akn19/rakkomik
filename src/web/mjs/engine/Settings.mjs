@@ -59,7 +59,8 @@ export default class Settings extends EventTarget {
             input: types.select,
             options: [
                 { value: 'frontend@classic-light', name: 'Classic (Light)' },
-                { value: 'frontend@classic-dark', name: 'Ken\'s Daedal Dark' }
+                { value: 'frontend@classic-dark', name: 'Ken\'s Daedal Dark' },
+                { value: 'frontend@react', name: 'React (Beta)' }
             ],
             value: 'frontend@classic-light'
         };

@@ -1,10 +1,11 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema.json",
     "entry": [
-        "src/web/mjs/HakuNeko.mjs"
+        "src/web/mjs/HakuNeko.mjs",
+        "src/web/ui/main.jsx"
     ],
     "project": [
-        "src/**/*.{js,mjs}"
+        "src/**/*.{js,mjs,jsx}"
     ],
     "ignore": [
         "src/app/preload.js",
@@ -19,6 +20,7 @@
         "innosetup-compiler",
         "jest-junit",
         "rcedit",
-        "win-7zip"
+        "win-7zip",
+        "tailwindcss"
     ]
 }

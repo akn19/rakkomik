@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* Single-codebase dark mode (replaces the light/dark theme.html duplication).
+ * The shell toggles the `dark` class on its root container. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html, body, #react-root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: Inter, system-ui, "Segoe UI", "Hiragino Sans",
+        "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP",
+        sans-serif;
+}
+
+/* Frameless-window dragging (see classic #default_menubar). */
+.rk-drag {
+    -webkit-app-region: drag;
+}
+
+.rk-no-drag {
+    -webkit-app-region: no-drag;
+}

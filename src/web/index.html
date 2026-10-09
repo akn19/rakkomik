@@ -56,7 +56,25 @@
         function loadFrontend() {
             let identifier = Engine.Settings.frontend.value;
             console.log('Loading Frontend:', identifier);
+            if (identifier === 'frontend@react') {
+                loadReactShell();
+                return;
+            }
             loadClassicPolymer(identifier);
+        }
+
+        async function loadReactShell() {
+            // Fase 4 shell: bundled React UI (built by `pnpm run build:ui`),
+            // mounted AFTER loadEngine() so window.Engine is ready.
+            let container = document.createElement('div');
+            container.id = 'react-root';
+            document.body.appendChild(container);
+            let css = document.createElement('link');
+            css.rel = 'stylesheet';
+            css.href = './ui/dist/ui.css';
+            document.head.appendChild(css);
+            let shell = await import('./ui/dist/ui.js');
+            shell.mountReactShell(container);
         }
 
         function loadClassicPolymer(identifier) {

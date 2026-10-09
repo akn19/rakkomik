@@ -8,6 +8,7 @@ node_modules
 *.log
 build
 cache
+src/web/ui/dist/
 .vscode
 .helper
 /redist/*.zip
