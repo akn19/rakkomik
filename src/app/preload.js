@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('hakuneko', {
         existsSync: p => ipcRenderer.sendSync('hakuneko:fs:existsSync', p),
         mkdirSync: p => ipcRenderer.sendSync('hakuneko:fs:mkdirSync', p),
         writeFile: (p, data, encoding) => ipcRenderer.invoke('hakuneko:fs:writeFile', p, data, encoding),
+        rename: (oldPath, newPath) => ipcRenderer.invoke('hakuneko:fs:rename', oldPath, newPath),
+        unlink: p => ipcRenderer.invoke('hakuneko:fs:unlink', p),
         readFile: (p, encoding) => ipcRenderer.invoke('hakuneko:fs:readFile', p, encoding),
         stat: p => ipcRenderer.invoke('hakuneko:fs:stat', p),
         readdir: p => ipcRenderer.invoke('hakuneko:fs:readdir', p)

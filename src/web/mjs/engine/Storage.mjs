@@ -60,7 +60,7 @@ export default class Storage {
      * Save the given value for the given key in the persistant storage
      */
     saveConfig(key, value, indentation) {
-        return this.fs.writeFile(this.config + key, JSON.stringify(value, undefined, indentation)).then(() => undefined);
+        return this._writeFileAtomic(this.config + key, JSON.stringify(value, undefined, indentation)).then(() => undefined);
     }
 
     /**
@@ -488,7 +488,24 @@ export default class Storage {
      * Wrap the async write file function into a promise
      */
     _writeFile(path, data) {
-        return this.fs.writeFile(path, data).then(() => path);
+        return this._writeFileAtomic(path, data).then(() => path);
+    }
+
+    /**
+     * Crash-safe write: data lands in a temp sibling first, then a single
+     * atomic rename publishes it. A crash can only leave a stray temp file
+     * (same directory, same filesystem => rename is atomic); the target is
+     * never observed half-written, so JSON configs cannot corrupt.
+     */
+    async _writeFileAtomic(path, data) {
+        const temp = `${path}.tmp-${Date.now().toString(36)}-${Math.floor(Math.random() * 0xffffff).toString(36)}`;
+        try {
+            await this.fs.writeFile(temp, data);
+            await this.fs.rename(temp, path);
+        } catch (error) {
+            await this.fs.unlink(temp).catch(() => undefined);
+            throw error;
+        }
     }
 
     async saveTempFile(name, data) {
@@ -654,7 +671,7 @@ export default class Storage {
      */
     saveBookmarks(key, value, indentation) {
         return new Promise((resolve, reject) => {
-            this.fs.writeFile(this._bookmarkOutputPath + key, JSON.stringify(value, undefined, indentation)).then(() => resolve(), error => reject(error));
+            this._writeFileAtomic(this._bookmarkOutputPath + key, JSON.stringify(value, undefined, indentation)).then(() => resolve(), error => reject(error));
         });
     }
 
