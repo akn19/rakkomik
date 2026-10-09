@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from './icon.jsx';
 
 const CONTROL = 'w-full rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-800 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200';
 
@@ -76,7 +77,7 @@ export function PathField({ value, onBrowse, browseTitle, disabled }) {
                 onClick={onBrowse}
                 className="shrink-0 rounded border border-zinc-300 px-2 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
             >
-                &#128193;
+                <Icon name="folder" />
             </button>
         </div>
     );

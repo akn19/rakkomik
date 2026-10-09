@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { getChaptermark, subscribeChaptermarks, toggleChaptermark, isChapterMarked } from '../engine.js';
+import Icon from '../icon.jsx';
 import { fetchChapterList, resolveManga, addChapterDownloads } from '../queries.js';
 import { useToast } from '../notify.jsx';
 import { ConfirmDialog } from '../dialog.jsx';
@@ -267,9 +268,9 @@ export default function ChaptersView() {
                                         toggleChaptermark(chapter, markedChapter);
                                         bump();
                                     }}
-                                    className={'shrink-0 text-sm ' + (isChapterMarked(chapter, markedChapter) ? 'text-amber-500' : 'text-zinc-300 hover:text-amber-400 dark:text-zinc-600')}
+                                    className={'shrink-0 ' + (isChapterMarked(chapter, markedChapter) ? 'text-amber-500' : 'text-zinc-300 hover:text-amber-400 dark:text-zinc-600')}
                                 >
-                                    &#9733;
+                                    <Icon name="star" filled={isChapterMarked(chapter, markedChapter)} />
                                 </button>
                                 {statusBadge(chapter.status)}
                                 <button
@@ -278,7 +279,7 @@ export default function ChaptersView() {
                                     onClick={() => processChapter(chapter)}
                                     className="shrink-0 rounded border border-zinc-300 px-2 py-0.5 text-xs hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
                                 >
-                                    &#8681;
+                                    <Icon name="download" size={12} />
                                 </button>
                             </div>
                         );

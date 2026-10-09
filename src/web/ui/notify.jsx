@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from './icon.jsx';
 
 const ToastContext = React.createContext(null);
 
@@ -40,7 +41,7 @@ export function ToastProvider({ children }) {
                                 className="shrink-0 opacity-60 hover:opacity-100"
                                 title="Dismiss"
                             >
-                                &#10005;
+                                <Icon name="close" size={12} />
                             </button>
                         </div>
                     </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { markChapterRead } from '../engine.js';
+import Icon from '../icon.jsx';
 import { fetchPages, resolveChapter } from '../queries.js';
 import { useToast } from '../notify.jsx';
 
@@ -251,7 +252,7 @@ export default function ReaderView() {
                     title="Back to chapter list"
                     className="rounded border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
                 >
-                    &#8592; Chapters
+                    <span className="flex items-center gap-1"><Icon name="back" size={12} /> Chapters</span>
                 </button>
                 <h1 className="min-w-0 flex-1 truncate text-base font-semibold">{chapter.title}</h1>
                 {mode === 'thumbs' ? (
@@ -289,8 +290,8 @@ export default function ReaderView() {
             {mode === 'read' && media.length > 0 && (
                 <div className="relative min-h-0 flex-1">
                     <div className="absolute top-0 right-0 z-10 flex items-center gap-0.5 rounded-bl-lg bg-white/90 px-1 shadow dark:bg-zinc-900/90">
-                        <ToolbarButton title="Previous chapter (ArrowLeft)" onClick={() => openChapter(resolved.index - 1)}>&#8592;</ToolbarButton>
-                        <ToolbarButton title="Next chapter (ArrowRight)" onClick={() => openChapter(resolved.index + 1)}>&#8594;</ToolbarButton>
+                        <ToolbarButton title="Previous chapter (ArrowLeft)" onClick={() => openChapter(resolved.index - 1)}><Icon name="chevronLeft" /></ToolbarButton>
+                        <ToolbarButton title="Next chapter (ArrowRight)" onClick={() => openChapter(resolved.index + 1)}><Icon name="chevronRight" /></ToolbarButton>
                         <ToolbarButton title="Decrease spacing (CTRL -)" onClick={() => setImagePadding(padding => Math.max(0, padding - 1))}>&#8722;</ToolbarButton>
                         <ToolbarButton title="Increase spacing (CTRL +)" onClick={() => setImagePadding(padding => Math.max(0, padding + 1))}>+</ToolbarButton>
                         <ToolbarButton title="Zoom in (+)" onClick={() => zoom(imageWidth + 15)}>+</ToolbarButton>
@@ -298,8 +299,8 @@ export default function ReaderView() {
                         <ToolbarButton title="Default width (*)" onClick={() => setImageWidth(75)}>75%</ToolbarButton>
                         <ToolbarButton title="Fit width (/)" onClick={() => setImageWidth(100)}>100%</ToolbarButton>
                         <span className="px-1 text-xs text-zinc-500">{imageWidth}%</span>
-                        <ToolbarButton title="Magic scroll (Space)" onClick={() => scrollMagic(window.innerHeight * 0.8)}>&#8681;</ToolbarButton>
-                        <ToolbarButton title="Close (ESC)" onClick={closeReader}>&#10005;</ToolbarButton>
+                        <ToolbarButton title="Magic scroll (Space)" onClick={() => scrollMagic(window.innerHeight * 0.8)}><Icon name="magicScroll" /></ToolbarButton>
+                        <ToolbarButton title="Close (ESC)" onClick={closeReader}><Icon name="close" /></ToolbarButton>
                     </div>
                     <div ref={containerRef} tabIndex={0} onKeyDown={onKeyDown} className="h-full overflow-auto bg-zinc-200 outline-none dark:bg-black">
                         {media.map((page, index) => (

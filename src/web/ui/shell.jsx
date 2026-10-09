@@ -2,14 +2,15 @@ import React from 'react';
 import { Link, Outlet } from '@tanstack/react-router';
 import { getEngineStatus, hasActiveDownloads, subscribeAppClose, quitApp } from './engine.js';
 import { ConfirmDialog } from './dialog.jsx';
+import Icon from './icon.jsx';
 
 const NAV_ITEMS = [
-    { to: '/', name: 'Start' },
-    { to: '/library', name: 'Library' },
-    { to: '/downloads', name: 'Downloads' },
-    { to: '/connectors', name: 'Connectors' },
-    { to: '/bookmarks', name: 'Bookmarks' },
-    { to: '/settings', name: 'Settings' }
+    { to: '/', name: 'Start', icon: 'home' },
+    { to: '/library', name: 'Library', icon: 'book' },
+    { to: '/downloads', name: 'Downloads', icon: 'download' },
+    { to: '/connectors', name: 'Connectors', icon: 'disconnect' },
+    { to: '/bookmarks', name: 'Bookmarks', icon: 'bookmark' },
+    { to: '/settings', name: 'Settings', icon: 'settings' }
 ];
 
 function Titlebar({ dark, onToggleTheme }) {
@@ -32,7 +33,7 @@ function Titlebar({ dark, onToggleTheme }) {
                     onClick={onToggleTheme}
                     className="rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800"
                 >
-                    {dark ? '\u25D0' : '\u25D1'}
+                    <Icon name={dark ? 'sun' : 'moon'} />
                 </button>
                 <button
                     type="button"
@@ -40,9 +41,7 @@ function Titlebar({ dark, onToggleTheme }) {
                     onClick={act(h => h.window.minimize())}
                     className="rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800"
                 >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <line x1="1" y1="6" x2="11" y2="6" />
-                    </svg>
+                    <Icon name="minimize" size={12} />
                 </button>
                 <button
                     type="button"
@@ -56,9 +55,7 @@ function Titlebar({ dark, onToggleTheme }) {
                     })}
                     className="rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800"
                 >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <rect x="2" y="2" width="8" height="8" />
-                    </svg>
+                    <Icon name="maximize" size={12} />
                 </button>
                 <button
                     type="button"
@@ -66,10 +63,7 @@ function Titlebar({ dark, onToggleTheme }) {
                     onClick={act(h => h.window.close())}
                     className="rounded px-2 py-1 text-sm text-zinc-600 hover:bg-red-500 hover:text-white dark:text-zinc-300"
                 >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <line x1="2" y1="2" x2="10" y2="10" />
-                        <line x1="10" y1="2" x2="2" y2="10" />
-                    </svg>
+                    <Icon name="close" size={12} />
                 </button>
             </div>
         </header>
@@ -88,7 +82,10 @@ function Sidebar({ connectorCount }) {
                     className={linkClass}
                     activeProps={{ className: activeClass }}
                 >
-                    {item.name}
+                    <span className="flex items-center gap-2">
+                        <Icon name={item.icon} />
+                        {item.name}
+                    </span>
                     {item.to === '/connectors' && (
                         <span className="ml-2 rounded-full bg-zinc-200 px-2 py-0.5 text-xs dark:bg-zinc-800">
                             {connectorCount}

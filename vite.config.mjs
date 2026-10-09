@@ -35,11 +35,15 @@ export default {
             fileName: () => 'ui.js'
         },
         rollupOptions: {
-            // Single CSS asset (plus the single ui.js chunk): fixed names so
-            // index.html can reference them without a manifest.
+            // Fixed names for the files index.html references directly;
+            // hashed names for the rest (fonts, lazy chunks).
             output: {
-                assetFileNames: 'ui.[ext]'
+                assetFileNames: asset => asset.names?.some(name => name.endsWith('.css')) ? 'ui.[ext]' : 'ui-asset-[name]-[hash].[ext]'
             }
-        }
+        },
+        // Binary assets referenced from CSS (e.g. fonts) are inlined by Vite
+        // in lib mode; for this local-disk app that is acceptable (no network,
+        // parsed once). Keep emitted files, if any, next to the bundle.
+        assetsInlineLimit: 0
     }
 };

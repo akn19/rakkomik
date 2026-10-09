@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNavigate } from '@tanstack/react-router';
 import { getEngine, toggleBookmark, isMangaBookmarked } from '../engine.js';
+import Icon from '../icon.jsx';
 import { fetchMangaList, updateMangaList } from '../queries.js';
 import { useToast } from '../notify.jsx';
 
@@ -40,9 +41,9 @@ function MangaCard({ manga, bookmarked, onOpen, onToggleBookmark }) {
                     type="button"
                     title={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
                     onClick={onToggleBookmark}
-                    className={'shrink-0 px-1 text-sm ' + (bookmarked ? 'text-amber-500' : 'text-zinc-300 hover:text-amber-400 dark:text-zinc-600')}
+                    className={'shrink-0 px-1 ' + (bookmarked ? 'text-amber-500' : 'text-zinc-300 hover:text-amber-400 dark:text-zinc-600')}
                 >
-                    &#9733;
+                    <Icon name="star" filled={bookmarked} />
                 </button>
             </div>
         </div>
