@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const electron = require('electron');
+const HeaderSurgery = require('./HeaderSurgery');
 const { ConsoleLogger } = require('./Logger');
 const urlFilterAll = { urls: ['http://*/*', 'https://*/*'] };
 const trayTooltipMinimize = 'HakuNeko\nClick to hide window';
@@ -102,11 +103,32 @@ module.exports = class ElectronBootstrap {
         if(file.endsWith('.html')) {
             return 'text/html';
         }
+        if(file.endsWith('.css')) {
+            return 'text/css';
+        }
         if(file.endsWith('.json') || file.endsWith('.map')) {
             return 'application/json';
         }
         if(file.endsWith('.png')) {
             return 'image/png';
+        }
+        if(file.endsWith('.jpg') || file.endsWith('.jpeg')) {
+            return 'image/jpeg';
+        }
+        if(file.endsWith('.gif')) {
+            return 'image/gif';
+        }
+        if(file.endsWith('.webp')) {
+            return 'image/webp';
+        }
+        if(file.endsWith('.avif')) {
+            return 'image/avif';
+        }
+        if(file.endsWith('.bmp')) {
+            return 'image/bmp';
+        }
+        if(file.endsWith('.svg')) {
+            return 'image/svg+xml';
         }
         if(file.endsWith('.ico')) {
             return 'image/x-icon';
@@ -430,13 +452,16 @@ module.exports = class ElectronBootstrap {
     }
 
     _setupBeforeSendHeaders() {
-        // inject headers before a request is made (call the handler in the webapp to do the dirty work)
-        electron.session.defaultSession.webRequest.onBeforeSendHeaders(urlFilterAll, async (details, callback) => {
+        // inject headers before a request is made (synchronous main-side
+        // surgery — the renderer round-trip MUST NOT be used here: on modern
+        // Electron an async webRequest listener hangs every request before
+        // the hook even fires (verified live on Electron 44).
+        const surgery = new HeaderSurgery();
+        electron.session.defaultSession.webRequest.onBeforeSendHeaders(urlFilterAll, (details, callback) => {
             try {
-                let result = await this._ipcSend('on-before-send-headers', details);
                 callback({
                     cancel: false,
-                    requestHeaders: result.requestHeaders
+                    requestHeaders: surgery.applyBeforeSendHeaders(details.url, details.requestHeaders)
                 });
             } catch(error) {
                 this._logger.warn(error);
@@ -446,15 +471,17 @@ module.exports = class ElectronBootstrap {
                 });
             }
         });
+        this._headerSurgery = surgery;
     }
 
     _setupHeadersReceived() {
-        electron.session.defaultSession.webRequest.onHeadersReceived(urlFilterAll, async (details, callback) => {
+        // See _setupBeforeSendHeaders for why this stays synchronous.
+        const surgery = this._headerSurgery || new HeaderSurgery();
+        electron.session.defaultSession.webRequest.onHeadersReceived(urlFilterAll, (details, callback) => {
             try {
-                let result = await this._ipcSend('on-headers-received', details);
                 callback({
                     cancel: false,
-                    responseHeaders: result.responseHeaders
+                    responseHeaders: surgery.applyHeadersReceived(details.url, details.responseHeaders)
                     // statusLine
                 });
             } catch(error) {
