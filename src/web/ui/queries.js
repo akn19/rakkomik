@@ -53,6 +53,32 @@ export function updateMangaList(connector) {
     });
 }
 
+export function fetchPages(chapter) {
+    return new Promise((resolve, reject) => {
+        chapter.getPages((error, media) => {
+            if (error || !media) {
+                reject(error || new Error(`Failed to load pages for "${chapter.title}"!`));
+            } else {
+                resolve(media);
+            }
+        });
+    });
+}
+
+export async function resolveChapter(connectorId, mangaId, chapterId) {
+    const manga = await resolveManga(connectorId, mangaId);
+    let chapters = queryClient.getQueryData(['chapters', connectorId, mangaId]);
+    if (!chapters) {
+        chapters = await fetchChapterList(manga);
+        queryClient.setQueryData(['chapters', connectorId, mangaId], chapters);
+    }
+    const index = chapters.findIndex(entry => entry.id === chapterId);
+    if (index < 0) {
+        throw new Error(`Chapter "${chapterId}" not found!`);
+    }
+    return { manga, chapters, index };
+}
+
 export function fetchChapterList(manga) {
     return new Promise((resolve, reject) => {
         manga.getChapters((error, chapters) => {

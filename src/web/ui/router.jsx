@@ -4,6 +4,7 @@ import StartView from './views/Start.jsx';
 import PlaceholderView from './views/Placeholder.jsx';
 import LibraryView from './views/Library.jsx';
 import ChaptersView from './views/Chapters.jsx';
+import ReaderView from './views/Reader.jsx';
 import BookmarksView from './views/BookmarksView.jsx';
 import SettingsView from './views/SettingsView.jsx';
 
@@ -39,10 +40,21 @@ const connectorsRoute = createRoute({
 const bookmarksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/bookmarks', component: BookmarksView });
 const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsView });
 
+const readerRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/reader',
+    validateSearch: search => ({
+        connector: typeof search.connector === 'string' ? search.connector : '',
+        manga: typeof search.manga === 'string' ? search.manga : '',
+        chapter: typeof search.chapter === 'string' ? search.chapter : ''
+    }),
+    component: ReaderView
+});
 const routeTree = rootRoute.addChildren([
     startRoute,
     libraryRoute,
     chaptersRoute,
+    readerRoute,
     downloadsRoute,
     connectorsRoute,
     bookmarksRoute,

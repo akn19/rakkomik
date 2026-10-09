@@ -97,6 +97,27 @@ describe('ui queries', () => {
         await expect(queries.fetchChapterList(resolved)).resolves.toHaveLength(1);
     });
 
+    it('should wrap chapter.getPages in a promise', async () => {
+        fakeEngine();
+        const chapter = {
+            id: 'c1',
+            title: 'Ch 1',
+            getPages: jest.fn(callback => callback(null, ['http://img/1.jpg', 'http://img/2.jpg']))
+        };
+        await expect(queries.fetchPages(chapter)).resolves.toHaveLength(2);
+        chapter.getPages.mockImplementationOnce(callback => callback(new Error('empty'), undefined));
+        await expect(queries.fetchPages(chapter)).rejects.toThrow('empty');
+    });
+
+    it('should resolve chapters with siblings for prev/next navigation', async () => {
+        fakeEngine();
+        const resolved = await queries.resolveChapter('c1', 'm1', 'm1-c1');
+        expect(resolved.manga.title).toBe('Title m1');
+        expect(resolved.index).toBe(0);
+        expect(resolved.chapters).toHaveLength(1);
+        await expect(queries.resolveChapter('c1', 'm1', 'ghost')).rejects.toThrow();
+    });
+
     it('should fan chapter downloads out to the download manager', () => {
         fakeEngine();
         const added = queries.addChapterDownloads([{ id: 'a' }, { id: 'b' }]);

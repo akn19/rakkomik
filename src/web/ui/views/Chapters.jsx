@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { getRouteApi } from '@tanstack/react-router';
+import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { getChaptermark, subscribeChaptermarks, toggleChaptermark, isChapterMarked } from '../engine.js';
 import { fetchChapterList, resolveManga, addChapterDownloads } from '../queries.js';
 import { useToast } from '../notify.jsx';
@@ -44,6 +44,7 @@ const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'bas
 
 export default function ChaptersView() {
     const { notify } = useToast();
+    const navigate = useNavigate();
     const { connector: connectorId, manga: mangaId } = chaptersRoute.useSearch();
     const [pattern, setPattern] = React.useState('');
     const [language, setLanguage] = React.useState('');
@@ -254,7 +255,7 @@ export default function ChaptersView() {
                                 <button
                                     type="button"
                                     title={chapter.title}
-                                    onClick={() => notify('Reader arrives in a later slice.', 'info')}
+                                    onClick={() => navigate({ to: '/reader', search: { connector: connectorId, manga: mangaId, chapter: chapter.id } })}
                                     className="min-w-0 flex-1 truncate text-left text-sm hover:underline"
                                 >
                                     {chapter.title}

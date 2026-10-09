@@ -126,6 +126,14 @@ export function isChapterMarked(chapter, markedChapter) {
     }
 }
 
+export function markChapterRead(chapter) {
+    try {
+        getEngine().ChaptermarkManager.addChaptermark(chapter);
+    } catch {
+        // reading progress is best-effort; never break the reader
+    }
+}
+
 export function toggleChaptermark(chapter, markedChapter) {
     const manager = getEngine().ChaptermarkManager;
     if (markedChapter && manager.isChapterMarked(chapter, markedChapter)) {
