@@ -118,7 +118,9 @@ export default function Shell() {
             <div className="flex min-h-0 flex-1">
                 <Sidebar connectorCount={connectors} />
                 <main className="flex-1 overflow-auto bg-zinc-100 p-6 dark:bg-black">
-                    <Outlet />
+                    <React.Suspense fallback={<p className="text-sm text-zinc-500">Loading view …</p>}>
+                        <Outlet />
+                    </React.Suspense>
                 </main>
             </div>
             <footer className="flex shrink-0 items-center justify-between bg-zinc-100 px-3 py-1 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">

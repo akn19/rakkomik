@@ -1,13 +1,17 @@
+import React from 'react';
 import { createHashHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import Shell from './shell.jsx';
-import StartView from './views/Start.jsx';
-import LibraryView from './views/Library.jsx';
-import ChaptersView from './views/Chapters.jsx';
-import ReaderView from './views/Reader.jsx';
-import DownloadsView from './views/Downloads.jsx';
-import ConnectorsView from './views/Connectors.jsx';
-import BookmarksView from './views/BookmarksView.jsx';
-import SettingsView from './views/SettingsView.jsx';
+
+// Route-based splitting (audit §5.7): the initial bundle holds only the
+// shell; each view loads on demand when its route opens.
+const StartView = React.lazy(() => import('./views/Start.jsx'));
+const LibraryView = React.lazy(() => import('./views/Library.jsx'));
+const ChaptersView = React.lazy(() => import('./views/Chapters.jsx'));
+const ReaderView = React.lazy(() => import('./views/Reader.jsx'));
+const DownloadsView = React.lazy(() => import('./views/Downloads.jsx'));
+const ConnectorsView = React.lazy(() => import('./views/Connectors.jsx'));
+const BookmarksView = React.lazy(() => import('./views/BookmarksView.jsx'));
+const SettingsView = React.lazy(() => import('./views/SettingsView.jsx'));
 
 // Hash history: the app runs on a custom scheme (hakuneko://), not http,
 // so path history is unusable (audit §5.2).
