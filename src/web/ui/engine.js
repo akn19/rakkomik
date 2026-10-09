@@ -80,6 +80,61 @@ export function deleteBookmark(bookmark) {
     return getEngine().BookmarkManager.deleteBookmark(bookmark);
 }
 
+export function isMangaBookmarked(manga) {
+    try {
+        const manager = getEngine().BookmarkManager;
+        return manager.bookmarks.some(bookmark => bookmark.key.manga === manga.id && bookmark.key.connector === manga.connector.id);
+    } catch {
+        return false;
+    }
+}
+
+export function toggleBookmark(manga) {
+    const manager = getEngine().BookmarkManager;
+    if (isMangaBookmarked(manga)) {
+        const bookmark = manager.bookmarks.find(entry => entry.key.manga === manga.id && entry.key.connector === manga.connector.id);
+        return manager.deleteBookmark(bookmark);
+    }
+    return manager.addBookmark(manga);
+}
+
+export function getChaptermark(manga) {
+    try {
+        return getEngine().ChaptermarkManager.getChaptermark(manga) || null;
+    } catch {
+        return null;
+    }
+}
+
+export function subscribeChaptermarks(notify) {
+    let manager = null;
+    try {
+        manager = getEngine().ChaptermarkManager;
+    } catch {
+        return () => undefined;
+    }
+    const handler = () => notify();
+    manager.addEventListener('changed', handler);
+    return () => manager.removeEventListener('changed', handler);
+}
+
+export function isChapterMarked(chapter, markedChapter) {
+    try {
+        return !!markedChapter && getEngine().ChaptermarkManager.isChapterMarked(chapter, markedChapter);
+    } catch {
+        return false;
+    }
+}
+
+export function toggleChaptermark(chapter, markedChapter) {
+    const manager = getEngine().ChaptermarkManager;
+    if (markedChapter && manager.isChapterMarked(chapter, markedChapter)) {
+        manager.deleteChaptermark(markedChapter);
+    } else {
+        manager.addChaptermark(chapter);
+    }
+}
+
 export function getSettingsDraft() {
     return getEngine().Settings.getCategorizedSettings().map(group => ({
         category: group.category,

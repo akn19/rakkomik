@@ -2,6 +2,8 @@ import { createHashHistory, createRootRoute, createRoute, createRouter, RouterPr
 import Shell from './shell.jsx';
 import StartView from './views/Start.jsx';
 import PlaceholderView from './views/Placeholder.jsx';
+import LibraryView from './views/Library.jsx';
+import ChaptersView from './views/Chapters.jsx';
 import BookmarksView from './views/BookmarksView.jsx';
 import SettingsView from './views/SettingsView.jsx';
 
@@ -13,7 +15,16 @@ const startRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', com
 const libraryRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/library',
-    component: () => <PlaceholderView title="library" note="The manga grid (with virtualization) arrives in a later slice." />
+    component: LibraryView
+});
+const chaptersRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/chapters',
+    validateSearch: search => ({
+        connector: typeof search.connector === 'string' ? search.connector : '',
+        manga: typeof search.manga === 'string' ? search.manga : ''
+    }),
+    component: ChaptersView
 });
 const downloadsRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -31,6 +42,7 @@ const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/set
 const routeTree = rootRoute.addChildren([
     startRoute,
     libraryRoute,
+    chaptersRoute,
     downloadsRoute,
     connectorsRoute,
     bookmarksRoute,
