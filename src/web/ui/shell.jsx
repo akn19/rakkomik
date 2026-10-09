@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, Outlet } from '@tanstack/react-router';
-import { getEngineStatus } from './engine.js';
+import { getEngineStatus, hasActiveDownloads, subscribeAppClose, quitApp } from './engine.js';
+import { ConfirmDialog } from './dialog.jsx';
 
 const NAV_ITEMS = [
     { to: '/', name: 'Start' },
@@ -101,7 +102,16 @@ function Sidebar({ connectorCount }) {
 
 export default function Shell() {
     const [dark, setDark] = React.useState(true);
+    const [confirmQuit, setConfirmQuit] = React.useState(false);
     const { connectors, version } = getEngineStatus();
+    // Classic jobs.html parity: confirm when downloads are still running.
+    React.useEffect(() => subscribeAppClose(() => {
+        if (hasActiveDownloads()) {
+            setConfirmQuit(true);
+        } else {
+            quitApp();
+        }
+    }), []);
     return (
         <div className={'flex h-full flex-col text-sm ' + (dark ? 'dark' : '')}>
             <Titlebar dark={dark} onToggleTheme={() => setDark(value => !value)} />
@@ -115,6 +125,17 @@ export default function Shell() {
                 <span>React shell (Beta)</span>
                 <span>{version}</span>
             </footer>
+            <ConfirmDialog
+                open={confirmQuit}
+                title="Downloads are still in progress."
+                message="Close application anyway?"
+                confirmLabel="Close"
+                onConfirm={() => {
+                    setConfirmQuit(false);
+                    quitApp();
+                }}
+                onCancel={() => setConfirmQuit(false)}
+            />
         </div>
     );
 }

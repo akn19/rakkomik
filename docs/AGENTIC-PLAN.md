@@ -14,7 +14,7 @@
 > | 1 Runtime Electron 44 | 🔶 kode selesai, verifikasi situs-live tertunda (sandbox) | — |
 > | 2 Lib → native | 🔶 kode selesai (crypto-js → `engine/Crypto.mjs` + `LegacyCrypto`; sisa tag exif mati dibersihkan), smoke situs-live tertunda (sandbox) | — |
 > | 3 Build Vite | 🔶 perkakas berdiri (`vite build` → `ui/dist`, dibawa `build:web`); pensiun `polymer-build` menunggu UI selesai | — |
-> | 4 UI React | 🔶 slice 1–4 selesai (shell, CRUD, list, reader); jobs + hapus classic menyusul | — |
+> | 4 UI React | 🔶 slice 1–5 selesai (shell, CRUD, list, reader, jobs); hapus classic menyusul | — |
 
 ## 0. Aturan operasi global (tidak bisa ditawar)
 

@@ -126,6 +126,104 @@ export function isChapterMarked(chapter, markedChapter) {
     }
 }
 
+export function getDownloadJobs() {
+    try {
+        const queue = getEngine().DownloadManager.queue || {};
+        return Object.values(queue)
+            .filter(entry => Array.isArray(entry))
+            .flat();
+    } catch {
+        return [];
+    }
+}
+
+export function subscribeDownloads(listener) {
+    let manager = null;
+    try {
+        manager = getEngine().DownloadManager;
+    } catch {
+        return () => undefined;
+    }
+    const handler = event => listener(event);
+    manager.addEventListener('updated', handler);
+    return () => manager.removeEventListener('updated', handler);
+}
+
+/**
+ * Merge one manager event into the view list (classic jobs.html parity):
+ * update a tracked job in place, drop it when completed, replace a failed
+ * twin, and track new queued/downloading jobs.
+ */
+export function mergeDownloadJobs(jobList, job) {
+    const list = jobList.slice();
+    const index = list.indexOf(job);
+    if (index > -1) {
+        if (job.status === 'completed') {
+            list.splice(index, 1);
+        }
+        return list;
+    }
+    const failedTwin = list.findIndex(item => job.isSame(item) && item.status === 'failed');
+    if (failedTwin > -1) {
+        list.splice(failedTwin, 1);
+    }
+    if (job.status === 'queued' || job.status === 'downloading') {
+        list.push(job);
+    }
+    return list;
+}
+
+export function restartChapterDownload(chapter) {
+    getEngine().DownloadManager.addDownload(chapter);
+}
+
+export function hasActiveDownloads() {
+    return getDownloadJobs().some(job => job.status === 'queued' || job.status === 'downloading');
+}
+
+export function subscribeAppClose(listener) {
+    const hakuneko = typeof window !== 'undefined' ? window.hakuneko : undefined;
+    if (!hakuneko || typeof hakuneko.on !== 'function') {
+        return () => undefined;
+    }
+    hakuneko.on('close', listener);
+    return () => {
+        if (typeof hakuneko.off === 'function') {
+            hakuneko.off('close', listener);
+        }
+    };
+}
+
+export function quitApp() {
+    const hakuneko = typeof window !== 'undefined' ? window.hakuneko : undefined;
+    if (hakuneko) {
+        hakuneko.send('quit');
+    }
+}
+
+export function openExternalLink(url) {
+    if (url && typeof window !== 'undefined') {
+        window.open(url, '_blank', 'nodeIntegration=no');
+    }
+}
+
+export async function findConnectorsByManga(pattern) {
+    const engine = getEngine();
+    const needle = pattern.trim().toLowerCase();
+    const matches = [];
+    for (const connector of engine.Connectors) {
+        try {
+            const mangas = await engine.Storage.loadMangaList(connector.id);
+            if (mangas.some(manga => manga.title.toLowerCase().includes(needle))) {
+                matches.push(connector.id);
+            }
+        } catch {
+            // connectors without a synchronized list simply do not match
+        }
+    }
+    return matches;
+}
+
 export function markChapterRead(chapter) {
     try {
         getEngine().ChaptermarkManager.addChaptermark(chapter);

@@ -1,10 +1,11 @@
 import { createHashHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import Shell from './shell.jsx';
 import StartView from './views/Start.jsx';
-import PlaceholderView from './views/Placeholder.jsx';
 import LibraryView from './views/Library.jsx';
 import ChaptersView from './views/Chapters.jsx';
 import ReaderView from './views/Reader.jsx';
+import DownloadsView from './views/Downloads.jsx';
+import ConnectorsView from './views/Connectors.jsx';
 import BookmarksView from './views/BookmarksView.jsx';
 import SettingsView from './views/SettingsView.jsx';
 
@@ -30,12 +31,12 @@ const chaptersRoute = createRoute({
 const downloadsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/downloads',
-    component: () => <PlaceholderView title="downloads" note="The download queue arrives in a later slice." />
+    component: DownloadsView
 });
 const connectorsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/connectors',
-    component: () => <PlaceholderView title="connectors" note="Connector management arrives in a later slice." />
+    component: ConnectorsView
 });
 const bookmarksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/bookmarks', component: BookmarksView });
 const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsView });

@@ -93,6 +93,69 @@ describe('ui engine bridge', () => {
         expect(saved).toEqual([['world', 10]]);
     });
 
+    it('should merge download manager events like the classic job list', () => {
+        const makeJob = status => {
+            const instance = {
+                status,
+                labels: { connector: 'c', manga: 'm', chapter: `ch-${status}` },
+                progress: 0,
+                errors: [],
+                isSame: other => other === instance,
+                chapter: {}
+            };
+            return instance;
+        };
+        // new queued job is tracked
+        let list = bridge.mergeDownloadJobs([], makeJob('queued'));
+        expect(list).toHaveLength(1);
+        // untracked completed job is ignored
+        list = bridge.mergeDownloadJobs(list, makeJob('completed'));
+        expect(list).toHaveLength(1);
+        // tracked job completing is dropped
+        const tracked = { status: 'completed', isSame: () => false };
+        expect(bridge.mergeDownloadJobs([tracked], tracked)).toHaveLength(0);
+        // failed twin is replaced by the retry
+        const failed = { status: 'failed', isSame: () => true };
+        const retry = { status: 'queued', isSame: other => other === failed };
+        expect(bridge.mergeDownloadJobs([failed], retry)).toEqual([retry]);
+    });
+
+    it('should flatten the manager queue and detect active downloads', () => {
+        const listeners = {};
+        fakeEngine({
+            DownloadManager: {
+                queue: {
+                    c1: Object.assign([{ status: 'downloading' }, { status: 'completed' }], { activeCount: 1 }),
+                    c2: [{ status: 'failed' }]
+                },
+                addEventListener: jest.fn((event, handler) => {
+                    listeners[event] = handler;
+                }),
+                removeEventListener: jest.fn(),
+                addDownload: jest.fn()
+            }
+        });
+        expect(bridge.getDownloadJobs()).toHaveLength(3);
+        expect(bridge.hasActiveDownloads()).toBe(true);
+        const notify = jest.fn();
+        const unsubscribe = bridge.subscribeDownloads(notify);
+        listeners.updated({ detail: 'job' });
+        expect(notify).toHaveBeenCalledTimes(1);
+        unsubscribe();
+        bridge.restartChapterDownload({ id: 'c' });
+    });
+
+    it('should find connectors by local manga titles', async () => {
+        fakeEngine({
+            Connectors: [{ id: 'c1' }, { id: 'c2' }],
+            Storage: {
+                loadMangaList: jest.fn(async id => (id === 'c1' ? [{ title: 'One Piece' }] : []))
+            }
+        });
+        await expect(bridge.findConnectorsByManga('piece')).resolves.toEqual(['c1']);
+        await expect(bridge.findConnectorsByManga('naruto')).resolves.toEqual([]);
+    });
+
     it('should browse directories and files through the available bridges', async () => {
         fakeEngine({
             Storage: { folderBrowser: jest.fn(async () => '/tmp/manga') }
