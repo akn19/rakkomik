@@ -115,10 +115,12 @@ export default function Shell() {
         <SelectionProvider>
             <div className={'flex h-full flex-col text-[10pt] text-(--text-color) ' + (dark ? 'dark' : '')}>
                 <Titlebar dark={dark} onToggleTheme={toggleTheme} />
-                <div className="flex min-h-0 flex-1">
+                {/* The reading mode of the reader covers this whole row, everything below the titlebar. Its panels stay
+                    mounted but are hidden meanwhile: no shadow leaks onto the titlebar and the keyboard cannot reach them. */}
+                <div className="group/row relative flex min-h-0 flex-1">
                     <div
                         className={
-                            'relative z-10 flex min-w-0 flex-col [border-right:var(--app-control-border)] [box-shadow:var(--app-control-shadow)] ' +
+                            'relative z-10 flex min-w-0 flex-col [border-right:var(--app-control-border)] [box-shadow:var(--app-control-shadow)] group-has-[[data-reading]]/row:invisible ' +
                             // two 20em panels + the border: a fixed width, content (e.g. the download list) must never size the column
                             (readerEnabled ? 'w-[calc(40em+1px)] shrink-0' : 'flex-1')
                         }

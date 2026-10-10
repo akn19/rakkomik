@@ -40,16 +40,21 @@ function ToolbarButton({ icon, title, onClick }) {
     );
 }
 
-/** Classic page viewer buttons: faint until hovered, chapter title on hover. */
+/**
+ * Classic page viewer buttons. While reading they are hidden until the pointer is over them (or the keyboard
+ * focus is in them, not a click's focus, which would keep them open), and the chapter title shows with them.
+ */
 function Toolbar({ title, reading, imageWidth, actions }) {
     return (
         <div
+            // it sits above the pages, so the wheel has to be handed on to them
+            onWheel={actions.wheel}
             className={
-                'group absolute top-0 right-0 z-10 rounded-bl-[1em] bg-(--page-viewer-title-background-color) pr-[2em] pl-[1em] text-(--page-chapter-title-color) transition-opacity duration-200 focus-within:opacity-100 hover:opacity-100 [box-shadow:var(--page-viewer-title-shadow)] ' +
-                (reading ? 'opacity-5' : 'opacity-70')
+                'group absolute top-0 right-0 z-10 rounded-bl-[1em] bg-(--page-viewer-title-background-color) pr-[2em] pl-[1em] text-(--page-chapter-title-color) transition-opacity duration-200 has-[:focus-visible]:opacity-100 hover:opacity-100 [box-shadow:var(--page-viewer-title-shadow)] ' +
+                (reading ? 'opacity-0' : 'opacity-70')
             }
         >
-            <span className={'mr-[0.5em] text-[1.25em] font-bold ' + (reading ? 'hidden group-focus-within:inline group-hover:inline' : '')}>{title}</span>
+            <span className={'mr-[0.5em] text-[1.25em] font-bold ' + (reading ? 'hidden group-has-[:focus-visible]:inline group-hover:inline' : '')}>{title}</span>
             {reading && (
                 <>
                     <ToolbarButton icon="chevronLeft" title="Previous Chapter (ArrowLeft)" onClick={actions.previous} />
@@ -313,16 +318,30 @@ export default function ReaderView() {
         return () => window.removeEventListener('keydown', handler);
     }, []);
 
+    // Reading takes over everything below the titlebar, the side panels included, like the classic viewer: the
+    // content row of the shell is the containing block, and the shell hides its panels while a `data-reading`
+    // element is in that row. Every state of reading gets this frame, otherwise the panels would show for a moment
+    // while the next chapter resolves.
+    const frame = mode === 'read'
+        ? { className: 'absolute inset-0 z-20 bg-(--page-reader-background-color) text-zinc-300', 'data-reading': '' }
+        : { className: 'relative h-full' };
+
     if (resolvedQuery.isPending) {
-        return <p className="p-[1em]">Resolving chapter …</p>;
+        return (
+            <div {...frame}>
+                <p className="p-[1em]">Resolving chapter …</p>
+            </div>
+        );
     }
     if (resolvedQuery.isError || !chapter) {
         return (
-            <div className="space-y-[0.5em] p-[1em]">
-                <p className="text-(--chapter-button-failed-color)">Chapter not found.</p>
-                <button type="button" onClick={() => navigate({ to: '/' })} className="rk-button">
-                    Close
-                </button>
+            <div {...frame}>
+                <div className="space-y-[0.5em] p-[1em]">
+                    <p className="text-(--chapter-button-failed-color)">Chapter not found.</p>
+                    <button type="button" onClick={() => navigate({ to: '/' })} className="rk-button">
+                        Close
+                    </button>
+                </div>
             </div>
         );
     }
@@ -337,11 +356,12 @@ export default function ReaderView() {
         defaultWidth: () => changeLayout(() => setImageWidth(75)),
         fitWidth: () => changeLayout(() => setImageWidth(100)),
         scroll: () => scrollMagic(window.innerHeight * 0.8),
+        wheel: event => containerRef.current?.scrollBy({ top: event.deltaY, left: event.deltaX }),
         close: closeReader
     };
 
     return (
-        <div className="relative h-full">
+        <div {...frame}>
             <Toolbar title={chapter.title} reading={mode === 'read'} imageWidth={imageWidth} actions={actions} />
             {pagesQuery.isPending && <p className="p-[1em]">Loading pages …</p>}
             {pagesQuery.isError && (

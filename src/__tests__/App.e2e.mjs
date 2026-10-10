@@ -154,32 +154,78 @@ test.describe('chapters and reader', () => {
         await expect.poll(() => page.evaluate(() => Engine.BookmarkManager.bookmarks.length)).toBe(before);
     });
 
-    test('should read a chapter: thumbnails, zoom, chapter order and Escape', async ({ page }) => {
+    test('should read a chapter: thumbnails, full-window reading, zoom, chapter order and Escape', async ({ page }) => {
         await reload(page);
         await openSeededManga(page);
         // open "Chapter 80" (6th row)
         await page.locator('[role=list] > div > div').nth(5).getByTitle(/^Show preview/).click();
         const thumbnails = page.getByRole('button', { name: /^Page \d$/ });
         await expect(thumbnails).toHaveCount(6);
+        const panels = page.locator('input[aria-label="Website"]');
+        await expect(panels).toBeVisible();
         await thumbnails.nth(2).click();
         const images = page.locator('img.rk-page');
         await expect(images).toHaveCount(6);
+
+        // reading takes over the window below the titlebar: the panels are gone, the window buttons stay usable
+        await expect(panels).toBeHidden();
+        const area = images.first().locator('xpath=..');
+        await expect.poll(async () => (await area.boundingBox()).width).toBeCloseTo(page.viewportSize().width, 0);
+        await page.getByTitle('Close window').click({ trial: true });
+
+        // the toolbar shows while the pointer is over it, or the keyboard focus is in it, and not after a click
+        const toolbar = page.getByTitle('Zoom In (+)').locator('xpath=..');
+        await page.mouse.move(100, 400);
+        await expect(toolbar).toHaveCSS('opacity', '0');
+        await page.getByTitle('Zoom In (+)').hover();
+        await expect(toolbar).toHaveCSS('opacity', '1');
+        // the toolbar sits above the pages but must not take the mouse wheel from them
+        const scrolled = await area.evaluate(element => element.scrollTop);
+        await page.mouse.wheel(0, 200);
+        await expect.poll(() => area.evaluate(element => element.scrollTop)).toBeGreaterThan(scrolled);
+        await page.getByTitle('Default Image Width (/)').click();
+        await page.mouse.move(100, 400);
+        await expect(toolbar).toHaveCSS('opacity', '0');
+        await page.getByTitle('Default Image Width (/)').evaluate(button => button.blur());
+        for (let presses = 0; presses < 12 && !(await toolbar.evaluate(element => element.contains(document.activeElement))); presses++) {
+            await page.keyboard.press('Tab');
+        }
+        await expect(toolbar).toHaveCSS('opacity', '1');
+        await page.evaluate(() => document.activeElement.blur());
+        await expect(toolbar).toHaveCSS('opacity', '0');
 
         await page.keyboard.press('+');
         await expect(images.first()).toHaveCSS('width', /./);
         expect(await images.first().evaluate(element => element.style.width)).toBe('90%');
 
-        // ArrowRight = the entry above in the list (classic chapterUp), ArrowLeft = below
+        // ArrowRight = the entry above in the list (classic chapterUp), ArrowLeft = below. The panels must not show
+        // for a single frame in between, while the next chapter resolves.
+        await page.evaluate(() => {
+            const column = document.querySelector('#react-root > div > div').firstElementChild;
+            window.exposedFrames = 0;
+            const sample = () => {
+                if (getComputedStyle(column).visibility !== 'hidden') {
+                    window.exposedFrames += 1;
+                }
+                window.sampling = requestAnimationFrame(sample);
+            };
+            sample();
+        });
         await page.keyboard.press('ArrowRight');
         await expect.poll(() => page.evaluate(() => decodeURIComponent(location.hash))).toContain('chapter=/c/81');
         await expect(images).toHaveCount(6);
         await page.keyboard.press('ArrowLeft');
         await expect.poll(() => page.evaluate(() => decodeURIComponent(location.hash))).toContain('chapter=/c/80');
         await expect(images).toHaveCount(6);
+        expect(await page.evaluate(() => {
+            cancelAnimationFrame(window.sampling);
+            return window.exposedFrames;
+        })).toBe(0);
 
         await page.keyboard.press('Escape');
         await expect(images).toHaveCount(0);
         await expect(thumbnails).toHaveCount(6);
+        await expect(panels).toBeVisible();
         await page.keyboard.press('Escape');
         await expect(page.getByText('Welcome to RakKomik')).toBeVisible();
     });
