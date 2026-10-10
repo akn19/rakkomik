@@ -179,6 +179,37 @@ test.describe('chapters and reader', () => {
     });
 });
 
+test.describe('download list', () => {
+    test('should open inside the left column without resizing the layout', async ({ page }) => {
+        await reload(page);
+        const column = page.locator('#react-root > div > div').first().locator('> div').first();
+        const main = page.locator('main');
+        const before = (await column.boundingBox()).width;
+        await page.evaluate(() => {
+            const job = (status, progress, number) => ({
+                status,
+                progress,
+                errors: [],
+                labels: { connector: 'WestManga', manga: 'The Father and the Daughter', chapter: 'Chapter ' + number },
+                isSame: () => false,
+                chapter: {}
+            });
+            for (const entry of [job('downloading', 55, 85), job('queued', 0, 84)]) {
+                Engine.DownloadManager.dispatchEvent(new CustomEvent('updated', { detail: entry }));
+            }
+        });
+        await expect(page.getByText('2 Download(s)')).toBeVisible();
+        await page.getByTitle('Toggle download list').click();
+        await expect(page.getByText('Chapter 85')).toBeVisible();
+        // regression: the table in the list once sized the whole column to ~800000px
+        expect((await column.boundingBox()).width).toBeCloseTo(before, 0);
+        expect((await main.boundingBox()).width).toBeGreaterThan(500);
+        await expect(page.getByText('Welcome to RakKomik')).toBeVisible();
+        await page.getByTitle('Toggle download list').click();
+        await expect(page.getByText('Chapter 85')).toBeHidden();
+    });
+});
+
 test.describe('menu and settings', () => {
     test('should open the About and Settings popup, close it with Escape and save', async ({ page }) => {
         await reload(page);

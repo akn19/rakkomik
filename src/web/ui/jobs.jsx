@@ -40,7 +40,7 @@ export default function JobsBar() {
     return (
         <div className="w-full bg-(--job-control-background-color)">
             {open && (
-                <div className="h-[8em] overflow-y-scroll bg-(--job-list-background-color)">
+                <div className="h-[8em] overflow-x-hidden overflow-y-scroll bg-(--job-list-background-color)">
                     {jobs.length === 0 && <p className="p-[0.5em] opacity-60">No downloads.</p>}
                     <table className="w-full table-fixed border-collapse">
                         <tbody>
@@ -87,7 +87,7 @@ export default function JobsBar() {
                         onClick={() => setOpen(value => !value)}
                         className="rk-button"
                     >
-                        <Icon name={open ? 'close' : 'chart'} size={16} />
+                        <Icon name={open ? 'closeBox' : 'chart'} size={16} />
                     </button>
                 </div>
                 <div className="flex-1 p-[0.25em] text-right">{jobs.length} Download(s)</div>

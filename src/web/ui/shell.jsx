@@ -120,7 +120,8 @@ export default function Shell() {
                     <div
                         className={
                             'relative z-10 flex min-w-0 flex-col [border-right:var(--app-control-border)] [box-shadow:var(--app-control-shadow)] ' +
-                            (readerEnabled ? 'shrink-0' : 'flex-1')
+                            // two 20em panels + the border: a fixed width, content (e.g. the download list) must never size the column
+                            (readerEnabled ? 'w-[calc(40em+1px)] shrink-0' : 'flex-1')
                         }
                     >
                         <div className="flex items-center bg-(--menu-control-background-color)">
