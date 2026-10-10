@@ -143,9 +143,7 @@ export default function Shell() {
                     </div>
                     {readerEnabled && (
                         <main className={'rk-content-bg min-w-0 flex-1 overflow-x-hidden overflow-y-auto ' + (onReader ? '' : 'p-4')}>
-                            <React.Suspense fallback={<p className="text-(--text-color)">Loading view …</p>}>
-                                <Outlet />
-                            </React.Suspense>
+                            <Outlet />
                         </main>
                     )}
                 </div>

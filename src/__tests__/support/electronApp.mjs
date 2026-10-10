@@ -30,40 +30,59 @@ function seedProfile(userDirectory) {
     );
 }
 
+async function startApplication(web) {
+    const userDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'rakkomik-e2e-'));
+    seedProfile(userDirectory);
+    const electronApp = await electron.launch({
+        executablePath: electronPath,
+        args: [
+            '.',
+            '--update-url=DISABLED',
+            `--cache-directory=${web}`,
+            `--user-directory=${userDirectory}`
+        ],
+        cwd: root
+    });
+    const page = await electronApp.firstWindow();
+    const external = [];
+    page.on('request', request => {
+        if (!/^(hakuneko|connector|data|blob|devtools|chrome-extension):/.test(request.url()) && !/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(request.url())) {
+            external.push(request.url());
+        }
+    });
+    await page.setViewportSize({ width: 1500, height: 960 });
+    // the engine and the UI shell are ready when the connector picker is there
+    await page.locator('input[aria-label="Website"]').waitFor({ timeout: 30000 });
+    return { electronApp, page, userDirectory, external };
+}
+
+async function stopApplication({ electronApp, userDirectory }) {
+    // the window only quits once the UI answers the close request: do not hang on a broken UI
+    const closed = electronApp.close().then(() => true, () => true);
+    const forced = new Promise(resolve => setTimeout(() => resolve(false), 8000));
+    if (!(await Promise.race([closed, forced]))) {
+        electronApp.process().kill('SIGKILL');
+    }
+    fs.rmSync(userDirectory, { recursive: true, force: true });
+}
+
 export const test = base.extend({
     // One application per worker: the Electron start is the expensive part.
     app: [async ({}, use) => {
-        const userDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'rakkomik-e2e-'));
-        seedProfile(userDirectory);
-        const electronApp = await electron.launch({
-            executablePath: electronPath,
-            args: [
-                '.',
-                '--update-url=DISABLED',
-                `--cache-directory=${webDirectory}`,
-                `--user-directory=${userDirectory}`
-            ],
-            cwd: root
-        });
-        const page = await electronApp.firstWindow();
-        const external = [];
-        page.on('request', request => {
-            if (!/^(hakuneko|connector|data|blob|devtools|chrome-extension):/.test(request.url()) && !/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(request.url())) {
-                external.push(request.url());
-            }
-        });
-        await page.setViewportSize({ width: 1500, height: 960 });
-        // the engine and the UI shell are ready when the connector picker is there
-        await page.locator('input[aria-label="Website"]').waitFor({ timeout: 30000 });
-        await use({ electronApp, page, userDirectory, external });
-        // the window only quits once the UI answers the close request: do not hang on a broken UI
-        const closed = electronApp.close().then(() => true, () => true);
-        const forced = new Promise(resolve => setTimeout(() => resolve(false), 8000));
-        if (!(await Promise.race([closed, forced]))) {
-            electronApp.process().kill('SIGKILL');
-        }
-        fs.rmSync(userDirectory, { recursive: true, force: true });
+        const app = await startApplication(webDirectory);
+        await use(app);
+        await stopApplication(app);
     }, { scope: 'worker' }],
+
+    // For tests that change files under a running window: an application of its own, on its own copy of the web part.
+    isolatedApp: async ({}, use) => {
+        const web = fs.mkdtempSync(path.join(os.tmpdir(), 'rakkomik-web-'));
+        fs.cpSync(webDirectory, web, { recursive: true });
+        const app = await startApplication(web);
+        await use({ ...app, web });
+        await stopApplication(app);
+        fs.rmSync(web, { recursive: true, force: true });
+    },
 
     page: async ({ app }, use) => {
         await use(app.page);

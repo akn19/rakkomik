@@ -1,13 +1,14 @@
-import React from 'react';
 import { createHashHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import Shell from './shell.jsx';
+import StartView from './views/Start.jsx';
+import ReaderView from './views/Reader.jsx';
+import DownloadsView from './views/Downloads.jsx';
+import BookmarksView from './views/BookmarksView.jsx';
 
-// Route-based splitting (audit §5.7): the initial bundle holds only the
-// shell; each view loads on demand when its route opens.
-const StartView = React.lazy(() => import('./views/Start.jsx'));
-const ReaderView = React.lazy(() => import('./views/Reader.jsx'));
-const DownloadsView = React.lazy(() => import('./views/Downloads.jsx'));
-const BookmarksView = React.lazy(() => import('./views/BookmarksView.jsx'));
+// The views are imported statically on purpose, so the whole interface is `ui.js` + `ui.css`.
+// A lazy view is a separate file with a hashed name, and an open window asks for the name from the build it
+// loaded. When `ui/dist` is rebuilt or the web part is updated underneath that window, opening a view fails with
+// "Failed to fetch dynamically imported module". The app reads from local disk, so splitting saves no download.
 
 // Hash history: the app runs on a custom scheme, not http,
 // so path history is unusable (audit §5.2).

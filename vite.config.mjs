@@ -49,7 +49,8 @@ export default ({ mode }) => ({
         },
         rollupOptions: {
             // Fixed names for the files index.html references directly;
-            // hashed names for the rest (fonts, lazy chunks).
+            // hashed names for the rest (assets such as fonts). There are no lazy
+            // chunks on purpose, see src/web/ui/router.jsx.
             output: {
                 assetFileNames: asset => asset.names?.some(name => name.endsWith('.css')) ? 'ui.[ext]' : 'ui-asset-[name]-[hash].[ext]'
             }

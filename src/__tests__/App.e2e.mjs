@@ -505,6 +505,44 @@ test.describe('manga list update', () => {
     });
 });
 
+test.describe('replaced web part', () => {
+    // A rebuild of the interface and the updater of another instance both replace ui/dist while a window is open.
+    // That window has its code in memory, so it may not need a single file from ui/dist anymore. It once did: the
+    // views were lazy chunks with hashed names, and opening one ended in "Failed to fetch dynamically imported module".
+    test('should keep opening every view after ui/dist was replaced', async ({ isolatedApp }) => {
+        const { page, web } = isolatedApp;
+        const requested = [];
+        page.on('request', request => {
+            if (request.url().includes('/ui/dist/')) {
+                requested.push(request.url());
+            }
+        });
+        await expect(page.getByText('Welcome to RakKomik')).toBeVisible();
+        fs.rmSync(path.join(web, 'ui', 'dist'), { recursive: true });
+
+        // the failure screen counts as an answer too, so a broken view fails here with the files it asked for
+        const failure = page.getByText('Something went wrong!');
+        const shown = async marker => {
+            await expect(marker.or(failure)).toBeVisible();
+            expect(requested, 'a view asked for a file of ui/dist that no longer exists').toEqual([]);
+        };
+        const openFromMenu = async name => {
+            await page.getByTitle('Toggle menu').click();
+            await page.getByRole('button', { name, exact: true }).click();
+        };
+
+        await openSeededManga(page);
+        await page.locator('[role=list] > div > div').nth(5).getByTitle(/^Show preview/).click();
+        await shown(page.getByRole('button', { name: 'Page 1', exact: true }));
+        await openFromMenu('Downloads');
+        await shown(page.getByText('The queue is empty.'));
+        await openFromMenu('Bookmarks');
+        await shown(page.getByText('No bookmarks yet.'));
+        await openFromMenu('Start');
+        await shown(page.getByText('Welcome to RakKomik'));
+    });
+});
+
 test('should hand the renderer its platform data up front', async ({ app, page }) => {
     // preload bridge: values arrive through additionalArguments, no synchronous IPC
     const bootstrap = await page.evaluate(() => ({

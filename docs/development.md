@@ -22,7 +22,7 @@
 | Command | |
 |---|---|
 | `pnpm start` | run the application against `./src/web` (no update, no cache download) |
-| `pnpm run watch:ui` | rebuild the React user interface into `src/web/ui/dist` when a file changes |
+| `pnpm run watch:ui` | rebuild the React user interface into `src/web/ui/dist` when a file changes; an open window keeps the build it loaded, so restart the application to see the change |
 | `pnpm run start:build` | build the web part and run the application against `build/web` |
 | `pnpm run lint` | oxlint over the application, the engine, the user interface, the scripts and the end-to-end tests |
 | `pnpm run test` | unit tests (Vitest: the projects `app` and `web`) |
@@ -58,7 +58,9 @@ pnpm exec electron . --update-url=DISABLED --cache-directory=./build/web --user-
   isolated profile that is seeded with the manga list of one connector. `src/__tests__/support/electronApp.mjs` holds
   the fixture (one application per worker; `E2E_WEB` selects another web directory than `build/web`) and fails a test
   when the page contacts an external host. The interstitial tests use a local HTTP server that behaves like a gate
-  (a check that completes on its own, one that needs a click, one that never completes).
+  (a check that completes on its own, one that needs a click, one that never completes). A test that changes files
+  under a running window uses the `isolatedApp` fixture: an application of its own on its own copy of the web
+  directory (see the test _replaced web part_).
 - **Site tests** need network access and can fail when a website changes; they are not part of CI.
 
 ## Code style

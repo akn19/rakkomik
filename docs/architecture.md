@@ -76,6 +76,12 @@ React user interface. The website connectors load in the background afterwards, 
   through `ui/engine.js` and reads its colours from the theme tokens in `ui/index.css`. During a manga list update it
   samples `Connector.updateProgress` (the requests the fetch helpers completed since the update started) twice a
   second and shows the count, the elapsed time and a bar in the status line and on the connector cards.
+  The interface is one bundle (`ui/dist/ui.js` and `ui.css`) and its views are not lazy chunks. The files come from
+  local disk, so splitting saves nothing, and a window that is already open must not need a file from `ui/dist`: the
+  web part can be replaced under it by a rebuild or by the update of another running instance (the updater removes
+  the whole cache directory and extracts the archive again, and nothing limits the application to one instance).
+  Chunks have hashed names, so the open window would ask for files that are gone and its views would fail with
+  "Failed to fetch dynamically imported module".
 
 Writes are atomic: a file is written next to its target and renamed over it.
 
