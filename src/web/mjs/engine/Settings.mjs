@@ -23,6 +23,10 @@ const mimes = {
     png: 'image/png'
 };
 
+// Stored per-connector settings of the last load(), so save() never drops the
+// settings of connectors that are not registered (yet) while they load in the background.
+const storedConnectorSettings = new WeakMap();
+
 const types = {
     disabled: 'disabled',
     text: 'text',
@@ -304,6 +308,7 @@ export default class Settings extends EventTarget {
     async load() {
         try {
             let data = await Engine.Storage.loadConfig('settings');
+            storedConnectorSettings.set(this, (data && data.connectors) || {});
             // apply general settings
             for (let key in this) {
                 if (data
@@ -344,8 +349,8 @@ export default class Settings extends EventTarget {
                     data[key] = await this._getEncryptedValue(this[key].input, this[key].value);
                 }
             }
-            // gather settings from each connector
-            data['connectors'] = {};
+            // gather settings from each connector (keep the stored settings of connectors that are not registered)
+            data['connectors'] = Object.assign({}, storedConnectorSettings.get(this));
             for (let connector of Engine.Connectors) {
                 data.connectors[connector.id] = {};
                 for (let key in connector.config) {

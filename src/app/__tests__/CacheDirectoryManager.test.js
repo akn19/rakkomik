@@ -1,17 +1,19 @@
+const { mockModule } = require('./support/mockRequire');
+mockModule('fs/promises');
+const fs = require('fs/promises');
+
+mockModule('jszip');
+const jszip = require('jszip');
+
 const path = require('path');
 const { FileLogger } = require('../Logger');
 const CacheDirectoryManager = require('../CacheDirectoryManager');
 var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
 logger.clear();
 
-jest.mock('fs/promises');
-const fs = require('fs/promises');
-
-jest.mock('jszip');
-const jszip = require('jszip');
-
 var loadAsyncMock;
-jszip.mockImplementation(() => {
+// `new JSZip()` needs a constructor-compatible implementation (not an arrow function)
+jszip.mockImplementation(function() {
     return {
         loadAsync: loadAsyncMock
     };
@@ -20,7 +22,7 @@ jszip.mockImplementation(() => {
 describe('CacheDirectoryManager', function () {
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     afterEach(() => {
@@ -50,7 +52,7 @@ describe('CacheDirectoryManager', function () {
                 files: {
                     'dir/sub': {
                         dir: true,
-                        async: jest.fn(() => Promise.resolve('RAW BYTES'))
+                        async: vi.fn(() => Promise.resolve('RAW BYTES'))
                     }
                 }
             };
@@ -67,7 +69,7 @@ describe('CacheDirectoryManager', function () {
                 files: {
                     'dir/sub/file': {
                         dir: false,
-                        async: jest.fn(() => Promise.resolve('RAW BYTES'))
+                        async: vi.fn(() => Promise.resolve('RAW BYTES'))
                     }
                 }
             };
@@ -84,9 +86,9 @@ describe('CacheDirectoryManager', function () {
 
     describe('applyUpdateArchive()', function () {
         it('should keep existing cache when archive is invalid', async () => {
-            loadAsyncMock = jest.fn(() => Promise.reject());
+            loadAsyncMock = vi.fn(() => Promise.reject());
             let testee = new CacheDirectoryManager('/cache', logger);
-            testee._extractZipEntry = jest.fn();
+            testee._extractZipEntry = vi.fn();
             expect.assertions(5);
             try {
                 await testee.applyUpdateArchive('1.0.0', 'ARCHIVE BYTES');
@@ -106,9 +108,9 @@ describe('CacheDirectoryManager', function () {
                     'js/app.js': null
                 }
             };
-            loadAsyncMock = jest.fn(() => Promise.resolve(archive));
+            loadAsyncMock = vi.fn(() => Promise.resolve(archive));
             let testee = new CacheDirectoryManager('/cache', logger);
-            testee._extractZipEntry = jest.fn();
+            testee._extractZipEntry = vi.fn();
             await testee.applyUpdateArchive('1.0.0', 'ARCHIVE BYTES');
             expect(loadAsyncMock).toHaveBeenCalledTimes(1);
             expect(loadAsyncMock).toHaveBeenLastCalledWith('ARCHIVE BYTES', {});

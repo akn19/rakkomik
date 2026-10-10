@@ -147,13 +147,18 @@ module.exports = class ElectronBootstrap {
             try {
                 let uri = new URL(request.url);
                 let endpoint = path.join(this._directoryMap[uri.hostname], path.normalize(uri.pathname));
-                if(!fs.existsSync(endpoint)) {
-                    return new Response('Not Found', { status: 404 });
-                }
                 // NOTE: cross-scheme consumers (connector:// images, fetch windows)
                 // require explicit CORS headers on modern Chromium.
                 let cors = { 'Access-Control-Allow-Origin': '*' };
-                let stats = await fs.promises.stat(endpoint);
+                let stats = null;
+                try {
+                    stats = await fs.promises.stat(endpoint);
+                } catch(error) {
+                    if(error.code === 'ENOENT' || error.code === 'ENOTDIR') {
+                        return new Response('Not Found', { status: 404 });
+                    }
+                    throw error;
+                }
                 if(stats.isDirectory()) {
                     let buffer = Buffer.from(JSON.stringify(await fs.promises.readdir(endpoint)));
                     return new Response(buffer, { headers: { ...cors, 'Content-Type': 'application/json' } });

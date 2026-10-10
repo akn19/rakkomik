@@ -15,3 +15,6 @@ src/web/ui/dist/
 /test/*.log
 junit.xml
 .idea/
+junit-e2e.xml
+test-results/
+playwright-report/

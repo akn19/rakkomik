@@ -20,6 +20,57 @@ export function getEngine() {
     return engine;
 }
 
+const NO_CONNECTORS = { connectors: [], ready: false };
+let connectorsCache = { registry: null, length: -1, ready: false, value: NO_CONNECTORS };
+
+/**
+ * Snapshot of the connector registry for `useSyncExternalStore`: the identity
+ * only changes when connectors were registered (batches) or loading finished.
+ * Engines without a registry (plain list) count as fully loaded.
+ */
+export function getConnectorsSnapshot() {
+    let engine = null;
+    try {
+        engine = getEngine();
+    } catch {
+        return NO_CONNECTORS;
+    }
+    const registry = engine.ConnectorRegistry || null;
+    const list = registry ? registry.list : engine.Connectors || [];
+    const ready = registry ? registry.isReady : true;
+    if (connectorsCache.registry !== registry || connectorsCache.length !== list.length || connectorsCache.ready !== ready) {
+        connectorsCache = { registry, length: list.length, ready, value: { connectors: list.slice(), ready } };
+    }
+    return connectorsCache.value;
+}
+
+export function subscribeConnectors(notify) {
+    let registry = null;
+    try {
+        registry = getEngine().ConnectorRegistry;
+    } catch {
+        return () => undefined;
+    }
+    if (!registry) {
+        return () => undefined;
+    }
+    const handler = () => notify();
+    registry.addEventListener('registered', handler);
+    registry.addEventListener('ready', handler);
+    return () => {
+        registry.removeEventListener('registered', handler);
+        registry.removeEventListener('ready', handler);
+    };
+}
+
+export async function whenConnectorsReady() {
+    try {
+        await getEngine().ConnectorsReady;
+    } catch {
+        // no engine (tests, early paint): nothing to wait for
+    }
+}
+
 export function getEngineStatus() {
     let engine = null;
     try {

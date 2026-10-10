@@ -1,14 +1,14 @@
+const { mockModule } = require('./support/mockRequire');
 const path = require('path');
-const Configuration = require('../Configuration.js');
 
-jest.mock('fs');
+mockModule('fs');
 const fs = require('fs');
 
-jest.mock('electron', () => {
+mockModule('electron', () => {
     return {
         app: {
-            getAppPath: jest.fn(() => '/usr/bin'),
-            getPath: jest.fn(type => {
+            getAppPath: vi.fn(() => '/usr/bin'),
+            getPath: vi.fn(type => {
                 switch(type) {
                     case 'exe': return '/usr/bin/hakuneko';
                     case 'userData': return undefined;
@@ -20,11 +20,12 @@ jest.mock('electron', () => {
     };
 });
 const electron = require('electron');
+const Configuration = require('../Configuration.js');
 
 describe('Configuration', function() {
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     afterEach(() => {

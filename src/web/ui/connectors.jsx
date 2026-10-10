@@ -1,7 +1,8 @@
 import React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { getEngine, openExternalLink, findConnectorsByManga } from './engine.js';
+import { openExternalLink, findConnectorsByManga } from './engine.js';
+import { useConnectors } from './connectorsState.js';
 import { updateMangaList } from './queries.js';
 import { useToast } from './notify.jsx';
 import Icon from './icon.jsx';
@@ -108,7 +109,7 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
 export default function ConnectorDialog({ open, selectedId, onSelect, onClose }) {
     const { notify } = useToast();
     const queryClient = useQueryClient();
-    const connectors = getEngine().Connectors;
+    const { connectors, ready } = useConnectors();
     const [pattern, setPattern] = React.useState('');
     const [mangaPattern, setMangaPattern] = React.useState('');
     const [mangaMatches, setMangaMatches] = React.useState(null);
@@ -273,7 +274,7 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
                             <Icon name="close" size={14} />
                         </button>
                     </Separator>
-                    <div className="py-[0.25em]">{visible.length} / {connectors.length} websites</div>
+                    <div className="py-[0.25em]">{visible.length} / {connectors.length} websites{ready ? '' : ' (still loading …)'}</div>
                     <div ref={listRef} role="listbox" aria-label="Connectors" className="min-h-0 flex-1 overflow-y-scroll">
                         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
                             {virtualizer.getVirtualItems().map(virtual => (

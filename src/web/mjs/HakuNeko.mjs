@@ -53,8 +53,19 @@ export default class HakuNeko {
         context.Connector = Connector;
     }
 
+    /**
+     * Initialize the engine core (system connectors only). The website connectors are
+     * loaded in the background with `loadConnectors()`, so the UI does not wait for them.
+     */
     async initialize() {
         await this._connectors.initialize();
+    }
+
+    /**
+     * Load all website connectors (fulfilled when done, see `ConnectorsReady` for the status).
+     */
+    loadConnectors() {
+        return this._connectors.load();
     }
 
     get Blacklist() {
@@ -75,6 +86,20 @@ export default class HakuNeko {
 
     get Connectors() {
         return this._connectors.list;
+    }
+
+    /**
+     * Event source and status of the connector registration ('registered' per batch, 'ready' when done).
+     */
+    get ConnectorRegistry() {
+        return this._connectors;
+    }
+
+    /**
+     * Fulfilled with the connector list when all connectors are registered.
+     */
+    get ConnectorsReady() {
+        return this._connectors.ready;
     }
 
     get DownloadManager() {

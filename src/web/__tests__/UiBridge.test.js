@@ -40,14 +40,14 @@ describe('ui engine bridge', () => {
         fakeEngine({
             BookmarkManager: {
                 bookmarks,
-                addEventListener: jest.fn((event, handler) => {
+                addEventListener: vi.fn((event, handler) => {
                     listeners[event] = handler;
                 }),
-                removeEventListener: jest.fn(),
-                deleteBookmark: jest.fn(() => true)
+                removeEventListener: vi.fn(),
+                deleteBookmark: vi.fn(() => true)
             }
         });
-        const notify = jest.fn();
+        const notify = vi.fn();
         const unsubscribe = bridge.subscribeBookmarks(notify);
         expect(bridge.getBookmarks()).toBe(bookmarks);
         listeners.added();
@@ -63,7 +63,7 @@ describe('ui engine bridge', () => {
         fakeEngine({
             Settings: {
                 getCategorizedSettings: () => [{ category: 'General', settings: [text, numeric] }],
-                save: jest.fn(async () => {
+                save: vi.fn(async () => {
                     saved.push([text.value, numeric.value]);
                 })
             }
@@ -113,16 +113,16 @@ describe('ui engine bridge', () => {
                     c1: Object.assign([{ status: 'downloading' }, { status: 'completed' }], { activeCount: 1 }),
                     c2: [{ status: 'failed' }]
                 },
-                addEventListener: jest.fn((event, handler) => {
+                addEventListener: vi.fn((event, handler) => {
                     listeners[event] = handler;
                 }),
-                removeEventListener: jest.fn(),
-                addDownload: jest.fn()
+                removeEventListener: vi.fn(),
+                addDownload: vi.fn()
             }
         });
         expect(bridge.getDownloadJobs()).toHaveLength(3);
         expect(bridge.hasActiveDownloads()).toBe(true);
-        const notify = jest.fn();
+        const notify = vi.fn();
         const unsubscribe = bridge.subscribeDownloads(notify);
         listeners.updated({ detail: 'job' });
         expect(notify).toHaveBeenCalledTimes(1);
@@ -134,7 +134,7 @@ describe('ui engine bridge', () => {
         fakeEngine({
             Connectors: [{ id: 'c1' }, { id: 'c2' }],
             Storage: {
-                loadMangaList: jest.fn(async id => (id === 'c1' ? [{ title: 'One Piece' }] : []))
+                loadMangaList: vi.fn(async id => (id === 'c1' ? [{ title: 'One Piece' }] : []))
             }
         });
         await expect(bridge.findConnectorsByManga('piece')).resolves.toEqual(['c1']);
@@ -143,11 +143,11 @@ describe('ui engine bridge', () => {
 
     it('should browse directories and files through the available bridges', async () => {
         fakeEngine({
-            Storage: { folderBrowser: jest.fn(async () => '/tmp/manga') }
+            Storage: { folderBrowser: vi.fn(async () => '/tmp/manga') }
         });
         await expect(bridge.browseDirectory('/tmp')).resolves.toBe('/tmp/manga');
         globalThis.window.hakuneko = {
-            dialog: { showOpenDialog: jest.fn(async () => ({ canceled: false, filePaths: ['/tmp/a.epub'] })) }
+            dialog: { showOpenDialog: vi.fn(async () => ({ canceled: false, filePaths: ['/tmp/a.epub'] })) }
         };
         await expect(bridge.browseFile()).resolves.toBe('/tmp/a.epub');
         delete globalThis.window.hakuneko;
@@ -158,15 +158,15 @@ describe('ui engine bridge', () => {
             Version: { branch: { label: 'main' }, revision: { label: 'a1965c', link: 'https://example.test/rev' } },
             Settings: {
                 readerEnabled: { value: false },
-                addEventListener: jest.fn((event, handler) => {
+                addEventListener: vi.fn((event, handler) => {
                     listeners[event] = handler;
                 }),
-                removeEventListener: jest.fn()
+                removeEventListener: vi.fn()
             }
         });
         expect(bridge.getVersionInfo()).toEqual({ branch: 'main', revision: 'a1965c', link: 'https://example.test/rev' });
         expect(bridge.isReaderEnabled()).toBe(false);
-        const notify = jest.fn();
+        const notify = vi.fn();
         const unsubscribe = bridge.subscribeSettings(notify);
         listeners.saved();
         expect(notify).toHaveBeenCalledTimes(1);
@@ -177,7 +177,7 @@ describe('ui engine bridge', () => {
     it('should degrade version, reader flag and settings events without an engine', () => {
         expect(bridge.getVersionInfo()).toEqual({ branch: '', revision: '', link: '' });
         expect(bridge.isReaderEnabled()).toBe(true);
-        expect(bridge.subscribeSettings(jest.fn())()).toBeUndefined();
+        expect(bridge.subscribeSettings(vi.fn())()).toBeUndefined();
     });
 
     it('should delegate folder, bookmark import and chaptermark removal to the engine', async () => {
@@ -185,9 +185,9 @@ describe('ui engine bridge', () => {
         const marked = { chapterID: 'c' };
         const file = { name: 'bookmarks.db' };
         fakeEngine({
-            Storage: { showFolderContent: jest.fn() },
-            BookmarkManager: { importBookmarks: jest.fn(async () => undefined) },
-            ChaptermarkManager: { deleteChaptermark: jest.fn() }
+            Storage: { showFolderContent: vi.fn() },
+            BookmarkManager: { importBookmarks: vi.fn(async () => undefined) },
+            ChaptermarkManager: { deleteChaptermark: vi.fn() }
         });
         bridge.showChapterFolder(chapter);
         expect(globalThis.window.Engine.Storage.showFolderContent).toHaveBeenCalledWith(chapter);
@@ -195,5 +195,54 @@ describe('ui engine bridge', () => {
         expect(globalThis.window.Engine.BookmarkManager.importBookmarks).toHaveBeenCalledWith(file);
         bridge.deleteChaptermark(marked);
         expect(globalThis.window.Engine.ChaptermarkManager.deleteChaptermark).toHaveBeenCalledWith(marked);
+    });
+    it('should snapshot the connector registry and notify on registration', async () => {
+        const listeners = {};
+        const list = [{ id: 'a' }];
+        const registry = {
+            list,
+            isReady: false,
+            addEventListener: vi.fn((event, handler) => {
+                listeners[event] = handler;
+            }),
+            removeEventListener: vi.fn()
+        };
+        fakeEngine({ ConnectorRegistry: registry, Connectors: list });
+        const first = bridge.getConnectorsSnapshot();
+        expect(first).toEqual({ connectors: [{ id: 'a' }], ready: false });
+        // unchanged registry => same identity (required by useSyncExternalStore)
+        expect(bridge.getConnectorsSnapshot()).toBe(first);
+        list.push({ id: 'b' });
+        const second = bridge.getConnectorsSnapshot();
+        expect(second).not.toBe(first);
+        expect(second.connectors).toHaveLength(2);
+        registry.isReady = true;
+        expect(bridge.getConnectorsSnapshot().ready).toBe(true);
+        const notify = vi.fn();
+        const unsubscribe = bridge.subscribeConnectors(notify);
+        listeners.registered();
+        listeners.ready();
+        expect(notify).toHaveBeenCalledTimes(2);
+        unsubscribe();
+        expect(registry.removeEventListener).toHaveBeenCalledTimes(2);
+    });
+
+    it('should treat an engine without a registry as fully loaded and wait for readiness', async () => {
+        fakeEngine();
+        expect(bridge.getConnectorsSnapshot().ready).toBe(true);
+        expect(bridge.subscribeConnectors(vi.fn())()).toBeUndefined();
+        let release = null;
+        fakeEngine({ ConnectorsReady: new Promise(resolve => { release = resolve; }) });
+        let done = false;
+        const waiting = bridge.whenConnectorsReady().then(() => { done = true; });
+        await Promise.resolve();
+        expect(done).toBe(false);
+        release([]);
+        await waiting;
+        expect(done).toBe(true);
+    });
+
+    it('should return an empty snapshot without an engine', () => {
+        expect(bridge.getConnectorsSnapshot()).toEqual({ connectors: [], ready: false });
     });
 });

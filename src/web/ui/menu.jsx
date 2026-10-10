@@ -10,6 +10,7 @@ import {
     importBookmarksFile
 } from './engine.js';
 import { useToast } from './notify.jsx';
+import { useConnectors } from './connectorsState.js';
 import { TextField, PasswordField, NumberField, SelectField, CheckboxField, PathField } from './fields.jsx';
 import Icon from './icon.jsx';
 
@@ -162,8 +163,19 @@ export default function MenuPopup({ onClose }) {
     const { notify } = useToast();
     const navigate = useNavigate();
     const importRef = React.useRef(null);
+    const { ready } = useConnectors();
     const [draft, setDraft] = React.useState(() => getSettingsDraft());
     const [saving, setSaving] = React.useState(false);
+
+    // Connectors load in the background: add their settings once they are registered (keep edits).
+    React.useEffect(() => {
+        if (ready) {
+            setDraft(current => {
+                const known = new Set(current.map(group => group.category));
+                return current.concat(getSettingsDraft().filter(group => !known.has(group.category)));
+            });
+        }
+    }, [ready]);
 
     React.useEffect(() => {
         const onKeyDown = event => {
@@ -235,6 +247,7 @@ export default function MenuPopup({ onClose }) {
             <Separator>About</Separator>
             <About />
             <Separator>Settings</Separator>
+            {!ready && <p className="px-[0.5em] pt-[0.25em] opacity-70">Loading connectors … their settings appear below when done.</p>}
             <div className="min-h-0 flex-1 overflow-y-scroll bg-(--menu-settings-background-color) p-[0.5em]">
                 <table className="w-full border-collapse">
                     <tbody>

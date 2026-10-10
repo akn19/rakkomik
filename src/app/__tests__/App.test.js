@@ -1,24 +1,16 @@
-const App = require('../App.js');
-const Configuration = require('../Configuration');
-const ConfigurationLinux = require('../ConfigurationLinux');
-const ConfigurationDarwin = require('../ConfigurationDarwin');
-const ConfigurationWindows = require('../ConfigurationWindows');
-const { FileLogger } = require('../Logger');
-var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
-logger.clear();
-
-jest.mock('fs');
+const { mockModule } = require('./support/mockRequire');
+mockModule('fs');
 const fs = require('fs');
 
-jest.mock('electron', () => {
+mockModule('electron', () => {
     return {
         ipcMain: {
-            handle: jest.fn(),
-            on: jest.fn()
+            handle: vi.fn(),
+            on: vi.fn()
         },
         app: {
-            getAppPath: jest.fn(() => '/usr/bin'),
-            getPath: jest.fn(type => {
+            getAppPath: vi.fn(() => '/usr/bin'),
+            getPath: vi.fn(type => {
                 switch(type) {
                     case 'exe': return '/usr/bin/hakuneko';
                     case 'appData': return 'data';
@@ -32,14 +24,24 @@ jest.mock('electron', () => {
         dialog: {},
         shell: {},
         session: {},
-        BrowserWindow: jest.fn()
+        BrowserWindow: vi.fn()
     };
 });
+
+
+const App = require('../App.js');
+const Configuration = require('../Configuration');
+const ConfigurationLinux = require('../ConfigurationLinux');
+const ConfigurationDarwin = require('../ConfigurationDarwin');
+const ConfigurationWindows = require('../ConfigurationWindows');
+const { FileLogger } = require('../Logger');
+var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
+logger.clear();
 
 describe('App', function() {
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     afterEach(() => {

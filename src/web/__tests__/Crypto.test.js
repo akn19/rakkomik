@@ -1,5 +1,5 @@
 // Regression tests for the native crypto helpers (Fase 2, crypto-js removal).
-// Uses plain CJS + dynamic import() because jest runs in CJS mode here.
+// Uses dynamic import() to load the ES module under test.
 const nodeCrypto = require('node:crypto');
 
 let C = null;

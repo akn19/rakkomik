@@ -10,17 +10,27 @@
 // Flows:
 // - dev (cache-directory = ./src/web): `pnpm run watch:ui`, then
 //   `pnpm run start:dev`.
-// - prod: `pnpm run build:web` chains `build:ui` first, then `build-web.js`
-//   copies the static bundle (incl. `ui/dist`) to `build/web`.
+// - prod: `pnpm run build:web` (`vite build --mode web`) builds the UI and then
+//   assembles the static bundle (incl. `ui/dist` and VersionInfo) in `build/web`
+//   (see vite.web-bundle.mjs).
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { webBundle } from './vite.web-bundle.mjs';
 
-const UIDIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'src', 'web', 'ui');
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const UIDIR = path.join(ROOT, 'src', 'web', 'ui');
 
-export default {
-    plugins: [react(), tailwindcss()],
+export default ({ mode }) => ({
+    plugins: [
+        react(),
+        tailwindcss(),
+        // `vite build --mode web`: also assemble the complete web bundle in build/web
+        ...(mode === 'web'
+            ? [webBundle({ source: path.dirname(UIDIR), target: path.join(ROOT, 'build', 'web'), include: ['index.html', 'js', 'img', 'mjs', 'ui/dist'] })]
+            : [])
+    ],
     root: UIDIR,
     // The bundle runs in a de-privileged renderer (no nodeIntegration):
     // stub the only Node global the UI libs touch so dead dev branches
@@ -49,4 +59,4 @@ export default {
         // parsed once). Keep emitted files, if any, next to the bundle.
         assetsInlineLimit: 0
     }
-};
+});

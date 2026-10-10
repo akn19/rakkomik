@@ -1,17 +1,18 @@
+const { mockModule } = require('./support/mockRequire');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const FsBridge = require('../FsBridge.js');
 
-jest.mock('electron', () => {
+mockModule('electron', () => {
     return {
         ipcMain: {
-            handle: jest.fn(),
-            on: jest.fn()
+            handle: vi.fn(),
+            on: vi.fn()
         }
     };
 });
 const electron = require('electron');
+const FsBridge = require('../FsBridge.js');
 
 function handlers() {
     const map = {};
@@ -25,9 +26,9 @@ describe('FsBridge', () => {
     let dir = null;
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fsbridge-'));
-        new FsBridge({ error: jest.fn(), warn: jest.fn(), info: jest.fn() }).register();
+        new FsBridge({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }).register();
     });
 
     afterEach(() => {

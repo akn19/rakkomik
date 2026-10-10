@@ -53,6 +53,19 @@
             Engine.ChaptermarkManager.loadChaptermarks( undefined );
         }
 
+        // Website connectors load in the background (batched, after the UI is shown).
+        // Their stored settings are applied (again) once they are registered.
+        async function loadConnectors() {
+            try {
+                await Engine.loadConnectors();
+                performance.mark('rk:connectors');
+                await Engine.Settings.load();
+                performance.mark('rk:settings');
+            } catch (error) {
+                console.error('Failed to load the connectors:', error);
+            }
+        }
+
         async function loadFrontend() {
             // The bundled React UI (built by `pnpm run build:ui`) is mounted
             // AFTER loadEngine(), so window.Engine is ready. It brings its own
@@ -74,9 +87,13 @@
         }
 
         async function main() {
+            performance.mark('rk:main');
             replaceDialogs();
             await loadEngine();
-            loadFrontend();
+            performance.mark('rk:engine');
+            await loadFrontend();
+            performance.mark('rk:shell');
+            loadConnectors();
         }
 
         main();

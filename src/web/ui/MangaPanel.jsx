@@ -1,7 +1,8 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { getEngine, toggleBookmark, isMangaBookmarked, subscribeBookmarks } from './engine.js';
+import { toggleBookmark, isMangaBookmarked, subscribeBookmarks } from './engine.js';
+import { useConnectors } from './connectorsState.js';
 import { fetchMangaList, updateMangaList } from './queries.js';
 import { useToast } from './notify.jsx';
 import { useSelection } from './selection.jsx';
@@ -31,13 +32,14 @@ export default function MangaPanel({ readerEnabled }) {
     const { notify } = useToast();
     const { connectorId, selectConnector, manga: selectedManga, selectManga } = useSelection();
     const queryClient = useQueryClient();
-    const connectors = getEngine().Connectors;
+    const { connectors, ready } = useConnectors();
     const [pattern, setPattern] = React.useState('');
     const [updating, setUpdating] = React.useState(false);
     const [pickerOpen, setPickerOpen] = React.useState(false);
     const scrollRef = React.useRef(null);
 
-    const effectiveId = connectorId || (connectors[0] && connectors[0].id) || '';
+    // the default (first) connector is only known once the list is complete and sorted
+    const effectiveId = connectorId || (ready && connectors[0] ? connectors[0].id : '');
     const connector = connectors.find(entry => entry.id === effectiveId);
     const bookmarked = React.useSyncExternalStore(
         subscribeBookmarks,
@@ -49,6 +51,13 @@ export default function MangaPanel({ readerEnabled }) {
         queryFn: () => fetchMangaList(connector),
         enabled: !!connector
     });
+
+    // Bookmarks of connectors that registered late become available once all are loaded.
+    React.useEffect(() => {
+        if (ready) {
+            queryClient.invalidateQueries({ queryKey: ['mangas', BOOKMARK_CONNECTOR_ID] });
+        }
+    }, [ready, queryClient]);
 
     // The bookmark connector mirrors the bookmark list: reload it on change.
     React.useEffect(() => {
@@ -136,7 +145,7 @@ export default function MangaPanel({ readerEnabled }) {
                 <input
                     type="text"
                     readOnly
-                    value={connector ? connector.label : ''}
+                    value={connector ? connector.label : (ready ? '' : `Loading connectors … (${connectors.length})`)}
                     onClick={() => setPickerOpen(true)}
                     onKeyDown={event => {
                         if (event.key === 'Enter' || event.key === ' ') {
@@ -256,8 +265,12 @@ export default function MangaPanel({ readerEnabled }) {
             </div>
             <StatusLine
                 message={`Mangas: ${mangas.length} / ${total}`}
-                busy={updating || mangaQuery.isPending}
-                busyTitle={connector ? `${updating ? 'Updating' : 'Loading'} manga list (${connector.label})` : ''}
+                busy={updating || mangaQuery.isPending || !ready}
+                busyTitle={
+                    !ready
+                        ? `Loading connectors (${connectors.length})`
+                        : connector ? `${updating ? 'Updating' : 'Loading'} manga list (${connector.label})` : ''
+                }
             />
             <ConnectorDialog
                 open={pickerOpen}

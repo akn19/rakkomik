@@ -1,13 +1,13 @@
-// jest and its implementation of require has no support for es6 modules yet ...
+// The connector is an ES module, so it is loaded with dynamic import() ...
 //import ClipboardConnector from '../mjs/connectors/system/ClipboardConnector.mjs';
 
-jest.mock('electron');
+vi.mock('electron');
 const electron = require('electron');
 
 describe.skip('ClipboardConnector', function() {
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     afterEach(() => {

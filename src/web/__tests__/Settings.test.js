@@ -10,15 +10,15 @@ beforeAll(async () => {
 afterEach(() => {
     delete globalThis.Engine;
     delete globalThis.alert;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
 });
 
 const directorySetting = { label: 'Manga Directory', input: 'directory', value: '/data/mangas' };
 
 async function validate(error, silent) {
-    globalThis.Engine = { Storage: { directoryExist: jest.fn(() => (error ? Promise.reject(error) : Promise.resolve())) } };
-    globalThis.alert = jest.fn();
-    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    globalThis.Engine = { Storage: { directoryExist: vi.fn(() => (error ? Promise.reject(error) : Promise.resolve())) } };
+    globalThis.alert = vi.fn();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const value = Settings.prototype._getValidValue.call({}, 'General', directorySetting, silent);
     await new Promise(resolve => setTimeout(resolve, 0));
     return value;
@@ -47,5 +47,54 @@ describe('settings directory validation', () => {
         await validate(new Error('The given path "/data/mangas" is not a directory!'), true);
         expect(globalThis.alert).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('settings of background loaded connectors', () => {
+    const stored = {
+        connectors: {
+            west: { username: 'user', password: 'secret' },
+            late: { token: 'abc' }
+        }
+    };
+
+    function engine(connectors) {
+        globalThis.window = {
+            hakuneko: { app: { getPath: () => '/docs' }, path: require('node:path'), env: {} }
+        };
+        globalThis.Engine = {
+            Connectors: connectors,
+            Storage: {
+                loadConfig: vi.fn(async () => stored),
+                saveConfig: vi.fn(async () => undefined)
+            }
+        };
+    }
+
+    afterEach(() => {
+        delete globalThis.window;
+    });
+
+    it('should keep the stored settings of connectors that are not registered yet when saving', async () => {
+        const west = { id: 'west', label: 'West', config: { username: { input: 'text', value: '' }, password: { input: 'text', value: '' } } };
+        engine([west]);
+        const settings = new Settings();
+        await settings.load();
+        expect(west.config.username.value).toBe('user');
+        await settings.save();
+        const saved = globalThis.Engine.Storage.saveConfig.mock.calls[0][1];
+        expect(saved.connectors.west).toEqual({ username: 'user', password: 'secret' });
+        expect(saved.connectors.late).toEqual({ token: 'abc' });
+    });
+
+    it('should apply the stored settings to connectors that register later', async () => {
+        const late = { id: 'late', label: 'Late', config: { token: { input: 'text', value: '' } } };
+        const connectors = [];
+        engine(connectors);
+        const settings = new Settings();
+        await settings.load();
+        connectors.push(late);
+        await settings.load();
+        expect(late.config.token.value).toBe('abc');
     });
 });

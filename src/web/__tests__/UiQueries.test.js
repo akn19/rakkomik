@@ -13,7 +13,7 @@ function manga(id, connector) {
         id,
         title: `Title ${id}`,
         connector,
-        getChapters: jest.fn((callback) => {
+        getChapters: vi.fn((callback) => {
             callback(null, [{ id: `${id}-c1`, title: 'Ch 1', manga: null }]);
         })
     };
@@ -23,10 +23,10 @@ function connector(id) {
     const self = {
         id,
         label: `Label ${id}`,
-        getMangas: jest.fn((callback) => {
+        getMangas: vi.fn((callback) => {
             callback(null, [manga('m1', self), manga('m2', self)]);
         }),
-        updateMangas: jest.fn((callback) => {
+        updateMangas: vi.fn((callback) => {
             callback(null, [manga('m1', self)]);
         })
     };
@@ -37,9 +37,9 @@ function fakeEngine(extra) {
     globalThis.window = Object.assign({}, globalThis.window, {
         Engine: Object.assign({
             Connectors: [connector('c1'), connector('c2')],
-            DownloadManager: { addDownload: jest.fn() },
+            DownloadManager: { addDownload: vi.fn() },
             ChaptermarkManager: {
-                isChapterMarked: jest.fn(() => true)
+                isChapterMarked: vi.fn(() => true)
             }
         }, extra)
     });
@@ -102,7 +102,7 @@ describe('ui queries', () => {
         const chapter = {
             id: 'c1',
             title: 'Ch 1',
-            getPages: jest.fn(callback => callback(null, ['http://img/1.jpg', 'http://img/2.jpg']))
+            getPages: vi.fn(callback => callback(null, ['http://img/1.jpg', 'http://img/2.jpg']))
         };
         await expect(queries.fetchPages(chapter)).resolves.toHaveLength(2);
         chapter.getPages.mockImplementationOnce(callback => callback(new Error('empty'), undefined));
@@ -130,13 +130,13 @@ describe('ui queries', () => {
         fakeEngine({
             BookmarkManager: {
                 bookmarks: [],
-                addBookmark: jest.fn(() => true),
-                deleteBookmark: jest.fn(() => true)
+                addBookmark: vi.fn(() => true),
+                deleteBookmark: vi.fn(() => true)
             },
             ChaptermarkManager: {
-                isChapterMarked: jest.fn(() => true),
-                addChaptermark: jest.fn(),
-                deleteChaptermark: jest.fn()
+                isChapterMarked: vi.fn(() => true),
+                addChaptermark: vi.fn(),
+                deleteChaptermark: vi.fn()
             }
         });
         expect(bridge.isMangaBookmarked(m)).toBe(false);

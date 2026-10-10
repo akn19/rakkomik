@@ -17,7 +17,6 @@
         "discord-rpc",
         "pino",
         "innosetup-compiler",
-        "jest-junit",
         "rcedit",
         "win-7zip",
         "tailwindcss"

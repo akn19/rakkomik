@@ -31,17 +31,17 @@ function recordingFs(behavior) {
     const calls = [];
     return {
         calls,
-        existsSync: jest.fn(() => true),
-        mkdirSync: jest.fn(),
-        writeFile: jest.fn((p, data) => {
+        existsSync: vi.fn(() => true),
+        mkdirSync: vi.fn(),
+        writeFile: vi.fn((p, data) => {
             calls.push(['writeFile', p]);
             return behavior && behavior.writeFile ? behavior.writeFile(p, data) : Promise.resolve();
         }),
-        rename: jest.fn((from, to) => {
+        rename: vi.fn((from, to) => {
             calls.push(['rename', from, to]);
             return behavior && behavior.rename ? behavior.rename(from, to) : Promise.resolve();
         }),
-        unlink: jest.fn(p => {
+        unlink: vi.fn(p => {
             calls.push(['unlink', p]);
             return Promise.resolve();
         })
@@ -52,7 +52,6 @@ function storageWith(fs) {
     fakeHakuneko(fs);
     const storage = new Storage();
     storage.config = '/cfg/hakuneko.';
-    storage._bookmarkOutputPath = undefined;
     Object.defineProperty(storage, '_bookmarkOutputPath', { get: () => '/bm/hakuneko.' });
     return storage;
 }

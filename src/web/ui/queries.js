@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { getEngine } from './engine.js';
+import { getEngine, whenConnectorsReady } from './engine.js';
 
 /**
  * TanStack Query layer (audit §5.2 server-state).
@@ -97,6 +97,8 @@ export function fetchChapterList(manga) {
  * (local JSON, no site fetch) and finds the entry.
  */
 export async function resolveManga(connectorId, mangaId) {
+    // a deep link (reload on the reader) may be resolved before the connectors are registered
+    await whenConnectorsReady();
     const connector = getConnector(connectorId);
     let mangas = queryClient.getQueryData(['mangas', connectorId]);
     if (!mangas) {
