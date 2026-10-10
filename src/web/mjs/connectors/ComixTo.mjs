@@ -1,8 +1,125 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
-// NOTE(intake): upstream used node Buffer (absent in the isolated renderer);
-// replaced 1:1 with the native codecs (identical bytes for utf8/base64).
-import { utf8ToBytes, base64ToBytes, bytesToBase64 } from '../engine/Crypto.mjs';
+
+/*
+ * comix.to protects its API with a request signature and encrypted responses, and the scheme
+ * changes from time to time. So the connector does not re-implement it: a hidden window opens a
+ * page of the site, finds the site's own API clients in the (already loaded) bundles and calls them
+ * there (same approach as the web-view fallback of the Keiyoushi extension and HaruNeko's DRM provider).
+ * Images may be XOR encrypted and/or tile scrambled, announced by `X-Enc-*` / `X-Scramble-*` headers.
+ */
+
+const SCRAMBLE_INITS = { '03632': 58414, '02900': 117532 };
+
+// Finds the manga API client (`list`, `chapters`, ...) and the generic HTTP client (`get`, `post`, ...) of the site.
+const DISCOVER_SCRIPT = `
+    const mainSrc = document.querySelector('script[type=module][src*="/dist/main-"]').src;
+    const mainJavaScript = await (await fetch(mainSrc)).text();
+    const bundleFiles = Array.from(mainJavaScript.matchAll(/from\\s*["']\\.\\/([^"']+\\.js)["']/g), match => match[1]);
+    const importBundle = new Function('url', 'return import(url)');
+    let mangaApi = null;
+    let http = null;
+    for (const bundleFile of bundleFiles) {
+        let bundle;
+        try {
+            bundle = await importBundle(new URL(bundleFile, mainSrc).href);
+        } catch (error) {
+            continue;
+        }
+        for (const value of Object.values(bundle)) {
+            if (value && typeof value === 'object') {
+                if (typeof value.chapters === 'function' && typeof value.list === 'function') {
+                    mangaApi = value;
+                }
+                if (typeof value.get === 'function' && typeof value.post === 'function' && typeof value.patch === 'function') {
+                    http = value;
+                }
+            }
+        }
+    }
+    if (!mangaApi || !http) {
+        throw new Error('Could not find the API clients of the website!');
+    }
+`;
+
+function hasImageSignature(bytes) {
+    const webp = bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+    const jpeg = bytes[0] === 0xFF && bytes[1] === 0xD8;
+    const png = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+    return bytes.length >= 12 && (webp || jpeg || png);
+}
+
+function xorShift32(state) {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return state | 0;
+}
+
+function decryptWithXorShift32(encrypted, key, limit, highByte) {
+    const bytes = new Uint8Array(encrypted);
+    let state = key | 0;
+    for(let index = 0; index < Math.min(bytes.length, limit); index++) {
+        state = xorShift32(state);
+        bytes[index] ^= highByte ? state >>> 24 : state & 0xFF;
+    }
+    return bytes;
+}
+
+function decryptWithLCG(encrypted, key, limit) {
+    const bytes = new Uint8Array(encrypted);
+    for(let index = 0; index < Math.min(bytes.length, limit); index++) {
+        key = Math.imul(key, 1000005) + 1234567891 | 0;
+        bytes[index] ^= key >>> 24;
+    }
+    return bytes;
+}
+
+/**
+ * Decrypt the first `limit` bytes of an image; the algorithm is not always announced, so the
+ * variants are tried until the result looks like an image.
+ */
+export function decryptImage(encrypted, key, limit) {
+    const decryptions = [
+        () => decryptWithXorShift32(encrypted, key | 1, limit, true),
+        () => decryptWithXorShift32(encrypted, key, limit, true),
+        () => decryptWithXorShift32(encrypted, key | 1, limit, false),
+        () => decryptWithXorShift32(encrypted, key, limit, false),
+        () => decryptWithLCG(encrypted, key | 1, limit),
+        () => decryptWithLCG(encrypted, key, limit)
+    ];
+    for(const decrypt of decryptions) {
+        const bytes = decrypt();
+        if(hasImageSignature(bytes)) {
+            return bytes;
+        }
+    }
+    return undefined;
+}
+
+/**
+ * Tile order of a scrambled image: `order[destination] = source` (a seeded Fisher-Yates shuffle, inversed).
+ */
+export function scrambleOrder(count, hash, seedModifier, algorithm) {
+    const salt = (SCRAMBLE_INITS[hash] || 0) ^ seedModifier;
+    const xorShift = algorithm === '3';
+    let state = xorShift ? salt | 1 : salt;
+    const indices = Array.from({ length: Math.max(1, count) }, (_, index) => index);
+    for(let current = indices.length - 1; current > 0; current--) {
+        if(xorShift) {
+            state = xorShift32(state);
+        } else {
+            state = Math.imul(state, 1664525) + 1013904223 | 0;
+        }
+        const random = (state >>> 0) % (current + 1);
+        [indices[current], indices[random]] = [indices[random], indices[current]];
+    }
+    const inverse = new Array(count);
+    indices.forEach((source, destination) => {
+        inverse[source] = destination;
+    });
+    return inverse;
+}
 
 export default class ComixTo extends Connector {
 
@@ -12,317 +129,125 @@ export default class ComixTo extends Connector {
         super.label = 'Comix (.to)';
         this.tags = [ 'manga', 'manhwa', 'manhua', 'english' ];
         this.url = 'https://comix.to';
-        this.apiUrl = this.url + '/api/v2/';
     }
 
     canHandleURI(uri) {
         return /^https?:\/\/comix\.to/.test(uri.href);
     }
 
+    /**
+     * Run a script with `mangaApi` and `http` (the clients of the site) in a hidden window of the given page.
+     */
+    async _callSite(page, body, timeout) {
+        const script = `(async () => { ${DISCOVER_SCRIPT} ${body} })()`;
+        return Engine.Request.fetchUI(new Request(new URL(page, this.url), this.requestOptions), script, timeout || 120000);
+    }
+
+    _mangaHash(manga) {
+        return manga.id.split('/')[2].split('-')[0];
+    }
+
     async _getMangaFromURI(uri) {
-        const request = new Request(uri, this.requestOptions);
-        const data = await this.fetchDOM(request, 'section.comic-info h1.title');
-        const title = data[0].textContent.trim();
-        const id = uri.pathname;
-        return new Manga(this, id, title);
+        const id = '/' + uri.pathname.split('/').filter(Boolean).slice(0, 2).join('/');
+        const request = new Request(new URL(id, this.url), this.requestOptions);
+        const data = await this.fetchDOM(request, 'meta[property="og:title"]');
+        return new Manga(this, id, data[0].content.trim());
     }
 
     async _getMangas() {
-        const mangaList = [];
-        for (let page = 1, run = true; run; page++) {
-            const uri = new URL('./manga?limit=100&page=' + page, this.apiUrl);
-            const request = new Request(uri, this.requestOptions);
-            const data = await this.fetchJSON(request);
-            const items = data.result && data.result.items ? data.result.items : [];
-            const mangas = items.map(item => {
-                return {
-                    id: '/title/' + item.hash_id + '-' + item.slug,
-                    title: item.title
-                };
-            });
-            if (mangas.length > 0) {
-                mangaList.push(...mangas);
-            } else {
-                run = false;
+        return this._callSite('/', `
+            const mangas = [];
+            for (let page = 1; ; page++) {
+                const { items, meta } = await mangaApi.list({ page, limit: 100 });
+                mangas.push(...items.map(item => ({ id: item.url, title: item.title })));
+                if (!items.length || !meta || !meta.hasNext) {
+                    break;
+                }
             }
-        }
-        return mangaList;
+            return mangas;
+        `, 3600000);
     }
 
     async _getChapters(manga) {
-        const mangaHash = manga.id.match(/\/title\/([^/-]+)-/).pop();
-        const requestHash = ComixHash.GenerateHash('/manga/' + mangaHash + '/chapters');
-        const chapterList = [];
-        for (let page = 1, run = true; run; page++) {
-            const uri = new URL('./manga/' + mangaHash + '/chapters?limit=100&page=' + page + '&order[number]=desc&time=1&_=' + requestHash, this.apiUrl);
-            const request = new Request(uri, this.requestOptions);
-            const data = await this.fetchJSON(request);
-            const items = data.result && data.result.items ? data.result.items : [];
-            const chapters = items.map(item => {
-                const parts = [ item.number ];
-                if (item.name) {
-                    parts.push('- ' + item.name);
+        const hash = this._mangaHash(manga);
+        const chapters = await this._callSite(manga.id, `
+            const chapters = [];
+            for (let page = 1; ; page++) {
+                const { items, meta } = await mangaApi.chapters(${JSON.stringify(hash)}, { page, limit: 100, order: { number: 'desc' } });
+                chapters.push(...items.map(({ id, number, name, group, url }) => ({ id, number, name, group: group && group.name, url })));
+                if (!items.length || !meta || !meta.hasNext) {
+                    break;
                 }
-                if (item.scanlation_group) {
-                    parts.push('[' + item.scanlation_group.name + ']');
-                }
-                return {
-                    id: manga.id + '/' + item.chapter_id + '-chapter-' + item.number,
-                    title: parts.join(' ')
-                };
-            });
-            if (chapters.length > 0) {
-                chapterList.push(...chapters);
-            } else {
-                run = false;
             }
-        }
-        return chapterList;
+            return chapters;
+        `, 600000);
+        return chapters.map(({ id, number, name, group, url }) => ({
+            id: url || `${manga.id}/${id}-chapter-${number}`,
+            title: number + (name ? ` - ${name}` : '') + (group ? ` [${group}]` : '')
+        }));
     }
 
     async _getPages(chapter) {
-        const uri = new URL(chapter.id, this.url);
-        const request = new Request(uri, this.requestOptions);
-        const script = `
-            new Promise((resolve, reject) => {
-                const check = () => {
-                    if (window.__NEXT_DATA__ && window.__NEXT_DATA__.props && window.__NEXT_DATA__.props.pageProps && window.__NEXT_DATA__.props.pageProps.images) {
-                        return resolve(window.__NEXT_DATA__.props.pageProps);
-                    }
-                    for (const key in window) {
-                        try {
-                            const obj = window[key];
-                            if (obj && typeof obj === 'object' && !Array.isArray(obj) && obj.images && Array.isArray(obj.images)) {
-                                return resolve(obj);
-                            }
-                        } catch(e) {}
-                    }
-                    setTimeout(check, 100);
-                };
-                check();
-            })
-        `;
-        const data = await Engine.Request.fetchUI(request, script, 25000, true);
-        return data.images.map(image => this.createConnectorURI({ url: image.url, referer: this.url }));
+        const chapterId = chapter.id.match(/\/(\d+)-chapter-[^/]*$/)[1];
+        const { baseUrl, items } = await this._callSite(chapter.id, `
+            const { pages } = await http.get('/chapters/${chapterId}');
+            return { baseUrl: pages.baseUrl || '', items: pages.items };
+        `);
+        const base = baseUrl.replace(/\/+$/, '');
+        return items.map(({ url, s }) => {
+            let link = /^https?:/.test(url) ? url : base + '/' + url.replace(/^\/+/, '');
+            // V3 pages need the flag, so the server announces the scramble headers
+            const isV3 = s === 1 || /[?&]v3(&|=|$)/.test(link);
+            if(isV3 && !/[?&]v3(&|=|$)/.test(link)) {
+                link += (link.includes('?') ? '&' : '?') + 'v3';
+            }
+            return this.createConnectorURI({ url: link, v3: isV3 });
+        });
     }
 
     async _handleConnectorURI(payload) {
-        const request = new Request(payload.url, this.requestOptions);
-        request.headers.set('x-referer', payload.referer);
-        const response = await fetch(request);
-        const blob = await response.blob();
-        const buffer = await this._blobToBuffer(blob);
-        this._applyRealMime(buffer);
-        return buffer;
-    }
-}
+        // the image hosts (behind Cloudflare) block requests that carry a Referer or Origin
+        const response = await fetch(new Request(payload.url, this.requestOptions));
+        let bytes = new Uint8Array(await response.arrayBuffer());
 
-class ComixHash {
-
-    static get KEYS() {
-        return [
-            '13YDu67uDgFczo3DnuTIURqas4lfMEPADY6Jaeqky+w=', 'yEy7wBfBc+gsYPiQL/4Dfd0pIBZFzMwrtlRQGwMXy3Q=', 'yrP+EVA1Dw==',
-            'vZ23RT7pbSlxwiygkHd1dhToIku8SNHPC6V36L4cnwM=', 'QX0sLahOByWLcWGnv6l98vQudWqdRI3DOXBdit9bxCE=', 'WJwgqCmf',
-            'BkWI8feqSlDZKMq6awfzWlUypl88nz65KVRmpH0RWIc=', 'v7EIpiQQjd2BGuJzMbBA0qPWDSS+wTJRQ7uGzZ6rJKs=', '1SUReYlCRA==',
-            'RougjiFHkSKs20DZ6BWXiWwQUGZXtseZIyQWKz5eG34=', 'LL97cwoDoG5cw8QmhI+KSWzfW+8VehIh+inTxnVJ2ps=', '52iDqjzlqe8=',
-            'U9LRYFL2zXU4TtALIYDj+lCATRk/EJtH7/y7qYYNlh8=', 'e/GtffFDTvnw7LBRixAD+iGixjqTq9kIZ1m0Hj+s6fY=', 'xb2XwHNB'
-        ];
-    }
-
-    static GenerateHash(path, bodySize = 0, time = 1) {
-        const baseString = path + ':' + bodySize + ':' + time;
-        const encoded = encodeURIComponent(baseString);
-        const initialBytes = utf8ToBytes(encoded);
-        const result = ComixHash.Round5(ComixHash.Round4(ComixHash.Round3(ComixHash.Round2(ComixHash.Round1(initialBytes)))));
-        return ComixHash.GetURLBase64FromBytes(result);
-    }
-
-    static Rc4(key, data) {
-        if (!(key instanceof Uint8Array) || !(data instanceof Uint8Array)) {
-            throw new TypeError('key and data must be Uint8Array');
-        }
-        if (key.length === 0) return data;
-        const s = new Uint8Array(256);
-        for (let i = 0; i < 256; i++) {
-            s[i] = i;
-        }
-        let j = 0;
-        for (let i = 0; i < 256; i++) {
-            j = (j + s[i] + key[i % key.length]) & 0xff;
-            const temp = s[i];
-            s[i] = s[j];
-            s[j] = temp;
-        }
-        let i = 0;
-        j = 0;
-        const out = new Uint8Array(data.length);
-        for (let k = 0; k < data.length; k++) {
-            i = (i + 1) & 0xff;
-            j = (j + s[i]) & 0xff;
-            const temp = s[i];
-            s[i] = s[j];
-            s[j] = temp;
-            const rnd = s[(s[i] + s[j]) & 0xff];
-            out[k] = data[k] ^ rnd;
-        }
-        return out;
-    }
-
-    static GetBytesFromBase64(b64) {
-        const normalized = b64.replace(/-/g, '+').replace(/_/g, '/');
-        const pad = normalized.length % 4;
-        // NOTE(fix on intake): was `const` reassigned below (TypeError at runtime)
-        let padded = normalized;
-        if (pad) {
-            padded += '='.repeat(4 - pad);
-        }
-        return base64ToBytes(padded);
-    }
-
-    static GetURLBase64FromBytes(bytes) {
-        return bytesToBase64(bytes)
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=/g, '');
-    }
-
-    static MutS(e) { return (e + 143) & 0xff; }
-    static MutL(e) { return ((e >>> 1) | (e << 7)) & 0xff; }
-    static MutC(e) { return (e + 115) & 0xff; }
-    static MutM(e) { return (e ^ 177) & 0xff; }
-    static MutF(e) { return (e - 188) & 0xff; }
-    static MutG(e) { return ((e << 2) | (e >>> 6)) & 0xff; }
-    static MutH(e) { return (e - 42) & 0xff; }
-    static MutDollar(e) { return ((e << 4) | (e >>> 4)) & 0xff; }
-    static MutB(e) { return (e - 12) & 0xff; }
-    static MutUnderscore(e) { return (e - 20) & 0xff; }
-    static MutY(e) { return ((e >>> 1) | (e << 7)) & 0xff; }
-    static MutK(e) { return (e - 241) & 0xff; }
-    static GetMutKey(mk, idx) { return mk.length > 0 && (idx % 32) < mk.length ? mk[idx % 32] : 0; }
-    static GetKeyBytes(index) { return ComixHash.GetBytesFromBase64(ComixHash.KEYS[index]); }
-
-    static Round1(data) {
-        const enc = ComixHash.Rc4(ComixHash.GetKeyBytes(0), data);
-        const mutKey = ComixHash.GetKeyBytes(1);
-        const prefKey = ComixHash.GetKeyBytes(2);
-        const out = [];
-        for (let i = 0; i < enc.length; i++) {
-            if (i < 7 && i < prefKey.length) out.push(prefKey[i]);
-            let v = enc[i] ^ ComixHash.GetMutKey(mutKey, i);
-            switch (i % 10) {
-                case 0:
-                case 9: v = ComixHash.MutC(v); break;
-                case 1: v = ComixHash.MutB(v); break;
-                case 2: v = ComixHash.MutY(v); break;
-                case 3: v = ComixHash.MutDollar(v); break;
-                case 4:
-                case 6: v = ComixHash.MutH(v); break;
-                case 5: v = ComixHash.MutS(v); break;
-                case 7: v = ComixHash.MutK(v); break;
-                case 8: v = ComixHash.MutL(v); break;
+        const encryptionSeed = parseInt(response.headers.get('X-Enc-Seed'), 10);
+        const encryptionLimit = parseInt(response.headers.get('X-Enc-Len'), 10);
+        if(encryptionSeed && encryptionLimit) {
+            const decrypted = decryptImage(bytes, encryptionSeed, encryptionLimit);
+            if(!decrypted) {
+                throw new Error('Failed to decrypt the image!');
             }
-            out.push(v & 0xff);
+            bytes = decrypted;
         }
-        return new Uint8Array(out);
-    }
 
-    static Round2(data) {
-        const enc = ComixHash.Rc4(ComixHash.GetKeyBytes(3), data);
-        const mutKey = ComixHash.GetKeyBytes(4);
-        const prefKey = ComixHash.GetKeyBytes(5);
-        const out = [];
-        for (let i = 0; i < enc.length; i++) {
-            if (i < 6 && i < prefKey.length) out.push(prefKey[i]);
-            let v = enc[i] ^ ComixHash.GetMutKey(mutKey, i);
-            switch (i % 10) {
-                case 0:
-                case 8: v = ComixHash.MutC(v); break;
-                case 1: v = ComixHash.MutB(v); break;
-                case 2:
-                case 6: v = ComixHash.MutDollar(v); break;
-                case 3: v = ComixHash.MutH(v); break;
-                case 4:
-                case 9: v = ComixHash.MutS(v); break;
-                case 5: v = ComixHash.MutK(v); break;
-                case 7: v = ComixHash.MutUnderscore(v); break;
-            }
-            out.push(v & 0xff);
+        const grid = response.headers.get('X-Scramble-Grid');
+        const algorithm = response.headers.get('X-Scramble-Algo');
+        if(!grid || !algorithm) {
+            const data = await this._blobToBuffer(new Blob([bytes], { type: response.headers.get('Content-Type') || '' }));
+            this._applyRealMime(data);
+            return data;
         }
-        return new Uint8Array(out);
-    }
 
-    static Round3(data) {
-        const enc = ComixHash.Rc4(ComixHash.GetKeyBytes(6), data);
-        const mutKey = ComixHash.GetKeyBytes(7);
-        const prefKey = ComixHash.GetKeyBytes(8);
-        const out = [];
-        for (let i = 0; i < enc.length; i++) {
-            if (i < 7 && i < prefKey.length) out.push(prefKey[i]);
-            let v = enc[i] ^ ComixHash.GetMutKey(mutKey, i);
-            switch (i % 10) {
-                case 0: v = ComixHash.MutC(v); break;
-                case 1: v = ComixHash.MutF(v); break;
-                case 2:
-                case 8: v = ComixHash.MutS(v); break;
-                case 3: v = ComixHash.MutG(v); break;
-                case 4: v = ComixHash.MutY(v); break;
-                case 5: v = ComixHash.MutM(v); break;
-                case 6: v = ComixHash.MutDollar(v); break;
-                case 7: v = ComixHash.MutK(v); break;
-                case 9: v = ComixHash.MutB(v); break;
-            }
-            out.push(v & 0xff);
-        }
-        return new Uint8Array(out);
-    }
-
-    static Round4(data) {
-        const enc = ComixHash.Rc4(ComixHash.GetKeyBytes(9), data);
-        const mutKey = ComixHash.GetKeyBytes(10);
-        const prefKey = ComixHash.GetKeyBytes(11);
-        const out = [];
-        for (let i = 0; i < enc.length; i++) {
-            if (i < 8 && i < prefKey.length) out.push(prefKey[i]);
-            let v = enc[i] ^ ComixHash.GetMutKey(mutKey, i);
-            switch (i % 10) {
-                case 0: v = ComixHash.MutB(v); break;
-                case 1:
-                case 9: v = ComixHash.MutM(v); break;
-                case 2:
-                case 7: v = ComixHash.MutL(v); break;
-                case 3:
-                case 5: v = ComixHash.MutS(v); break;
-                case 4:
-                case 6: v = ComixHash.MutUnderscore(v); break;
-                case 8: v = ComixHash.MutY(v); break;
-            }
-            out.push(v & 0xff);
-        }
-        return new Uint8Array(out);
-    }
-
-    static Round5(data) {
-        const enc = ComixHash.Rc4(ComixHash.GetKeyBytes(12), data);
-        const mutKey = ComixHash.GetKeyBytes(13);
-        const prefKey = ComixHash.GetKeyBytes(14);
-        const out = [];
-        for (let i = 0; i < enc.length; i++) {
-            if (i < 6 && i < prefKey.length) out.push(prefKey[i]);
-            let v = enc[i] ^ ComixHash.GetMutKey(mutKey, i);
-            switch (i % 10) {
-                case 0: v = ComixHash.MutUnderscore(v); break;
-                case 1:
-                case 7: v = ComixHash.MutS(v); break;
-                case 2: v = ComixHash.MutC(v); break;
-                case 3:
-                case 5: v = ComixHash.MutM(v); break;
-                case 4: v = ComixHash.MutB(v); break;
-                case 6: v = ComixHash.MutF(v); break;
-                case 8: v = ComixHash.MutDollar(v); break;
-                case 9: v = ComixHash.MutG(v); break;
-            }
-            out.push(v & 0xff);
-        }
-        return new Uint8Array(out);
+        const [rows, columns] = grid.split('x').map(value => parseInt(value, 10));
+        const image = await createImageBitmap(new Blob([bytes]));
+        const tileWidth = Math.floor(image.width / columns);
+        const tileHeight = Math.floor(image.height / rows);
+        const order = scrambleOrder(rows * columns, (response.headers.get('X-Scramble-Hash') || '').trim(), parseInt(response.headers.get('X-Scramble-Seed'), 10) || 0, algorithm);
+        const canvas = document.createElement('canvas');
+        canvas.width = image.width;
+        canvas.height = image.height;
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0);
+        order.forEach((source, destination) => {
+            context.drawImage(
+                image,
+                source % columns * tileWidth, Math.floor(source / columns) * tileHeight, tileWidth, tileHeight,
+                destination % columns * tileWidth, Math.floor(destination / columns) * tileHeight, tileWidth, tileHeight
+            );
+        });
+        const blob = await new Promise(resolve => {
+            canvas.toBlob(resolve, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value) / 100);
+        });
+        return this._blobToBuffer(blob);
     }
 }

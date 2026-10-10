@@ -12,8 +12,10 @@ async function resolveFromSite(page, parameters) {
         const connector = Engine.Connectors.find(entry => entry.id === connectorID);
         const manga = await connector.getMangaFromURI(new URL(mangaURL));
         const chapters = await new Promise(resolve => manga.getChapters((_, list) => resolve(list)));
-        // first => shift, last => pop, INT => getAtIndex
-        const chapter = Number.isInteger(chaptersAccessor) ? chapters[chaptersAccessor] : chapters[chaptersAccessor]();
+        // first => shift, last => pop, INT => getAtIndex, { id } => the chapter with that ID
+        const chapter = typeof chaptersAccessor === 'object'
+            ? chapters.find(entry => entry.id === chaptersAccessor.id)
+            : Number.isInteger(chaptersAccessor) ? chapters[chaptersAccessor] : chapters[chaptersAccessor]();
         const pages = await new Promise(resolve => chapter.getPages((_, list) => resolve(list)));
         return {
             connectorClass: connector.constructor.name,
@@ -136,6 +138,23 @@ const sites = [
             chapterID: 'https://www.comic-valkyrie.com/samplebook/val_isemaji01/',
             chapterTitle: '第1話',
             pageCount: 34,
+        }
+    },
+    {
+        name: 'Comix',
+        parameters: {
+            connectorID: 'comixto',
+            mangaURL: 'https://comix.to/title/k7yg7-the-spark-in-your-eyes',
+            chaptersAccessor: { id: '/title/k7yg7-the-spark-in-your-eyes/2536461-chapter-66' }
+        },
+        expectations: {
+            connectorClass: 'ComixTo',
+            mangaID: '/title/k7yg7-the-spark-in-your-eyes',
+            mangaTitle: 'The Spark in Your Eyes',
+            chapterID: '/title/k7yg7-the-spark-in-your-eyes/2536461-chapter-66',
+            chapterTitle: '66 - The Period of Humans (4) [UToon]',
+            pageCount: 86,
+            pageMatcher: /^https:\/\/[^/]+\/.+/
         }
     }
 ];

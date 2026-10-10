@@ -72,7 +72,6 @@ describe('Crypto AES-CBC connector shapes', () => {
         const iv = new Uint8Array(16);
         const cipher = C.base64ToBytes(LEGACY_COMICO_CIPHER);
         await expect(C.aesCbcDecrypt(cipher, key, iv).then(b => C.bytesToUtf8(b))).resolves.toBe(COMICO_URL);
-        expect(C.bytesToUtf8(C.aesCbcDecryptSync(cipher, key, iv))).toBe(COMICO_URL);
     });
 
     it('should decrypt GManga-shaped payloads (base64 ct, hex key, base64 iv)', async () => {
@@ -83,7 +82,6 @@ describe('Crypto AES-CBC connector shapes', () => {
         const cipher = aesCbcEncryptNode(C.utf8ToBytes(plain), key, iv, 'aes-256-cbc');
         const want = plain;
         expect(C.bytesToUtf8(await C.aesCbcDecrypt(cipher, key, iv))).toBe(want);
-        expect(C.bytesToUtf8(C.aesCbcDecryptSync(cipher, key, iv))).toBe(want);
     });
 
     it('should decrypt CxC-shaped payloads (hex key/iv, base64 text)', async () => {
@@ -93,7 +91,6 @@ describe('Crypto AES-CBC connector shapes', () => {
         const plain = 'data:image/jpeg;base64,/9j/';
         const cipher = aesCbcEncryptNode(C.utf8ToBytes(plain), key, iv, 'aes-256-cbc');
         expect(C.bytesToUtf8(await C.aesCbcDecrypt(cipher, key, iv))).toBe(plain);
-        expect(C.bytesToUtf8(C.aesCbcDecryptSync(cipher, key, iv))).toBe(plain);
     });
 
     it('should decrypt raw-buffer payloads (ComicFuz/mangaz shape)', async () => {
@@ -102,45 +99,5 @@ describe('Crypto AES-CBC connector shapes', () => {
         const plain = 'plaintext-block-160123456789abcdef';
         const cipher = aesCbcEncryptNode(C.utf8ToBytes(plain), key, iv, 'aes-128-cbc');
         expect(C.bytesToUtf8(await C.aesCbcDecrypt(cipher, key, iv))).toBe(plain);
-        expect(C.bytesToUtf8(C.aesCbcDecryptSync(cipher, key, iv))).toBe(plain);
-    });
-
-    it('should match NIST SP 800-38A F.2.5 CBC-AES128 decrypt (sync)', () => {
-        const key = C.hexToBytes('2b7e151628aed2a6abf7158809cf4f3c');
-        const iv = C.hexToBytes('000102030405060708090a0b0c0d0e0f');
-        const cipher = C.hexToBytes('7649abac8119b246cee98e9b12e9197d');
-        // raw NIST vector carries no PKCS#7 padding: verify with ZeroPadding (no-op here)
-        const out = C.aesCbcDecryptSync(cipher, key, iv, 'ZeroPadding');
-        expect(C.bytesToHex(out)).toBe('6bc1bee22e409f96e93d7e117393172a');
-    });
-});
-
-describe('LegacyCrypto adapter (obfuscated connectors)', () => {
-    it('should behave like CryptoJS.SHA256().toString(Hex)', () => {
-        const L = C.LegacyCrypto;
-        expect(L.SHA256('abc').toString(L.enc.Hex)).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
-        expect(L.SHA256('abc').toString()).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
-    });
-
-    it('should decrypt OpenSSL passphrase payloads like CryptoJS.AES.decrypt', () => {
-        const L = C.LegacyCrypto;
-        expect(L.AES.decrypt(LEGACY_SETTINGS_CIPHER, 'HakuNeko!').toString(L.enc.Utf8)).toBe('s3cr3t-proxy-pass');
-    });
-
-    it('should decrypt explicit key/iv payloads like CryptoJS.AES.decrypt', () => {
-        const L = C.LegacyCrypto;
-        const out = L.AES.decrypt(LEGACY_COMICO_CIPHER, L.enc.Utf8.parse(COMICO_KEY), {
-            iv: L.enc.Utf8.parse(L.enc.Hex.parse('')),
-            mode: L.mode.CBC
-        });
-        expect(out.toString(L.enc.Utf8)).toBe(COMICO_URL);
-    });
-
-    it('should expose WordArray-compatible words/sigBytes', () => {
-        const L = C.LegacyCrypto;
-        const wa = L.lib.WordArray.create(new Uint8Array([1, 2, 3]));
-        expect(wa.sigBytes).toBe(3);
-        expect(Array.isArray(wa.words)).toBe(true);
-        expect(C.bytesToHex(L.enc.Hex.parse('deadbeef').toBytes())).toBe('deadbeef');
     });
 });

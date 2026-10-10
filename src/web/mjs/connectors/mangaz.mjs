@@ -1,6 +1,5 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
-import { utf8ToBytes, bytesToUtf8, base64ToBytes, aesCbcDecrypt } from '../engine/Crypto.mjs';
 
 export default class Mangaz extends Connector {
 
@@ -46,36 +45,48 @@ export default class Mangaz extends Connector {
     }
 
     async _getPages(chapter) {
+        // the viewer scrambles every image into crops, `scramble` tells how to put them back
         const script = `
-            new Promise(async (resolve,reject) => {
-                let g = JCOMI.namespace("JCOMI.document")
-                let b = g.getDoc()
-                let img = g.getImages().map(ele => g.getLocationDir('enc') + ele.file + "?vw=" + encodeURIComponent(JCOMI.namespace("JCOMI.config").getVersion()))
-                resolve({img:img,b:b});
+            new Promise(resolve => {
+                const jNamespace = JCOMI.namespace("JCOMI.document");
+                const jDocument = jNamespace.getDoc();
+                const enc = jDocument.Location.enc ? 'enc' : 'anne';
+                const imgs = jNamespace.getOrders().map(ele => {
+                    const img = jNamespace.getLocationDirAnne(enc) + ele.name + "?" + jDocument.verkey;
+                    return { img, scrambleData: ele.scramble };
+                });
+                resolve(imgs);
             });
         `;
         const request = new Request(new URL(chapter.id, this.url), this.requestOptions);
-        const data = await Engine.Request.fetchUI(request, script);
-        return data.img.map(ele => this.createConnectorURI({
-            url:this.getAbsolutePath(ele, request.url),
-            key:data.b.Enc.key,
-            iv:data.b.Enc.iv
+        const data = await Engine.Request.fetchUI(request, script, 2500);
+        return data.map(({ img, scrambleData }) => this.createConnectorURI({
+            url: this.getAbsolutePath(img, request.url),
+            scramble: scrambleData
         }));
     }
 
     async _handleConnectorURI(payload) {
-        const response = await fetch(payload.url);
-        const encrypted = new Uint8Array(await response.arrayBuffer());
-        const iv = base64ToBytes(btoa(payload.iv));
-        const key = utf8ToBytes(payload.key);
-        let decrypted = bytesToUtf8(await aesCbcDecrypt(encrypted, key, iv));
-        decrypted = Uint8Array.from(atob(decrypted), char => char.charCodeAt(0));
-        decrypted = {
-            mimeType: response.headers.get('content-type'),
-            data: decrypted
-        };
-        this._applyRealMime(decrypted);
-        return decrypted;
+        const response = await fetch(new Request(payload.url, this.requestOptions));
+        const blob = await response.blob();
+        if(!payload.scramble || !payload.scramble.crops) {
+            const data = await this._blobToBuffer(blob);
+            this._applyRealMime(data);
+            return data;
+        }
+        const { crops, h, w } = payload.scramble;
+        const image = await createImageBitmap(blob);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        for(const crop of crops) {
+            ctx.drawImage(image, crop.x2, crop.y2, crop.w, crop.h, crop.x, crop.y, crop.w, crop.h);
+        }
+        const descrambled = await new Promise(resolve => {
+            canvas.toBlob(resolve, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value) / 100);
+        });
+        return this._blobToBuffer(descrambled);
     }
 
     async _getChapters(manga) {
