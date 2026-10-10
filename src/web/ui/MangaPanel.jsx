@@ -1,28 +1,45 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { getEngine, toggleBookmark, isMangaBookmarked } from './engine.js';
+import { getEngine, toggleBookmark, isMangaBookmarked, subscribeBookmarks } from './engine.js';
 import { fetchMangaList, updateMangaList } from './queries.js';
 import { useToast } from './notify.jsx';
 import { useSelection } from './selection.jsx';
 import Icon from './icon.jsx';
 
+const BOOKMARK_CONNECTOR_ID = 'bookmarks';
+const CLIPBOARD_CONNECTOR_ID = 'clipboard';
+
+/** Classic mangas.html filterMangas: 3 chars for latin patterns, 2 otherwise. */
+function filterMangas(list, pattern) {
+    const threshold = /^[a-zA-Z0-9]+$/.test(pattern) ? 3 : 2;
+    if (!pattern || pattern.length < threshold) {
+        return list;
+    }
+    const needle = pattern.toLowerCase();
+    return list.filter(manga => manga.title.toLowerCase().includes(needle) || manga.connector.label.toLowerCase().includes(needle));
+}
+
 /**
- * Manga list panel (classic mangas.html parity): connector picker, refresh,
- * title filter, bookmark star for the selected manga, virtual list, footer.
+ * Manga list panel (classic mangas.html parity): paste links from the
+ * clipboard, connector picker, refresh, title filter, bookmark button for
+ * the selected manga, virtual list with the empty-list notification, footer.
  */
-export default function MangaPanel() {
+export default function MangaPanel({ readerEnabled }) {
     const { notify } = useToast();
     const { connectorId, selectConnector, manga: selectedManga, selectManga } = useSelection();
     const queryClient = useQueryClient();
     const connectors = getEngine().Connectors;
     const [pattern, setPattern] = React.useState('');
     const [updating, setUpdating] = React.useState(false);
-    const [, setBookmarkTick] = React.useState(0);
     const scrollRef = React.useRef(null);
 
     const effectiveId = connectorId || (connectors[0] && connectors[0].id) || '';
     const connector = connectors.find(entry => entry.id === effectiveId);
+    const bookmarked = React.useSyncExternalStore(
+        subscribeBookmarks,
+        () => (selectedManga ? isMangaBookmarked(selectedManga) : false)
+    );
 
     const mangaQuery = useQuery({
         queryKey: ['mangas', effectiveId],
@@ -30,35 +47,51 @@ export default function MangaPanel() {
         enabled: !!connector
     });
 
-    const mangas = React.useMemo(() => {
-        const list = mangaQuery.data || [];
-        if (pattern.trim().length < 3) {
-            return list;
+    // The bookmark connector mirrors the bookmark list: reload it on change.
+    React.useEffect(() => {
+        if (effectiveId !== BOOKMARK_CONNECTOR_ID) {
+            return undefined;
         }
-        const needle = pattern.trim().toLowerCase();
-        return list.filter(manga => manga.title.toLowerCase().includes(needle));
-    }, [mangaQuery.data, pattern]);
+        return subscribeBookmarks(() => {
+            queryClient.invalidateQueries({ queryKey: ['mangas', BOOKMARK_CONNECTOR_ID] });
+        });
+    }, [effectiveId, queryClient]);
+
+    const total = mangaQuery.data ? mangaQuery.data.length : 0;
+    const mangas = React.useMemo(
+        () => filterMangas(mangaQuery.data || [], pattern),
+        [mangaQuery.data, pattern]
+    );
 
     const virtualizer = useVirtualizer({
         count: mangas.length,
         getScrollElement: () => scrollRef.current,
-        estimateSize: () => 28,
+        estimateSize: () => 22,
         overscan: 20
     });
 
-    const onUpdate = async () => {
-        if (!connector || updating) {
+    const update = async target => {
+        if (!target || updating) {
             return;
         }
         setUpdating(true);
         try {
-            const updated = await updateMangaList(connector);
-            queryClient.setQueryData(['mangas', effectiveId], updated);
+            const updated = await updateMangaList(target);
+            queryClient.setQueryData(['mangas', target.id], updated);
             notify(`Manga list updated (${updated.length} titles).`, 'success');
         } catch (error) {
-            notify(`Update failed: ${error.message}`, 'error');
+            notify(`Failed to update manga list for ${target.label}\n${error.message}`, 'error');
         } finally {
             setUpdating(false);
+        }
+    };
+
+    // Classic onPasteClick: switch to the clipboard connector and read it.
+    const onPaste = () => {
+        const clipboard = connectors.find(entry => entry.id === CLIPBOARD_CONNECTOR_ID);
+        if (clipboard) {
+            selectConnector(clipboard.id);
+            update(clipboard);
         }
     };
 
@@ -68,62 +101,125 @@ export default function MangaPanel() {
         }
         try {
             toggleBookmark(selectedManga);
-            setBookmarkTick(tick => tick + 1);
         } catch (error) {
             notify(`Bookmark failed: ${error.message}`, 'error');
         }
     };
 
+    const showNotification = !!connector && connector.id !== BOOKMARK_CONNECTOR_ID && total < 1;
+    const refreshClass = 'text-(--manga-refresh-button-color) [filter:drop-shadow(var(--manga-refresh-button-shadow))] cursor-pointer';
+    const refreshTitle = connector ? `Synchronize local manga list with online list from <${connector.label}>` : '';
+
     return (
-        <section className="flex w-64 shrink-0 flex-col border-r border-zinc-400 bg-[#d6d6d6] dark:border-zinc-700 dark:bg-zinc-950">
-            <header className="flex items-center justify-between px-2 py-1 text-sm font-bold">
-                <span>Manga List</span>
-                <span className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
-                    <Icon name="book" size={12} />
-                </span>
-            </header>
-            <div className="space-y-1 px-2 pb-1">
+        <section
+            className={
+                'box-border flex min-h-0 flex-col bg-(--control-background-color) p-[0.5em] ' +
+                (readerEnabled ? 'w-[20em] shrink-0' : 'max-w-1/2 flex-1')
+            }
+        >
+            <div className="rk-separator flex items-center p-[0.25em] text-[1.25em] font-bold">
+                <span className="flex-1">Manga List</span>
+                <button
+                    type="button"
+                    onClick={onPaste}
+                    title="Click to paste manga links from the clipboard"
+                    className="rk-button"
+                >
+                    <Icon name="paste" size={16} />
+                </button>
+            </div>
+            <div className="rk-separator grid grid-cols-[auto_1fr_auto] items-center gap-x-[0.25em]">
+                <Icon name="plug" size={14} className="rk-icon -scale-x-100" />
                 <select
-                    className="w-full rounded border border-zinc-400 bg-white px-1 py-0.5 text-[13px] dark:border-zinc-600 dark:bg-zinc-800"
+                    className="rk-field rk-field-select w-[calc(100%-0.5em)]"
                     value={effectiveId}
                     onChange={event => selectConnector(event.target.value)}
-                    title="Select connector"
+                    title="Select a website from which the manga list should be shown"
                 >
                     {connectors.map(entry => (
                         <option key={entry.id} value={entry.id}>{entry.label}</option>
                     ))}
                 </select>
-                <div className="flex items-center gap-1">
-                    <button
-                        type="button"
-                        onClick={onUpdate}
-                        disabled={!connector || updating}
-                        title={connector ? `Synchronize manga list with ${connector.label}` : ''}
-                        className="shrink-0 text-[#00a000] disabled:opacity-50 dark:text-green-400"
-                    >
-                        <Icon name="refresh" size={14} />
-                    </button>
-                    <input
-                        type="search"
-                        placeholder="Filter titles (min 3 chars) …"
-                        value={pattern}
-                        onChange={event => setPattern(event.target.value)}
-                        className="min-w-0 flex-1 rounded border border-zinc-400 bg-white px-1 py-0.5 text-[13px] dark:border-zinc-600 dark:bg-zinc-800"
-                    />
-                    <button
-                        type="button"
-                        onClick={onToggleBookmark}
-                        disabled={!selectedManga}
-                        title={selectedManga ? 'Toggle bookmark for the selected manga' : 'Select a manga first'}
-                        className="shrink-0 text-[#e0c000] disabled:opacity-30 dark:text-amber-400"
-                    >
-                        <Icon name="star" size={14} filled={selectedManga ? isMangaBookmarked(selectedManga) : false} />
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    onClick={() => update(connector)}
+                    disabled={!connector}
+                    title={refreshTitle}
+                    className={refreshClass + (updating ? ' cursor-progress! text-(--manga-button-disabled-color)!' : '')}
+                >
+                    <Icon name="refresh" size={14} spin={updating} />
+                </button>
+                <Icon name="search" size={14} className="rk-icon" />
+                <input
+                    type="text"
+                    value={pattern}
+                    onChange={event => setPattern(event.target.value)}
+                    title="Enter a pattern (at least 3 characters) to filter the manga list by their titles"
+                    className="rk-field w-[calc(100%-0.5em)]"
+                />
+                <button
+                    type="button"
+                    onClick={onToggleBookmark}
+                    title={
+                        !selectedManga
+                            ? 'Please select a manga to use the bookmark feature'
+                            : bookmarked
+                                ? 'Click to remove the selected manga from the bookmark list'
+                                : 'Click to add the selected manga to the bookmark list'
+                    }
+                    className="relative cursor-pointer text-(--bookmark-button-default-color) [filter:drop-shadow(var(--bookmark-button-shadow))]"
+                >
+                    <Icon name="star" size={16} filled />
+                    {selectedManga && (
+                        <span
+                            className={
+                                'absolute -right-[3px] -bottom-[3px] rounded-full bg-(--control-background-color) ' +
+                                (bookmarked
+                                    ? 'text-(--bookmark-button-delete-color)'
+                                    : 'text-(--bookmark-button-add-color)')
+                            }
+                        >
+                            <Icon name={bookmarked ? 'minusCircle' : 'plusCircle'} size={9} />
+                        </span>
+                    )}
+                </button>
             </div>
-            <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto border-y border-zinc-400 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-                {mangaQuery.isPending && <p className="p-2 text-[13px]">Loading …</p>}
-                {mangaQuery.isError && <p className="p-2 text-[13px] text-red-600">Empty — press Update.</p>}
+            <div
+                ref={scrollRef}
+                role="listbox"
+                aria-label="Manga list"
+                className="rk-list my-[0.5em] min-h-0 flex-1 overflow-x-hidden overflow-y-scroll bg-(--list-background-color) p-[0.25em] whitespace-nowrap"
+            >
+                {showNotification && (
+                    <div className="bg-(--manga-list-notification-color) p-[0.5em] text-center leading-[150%] font-bold whitespace-normal [border:var(--manga-list-notification-border)]">
+                        Manga list is loading or empty
+                        <br />
+                        Click&nbsp;
+                        <button
+                            type="button"
+                            onClick={() => update(connector)}
+                            title={refreshTitle}
+                            className={'align-middle ' + refreshClass}
+                        >
+                            <Icon name="refresh" size={14} spin={updating} />
+                        </button>
+                        &nbsp;button to update list
+                        <br />
+                        <br />
+                        <Icon name="info" size={13} className="inline align-text-bottom" /> Some connectors are slow
+                        <br />
+                        and may take more than 10mins
+                        <br />
+                        If the icon is still spinning,
+                        <br />
+                        it&apos;s still working
+                        <br />
+                        <br />
+                        To check the activity press F12
+                        <br />
+                        and go to the network tab
+                    </div>
+                )}
                 <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
                     {virtualizer.getVirtualItems().map(virtual => {
                         const manga = mangas[virtual.index];
@@ -134,28 +230,23 @@ export default function MangaPanel() {
                         return (
                             <div
                                 key={manga.id}
-                                className="absolute top-0 left-0 w-full"
+                                role="option"
+                                aria-selected={!!selected}
+                                title={`${manga.title}\n${manga.connector.label}`}
+                                onClick={() => selectManga(manga)}
+                                className={
+                                    'absolute top-0 left-0 w-full cursor-pointer overflow-hidden text-ellipsis ' +
+                                    (selected ? 'bg-(--list-selected)' : 'hover:bg-(--list-highlighted)')
+                                }
                                 style={{ height: virtual.size, transform: `translateY(${virtual.start}px)` }}
                             >
-                                <button
-                                    type="button"
-                                    title={`${manga.title}\n${manga.connector.label}`}
-                                    onClick={() => selectManga(manga)}
-                                    className={
-                                        'block h-full w-full truncate px-2 text-left text-[13px] ' +
-                                        (selected ? 'bg-[rgba(0,128,255,0.3)]' : 'hover:bg-[rgba(0,128,255,0.15)]')
-                                    }
-                                >
-                                    {manga.title}
-                                </button>
+                                {manga.title}
                             </div>
                         );
                     })}
                 </div>
             </div>
-            <footer className="px-2 py-1 text-xs">
-                Mangas: {mangas.length} / {mangaQuery.data ? mangaQuery.data.length : 0}
-            </footer>
+            <div>Mangas: {mangas.length} / {total}</div>
         </section>
     );
 }

@@ -167,4 +167,48 @@ describe('ui engine bridge', () => {
         await expect(bridge.browseFile()).resolves.toBe('/tmp/a.epub');
         delete globalThis.window.hakuneko;
     });
+    it('should expose version links, reader flag and settings events', () => {
+        const listeners = {};
+        fakeEngine({
+            Version: { branch: { label: 'main' }, revision: { label: 'a1965c', link: 'https://example.test/rev' } },
+            Settings: {
+                readerEnabled: { value: false },
+                addEventListener: jest.fn((event, handler) => {
+                    listeners[event] = handler;
+                }),
+                removeEventListener: jest.fn()
+            }
+        });
+        expect(bridge.getVersionInfo()).toEqual({ branch: 'main', revision: 'a1965c', link: 'https://example.test/rev' });
+        expect(bridge.isReaderEnabled()).toBe(false);
+        const notify = jest.fn();
+        const unsubscribe = bridge.subscribeSettings(notify);
+        listeners.saved();
+        expect(notify).toHaveBeenCalledTimes(1);
+        unsubscribe();
+        expect(globalThis.window.Engine.Settings.removeEventListener).toHaveBeenCalledWith('saved', expect.any(Function));
+    });
+
+    it('should degrade version, reader flag and settings events without an engine', () => {
+        expect(bridge.getVersionInfo()).toEqual({ branch: '', revision: '', link: '' });
+        expect(bridge.isReaderEnabled()).toBe(true);
+        expect(bridge.subscribeSettings(jest.fn())()).toBeUndefined();
+    });
+
+    it('should delegate folder, bookmark import and chaptermark removal to the engine', async () => {
+        const chapter = { id: 'c' };
+        const marked = { chapterID: 'c' };
+        const file = { name: 'bookmarks.db' };
+        fakeEngine({
+            Storage: { showFolderContent: jest.fn() },
+            BookmarkManager: { importBookmarks: jest.fn(async () => undefined) },
+            ChaptermarkManager: { deleteChaptermark: jest.fn() }
+        });
+        bridge.showChapterFolder(chapter);
+        expect(globalThis.window.Engine.Storage.showFolderContent).toHaveBeenCalledWith(chapter);
+        await bridge.importBookmarksFile(file);
+        expect(globalThis.window.Engine.BookmarkManager.importBookmarks).toHaveBeenCalledWith(file);
+        bridge.deleteChaptermark(marked);
+        expect(globalThis.window.Engine.ChaptermarkManager.deleteChaptermark).toHaveBeenCalledWith(marked);
+    });
 });

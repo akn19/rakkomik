@@ -14,7 +14,7 @@
 > | 1 Runtime Electron 44 | ✅ kode + live (fetchUI, 1320 konektor, unduh 18 PNG); jaring lumpuh total sebelum HeaderSurgery | — |
 > | 2 Lib → native | 🔶 kode selesai (crypto-js → `engine/Crypto.mjs` + `LegacyCrypto`; sisa tag exif mati dibersihkan), smoke situs-live tertunda (sandbox) | — |
 > | 3 Build Vite | 🔶 perkakas berdiri (`vite build` → `ui/dist`, dibawa `build:web`); pensiun `polymer-build` menunggu UI selesai | — |
-> | 4 UI React | 🔶 selaras classic (3 panel, tema terang, tanpa redesain); hapus classic menyusul | — |
+> | 4 UI React | 🔶 selaras classic light+dark (3 panel, menu About+Settings, bar download, Start); dialog konektor/pager classic & hapus classic menyusul | — |
 
 ## 0. Aturan operasi global (tidak bisa ditawar)
 
@@ -94,6 +94,14 @@
 **Tujuan:** paritas per view sesuai checklist §5.5, dipecah per sub-fase (shell+bridge → CRUD → list+virtual → reader → jobs/connectors → hapus classic).
 **Verify per sub-fase:** typecheck + lint + daftar `frontend@react` bisa dipilih berdampingan classic · benchmark virtualisasi (Bacami 10.389 judul) · tidak ada CDN (grep `http` di bundle UI kecuali icon/font lokal).
 **Exit:** classic + polyfill terhapus, woff2 FA + `theme.html` terhapus.
+**Arahan user (2026-10-10):** UX dan tampilan boleh diperbaiki selama tata letak fitur tidak jauh dari classic.
+**Progres (2026-10-10):**
+- ✅ Paritas classic light + dark ("Ken's Daedal Dark") untuk shell: titlebar + baris menu, panel Manga/Chapter (paste clipboard, filter classic, ikon status, regex, folder, penanda baca), bar download inline, Start, popup About + Settings (import/simpan/batal). Token tema classic di `ui/index.css`; rute `/settings` dihapus (diganti popup); baris "Views" di popup memuat rute React-only (Downloads, Connectors, Bookmarks).
+- ✅ Polesan UX: tema tersimpan (`localStorage`, default ikut OS), Esc menutup menu, role listbox, pesan kosong di daftar download.
+- ⏳ Sisa: dialog konektor classic (kartu + tag) menggantikan `<select>`; paritas reader vs `pages.html`; indikator status/loading per panel (`status.html`); hapus classic + polyfill + woff2 FA + `theme.html`; benchmark virtualisasi Bacami; grep CDN di bundle.
+- ⚠️ Catatan: dengan "Enable Reader" mati panel konten disembunyikan (perilaku classic), sehingga view React-only tidak tampil. `ui.css` ±780 KB karena gambar latar light+dark tertanam (lib mode).
+- 🔎 Temuan di luar skope: 404 pada `mjs/connectors/AzoraWorld.mjs` dan `mjs/connectors/templates/WordPressMangaStream.mjs` saat konektor dimuat.
+- 🧪 Cara verifikasi live: `electron . --user-directory=<tmp> --remote-debugging-port=9200 …` (jangan `--ozone-platform=headless`: SIGTRAP; jendela muncul di display; seed `hakuneko.settings` dengan `frontend@react` dan `baseDirectory` yang sudah ada) + skrip `puppeteer-core` via CDP.
 
 ## 3. Backlog fitur (di luar modernisasi, dikerjakan kapan saja)
 

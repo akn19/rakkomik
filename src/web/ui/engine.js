@@ -50,6 +50,39 @@ export function getEngineStatus() {
     return { connectors, frontend, version };
 }
 
+export function getVersionInfo() {
+    try {
+        const version = getEngine().Version;
+        return {
+            branch: version.branch.label,
+            revision: version.revision.label,
+            link: version.revision.link
+        };
+    } catch {
+        return { branch: '', revision: '', link: '' };
+    }
+}
+
+export function isReaderEnabled() {
+    try {
+        return !!getEngine().Settings.readerEnabled.value;
+    } catch {
+        return true;
+    }
+}
+
+export function subscribeSettings(listener) {
+    let settings = null;
+    try {
+        settings = getEngine().Settings;
+    } catch {
+        return () => undefined;
+    }
+    const handler = () => listener();
+    settings.addEventListener('saved', handler);
+    return () => settings.removeEventListener('saved', handler);
+}
+
 export function getBookmarks() {
     try {
         return getEngine().BookmarkManager.bookmarks;
@@ -116,6 +149,10 @@ export function subscribeChaptermarks(notify) {
     const handler = () => notify();
     manager.addEventListener('changed', handler);
     return () => manager.removeEventListener('changed', handler);
+}
+
+export function deleteChaptermark(markedChapter) {
+    getEngine().ChaptermarkManager.deleteChaptermark(markedChapter);
 }
 
 export function isChapterMarked(chapter, markedChapter) {
@@ -222,6 +259,14 @@ export async function findConnectorsByManga(pattern) {
         }
     }
     return matches;
+}
+
+export function showChapterFolder(chapter) {
+    getEngine().Storage.showFolderContent(chapter);
+}
+
+export function importBookmarksFile(file) {
+    return getEngine().BookmarkManager.importBookmarks(file);
 }
 
 export function markChapterRead(chapter) {

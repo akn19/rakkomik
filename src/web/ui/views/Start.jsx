@@ -1,44 +1,70 @@
 import React from 'react';
 import QUOTES from '../quotes.js';
+import Icon from '../icon.jsx';
 
 function pickQuote() {
     return QUOTES[Math.floor(Math.random() * QUOTES.length)];
 }
 
-const STEPS = [
-    'Select your connector (the website) and use the filters.',
-    'Click the refresh button to fetch the manga list (can take minutes).',
-    'Find a manga, then pick a chapter to download or read.'
-];
+const CARD = 'rounded-[1em] border-2 border-black/15 bg-(--start-card-background-color) p-[1em]';
 
+/** Classic start.html parity: welcome card, how-to card, closing card. */
 export default function StartView() {
     const quote = React.useMemo(pickQuote, []);
     return (
-        <div className="mx-auto max-w-3xl space-y-6">
-            <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                <h1 className="text-xl font-semibold">Welcome to RakKomik</h1>
-                <p className="mt-2 text-sm leading-relaxed">
-                    RakKomik helps you download media for offline usage — ad-hoc consumption,
-                    get it when you want to read it. RakKomik hosts nothing itself: find a
-                    website that provides the content you want, then follow the steps below.
-                </p>
-            </section>
-            <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                <h2 className="text-base font-semibold">Getting started</h2>
-                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
-                    {STEPS.map(step => (
-                        <li key={step}>{step}</li>
-                    ))}
+        <div className="text-[1.25em]">
+            <h1 className="mt-0 mb-0 text-[1.5em] font-bold">Welcome to RakKomik</h1>
+            <p className={CARD + ' my-[1em] flow-root'}>
+                <img src="/img/logo_s.png" alt="" className="float-left mr-[1em] rounded-[10%]" />
+                <strong>RakKomik</strong> was made to help users who download media for circumstances that requires
+                offline usage.
+                <br />
+                The philosophy is <u>ad-hoc consumption</u>, get it when you want to read/watch it.
+                <br />
+                Read the &quot;how to use&quot; documentation at hakuneko.download (link available in the menu)
+            </p>
+            <h3 className="mb-[0.1em] text-[1.17em] font-bold">Find a site to get the content you want to view</h3>
+            <div className={CARD}>
+                <strong>RakKomik</strong> is not hosting anything. Find a website on the internet that provides the
+                content you want. Then :
+                <ol className="my-[1em] list-decimal pl-[2.5em]">
+                    <li>
+                        <Icon name="plug" size={16} className="rk-icon mr-[0.25em] inline -scale-x-100 align-text-bottom" />
+                        Select your connector (the website). Use the filters
+                    </li>
+                    <li>
+                        <Icon name="refresh" size={16} className="rk-icon mr-[0.25em] inline align-text-bottom" />
+                        Click on the refresh button (can take minutes)
+                    </li>
+                    <li>
+                        <Icon name="search" size={16} className="rk-icon mr-[0.25em] inline align-text-bottom" />
+                        Find a manga
+                    </li>
+                    <li>
+                        <Icon name="language" size={16} className="rk-icon mr-[0.25em] inline align-text-bottom" />
+                        Filter chapters by language (optional)
+                    </li>
+                    <li>
+                        <Icon name="search" size={16} className="rk-icon mr-[0.25em] inline align-text-bottom" />
+                        Select a chapter
+                    </li>
                 </ol>
-            </section>
-            <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                <blockquote className="space-y-1">
-                    {quote.lines.map(line => (
-                        <p key={line} className="text-sm italic">{line}</p>
-                    ))}
-                    <footer className="pt-1 text-xs text-zinc-500 dark:text-zinc-400">— {quote.author}</footer>
-                </blockquote>
-            </section>
+                The connector you are looking for is not in the list ?
+                <br />
+                👉 Create a website request on the github (issue)
+                <br />
+                Use the copy/paste feature if you already have the manga link
+                <br />
+                👉 See the documentation for details
+            </div>
+            <h3 className="mt-[1em] mb-[0.1em] text-[1.17em] font-bold">Ready to go 🚀</h3>
+            <div className={CARD}>Download, view, bookmark your favorite mangas 📚</div>
+            <blockquote className={CARD + ' mt-[1em] space-y-1'}>
+                {quote.lines.map(line => (
+                    <p key={line} className="italic">{line}</p>
+                ))}
+                <footer className="pt-1 text-right italic">— {quote.author}</footer>
+            </blockquote>
         </div>
     );
 }

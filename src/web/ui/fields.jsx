@@ -1,13 +1,14 @@
 import React from 'react';
 import Icon from './icon.jsx';
 
-const CONTROL = 'w-full rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-800 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200';
+// Classic input.html parity: flat accent-underlined fields (see `.rk-field`).
+const TEXT = 'rk-field w-[calc(100%-0.5em)]';
 
 export function TextField({ value, onChange, disabled, title }) {
     return (
         <input
             type="text"
-            className={CONTROL}
+            className={TEXT}
             value={value ?? ''}
             title={title}
             disabled={disabled}
@@ -20,7 +21,7 @@ export function PasswordField({ value, onChange, title }) {
     return (
         <input
             type="password"
-            className={CONTROL}
+            className={TEXT}
             value={value ?? ''}
             title={title}
             onChange={event => onChange(event.target.value)}
@@ -32,7 +33,7 @@ export function NumberField({ value, min, max, onChange }) {
     return (
         <input
             type="number"
-            className={CONTROL}
+            className="rk-field w-[4em]"
             value={value ?? ''}
             min={min}
             max={max}
@@ -43,7 +44,11 @@ export function NumberField({ value, min, max, onChange }) {
 
 export function SelectField({ value, options, onChange }) {
     return (
-        <select className={CONTROL} value={value ?? ''} onChange={event => onChange(event.target.value)}>
+        <select
+            className="rk-field rk-field-select w-[calc(100%-0.5em)]"
+            value={value ?? ''}
+            onChange={event => onChange(event.target.value)}
+        >
             {(options || []).map(option => (
                 <option key={String(option.value)} value={option.value}>
                     {option.name}
@@ -57,7 +62,7 @@ export function CheckboxField({ value, onChange }) {
     return (
         <input
             type="checkbox"
-            className="h-4 w-4 accent-zinc-700 dark:accent-zinc-300"
+            className="m-[0.5em]"
             checked={!!value}
             onChange={event => onChange(event.target.checked)}
         />
@@ -66,8 +71,8 @@ export function CheckboxField({ value, onChange }) {
 
 export function PathField({ value, onBrowse, browseTitle, disabled }) {
     return (
-        <div className="flex gap-2">
-            <div className="flex-1">
+        <div className="flex items-center">
+            <div className="min-w-0 flex-1">
                 <TextField value={value} onChange={() => undefined} disabled title={value} />
             </div>
             <button
@@ -75,9 +80,9 @@ export function PathField({ value, onBrowse, browseTitle, disabled }) {
                 title={browseTitle || 'Browse …'}
                 disabled={disabled}
                 onClick={onBrowse}
-                className="shrink-0 rounded border border-zinc-300 px-2 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="rk-icon m-[0.25em] shrink-0 cursor-pointer disabled:opacity-60"
             >
-                <Icon name="folder" />
+                <Icon name="folder" size={16} />
             </button>
         </div>
     );

@@ -4,43 +4,154 @@
  * Default follows classic-light; dark is an opt-in superset. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Classic light tokens (verbatim from lib/hakuneko/.../theme.html).
- * The React rewrite keeps the classic look: light gray panels, white
- * lists/cards, blue selection accents. The `dark` class is a strict
- * superset for users who prefer it (default follows classic-light). */
+/* Classic tokens, names and values verbatim from
+ * lib/hakuneko/frontend@classic-light/theme.html (`:root`) and
+ * frontend@classic-dark/theme.html ("Ken's Daedal Dark", `.dark`).
+ * The React rewrite keeps the classic look; shell components read the
+ * tokens (`bg-(--manga-list-background-color)`), never raw palette colors.
+ * Separators/list borders merge the identical manga/chapter/menu tokens. */
 :root {
+    --text-color: #404040;
+    --link-color: #2080e0;
+    --icon-color: #2080e0;
+    --button-color: #2080e0;
+
     --app-control-border: 1px solid #a0a0a0;
     --app-control-shadow: 0.25em 0em 1em 0em rgba(0, 0, 0, 0.25);
+
+    --menu-control-title-color: #a0a0a0;
+    --menu-control-category-color: #a0a0a0;
     --menu-control-background-color: #d6d6d6;
     --menu-control-border: 1px solid #808080;
-    --connector-card-background-color: #ffffff;
-    --connector-card-border: 1px solid #808080;
-    --connector-card-shadow: 0.25em 0.25em 0.5em 0.25em rgba(0, 0, 0, 0.25);
-    --connector-card-selected: rgb(179, 217, 255);
-    --manga-control-background-color: #d6d6d6;
-    --manga-control-separator: 2px groove #f0f0f0;
-    --manga-list-background-color: #ffffff;
-    --manga-list-border: 1px solid rgba(0, 0, 0, 0.35);
-    --manga-list-selected: rgba(0, 128, 255, 0.3);
-    --manga-list-highlighted: rgba(0, 128, 255, 0.15);
+    --menu-control-shadow: 0.25em 0.25em 2em 0.5em rgba(0, 0, 0, 0.5);
+    --menu-credits-background-color: #f0f0f0;
+    --menu-credits-link-color: #2080e0;
+    --menu-settings-background-color: #e4e4e4;
+    --menu-settings-row-border: 1px solid rgba(128, 128, 128, 0.15);
+
+    --control-background-color: #d6d6d6;
+    --control-separator: 2px groove #f0f0f0;
+    --list-background-color: #ffffff;
+    --list-border: 1px solid rgba(0, 0, 0, 0.35);
+    --list-selected: rgba(0, 128, 255, 0.3);
+    --list-highlighted: rgba(0, 128, 255, 0.15);
+    --manga-list-notification-color: #fff8f0;
+    --manga-list-notification-border: 1px solid #ffc0c0;
     --manga-refresh-button-color: #00e000;
-    --manga-bookmark-button-color: #e0e000;
-    --chapter-control-background-color: #d6d6d6;
-    --chapter-list-background-color: #ffffff;
-    --chapter-list-border: 1px solid rgba(0, 0, 0, 0.35);
-    --chapter-list-selected: rgba(0, 128, 255, 0.3);
-    --chapter-list-highlighted: rgba(0, 128, 255, 0.15);
+    --manga-refresh-button-shadow: 0px 0px 2px rgba(0, 0, 0, 0.75);
+    --manga-button-disabled-color: #808080;
+
+    --chapter-button-offline-color: #d6d6d6;
     --chapter-button-available-color: #2080e0;
+    --chapter-button-queued-color: #2080e0;
+    --chapter-button-downloading-color: #2080e0;
     --chapter-button-completed-color: #e0e000;
     --chapter-button-failed-color: #e08080;
-    --bookmark-button-add-color: #00e000;
+    --chapter-marker-active-color: #404040;
+    --chapter-marker-inactive-color: #2080e0;
+    --chapter-marker-removed-color: #e08080;
+
+    --bookmark-button-default-color: #e0e000;
+    --bookmark-button-invalid-color: #000000;
     --bookmark-button-delete-color: #e08080;
+    --bookmark-button-add-color: #00e000;
+    --bookmark-button-shadow: 0px 0px 2px rgba(0, 0, 0, 0.75);
+
+    --job-control-background-color: #d6d6d6;
     --job-list-background-color: #ffffff;
     --job-list-row-border: 1px solid rgba(128, 128, 128, 0.15);
     --job-list-progress-background-color: rgba(128, 128, 128, 0.15);
     --job-list-progress-color: rgba(0, 128, 255, 0.3);
+    --job-list-button-queued-color: #2080e0;
+    --job-list-button-downloading-color: #2080e0;
+    --job-list-button-completed-color: #e0e000;
+    --job-list-button-failed-color: #e08080;
+
     --page-control-background-color: #a0a0a0;
-    --link-color: #2080e0;
+    --start-card-background-color: #ffffff;
+
+    --status-unavailable-color: #808080;
+    --status-available-color: #404040;
+    --status-queued-color: #4080f0;
+    --status-downloading-color: #4080f0;
+    --status-completed-color: #4080f0;
+
+    --input-color: #404040;
+    --input-background-color: #ffffff;
+    --input-accent-color: #2080e0;
+    --input-disabled-color: #808080;
+    --input-disabled-background-color: #f0f0f0;
+    --input-disabled-border-color: #a0a0a0;
+}
+
+.dark {
+    --text-color: #dcddde;
+    --link-color: #0096cf;
+    --icon-color: #aaabad;
+    --button-color: #7289da;
+
+    --app-control-border: 1px solid #000000;
+
+    --menu-control-title-color: #aaabad;
+    --menu-control-category-color: #72767d;
+    --menu-control-background-color: #202225;
+    --menu-control-border: 1px solid #000000;
+    --menu-credits-background-color: #292b2f;
+    --menu-credits-link-color: #7289da;
+    --menu-settings-background-color: #2f3136;
+    --menu-settings-row-border: 1px solid #40444b;
+
+    --control-background-color: #202225;
+    --control-separator: 2px groove #4a4249;
+    --list-background-color: #2f3136;
+    --list-border: 0px solid rgba(0, 0, 0, 0.35);
+    --list-selected: #49443c;
+    --list-highlighted: #292b2f;
+    --manga-list-notification-color: #f04747;
+    --manga-list-notification-border: 1px solid #f69191;
+    --manga-refresh-button-color: #43b581;
+    --manga-button-disabled-color: #72767d;
+
+    --chapter-button-offline-color: #faa61a;
+    --chapter-button-available-color: #7289da;
+    --chapter-button-queued-color: #aaabad;
+    --chapter-button-downloading-color: #aaabad;
+    --chapter-button-completed-color: #faa61a;
+    --chapter-button-failed-color: #f04747;
+    --chapter-marker-active-color: #7289da;
+    --chapter-marker-inactive-color: #7289da;
+    --chapter-marker-removed-color: #f04747;
+
+    --bookmark-button-default-color: #faa61a;
+    --bookmark-button-invalid-color: #aaabad;
+    --bookmark-button-delete-color: #f04747;
+    --bookmark-button-add-color: #43b581;
+
+    --job-control-background-color: #202225;
+    --job-list-background-color: #292b2f;
+    --job-list-row-border: 1px solid #000000;
+    --job-list-progress-background-color: #202225;
+    --job-list-progress-color: #7289da;
+    --job-list-button-queued-color: #aaabad;
+    --job-list-button-downloading-color: #aaabad;
+    --job-list-button-completed-color: #faa61a;
+    --job-list-button-failed-color: #f04747;
+
+    --page-control-background-color: #202225;
+    --start-card-background-color: #2f3136;
+
+    --status-unavailable-color: #56595e;
+    --status-available-color: #95989d;
+    --status-queued-color: #5667a4;
+    --status-downloading-color: #7289da;
+    --status-completed-color: #dcddde;
+
+    --input-color: #dcddde;
+    --input-background-color: #40444b;
+    --input-accent-color: #7289da;
+    --input-disabled-color: #dcddde;
+    --input-disabled-background-color: #40444b;
+    --input-disabled-border-color: #202225;
 }
 
 html, body, #react-root {
@@ -56,25 +167,100 @@ body {
     font-family: Arial, Helvetica, system-ui, "Segoe UI", "Hiragino Sans",
         "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP",
         sans-serif;
-    font-size: 13px;
-    color: #202020;
+    font-size: 10pt;
+    color: #404040;
     background-color: #d6d6d6;
 }
 
-/* Frameless-window dragging (see classic #default_menubar). */
-.rk-drag {
-    -webkit-app-region: drag;
+/* Classic dark scrollbars (theme.html). */
+.dark ::-webkit-scrollbar {
+    width: 1em;
 }
 
-.rk-no-drag {
-    -webkit-app-region: no-drag;
+.dark ::-webkit-scrollbar-track {
+    background: #36393f;
 }
 
-/* Classic content backdrop (faint illustration). */
-.rk-content-bg {
-    background-color: #d3d3d3;
-    background-image: url('../img/background-classic-light.png');
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-position: left top;
+.dark ::-webkit-scrollbar-thumb {
+    background: #202225;
+    border-radius: 2em;
+}
+
+/* Component classes live in the components layer so Tailwind utilities
+ * (e.g. a status color on top of `rk-icon`) still override them. */
+@layer components {
+    /* Frameless-window dragging (see classic #default_menubar). */
+    .rk-drag {
+        -webkit-app-region: drag;
+    }
+
+    .rk-no-drag {
+        -webkit-app-region: no-drag;
+    }
+
+    /* Classic icon colors: passive glyphs vs clickable buttons. */
+    .rk-icon {
+        color: var(--icon-color);
+    }
+
+    .rk-button {
+        color: var(--button-color);
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+    }
+
+    .rk-separator {
+        border-bottom: var(--control-separator);
+    }
+
+    .rk-list {
+        border: var(--list-border);
+    }
+
+    /* Classic inputs (theme.html): flat field with an accent underline. */
+    .rk-field {
+        outline: none;
+        appearance: none;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10pt;
+        color: var(--input-color);
+        border: none;
+        border-bottom: 1px solid var(--input-accent-color);
+        background-color: var(--input-background-color);
+        margin: 0.25em;
+        padding: 0.25em;
+        border-radius: 0.25em;
+        box-shadow: inset 0px 0px 0.4em rgba(32, 128, 224, 0.25);
+    }
+
+    .rk-field:disabled {
+        color: var(--input-disabled-color);
+        background-color: var(--input-disabled-background-color);
+        border-bottom-color: var(--input-disabled-border-color);
+    }
+
+    .rk-field-select {
+        padding-right: 1.5em;
+        background-image: url('../img/dropdown-classic-light.png');
+        background-position: right center;
+        background-size: auto 1.5em;
+        background-repeat: no-repeat;
+    }
+
+    .dark .rk-field-select {
+        background-image: url('../img/dropdown-classic-dark.png');
+    }
+
+    /* Classic content backdrop (faint illustration). */
+    .rk-content-bg {
+        background-color: var(--page-control-background-color);
+        background-image: url('../img/background-classic-light.png');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: left top;
+    }
+
+    .dark .rk-content-bg {
+        background-image: url('../img/background-classic-dark.png');
+    }
 }

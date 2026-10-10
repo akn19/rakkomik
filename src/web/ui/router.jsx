@@ -9,7 +9,6 @@ const ReaderView = React.lazy(() => import('./views/Reader.jsx'));
 const DownloadsView = React.lazy(() => import('./views/Downloads.jsx'));
 const ConnectorsView = React.lazy(() => import('./views/Connectors.jsx'));
 const BookmarksView = React.lazy(() => import('./views/BookmarksView.jsx'));
-const SettingsView = React.lazy(() => import('./views/SettingsView.jsx'));
 
 // Hash history: the app runs on a custom scheme (hakuneko://), not http,
 // so path history is unusable (audit §5.2).
@@ -27,7 +26,6 @@ const connectorsRoute = createRoute({
     component: ConnectorsView
 });
 const bookmarksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/bookmarks', component: BookmarksView });
-const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsView });
 
 const readerRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -44,8 +42,7 @@ const routeTree = rootRoute.addChildren([
     readerRoute,
     downloadsRoute,
     connectorsRoute,
-    bookmarksRoute,
-    settingsRoute
+    bookmarksRoute
 ]);
 
 const router = createRouter({ routeTree, history: createHashHistory() });
