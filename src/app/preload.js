@@ -1,30 +1,27 @@
 // Only require('electron') is available here: preloads run sandboxed on new
-// Electron (module not found: path/os otherwise). Everything platform-specific
-// is computed in main via synchronous IPC (same modules, same platform).
+// Electron (module not found: path/os otherwise). Everything the renderer needs
+// inline (platform, portable flag, temp dir, application paths) arrives once
+// through `additionalArguments` (ElectronBootstrap._rendererBootstrap), so no
+// call on this bridge blocks the renderer with a synchronous IPC round trip.
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Renderer-facing bridge (Fase 1: remote -> preload + IPC).
-// Synchronous (sendSync) where legacy call sites need values inline,
-// Promise-based (invoke) everywhere else. Binary payloads cross IPC as
-// Uint8Array (structured clone).
+const BOOTSTRAP_ARGUMENT = '--hakuneko-bootstrap=';
+const argument = process.argv.find(arg => arg.startsWith(BOOTSTRAP_ARGUMENT));
+if (!argument) {
+    throw new Error(`The renderer was started without its bootstrap data (${BOOTSTRAP_ARGUMENT})!`);
+}
+const bootstrap = JSON.parse(decodeURIComponent(argument.slice(BOOTSTRAP_ARGUMENT.length)));
+
+// Renderer-facing bridge (Fase 1: remote -> preload + IPC), Promise-based (invoke)
+// throughout. Binary payloads cross IPC as Uint8Array (structured clone).
 contextBridge.exposeInMainWorld('hakuneko', {
-    platform: ipcRenderer.sendSync('hakuneko:app:platform'),
-    env: ipcRenderer.sendSync('hakuneko:app:env'),
+    platform: bootstrap.platform,
+    env: bootstrap.env,
     os: {
-        tmpdir: ipcRenderer.sendSync('hakuneko:os:tmpdir')
-    },
-    path: {
-        sep: ipcRenderer.sendSync('hakuneko:path:sep'),
-        join: (...parts) => ipcRenderer.sendSync('hakuneko:path:join', ...parts),
-        dirname: p => ipcRenderer.sendSync('hakuneko:path:dirname', p),
-        basename: (p, ext) => ipcRenderer.sendSync('hakuneko:path:basename', p, ext),
-        extname: p => ipcRenderer.sendSync('hakuneko:path:extname', p),
-        parse: p => ipcRenderer.sendSync('hakuneko:path:parse', p),
-        normalize: p => ipcRenderer.sendSync('hakuneko:path:normalize', p)
+        tmpdir: bootstrap.tmpdir
     },
     fs: {
-        existsSync: p => ipcRenderer.sendSync('hakuneko:fs:existsSync', p),
-        mkdirSync: p => ipcRenderer.sendSync('hakuneko:fs:mkdirSync', p),
+        mkdir: p => ipcRenderer.invoke('hakuneko:fs:mkdir', p),
         writeFile: (p, data, encoding) => ipcRenderer.invoke('hakuneko:fs:writeFile', p, data, encoding),
         rename: (oldPath, newPath) => ipcRenderer.invoke('hakuneko:fs:rename', oldPath, newPath),
         unlink: p => ipcRenderer.invoke('hakuneko:fs:unlink', p),
@@ -33,7 +30,13 @@ contextBridge.exposeInMainWorld('hakuneko', {
         readdir: p => ipcRenderer.invoke('hakuneko:fs:readdir', p)
     },
     app: {
-        getPath: name => ipcRenderer.sendSync('hakuneko:app:getPath', name)
+        // same contract as Electron's app.getPath: a name without a directory throws
+        getPath: name => {
+            if (!Object.hasOwn(bootstrap.paths, name)) {
+                throw new Error(`Failed to get '${name}' path`);
+            }
+            return bootstrap.paths[name];
+        }
     },
     dialog: {
         showMessageBox: options => ipcRenderer.invoke('hakuneko:dialog:showMessageBox', options),

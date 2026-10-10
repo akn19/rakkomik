@@ -17,6 +17,7 @@
 > | 4 UI React | ✅ kode + live: paritas classic light+dark, dialog konektor, reader, indikator status; classic + polyfill + woff2 FA + `theme.html` terhapus; startup shell-first (UI ±0,9 dtk vs HakuNeko asli 6,0 dtk); 10.389 judul lancar; tanpa CDN. Menunggu tag `fase-4` dari user | — |
 > | 5 Modernisasi Node 24 & dependensi | ✅ kode + tes: deprecated ditulis ulang (`url.parse`, `rcedit`, sisa `fs-extra`, shim Electron 8), API Node 24 (`fetch`, `node:sqlite`, `crypto.sign/verify`, `module.registerHooks`, `fs.cp`), paket tak terawat diganti (discord-rpc, jszip, sql.js, rcedit, win-7zip, pino 7). Belum teruji: jalur build Windows (bsdtar, Inno Setup), presence live. Menunggu tag `fase-5` dari user | — |
 > | 5.1 Interstitial anti-bot | ✅ kode + tes: `engine/AntiScraping.mjs` (deteksi terbaca, blob terobfuskasi dibuang), `FetchWindowManager` mesin status dengan fallback jendela ke user, `fetch()` transparan (satu jendela per origin, kirim ulang sekali), UA Chromium asli konsisten (`HeaderGenerator` dihapus). e2e 3 skenario dengan server lokal. Belum teruji: situs live. Menunggu tag `fase-5.1` dari user | — |
+> | 5.2 Optimalisasi Electron & Node 24 lanjutan | ✅ kode + tes: preload tanpa `sendSync` (`engine/Path.mjs` port `node:path`, data bootstrap via `additionalArguments`, `mkdir` async), Electron fuses di `build:app` (+ perbaikan paket: `app.asar` hasil build tidak bisa start karena symlink pnpm — `node-linker=hoisted`), `engines`/`packageManager`; compile cache diukur dan **dicabut** (tidak terukur). Belum teruji: build Windows. Menunggu tag `fase-5.2` dari user | — |
 
 ## 0. Aturan operasi global (tidak bisa ditawar)
 
@@ -183,6 +184,24 @@ Rust: toolchain yang sudah Rust tetap (oxlint/oxfmt, Rolldown via Vite 8, Tailwi
 
 **Tes:** unit `AntiScraping` (header, klasifikasi halaman, skrip mandiri tanpa `_0x…`, bungkus fetch: dedupe per origin, konfirmasi isi, gagal, tidak berulang) dan `FetchWindowManager` (jendela palsu + fake timers: konten, otomatis, interaktif, fallback waktu, anggaran user, jendela ditutup, galat, hasil legacy, gagal muat). e2e 3 skenario dengan server HTTP lokal yang meniru interstitial (`cf-mitigated`, cookie diberikan via `Set-Cookie` endpoint `/pass` → `SameSite=None` oleh HeaderSurgery, persis mekanisme situs sungguhan; cookie `document.cookie` tidak dikirim lintas situs): selesai sendiri → kirim ulang; butuh klik → jendela tampil, Playwright mengklik di jendela itu, jendela tertutup lagi; tak pernah selesai → galat jelas, jendela dibersihkan. Fixture e2e mengecualikan loopback dari daftar "host eksternal".
 **Belum teruji:** situs live di balik Cloudflare/DDoS-Guard (e2e hermetik tanpa jaringan).
+
+### Fase 5.2 — Optimalisasi Electron & Node 24 lanjutan (2026-10-10)
+**Arahan user:** dari audit "apakah app ini sudah mengoptimalkan Electron dan Node 24?" kerjakan IPC sinkron, compile cache, fuses, dan `engines`.
+
+**1. IPC sinkron dihapus dari preload.** 11 kanal `sendSync` (platform, env, tmpdir, `path.*`, `fs.existsSync/mkdirSync`, `app.getPath`) tidak ada lagi — `window.hakuneko` kini seluruhnya `invoke`, dan `IpcBridge`/`FsBridge` tidak punya `ipcMain.on` (dijaga `FsBridge.test`).
+- Nilai yang dibutuhkan inline (platform, flag portable, tmpdir, direktori aplikasi) dikirim sekali lewat `webPreferences.additionalArguments` (`--hakuneko-bootstrap=<JSON>`, `ElectronBootstrap._rendererBootstrap`) dan dibaca preload dari `process.argv` (cara resmi Electron untuk preload *sandboxed*); `app.getPath(name)` menjadi lookup — nama tanpa direktori tetap melempar seperti Electron (Settings sudah menangani `documents`).
+- Operasi path dihitung di renderer: `engine/Path.mjs` adalah port `path.posix`/`path.win32` Node (join/normalize/dirname/basename/extname/parse); `Path.test.js` membandingkan 152 kasus (UNC, drive, `/..`, sufiks) dengan implementasi Node sendiri.
+- `_createDirectoryChain` (rekursi `existsSync`+`mkdirSync`, memblokir renderer *dan* main) → satu `fs.promises.mkdir({ recursive })`; `saveTempFile`/`_extractZipEntry` memastikan direktori temp sebelum menulis.
+- e2e baru: data bootstrap sampai ke renderer (platform, `userData` = `--user-directory`, tmpdir, nama tak dikenal melempar).
+
+**2. `module.enableCompileCache()` — dicoba, dicabut.** Diukur dengan Playwright, 9 peluncuran per mode, profil terisolasi, median: tanpa cache uptime proses utama saat launch 435 ms / UI siap 938 ms; dengan cache 443 ms / 1005 ms (49 berkas cache, 113 KB). Kode proses utama terlalu kecil untuk terasa — startup didominasi inisialisasi Chromium/Node — jadi tidak ada alasan menulis direktori cache saat runtime.
+
+**3. Electron Fuses** (`@electron/fuses` 2.1.3, dipelihara tim Electron) di `build-app.js` untuk Linux dan Windows: `RunAsNode` off, `EnableNodeOptionsEnvironmentVariable` off, `EnableNodeCliInspectArguments` off, `OnlyLoadAppFromAsar` on; hasil dibaca kembali (`getCurrentFuseWire`) dan build gagal bila tidak sesuai. Dibiarkan: `EnableCookieEncryption` (butuh keyring di Linux), `EnableEmbeddedAsarIntegrityValidation` (butuh resource integritas yang tidak ditanam packager). Diverifikasi pada salinan biner Electron 44.6.0: wire berubah, `ELECTRON_RUN_AS_NODE=1 … -e` tidak lagi dieksekusi sebagai Node, aplikasi start dari `app.asar`.
+- **Bug lama ditemukan dan diperbaiki:** `app.asar` hasil `build:app` tidak bisa start sejak migrasi ke pnpm — `src/app/node_modules/pino` adalah symlink ke store `.pnpm`, dan Electron gagal `require` melalui link di dalam asar (`ENOENT, node_modules/.pnpm/pino@10.4.0/node_modules/pino not found in app.asar`). `postinstall` kini memasang `src/app` dengan `--config.node-linker=hoisted` (pohon fisik, 0 symlink). `.npmrc` di `src/app` tidak dibaca pnpm karena root `pnpm-workspace.yaml` menentukan proyeknya — flag CLI yang dipakai. Niat Fase 0 ("agar app.asar berisi file fisik") baru terpenuhi sekarang.
+
+**4. `engines.node >= 24` dan `packageManager: pnpm@11.22.0`** di `package.json`.
+
+**Belum teruji:** build Windows (fuses pada `.exe` + resedit) dan paket .deb/.rpm (butuh dpkg/rpm/lintian) — hanya bundel Linux yang diverifikasi berjalan.
 
 ## 3. Backlog fitur (di luar modernisasi, dikerjakan kapan saja)
 

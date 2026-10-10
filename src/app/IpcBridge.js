@@ -1,11 +1,11 @@
-const os = require('node:os');
-const path = require('node:path');
 const { exec } = require('node:child_process');
 const electron = require('electron');
 
 /**
  * Main-side counterpart of src/app/preload.js `window.hakuneko`.
  * Registers all renderer-invoked channels (Fase 1: remote -> preload + IPC).
+ * Everything is Promise-based: the values the renderer needs inline (platform,
+ * paths, ...) are handed to the preload at window creation (ElectronBootstrap).
  */
 module.exports = class IpcBridge {
 
@@ -14,27 +14,6 @@ module.exports = class IpcBridge {
     }
 
     register() {
-        // Synchronous: legacy call sites (Storage, Settings, preload) need values inline.
-        electron.ipcMain.on('hakuneko:app:getPath', (event, name) => {
-            event.returnValue = electron.app.getPath(name);
-        });
-        electron.ipcMain.on('hakuneko:app:platform', event => {
-            event.returnValue = process.platform;
-        });
-        electron.ipcMain.on('hakuneko:app:env', event => {
-            event.returnValue = { HAKUNEKO_PORTABLE: process.env.HAKUNEKO_PORTABLE };
-        });
-        electron.ipcMain.on('hakuneko:os:tmpdir', event => {
-            event.returnValue = os.tmpdir();
-        });
-        electron.ipcMain.on('hakuneko:path:sep', event => {
-            event.returnValue = path.sep;
-        });
-        for (const method of ['join', 'dirname', 'basename', 'extname', 'parse', 'normalize']) {
-            electron.ipcMain.on(`hakuneko:path:${method}`, (event, ...args) => {
-                event.returnValue = path[method](...args);
-            });
-        }
         electron.ipcMain.handle('hakuneko:dialog:showMessageBox', async (event, options) => {
             // the renderer's confirm()/alert() shims expect the button index
             return (await electron.dialog.showMessageBox(options)).response;

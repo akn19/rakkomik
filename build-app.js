@@ -6,7 +6,19 @@ const { exec } = require('node:child_process');
 const { pipeline } = require('node:stream/promises');
 const { Readable } = require('node:stream');
 const asar = require('@electron/asar');
+const { flipFuses, getCurrentFuseWire, FuseVersion, FuseV1Options, FuseState } = require('@electron/fuses');
 const config = require('./build-app.config');
+
+// Electron fuses (build-time hardening of the shipped binary): the application cannot be
+// turned into a Node runtime (ELECTRON_RUN_AS_NODE, NODE_OPTIONS, --inspect) and only loads
+// from app.asar. Cookie encryption and ASAR integrity stay off: the former needs a keyring on
+// Linux, the latter an integrity resource the packager does not embed.
+const FUSES = {
+    [FuseV1Options.RunAsNode]: false,
+    [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+    [FuseV1Options.EnableNodeCliInspectArguments]: false,
+    [FuseV1Options.OnlyLoadAppFromAsar]: true
+};
 
 /**
  * Base class for platform dependent electron packagers
@@ -25,6 +37,22 @@ class ElectronPackager {
      */
     build(architecture) {
         throw new Error('Not implemented!');
+    }
+
+    /**
+     * Flip the fuses of the bundled electron binary and verify the result.
+     * @param {string} binary path of the (renamed) electron executable
+     */
+    async _applyFuses(binary) {
+        console.log('Flipping electron fuses ...');
+        await flipFuses(binary, { version: FuseVersion.V1, ...FUSES });
+        const wire = await getCurrentFuseWire(binary);
+        for(const [ fuse, enabled ] of Object.entries(FUSES)) {
+            const expected = enabled ? FuseState.ENABLE : FuseState.DISABLE;
+            if(wire[fuse] !== expected) {
+                throw new Error(`Fuse ${FuseV1Options[fuse]} of "${binary}" is ${FuseState[wire[fuse]]}, expected ${FuseState[expected]}!`);
+            }
+        }
     }
 
     /**
@@ -263,6 +291,7 @@ class ElectronPackagerLinux extends ElectronPackager {
         await fs.promises.rm(path.join(folder, 'resources', 'default_app.asar'), { recursive: true, force: true });
         await asar.createPackage(config.src, path.join(folder, 'resources', 'app.asar'));
         await fs.promises.rename(path.join(folder, 'electron'), path.join(folder, this._configuration.binary.linux));
+        await this._applyFuses(path.join(folder, this._configuration.binary.linux));
         // chmod 4755 fixes https://github.com/electron/electron/issues/17972
         await fs.promises.chmod(path.join(folder, 'chrome-sandbox'), '4755');
         // remove executable flag from libraries => avoid lintian errors
@@ -559,6 +588,7 @@ class ElectronPackagerWindows extends ElectronPackager {
         }
         await asar.createPackage(config.src, path.join(folder, 'resources', 'app.asar'));
         await fs.promises.rename(path.join(folder, 'electron.exe'), path.join(folder, this._configuration.binary.windows));
+        await this._applyFuses(path.join(folder, this._configuration.binary.windows));
     }
 
     /**

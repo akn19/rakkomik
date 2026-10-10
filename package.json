@@ -5,12 +5,17 @@
   "author": "The HakuNeko Development Team <https://github.com/orgs/manga-download/people>",
   "license": "Unlicense",
   "main": "src/app/main.js",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "packageManager": "pnpm@11.22.0",
   "repository": {
     "type": "git",
     "url": "https://git.io/hakuneko"
   },
   "devDependencies": {
     "@electron/asar": "4.3.1",
+    "@electron/fuses": "2.1.3",
     "@playwright/test": "1.64.0",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/react-query": "5.104.1",
@@ -34,7 +39,7 @@
     "vitest": "5.0.3"
   },
   "scripts": {
-    "postinstall": "node node_modules/electron/install.js && pnpm --dir src/app install --no-optional && node scripts/vendor.js",
+    "postinstall": "node node_modules/electron/install.js && pnpm --dir src/app install --no-optional --config.node-linker=hoisted && node scripts/vendor.js",
     "start": "pnpm run start:dev",
     "start:dev": "electron . --update-url=DISABLED --cache-directory=./src/web --disable-http-cache",
     "start:build": "pnpm run build:web && electron . --update-url=DISABLED --cache-directory=./build/web",

@@ -1,3 +1,4 @@
+const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 const electron = require('electron');
@@ -328,6 +329,28 @@ module.exports = class ElectronBootstrap {
     }
 
     /**
+     * The values the renderer needs inline (Storage/Settings constructors), handed to
+     * the preload through `additionalArguments` instead of synchronous IPC round trips.
+     */
+    _rendererBootstrap() {
+        const paths = {};
+        for(const name of [ 'home', 'appData', 'userData', 'sessionData', 'temp', 'desktop', 'documents', 'downloads', 'music', 'pictures', 'videos' ]) {
+            try {
+                paths[name] = electron.app.getPath(name);
+            } catch(error) {
+                // e.g. no documents directory on some systems (Settings falls back)
+                this._logger.warn(error);
+            }
+        }
+        return {
+            platform: process.platform,
+            env: { HAKUNEKO_PORTABLE: process.env.HAKUNEKO_PORTABLE },
+            tmpdir: os.tmpdir(),
+            paths
+        };
+    }
+
+    /**
      *
      */
     _createWindow() {
@@ -347,6 +370,7 @@ module.exports = class ElectronBootstrap {
                 nodeIntegration: false,
                 contextIsolation: true, // Fase 1 Slice C: renderer is de-privileged, preload bridge only
                 preload: path.join(__dirname, 'preload.js'),
+                additionalArguments: [ '--hakuneko-bootstrap=' + encodeURIComponent(JSON.stringify(this._rendererBootstrap())) ],
                 webSecurity: false // required to open local images in browser
             },
             frame: false

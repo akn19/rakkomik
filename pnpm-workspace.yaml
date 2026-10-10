@@ -1,7 +1,9 @@
 # Fase 0: nested-install layout (opsi b, AGENTIC-PLAN).
 # `src/app` BUKAN workspace member — ia diinstal mandiri via
-# `pnpm --dir src/app install` (postinstall) agar app.asar berisi file fisik,
-# bukan symlink store pnpm.
+# `pnpm --dir src/app install --config.node-linker=hoisted` (postinstall) agar
+# app.asar berisi file fisik, bukan symlink store pnpm (Electron tidak bisa
+# `require` lewat symlink di dalam asar; `.npmrc` di src/app tidak dibaca
+# karena file ini menentukan proyeknya — Fase 5.2).
 packages:
   - .
 # Catatan pin (per 2026-10-07, lihat laporan Fase 0):

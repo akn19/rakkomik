@@ -1,4 +1,5 @@
 import { opensslAesEncrypt, opensslAesDecrypt } from './Crypto.mjs';
+import { createPath } from './Path.mjs';
 
 const events = {
     loaded: 'loaded',
@@ -44,7 +45,7 @@ export default class Settings extends EventTarget {
     constructor() {
         super();
         let app = window.hakuneko.app;
-        let path = window.hakuneko.path;
+        let path = createPath(window.hakuneko.platform);
         let docs = undefined;
         try {
             // on some circumstances the documents directory might not be found by electron

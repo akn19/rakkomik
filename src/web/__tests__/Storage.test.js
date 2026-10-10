@@ -1,6 +1,5 @@
 // Atomic-write contract tests: Storage must publish via temp+rename,
 // never with a direct write to the target.
-const path = require('node:path');
 const os = require('node:os');
 
 let Storage = null;
@@ -12,7 +11,6 @@ function fakeHakuneko(fs) {
             platform: 'linux',
             shell: {},
             fs,
-            path,
             app: { getPath: () => '/tmp/rakkomik-test-userdata' },
             os: { tmpdir: os.tmpdir() }
         }
@@ -31,8 +29,10 @@ function recordingFs(behavior) {
     const calls = [];
     return {
         calls,
-        existsSync: vi.fn(() => true),
-        mkdirSync: vi.fn(),
+        mkdir: vi.fn(p => {
+            calls.push(['mkdir', p]);
+            return Promise.resolve();
+        }),
         writeFile: vi.fn((p, data) => {
             calls.push(['writeFile', p]);
             return behavior && behavior.writeFile ? behavior.writeFile(p, data) : Promise.resolve();
@@ -99,5 +99,24 @@ describe('Storage atomic writes', () => {
         const storage = storageWith(fs);
         await expect(storage._writeFile('/dl/page.jpg', new Uint8Array([1]))).resolves.toBe('/dl/page.jpg');
         expect(fs.rename).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('Storage temp files', () => {
+    it('should create the temp directory before writing a temp file', async () => {
+        const fs = recordingFs();
+        const storage = storageWith(fs);
+        await storage.saveTempFile('page 1.png', new Uint8Array([ 1 ]));
+        // the directory first, then the atomic write (temp file + rename onto the target)
+        expect(fs.calls.map(call => call[0])).toEqual([ 'mkdir', 'writeFile', 'rename' ]);
+        expect(fs.calls[0][1]).toBe(storage.temp);
+        expect(fs.calls[2][2]).toBe(`${storage.temp}/page 1.png`);
+    });
+
+    it('should compute its paths in the renderer', () => {
+        const storage = storageWith(recordingFs());
+        expect(storage.path.sep).toBe('/');
+        expect(storage.temp).toBe(`${os.tmpdir()}/hakuneko`);
+        expect(storage.config).toBe('/cfg/hakuneko.');
     });
 });

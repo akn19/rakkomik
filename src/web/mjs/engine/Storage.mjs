@@ -1,6 +1,7 @@
 import { unzipSync, zipSync, strToU8 } from 'fflate';
 import EbookGenerator from './EbookGenerator.mjs';
 import Chapter from './Chapter.mjs';
+import { createPath } from './Path.mjs';
 
 const extensions = {
     // chapter format
@@ -18,16 +19,15 @@ export default class Storage {
 
     // TODO: use dependency injection instead of globals for EbookGenerator
     constructor() {
-        // Fase 1 Slice C: filesystem/paths via preload bridge (window.hakuneko).
+        // Fase 1 Slice C: filesystem via preload bridge (window.hakuneko), paths computed here (Path.mjs).
         // TODO: Use recursive native fs helpers where bulk operations are needed
         this.dialog = window.hakuneko.dialog;
         this.platform = window.hakuneko.platform;
         this.shell = window.hakuneko.shell;
         this.fs = window.hakuneko.fs;
-        this.path = window.hakuneko.path;
+        this.path = createPath(this.platform);
         this.config = this.path.join(window.hakuneko.app.getPath('userData'), 'hakuneko.');
         this.temp = this.path.join(window.hakuneko.os.tmpdir, 'hakuneko');
-        this._createDirectoryChain(this.temp);
 
         this.pdfTargetHeight = 1600;
         this.fileURISubstitutions = {
@@ -214,6 +214,7 @@ export default class Storage {
         let name = this.path.join(this.temp, this.path.basename(file));
         // attach timestamp to force reload of already existing, but overwritten temp files
         let page = encodeURI('file://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
+        await this._createDirectoryChain(this.temp);
         await this.fs.writeFile(name, archive[file]);
         return page;
     }
@@ -311,18 +312,18 @@ export default class Storage {
             let promise = undefined;
             let output = this._chapterOutputPath(chapter);
             if (Engine.Settings.chapterFormat.value === extensions.img) {
-                this._createDirectoryChain(output);
-                promise = this._saveChapterPagesFolder(output, pageData)
+                promise = this._createDirectoryChain(output)
+                    .then(() => this._saveChapterPagesFolder(output, pageData))
                     .then(() => this._runPostChapterDownloadCommand(chapter, output));
             }
             if (Engine.Settings.chapterFormat.value === extensions.cbz) {
-                this._createDirectoryChain(this.path.dirname(output));
-                promise = this._saveChapterPagesCBZ(output, pageData, chapter.manga.title, chapter.title)
+                promise = this._createDirectoryChain(this.path.dirname(output))
+                    .then(() => this._saveChapterPagesCBZ(output, pageData, chapter.manga.title, chapter.title))
                     .then(() => this._runPostChapterDownloadCommand(chapter, output));
             }
             if (Engine.Settings.chapterFormat.value === extensions.epub) {
-                this._createDirectoryChain(this.path.dirname(output));
-                promise = this._saveChapterPagesEPUB(output, pageData)
+                promise = this._createDirectoryChain(this.path.dirname(output))
+                    .then(() => this._saveChapterPagesEPUB(output, pageData))
                     .then(() => this._runPostChapterDownloadCommand(chapter, output));
             }
             return promise || Promise.reject(new Error('Unsupported output format: ' + Engine.Settings.chapterFormat.value));
@@ -486,12 +487,9 @@ export default class Storage {
     }
 
     async saveTempFile(name, data) {
-        try {
-            let file = this.path.join(this.temp, this.sanatizePath(name));
-            return this._writeFile(file, data);
-        } catch (error) {
-            return Promise.reject(error);
-        }
+        let file = this.path.join(this.temp, this.sanatizePath(name));
+        await this._createDirectoryChain(this.temp);
+        return this._writeFile(file, data);
     }
     /**
      * Helper function to generate the path where the bookmarks and markers are stored.
@@ -542,14 +540,11 @@ export default class Storage {
     }
 
     /**
-     * Helper function to recursively create all non-existing folders of the given path.
+     * Create the given folder and all of its missing parents (no-op when it exists).
+     * @returns {Promise<void>}
      */
     _createDirectoryChain(path) {
-        if (this.fs.existsSync(path) || path === this.path.parse(path).root) {
-            return;
-        }
-        this._createDirectoryChain(this.path.dirname(path));
-        this.fs.mkdirSync(path, '0755', true);
+        return this.fs.mkdir(path);
     }
 
     /**

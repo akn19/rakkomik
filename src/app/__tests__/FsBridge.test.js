@@ -35,10 +35,21 @@ describe('FsBridge', () => {
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
-    it('should register rename and unlink channels', () => {
+    it('should register mkdir, rename and unlink channels', () => {
         const map = handlers();
+        expect(typeof map['hakuneko:fs:mkdir']).toBe('function');
         expect(typeof map['hakuneko:fs:rename']).toBe('function');
         expect(typeof map['hakuneko:fs:unlink']).toBe('function');
+        // nothing synchronous is left: a sendSync round trip would block the renderer
+        expect(electron.ipcMain.on).not.toHaveBeenCalled();
+    });
+
+    it('should create directory chains with mkdir and accept existing ones', async () => {
+        const map = handlers();
+        const nested = path.join(dir, 'a', 'b', 'c');
+        await expect(map['hakuneko:fs:mkdir']({}, nested)).resolves.toBeUndefined();
+        expect(fs.statSync(nested).isDirectory()).toBe(true);
+        await expect(map['hakuneko:fs:mkdir']({}, nested)).resolves.toBeUndefined();
     });
 
     it('should move a file atomically via rename', async () => {

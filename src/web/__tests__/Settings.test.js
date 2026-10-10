@@ -60,7 +60,7 @@ describe('settings of background loaded connectors', () => {
 
     function engine(connectors) {
         globalThis.window = {
-            hakuneko: { app: { getPath: () => '/docs' }, path: require('node:path'), env: {} }
+            hakuneko: { app: { getPath: () => '/docs' }, platform: 'linux', env: {} }
         };
         globalThis.Engine = {
             Connectors: connectors,

@@ -444,6 +444,26 @@ test.describe('anti-bot interstitials', () => {
     });
 });
 
+test('should hand the renderer its platform data up front', async ({ app, page }) => {
+    // preload bridge: values arrive through additionalArguments, no synchronous IPC
+    const bootstrap = await page.evaluate(() => ({
+        platform: window.hakuneko.platform,
+        userData: window.hakuneko.app.getPath('userData'),
+        tmpdir: window.hakuneko.os.tmpdir,
+        unknown: (() => {
+            try {
+                return window.hakuneko.app.getPath('no-such-directory');
+            } catch (error) {
+                return error.message;
+            }
+        })()
+    }));
+    expect(bootstrap.platform).toBe(process.platform);
+    expect(bootstrap.userData).toBe(app.userDirectory);
+    expect(bootstrap.tmpdir).toBe(os.tmpdir());
+    expect(bootstrap.unknown).toContain('no-such-directory');
+});
+
 test('should never contact an external host', async ({ app }) => {
     expect(app.external).toEqual([]);
 });

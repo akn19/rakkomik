@@ -3,9 +3,8 @@ const fs = require('node:fs');
 
 /**
  * Main-side filesystem bridge for Storage.mjs (Fase 1 Slice C).
- * Synchronous calls use ipcMain.on + sendSync (legacy call sites need
- * values inline); everything else is Promise-based (ipcMain.handle).
- * Binary payloads cross IPC as Uint8Array (structured clone).
+ * Promise-based throughout (ipcMain.handle); binary payloads cross IPC as
+ * Uint8Array (structured clone).
  */
 module.exports = class FsBridge {
 
@@ -14,11 +13,9 @@ module.exports = class FsBridge {
     }
 
     register() {
-        electron.ipcMain.on('hakuneko:fs:existsSync', (event, path) => {
-            event.returnValue = fs.existsSync(path);
-        });
-        electron.ipcMain.on('hakuneko:fs:mkdirSync', (event, path) => {
-            event.returnValue = fs.mkdirSync(path, { recursive: true });
+        electron.ipcMain.handle('hakuneko:fs:mkdir', (event, path) => {
+            // recursive: creates the missing parents, no error when it exists
+            return fs.promises.mkdir(path, { recursive: true }).then(() => undefined);
         });
         electron.ipcMain.handle('hakuneko:fs:writeFile', (event, path, data, encoding) => {
             let payload = typeof data === 'string' ? data : Buffer.from(data);
