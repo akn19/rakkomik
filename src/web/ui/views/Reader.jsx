@@ -27,24 +27,57 @@ function PageImage({ src, index, width, padding }) {
             src={src}
             alt={`Page ${index + 1}`}
             onError={onError}
-            style={{ width: `${width}%`, marginTop: `${padding}em`, marginBottom: `${padding}em` }}
+            style={{ width: `${width}%`, margin: `${padding}em auto` }}
         />
     );
 }
 
-function ToolbarButton({ title, onClick, children }) {
+function ToolbarButton({ icon, title, onClick }) {
     return (
-        <button
-            type="button"
-            title={title}
-            onClick={onClick}
-            className="rounded px-2 py-1 text-zinc-700 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-700"
-        >
-            {children}
+        <button type="button" title={title} onClick={onClick} className="rk-button m-[0.25em] align-middle">
+            <Icon name={icon} size={22} />
         </button>
     );
 }
 
+/** Classic page viewer buttons: faint until hovered, chapter title on hover. */
+function Toolbar({ title, reading, imageWidth, actions }) {
+    return (
+        <div
+            className={
+                'group absolute top-0 right-0 z-10 rounded-bl-[1em] bg-(--page-viewer-title-background-color) pr-[2em] pl-[1em] text-(--page-chapter-title-color) transition-opacity duration-200 focus-within:opacity-100 hover:opacity-100 [box-shadow:var(--page-viewer-title-shadow)] ' +
+                (reading ? 'opacity-5' : 'opacity-70')
+            }
+        >
+            <span className={'mr-[0.5em] text-[1.25em] font-bold ' + (reading ? 'hidden group-focus-within:inline group-hover:inline' : '')}>{title}</span>
+            {reading && (
+                <>
+                    <ToolbarButton icon="chevronLeft" title="Previous Chapter (ArrowLeft)" onClick={actions.previous} />
+                    <ToolbarButton icon="chevronRight" title="Next Chapter (ArrowRight)" onClick={actions.next} />
+                    &nbsp;
+                    <ToolbarButton icon="shrink" title="Decrease spacing between images (CTRL -)" onClick={actions.lessPadding} />
+                    <ToolbarButton icon="expand" title="Increase spacing between images (CTRL +)" onClick={actions.morePadding} />
+                    &nbsp;
+                    <ToolbarButton icon="zoomIn" title="Zoom In (+)" onClick={actions.zoomIn} />
+                    <ToolbarButton icon="zoomOut" title="Zoom Out (-)" onClick={actions.zoomOut} />
+                    &nbsp;
+                    <ToolbarButton icon="defaultWidth" title="Default Image Width (/)" onClick={actions.defaultWidth} />
+                    <ToolbarButton icon="fitWidth" title="Zoom to Fit Window (*)" onClick={actions.fitWidth} />
+                    &nbsp;
+                    <i className="align-middle">Image Width: {imageWidth}%</i>
+                    <ToolbarButton icon="scrollDown" title="Magic Scroll Down (SPACEBAR)" onClick={actions.scroll} />
+                </>
+            )}
+            <ToolbarButton icon="closeCircle" title={reading ? 'Close (ESC)' : 'Close the preview (ESC)'} onClick={actions.close} />
+        </div>
+    );
+}
+
+/**
+ * Classic pages.html parity: thumbnails of the opened chapter, click a page
+ * to read. Next/previous chapter follow the panel's chapter list order
+ * (classic chapterUp = the entry above, chapterDown = the entry below).
+ */
 export default function ReaderView() {
     const { notify } = useToast();
     const navigate = useNavigate();
@@ -55,13 +88,14 @@ export default function ReaderView() {
     const [imagePadding, setImagePadding] = React.useState(2);
     const autoNext = React.useRef(false);
     const containerRef = React.useRef(null);
+    const keepRatio = React.useRef(null);
 
     const resolvedQuery = useQuery({
         queryKey: ['reader', connectorId, mangaId, chapterId],
         queryFn: () => resolveChapter(connectorId, mangaId, chapterId)
     });
     const resolved = resolvedQuery.data;
-    const { selectManga } = useSelection();
+    const { selectManga, chapterOrder } = useSelection();
     // Keep the panels coherent: resolving a deep link selects its manga.
     React.useEffect(() => {
         if (resolved) {
@@ -77,13 +111,18 @@ export default function ReaderView() {
     });
     const media = Array.isArray(pagesQuery.data) ? pagesQuery.data : [];
 
-    const goChapters = () => {
-        navigate({ to: '/chapters', search: { connector: connectorId, manga: mangaId } });
-    };
+    // Order of the panel's (filtered, sorted) list; the raw list before the panel published it.
+    const order = React.useMemo(() => {
+        if (chapterOrder.some(entry => entry.id === chapterId)) {
+            return chapterOrder;
+        }
+        return resolved ? resolved.chapters : [];
+    }, [chapterOrder, chapterId, resolved]);
 
-    const openChapter = React.useCallback((targetIndex) => {
-        const list = resolved ? resolved.chapters : [];
-        if (targetIndex < 0 || targetIndex >= list.length) {
+    const openChapter = React.useCallback(offset => {
+        const index = order.findIndex(entry => entry.id === chapterId);
+        const target = order[index + offset];
+        if (index < 0 || !target) {
             return;
         }
         setMode('read');
@@ -93,16 +132,24 @@ export default function ReaderView() {
         }
         navigate({
             to: '/reader',
-            search: { connector: connectorId, manga: mangaId, chapter: list[targetIndex].id }
+            search: { connector: connectorId, manga: mangaId, chapter: target.id }
         });
-    }, [resolved, connectorId, mangaId, navigate]);
+    }, [order, chapterId, connectorId, mangaId, navigate]);
+    // chapterUp = the entry above in the list, chapterDown = the entry below.
+    const nextChapter = React.useCallback(() => openChapter(-1), [openChapter]);
+    const previousChapter = React.useCallback(() => openChapter(1), [openChapter]);
 
+    // Reading: back to the thumbnails (and mark as read). Thumbnails: back to the start page.
     const closeReader = React.useCallback(() => {
-        if (chapter) {
-            markChapterRead(chapter);
+        if (mode === 'read') {
+            if (chapter) {
+                markChapterRead(chapter);
+            }
+            setMode('thumbs');
+        } else {
+            navigate({ to: '/' });
         }
-        goChapters();
-    }, [chapter, connectorId, mangaId, navigate]);
+    }, [mode, chapter, navigate]);
 
     // Scroll to the opening page when entering read mode.
     React.useEffect(() => {
@@ -113,17 +160,27 @@ export default function ReaderView() {
             } else if (containerRef.current) {
                 containerRef.current.scrollTop = 0;
             }
-            if (containerRef.current) {
-                containerRef.current.focus();
-            }
         }
-    }, [mode, startPage, chapterId]);
+    }, [mode, startPage, chapterId, media.length]);
 
-    const zoom = next => {
-        setImageWidth(Math.min(400, Math.max(25, next)));
+    // Zoom/spacing keep the relative scroll position (classic zoom/setImagePadding).
+    const changeLayout = change => {
+        const container = containerRef.current;
+        keepRatio.current = container && container.scrollHeight ? container.scrollTop / container.scrollHeight : null;
+        change();
     };
+    React.useLayoutEffect(() => {
+        const container = containerRef.current;
+        if (keepRatio.current !== null && container) {
+            container.scrollTop = keepRatio.current * container.scrollHeight;
+        }
+        keepRatio.current = null;
+    }, [imageWidth, imagePadding]);
 
-    const scrollMagic = React.useCallback((defaultDistance) => {
+    const zoom = next => changeLayout(() => setImageWidth(Math.min(400, Math.max(25, next))));
+    const padding = delta => changeLayout(() => setImagePadding(value => Math.max(0, value + delta)));
+
+    const scrollMagic = React.useCallback(defaultDistance => {
         const container = containerRef.current;
         if (!container) {
             return;
@@ -134,7 +191,8 @@ export default function ReaderView() {
         }
         if (images[images.length - 1].getBoundingClientRect().bottom - window.innerHeight < 1) {
             if (autoNext.current) {
-                openChapter(resolved ? resolved.index + 1 : -1);
+                autoNext.current = false;
+                nextChapter();
                 return;
             }
             autoNext.current = true;
@@ -160,7 +218,7 @@ export default function ReaderView() {
         } else if (target.nextElementSibling) {
             target.nextElementSibling.scrollIntoView({ behavior: 'smooth' });
         }
-    }, [notify, openChapter, resolved]);
+    }, [notify, nextChapter]);
 
     const onKeyDown = event => {
         const container = containerRef.current;
@@ -180,11 +238,19 @@ export default function ReaderView() {
             };
             window.requestAnimationFrame(step);
         };
+        const reading = mode === 'read';
         switch (true) {
+            case event.code === 'Escape' && !event.ctrlKey:
+                closeReader();
+                break;
+            case !reading:
+                break;
             case event.code === 'ArrowUp' && !event.ctrlKey:
+                event.preventDefault();
                 smooth(-64);
                 break;
             case event.code === 'ArrowDown' && !event.ctrlKey:
+                event.preventDefault();
                 smooth(64);
                 break;
             case event.code === 'PageUp' && !event.ctrlKey:
@@ -198,16 +264,16 @@ export default function ReaderView() {
                 }
                 break;
             case event.code === 'ArrowRight' && !event.ctrlKey:
-                openChapter(resolved ? resolved.index + 1 : -1);
+                nextChapter();
                 break;
             case event.code === 'ArrowLeft' && !event.ctrlKey:
-                openChapter(resolved ? resolved.index - 1 : -1);
+                previousChapter();
                 break;
             case event.key === '*' && !event.ctrlKey:
-                setImageWidth(100);
+                changeLayout(() => setImageWidth(100));
                 break;
             case event.key === '/' && !event.ctrlKey:
-                setImageWidth(75);
+                changeLayout(() => setImageWidth(75));
                 break;
             case event.key === '+' && !event.ctrlKey:
                 zoom(imageWidth + 15);
@@ -216,16 +282,16 @@ export default function ReaderView() {
                 zoom(imageWidth - 15);
                 break;
             case event.key === '+' && event.ctrlKey:
-                setImagePadding(padding => Math.max(0, padding + 1));
+                padding(1);
                 break;
             case event.key === '-' && event.ctrlKey:
-                setImagePadding(padding => Math.max(0, padding - 1));
-                break;
-            case event.code === 'Escape' && !event.ctrlKey:
-                closeReader();
+                padding(-1);
                 break;
             case event.code === 'Space' && !event.ctrlKey:
                 event.preventDefault();
+                if (event.target instanceof HTMLElement) {
+                    event.target.blur();
+                }
                 scrollMagic(window.innerHeight * 0.8);
                 break;
             default:
@@ -233,53 +299,58 @@ export default function ReaderView() {
         }
     };
 
+    // Keys work wherever the focus is, except while typing in a filter/setting field.
+    const keyHandler = React.useRef(onKeyDown);
+    keyHandler.current = onKeyDown;
+    React.useEffect(() => {
+        const handler = event => {
+            if (event.target instanceof HTMLElement && /^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName)) {
+                return;
+            }
+            keyHandler.current(event);
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
+
     if (resolvedQuery.isPending) {
-        return <p className="text-sm text-zinc-500">Resolving chapter …</p>;
+        return <p className="p-[1em]">Resolving chapter …</p>;
     }
     if (resolvedQuery.isError || !chapter) {
         return (
-            <div className="space-y-3">
-                <p className="text-sm text-red-600">Chapter not found.</p>
-                <button
-                    type="button"
-                    onClick={goChapters}
-                    className="rounded border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
-                >
-                    Back to chapters
+            <div className="space-y-[0.5em] p-[1em]">
+                <p className="text-(--chapter-button-failed-color)">Chapter not found.</p>
+                <button type="button" onClick={() => navigate({ to: '/' })} className="rk-button">
+                    Close
                 </button>
             </div>
         );
     }
 
+    const actions = {
+        previous: previousChapter,
+        next: nextChapter,
+        lessPadding: () => padding(-1),
+        morePadding: () => padding(1),
+        zoomIn: () => zoom(imageWidth + 15),
+        zoomOut: () => zoom(imageWidth - 15),
+        defaultWidth: () => changeLayout(() => setImageWidth(75)),
+        fitWidth: () => changeLayout(() => setImageWidth(100)),
+        scroll: () => scrollMagic(window.innerHeight * 0.8),
+        close: closeReader
+    };
+
     return (
-        <div className="flex h-full flex-col">
-            <div className="flex flex-wrap items-center gap-2 pb-2">
-                <button
-                    type="button"
-                    onClick={goChapters}
-                    title="Back to chapter list"
-                    className="rounded border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
-                >
-                    <span className="flex items-center gap-1"><Icon name="back" size={12} /> Chapters</span>
-                </button>
-                <h1 className="min-w-0 flex-1 truncate text-base font-semibold">{chapter.title}</h1>
-                {mode === 'thumbs' ? (
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Pick a page to start reading</span>
-                ) : (
-                    <button
-                        type="button"
-                        onClick={() => setMode('thumbs')}
-                        title="Back to thumbnails (ESC closes the reader)"
-                        className="rounded border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
-                    >
-                        Thumbnails
-                    </button>
-                )}
-            </div>
-            {pagesQuery.isPending && <p className="text-sm text-zinc-500">Loading pages …</p>}
-            {pagesQuery.isError && <p className="text-sm text-red-600">Failed to load pages for this chapter.</p>}
+        <div className="relative h-full">
+            <Toolbar title={chapter.title} reading={mode === 'read'} imageWidth={imageWidth} actions={actions} />
+            {pagesQuery.isPending && <p className="p-[1em]">Loading pages …</p>}
+            {pagesQuery.isError && (
+                <p className="p-[1em] text-(--chapter-button-failed-color)">
+                    Failed to load pages for this chapter{pagesQuery.error ? `: ${pagesQuery.error.message}` : '.'}
+                </p>
+            )}
             {mode === 'thumbs' && media.length > 0 && (
-                <div ref={containerRef} tabIndex={0} onKeyDown={onKeyDown} className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] content-start gap-2 overflow-auto outline-none">
+                <div ref={containerRef} className="h-full overflow-y-scroll p-[1em] pt-[3em] select-none">
                     {media.map((page, index) => (
                         <button
                             key={`${index}-${String(page).slice(-32)}`}
@@ -289,32 +360,17 @@ export default function ReaderView() {
                                 setStartPage(index);
                                 setMode('read');
                             }}
-                            className="h-64 rounded-lg border border-zinc-200 bg-contain bg-center bg-no-repeat hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
+                            className="m-[0.5em] inline-block h-[16em] w-[16em] cursor-pointer rounded-[1em] bg-(--page-thumbnail-background-color) bg-contain bg-center bg-no-repeat [border:var(--page-thumbnail-border)] [box-shadow:var(--page-thumbnail-shadow)]"
                             style={{ backgroundImage: `url('${String(page).replace(/'/g, "\\'")}')` }}
                         />
                     ))}
                 </div>
             )}
             {mode === 'read' && media.length > 0 && (
-                <div className="relative min-h-0 flex-1">
-                    <div className="absolute top-0 right-0 z-10 flex items-center gap-0.5 rounded-bl-lg bg-white/90 px-1 shadow dark:bg-zinc-900/90">
-                        <ToolbarButton title="Previous chapter (ArrowLeft)" onClick={() => openChapter(resolved.index - 1)}><Icon name="chevronLeft" /></ToolbarButton>
-                        <ToolbarButton title="Next chapter (ArrowRight)" onClick={() => openChapter(resolved.index + 1)}><Icon name="chevronRight" /></ToolbarButton>
-                        <ToolbarButton title="Decrease spacing (CTRL -)" onClick={() => setImagePadding(padding => Math.max(0, padding - 1))}>&#8722;</ToolbarButton>
-                        <ToolbarButton title="Increase spacing (CTRL +)" onClick={() => setImagePadding(padding => Math.max(0, padding + 1))}>+</ToolbarButton>
-                        <ToolbarButton title="Zoom in (+)" onClick={() => zoom(imageWidth + 15)}>+</ToolbarButton>
-                        <ToolbarButton title="Zoom out (-)" onClick={() => zoom(imageWidth - 15)}>&#8722;</ToolbarButton>
-                        <ToolbarButton title="Default width (*)" onClick={() => setImageWidth(75)}>75%</ToolbarButton>
-                        <ToolbarButton title="Fit width (/)" onClick={() => setImageWidth(100)}>100%</ToolbarButton>
-                        <span className="px-1 text-xs text-zinc-500">{imageWidth}%</span>
-                        <ToolbarButton title="Magic scroll (Space)" onClick={() => scrollMagic(window.innerHeight * 0.8)}><Icon name="magicScroll" /></ToolbarButton>
-                        <ToolbarButton title="Close (ESC)" onClick={closeReader}><Icon name="close" /></ToolbarButton>
-                    </div>
-                    <div ref={containerRef} tabIndex={0} onKeyDown={onKeyDown} className="h-full overflow-auto bg-zinc-200 outline-none dark:bg-black">
-                        {media.map((page, index) => (
-                            <PageImage key={`${index}-${String(page).slice(-32)}`} src={page} index={index} width={imageWidth} padding={imagePadding} />
-                        ))}
-                    </div>
+                <div ref={containerRef} className="h-full overflow-y-scroll bg-(--page-reader-background-color) select-none">
+                    {media.map((page, index) => (
+                        <PageImage key={`${index}-${String(page).slice(-32)}`} src={page} index={index} width={imageWidth} padding={imagePadding} />
+                    ))}
                 </div>
             )}
         </div>

@@ -49,22 +49,6 @@ export default class Settings extends EventTarget {
             docs = '.';
         }
 
-        this.frontend = {
-            label: 'Frontend ⁽¹⁾',
-            description: [
-                'Select the UI frontend that should be used for the manga download engine.',
-                '',
-                '⁽¹⁾ Restart required to take affect',
-            ].join('\n'),
-            input: types.select,
-            options: [
-                { value: 'frontend@classic-light', name: 'Classic (Light)' },
-                { value: 'frontend@classic-dark', name: 'Ken\'s Daedal Dark' },
-                { value: 'frontend@react', name: 'React (Beta)' }
-            ],
-            value: 'frontend@classic-light'
-        };
-
         this.readerEnabled = {
             label: 'Enable Reader',
             description: 'Show a preview panel and a basic reader for the chapters',
@@ -422,6 +406,10 @@ export default class Settings extends EventTarget {
             case types.directory:
                 Engine.Storage.directoryExist(value)
                     .catch(error => {
+                        // A directory that does not exist yet is fine: Storage creates it on the first write.
+                        if (/ENOENT/.test(error.message)) {
+                            return;
+                        }
                         let message = `WARNING: Cannot access the directory for "${setting.label}" from "${scope}" settings!\n\n${error.message}`;
                         if (silent) {
                             console.warn(message, error);

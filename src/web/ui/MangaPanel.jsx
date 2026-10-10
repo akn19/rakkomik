@@ -5,6 +5,8 @@ import { getEngine, toggleBookmark, isMangaBookmarked, subscribeBookmarks } from
 import { fetchMangaList, updateMangaList } from './queries.js';
 import { useToast } from './notify.jsx';
 import { useSelection } from './selection.jsx';
+import ConnectorDialog from './connectors.jsx';
+import StatusLine from './status.jsx';
 import Icon from './icon.jsx';
 
 const BOOKMARK_CONNECTOR_ID = 'bookmarks';
@@ -32,6 +34,7 @@ export default function MangaPanel({ readerEnabled }) {
     const connectors = getEngine().Connectors;
     const [pattern, setPattern] = React.useState('');
     const [updating, setUpdating] = React.useState(false);
+    const [pickerOpen, setPickerOpen] = React.useState(false);
     const scrollRef = React.useRef(null);
 
     const effectiveId = connectorId || (connectors[0] && connectors[0].id) || '';
@@ -130,16 +133,21 @@ export default function MangaPanel({ readerEnabled }) {
             </div>
             <div className="rk-separator grid grid-cols-[auto_1fr_auto] items-center gap-x-[0.25em]">
                 <Icon name="plug" size={14} className="rk-icon -scale-x-100" />
-                <select
-                    className="rk-field rk-field-select w-[calc(100%-0.5em)]"
-                    value={effectiveId}
-                    onChange={event => selectConnector(event.target.value)}
+                <input
+                    type="text"
+                    readOnly
+                    value={connector ? connector.label : ''}
+                    onClick={() => setPickerOpen(true)}
+                    onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setPickerOpen(true);
+                        }
+                    }}
                     title="Select a website from which the manga list should be shown"
-                >
-                    {connectors.map(entry => (
-                        <option key={entry.id} value={entry.id}>{entry.label}</option>
-                    ))}
-                </select>
+                    aria-label="Website"
+                    className="rk-field rk-field-select w-[calc(100%-0.5em)] cursor-pointer"
+                />
                 <button
                     type="button"
                     onClick={() => update(connector)}
@@ -246,7 +254,20 @@ export default function MangaPanel({ readerEnabled }) {
                     })}
                 </div>
             </div>
-            <div>Mangas: {mangas.length} / {total}</div>
+            <StatusLine
+                message={`Mangas: ${mangas.length} / ${total}`}
+                busy={updating || mangaQuery.isPending}
+                busyTitle={connector ? `${updating ? 'Updating' : 'Loading'} manga list (${connector.label})` : ''}
+            />
+            <ConnectorDialog
+                open={pickerOpen}
+                selectedId={effectiveId}
+                onSelect={id => {
+                    selectConnector(id);
+                    setPickerOpen(false);
+                }}
+                onClose={() => setPickerOpen(false)}
+            />
         </section>
     );
 }

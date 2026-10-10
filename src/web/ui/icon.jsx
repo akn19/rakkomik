@@ -43,7 +43,18 @@ import {
     Star,
     Sun,
     TriangleAlert,
-    X
+    X,
+    ChevronsDown,
+    Coffee,
+    Expand,
+    LogIn,
+    Maximize,
+    Minimize,
+    Shrink,
+    SquareArrowOutUpRight,
+    Tags,
+    ZoomIn,
+    ZoomOut
 } from 'lucide-react';
 
 /**
@@ -52,6 +63,17 @@ import {
  * `filled` renders solid glyphs (e.g. active bookmark stars).
  */
 const ICONS = {
+    coffee: Coffee,
+    defaultWidth: Minimize,
+    expand: Expand,
+    external: SquareArrowOutUpRight,
+    fitWidth: Maximize,
+    login: LogIn,
+    scrollDown: ChevronsDown,
+    shrink: Shrink,
+    tags: Tags,
+    zoomIn: ZoomIn,
+    zoomOut: ZoomOut,
     back: ArrowLeft,
     ban: Ban,
     bookmark: Bookmark,

@@ -1,70 +1,34 @@
 const path = require('path');
 const fs = require('fs/promises');
 const exec = require('child_process').exec;
-const vinyl = require('vinyl-fs');
-const mergeStream = require('merge-stream');
-const PolymerProject = require('polymer-build').PolymerProject;
 const config = require('./build-web.config');
 config.source = config.source || 'src';
 config.target = config.target || 'build';
 
-function execute(command, silent) {
-    if(!silent) {
-        console.log('>', command);
-    }
+function execute(command) {
     return new Promise((resolve, reject) => {
-        exec(command, (error, stdout, stderr) => {
-            if(!silent) {
-                console.log(stdout);
-                console.log(stderr);
-            }
-            if(error) {
-                reject(error);
-            } else {
-                resolve(stdout);
-            }
-        });
+        exec(command, (error, stdout) => error ? reject(error) : resolve(stdout));
     });
 }
 
-async function gitStashPush(identifier) {
-    identifier = identifier || 'DEPLOY#' + Date.now().toString(16).toUpperCase();
-    await execute(`git stash push -u -m '${identifier}'`);
-    return identifier;
-}
-
-async function gitStashPop(identifier) {
-    let out = await execute(`git stash list`);
-    if(out.includes(identifier)) {
-        await execute(`git stash pop`);
+/**
+ * Copy a file or a whole directory tree (the bundle is plain static files).
+ */
+async function copyTree(source, target) {
+    let stats = await fs.stat(source);
+    if(!stats.isDirectory()) {
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await fs.copyFile(source, target);
+        return;
     }
-}
-
-function pipe(streamReader, streamWriter) {
-    return new Promise((resolve, reject) => {
-        let stream = streamReader.pipe(streamWriter);
-        stream.on('error', reject);
-        stream.on('end', resolve);
-    });
-}
-
-async function polymerBuild(settings) {
-    let target = path.resolve(config.target);
-    let cwd = process.cwd();
-    if(config.source) {
-        process.chdir(config.source);
+    await fs.mkdir(target, { recursive: true });
+    for(let entry of await fs.readdir(source)) {
+        await copyTree(path.join(source, entry), path.join(target, entry));
     }
-
-    let project = new PolymerProject(settings);
-    let streamIn = mergeStream(project.sources(), project.dependencies());
-    let streamOut = vinyl.dest(target);
-    await pipe(streamIn, streamOut);
-
-    process.chdir(cwd);
 }
 
 async function createVersionInfo(file) {
-    let branch = /*process.env.GITHUB_REF ? process.env.GITHUB_REF.split('/').pop() : */(await execute(`git rev-parse --abbrev-ref HEAD`)).trim();
+    let branch = (await execute(`git rev-parse --abbrev-ref HEAD`)).trim();
     let revision = (await execute(`git rev-parse HEAD`)).trim();
     let content = [
         `export default {`,
@@ -82,11 +46,13 @@ async function createVersionInfo(file) {
 }
 
 async function main() {
-    let stashID = await gitStashPush();
+    // the UI bundle must have been built first (`pnpm run build:ui`)
+    await fs.access(path.join(config.source, 'ui', 'dist', 'ui.js'));
     await fs.rm(config.target, { recursive: true, force: true });
-    await polymerBuild(config.polymer);
+    for(let entry of config.include) {
+        await copyTree(path.join(config.source, entry), path.join(config.target, entry));
+    }
     await createVersionInfo(path.join(config.target, config.version));
-    await gitStashPop(stashID);
 }
 
 // exit application as soon as any uncaught exception is thrown

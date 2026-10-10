@@ -7,7 +7,6 @@ import Shell from './shell.jsx';
 const StartView = React.lazy(() => import('./views/Start.jsx'));
 const ReaderView = React.lazy(() => import('./views/Reader.jsx'));
 const DownloadsView = React.lazy(() => import('./views/Downloads.jsx'));
-const ConnectorsView = React.lazy(() => import('./views/Connectors.jsx'));
 const BookmarksView = React.lazy(() => import('./views/BookmarksView.jsx'));
 
 // Hash history: the app runs on a custom scheme (hakuneko://), not http,
@@ -19,11 +18,6 @@ const downloadsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/downloads',
     component: DownloadsView
-});
-const connectorsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/connectors',
-    component: ConnectorsView
 });
 const bookmarksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/bookmarks', component: BookmarksView });
 
@@ -41,7 +35,6 @@ const routeTree = rootRoute.addChildren([
     startRoute,
     readerRoute,
     downloadsRoute,
-    connectorsRoute,
     bookmarksRoute
 ]);
 

@@ -16,7 +16,6 @@ import Icon from './icon.jsx';
 const VIEWS = [
     { to: '/', name: 'Start' },
     { to: '/downloads', name: 'Downloads' },
-    { to: '/connectors', name: 'Connectors' },
     { to: '/bookmarks', name: 'Bookmarks' }
 ];
 

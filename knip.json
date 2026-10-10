@@ -10,7 +10,6 @@
     "ignore": [
         "src/app/preload.js",
         "src/web/js/**",
-        "src/web/lib/**",
         "src/web/mjs/connectors/**",
         "src/web/mjs/engine/HistoryWorker.mjs"
     ],

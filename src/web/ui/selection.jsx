@@ -11,6 +11,9 @@ export function SelectionProvider({ children }) {
     const [connectorId, setConnectorId] = React.useState('');
     const [manga, setManga] = React.useState(null);
     const [chapter, setChapter] = React.useState(null);
+    // Filtered + sorted chapter list as shown in the panel (classic
+    // getFilteredAndSortedList): the reader steps through this order.
+    const [chapterOrder, setChapterOrder] = React.useState([]);
 
     const selectConnector = React.useCallback(id => {
         setConnectorId(id);
@@ -29,8 +32,10 @@ export function SelectionProvider({ children }) {
         manga,
         selectManga,
         chapter,
-        setChapter
-    }), [connectorId, selectConnector, manga, selectManga, chapter]);
+        setChapter,
+        chapterOrder,
+        setChapterOrder
+    }), [connectorId, selectConnector, manga, selectManga, chapter, chapterOrder]);
 
     return (
         <SelectionContext.Provider value={value}>

@@ -14,6 +14,7 @@ import { fetchChapterList, addChapterDownloads } from './queries.js';
 import { useSelection } from './selection.jsx';
 import { useToast } from './notify.jsx';
 import { ConfirmDialog } from './dialog.jsx';
+import StatusLine from './status.jsx';
 import Icon from './icon.jsx';
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -90,7 +91,7 @@ function matchTitle(title, pattern) {
 export default function ChaptersPanel({ readerEnabled }) {
     const navigate = useNavigate();
     const { chapter: openChapterId } = useSearch({ strict: false });
-    const { connectorId, manga } = useSelection();
+    const { connectorId, manga, setChapterOrder } = useSelection();
     const [pattern, setPattern] = React.useState('');
     const [language, setLanguage] = React.useState('');
     const [sort, setSort] = React.useState('none');
@@ -131,6 +132,12 @@ export default function ChaptersPanel({ readerEnabled }) {
         }
         return list;
     }, [chapters, pattern, language, sort]);
+
+    // The reader steps through the list exactly as shown here (classic chapterUp/-Down).
+    React.useEffect(() => {
+        setChapterOrder(visible);
+        return () => setChapterOrder([]);
+    }, [visible, setChapterOrder]);
 
     // The marked chapter vanished from the list: classic shows a removable stub row.
     const markedRemoved = !!markedChapter && chapters.length > 0 && !chapters.some(chapter => isChapterMarked(chapter, markedChapter));
@@ -317,7 +324,11 @@ export default function ChaptersPanel({ readerEnabled }) {
                     })}
                 </div>
             </div>
-            <div>Chapters: {visible.length} / {chapters.length}</div>
+            <StatusLine
+                message={`Chapters: ${visible.length} / ${chapters.length}`}
+                busy={!!manga && chaptersQuery.isPending}
+                busyTitle={manga ? `Loading chapter list (${manga.title})` : ''}
+            />
             <ConfirmDialog
                 open={confirm !== null}
                 title="Re-download existing chapter?"

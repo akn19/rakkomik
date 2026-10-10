@@ -121,7 +121,7 @@ describe("HakuNeko Engine", () => {
     beforeEach(async () => {
         // TODO: cleanup user data directory?
         await page.reload();
-        await page.waitForSelector('hakuneko-app');
+        await page.waitForSelector('#react-root');
     });
 
     describe('Connectors', () => {

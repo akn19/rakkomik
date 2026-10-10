@@ -12,9 +12,9 @@
 > | 0.6 Distribusi | ✅ selesai | `fase-0.6` |
 > | 0.7 Matriks build | ✅ selesai | `fase-0.7` |
 > | 1 Runtime Electron 44 | ✅ kode + live (fetchUI, 1320 konektor, unduh 18 PNG); jaring lumpuh total sebelum HeaderSurgery | — |
-> | 2 Lib → native | 🔶 kode selesai (crypto-js → `engine/Crypto.mjs` + `LegacyCrypto`; sisa tag exif mati dibersihkan), smoke situs-live tertunda (sandbox) | — |
-> | 3 Build Vite | 🔶 perkakas berdiri (`vite build` → `ui/dist`, dibawa `build:web`); pensiun `polymer-build` menunggu UI selesai | — |
-> | 4 UI React | 🔶 selaras classic light+dark (3 panel, menu About+Settings, bar download, Start); dialog konektor/pager classic & hapus classic menyusul | — |
+> | 2 Lib → native | 🔶 kode selesai (crypto-js → `engine/Crypto.mjs` + `LegacyCrypto`; sisa tag exif mati dibersihkan). Smoke live sebagian: WestManga (HMAC native: daftar, chapter, halaman) + roundtrip password ✅; `LegacyCrypto` (Comikey/MangaDig), PoW Bacami, descramble PixivComics belum diuji di situs live | — |
+> | 3 Build Vite | 🔶 `polymer-build`/`vinyl-fs`/`merge-stream` pensiun: `build-web.js` menyalin bundle statis (`index.html`, `js`, `img`, `mjs`, `ui/dist`) ke `build/web` + `VersionInfo.mjs` dari git tanpa `git stash`; diverifikasi dengan menjalankan app dari `build/web`. Sisa: `createVersionInfo` belum jadi plugin Vite, `vitest` opsional | — |
+> | 4 UI React | ✅ kode + live (CDP): paritas classic light+dark, dialog konektor, reader, indikator status; classic + polyfill + woff2 FA + `theme.html` terhapus; 10.389 judul lancar; tanpa CDN. Menunggu tag `fase-4` dari user | — |
 
 ## 0. Aturan operasi global (tidak bisa ditawar)
 
@@ -33,9 +33,9 @@
 |---|---|
 | Node | v24 (asdf). Electron target butuh Node modern — OK |
 | pnpm | v11.22.0 terpasang, target v12 (rentang dukungan: pnpm ≥10; direkomendasikan 12). **Jangan kunci versi toolchain di file** — tanpa `packageManager` eksak / `.nvmrc` / `engines` strict (dev memakai fnm di Linux/Windows). Pagar versi = CI matrix multi-OS (lihat audit §2.5) |
-| Manager saat ini | npm (`package-lock.json` TIDAK ikut tercopy ke repo ini — instalasi segar memakai pnpm dari Fase 0) |
-| Struktur | `src/app` (main), `src/web` (renderer), `build-*.js`, `deploy-web.js`, `.github/workflows` (3 file, masih `npm install`) |
-| Perintah validasi pra-Fase-0 | `npm run lint` (eslint), `npx jest src/web`, `node --check <file>` |
+| Manager saat ini | pnpm (`pnpm-lock.yaml`; `src/app` diinstal mandiri via `postinstall`) |
+| Struktur | `src/app` (main), `src/web` (renderer: engine `mjs/`, konektor, UI React `ui/`), `build-*.js`, `deploy-web.js`, `.github/workflows` (pnpm) |
+| Perintah validasi | `pnpm run lint`, `pnpm run test:web` / `test:app`, `pnpm run knip`, `pnpm run build:web` (`pnpm run test` ikut menjalankan e2e yang memukul situs live dan membuka jendela Electron) |
 
 ## 2. Fase eksekusi (urut, satu per sesi)
 
@@ -89,19 +89,26 @@
 ### Fase 3 — Build Vite (M) · Audit §4
 **Tujuan:** `polymer-build` pensiun. Prasyarat: Fase 4 (UI) minimal shell React berdiri.
 **Verify:** `vite build` dev & prod · konektor tetap statis & ter-`import` dinamis · `createVersionInfo` jadi plugin · `vitest` opsional.
+**Progres (2026-10-10):** ✅ `polymer-build` pensiun (`build-web.js` + `build-web.config` baru, tanpa `git stash`); ✅ `start:build` menunjuk `./build/web`; ✅ konektor tetap statis (1323 konektor termuat dari `build/web`). ⏳ `createVersionInfo` → plugin Vite (opsional), `vitest` (opsional).
 
 ### Fase 4 — UI React (XL, WAJIB) · Audit §5 (termasuk §5.7–§5.10)
 **Tujuan:** paritas per view sesuai checklist §5.5, dipecah per sub-fase (shell+bridge → CRUD → list+virtual → reader → jobs/connectors → hapus classic).
-**Verify per sub-fase:** typecheck + lint + daftar `frontend@react` bisa dipilih berdampingan classic · benchmark virtualisasi (Bacami 10.389 judul) · tidak ada CDN (grep `http` di bundle UI kecuali icon/font lokal).
+**Verify per sub-fase:** typecheck + lint · benchmark virtualisasi (Bacami 10.389 judul) · tidak ada CDN (grep `http` di bundle UI kecuali icon/font lokal). (Pemilihan `frontend@react` berdampingan classic sudah tidak berlaku: classic dihapus.)
 **Exit:** classic + polyfill terhapus, woff2 FA + `theme.html` terhapus.
 **Arahan user (2026-10-10):** UX dan tampilan boleh diperbaiki selama tata letak fitur tidak jauh dari classic.
 **Progres (2026-10-10):**
-- ✅ Paritas classic light + dark ("Ken's Daedal Dark") untuk shell: titlebar + baris menu, panel Manga/Chapter (paste clipboard, filter classic, ikon status, regex, folder, penanda baca), bar download inline, Start, popup About + Settings (import/simpan/batal). Token tema classic di `ui/index.css`; rute `/settings` dihapus (diganti popup); baris "Views" di popup memuat rute React-only (Downloads, Connectors, Bookmarks).
-- ✅ Polesan UX: tema tersimpan (`localStorage`, default ikut OS), Esc menutup menu, role listbox, pesan kosong di daftar download.
-- ⏳ Sisa: dialog konektor classic (kartu + tag) menggantikan `<select>`; paritas reader vs `pages.html`; indikator status/loading per panel (`status.html`); hapus classic + polyfill + woff2 FA + `theme.html`; benchmark virtualisasi Bacami; grep CDN di bundle.
+- ✅ Paritas classic light + dark ("Ken's Daedal Dark") untuk shell: titlebar + baris menu, panel Manga/Chapter (paste clipboard, filter classic, ikon status, regex, folder, penanda baca), bar download inline, Start, popup About + Settings (import/simpan/batal). Token tema classic di `ui/index.css`.
+- ✅ Dialog konektor classic (`ui/connectors.jsx`): filter website/manga/tag, kartu virtual dengan login/donasi/situs/update per konektor. Menggantikan `<select>` dan rute `/connectors`.
+- ✅ Reader (`views/Reader.jsx`) setara `pages.html`: thumbnail, mode baca, zoom/spasi menjaga posisi, magic scroll, toolbar pudar-sampai-hover. Perbaikan: tombol Back/ESC dulu menuju rute `/chapters` yang tidak ada; arah chapter berikutnya kini mengikuti classic (`chapterUp` = entri di atas pada daftar panel yang sudah difilter/diurutkan).
+- ✅ Indikator status/loading per panel (`ui/status.jsx`, setara `status.html`).
+- ✅ Classic dihapus: `src/web/lib/**` (Polymer, polyfill, `frontend@classic-*`), `src/web/css/**` (woff2 FA), loader classic dan menubar di `index.html`, pengaturan "Frontend" di `Settings.mjs` (kunci lama di file settings user diabaikan). Rute `/settings` diganti popup; baris "Views" di popup memuat rute React-only (Downloads, Bookmarks).
+- ✅ Polesan UX: tema tersimpan (`localStorage`, default ikut OS), Esc menutup menu/dialog, role listbox/option, pesan kosong di daftar download.
+- ✅ Benchmark virtualisasi 10.389 judul (CDP, `build/web`): muat ±0,6 dtk, filter 7 ms, 52 baris di DOM, scroll ke ujung 17 ms. Cek CDN: tidak ada request eksternal saat boot, menu, dan dialog; string `http` di bundle hanya namespace XML, tautan About, dan dokumentasi error React.
+- 🐞 Bug yang ditemukan user dan diperbaiki: dialog modal "Cannot access the directory for Manga Directory" muncul tiap start bila folder belum ada (mis. instalasi baru), padahal `Storage` membuatnya saat simpan. `Settings._getValidValue` kini diam untuk `ENOENT` dan tetap memperingatkan masalah akses lain (test `Settings.test.js`).
+- 🧱 Harness e2e (`src/__tests__/Connectors.e2e.js`) menunggu `hakuneko-app` (classic) → diganti `#react-root`. Tes e2e MangaDex masih gagal di `remoteChapters._remoteObject.className` (puppeteer 24): sudah masuk backlog F-B2, bukan akibat perubahan ini.
 - ⚠️ Catatan: dengan "Enable Reader" mati panel konten disembunyikan (perilaku classic), sehingga view React-only tidak tampil. `ui.css` ±780 KB karena gambar latar light+dark tertanam (lib mode).
-- 🔎 Temuan di luar skope: 404 pada `mjs/connectors/AzoraWorld.mjs` dan `mjs/connectors/templates/WordPressMangaStream.mjs` saat konektor dimuat.
-- 🧪 Cara verifikasi live: `electron . --user-directory=<tmp> --remote-debugging-port=9200 …` (jangan `--ozone-platform=headless`: SIGTRAP; jendela muncul di display; seed `hakuneko.settings` dengan `frontend@react` dan `baseDirectory` yang sudah ada) + skrip `puppeteer-core` via CDP.
+- 🔎 Temuan di luar skope: 404 pada `mjs/connectors/AzoraWorld.mjs` (file `azoraworld.mjs` huruf kecil — kemungkinan beda kapitalisasi di FS case-sensitive) dan `mjs/connectors/templates/WordPressMangaStream.mjs` saat konektor dimuat.
+- 🧪 Cara verifikasi live: `electron . --cache-directory=./build/web --user-directory=<tmp> --remote-debugging-port=9200` (jangan `--ozone-platform=headless`: SIGTRAP; jendela muncul di display; buat dulu folder `baseDirectory` di profil tmp) + skrip `puppeteer-core` via CDP. Jangan memakai `pkill -f` dengan pola yang juga cocok dengan perintahnya sendiri.
 
 ## 3. Backlog fitur (di luar modernisasi, dikerjakan kapan saja)
 

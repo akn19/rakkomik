@@ -25,15 +25,7 @@ export function getEngineStatus() {
     try {
         engine = getEngine();
     } catch {
-        return { connectors: 0, frontend: '', version: '' };
-    }
-    let frontend = '';
-    try {
-        const setting = engine.Settings.frontend;
-        const option = setting.options.find(entry => entry.value === setting.value);
-        frontend = option ? option.name : setting.value;
-    } catch {
-        frontend = '';
+        return { connectors: 0, version: '' };
     }
     let version = '';
     try {
@@ -47,7 +39,7 @@ export function getEngineStatus() {
     } catch {
         connectors = 0;
     }
-    return { connectors, frontend, version };
+    return { connectors, version };
 }
 
 export function getVersionInfo() {

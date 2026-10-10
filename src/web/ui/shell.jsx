@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from '@tanstack/react-router';
+import { Outlet, useLocation } from '@tanstack/react-router';
 import { hasActiveDownloads, subscribeAppClose, quitApp, isReaderEnabled, subscribeSettings } from './engine.js';
 import { SelectionProvider } from './selection.jsx';
 import { ConfirmDialog } from './dialog.jsx';
@@ -91,6 +91,8 @@ export default function Shell() {
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [confirmQuit, setConfirmQuit] = React.useState(false);
     const readerEnabled = React.useSyncExternalStore(subscribeSettings, isReaderEnabled);
+    // The page viewer fills the whole content pane; other views keep a gutter.
+    const onReader = useLocation().pathname === '/reader';
     // Classic jobs.html parity: confirm when downloads are still running.
     React.useEffect(() => subscribeAppClose(() => {
         if (hasActiveDownloads()) {
@@ -140,7 +142,7 @@ export default function Shell() {
                         <JobsBar />
                     </div>
                     {readerEnabled && (
-                        <main className="rk-content-bg min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
+                        <main className={'rk-content-bg min-w-0 flex-1 overflow-x-hidden overflow-y-auto ' + (onReader ? '' : 'p-4')}>
                             <React.Suspense fallback={<p className="text-(--text-color)">Loading view …</p>}>
                                 <Outlet />
                             </React.Suspense>
