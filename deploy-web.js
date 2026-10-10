@@ -1,26 +1,25 @@
-const path = require('path');
-const os = require('os');
-const fs = require('fs/promises');
-const exec = require('child_process').exec;
+const path = require('node:path');
+const fs = require('node:fs/promises');
+const crypto = require('node:crypto');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const { zipSync } = require('fflate');
 const config = require('./deploy-web.config');
 
-function execute(command, silent) {
+const run = promisify(execFile);
+
+/**
+ * Run the GitHub CLI (authenticated through GITHUB_TOKEN).
+ */
+async function gh(args, silent) {
     if(!silent) {
-        console.log('>', command);
+        console.log('> gh', args.join(' '));
     }
-    return new Promise((resolve, reject) => {
-        exec(command, (error, stdout, stderr) => {
-            if(!silent) {
-                console.log(stdout);
-                console.log(stderr);
-            }
-            if(error) {
-                reject(error);
-            } else {
-                resolve(stdout);
-            }
-        });
-    });
+    const { stdout } = await run('gh', args, { maxBuffer: 16 * 1024 * 1024 });
+    if(!silent) {
+        console.log(stdout);
+    }
+    return stdout;
 }
 
 /**
@@ -56,24 +55,34 @@ function validateEnvironment() {
 }
 
 /**
- * Materialize the PEM signing key from the HAKUNEKO_PRIVATE_KEY secret
- * into a temp file (0600). Returns the file path; caller must delete it.
+ * All files below `directory` as { "posix/relative/path": bytes } (the ZIP entry layout).
  */
-async function writePrivateKey() {
-    let file = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'hakuneko-deploy-')), 'key.pem');
-    await fs.writeFile(file, process.env.HAKUNEKO_PRIVATE_KEY, { mode: 0o600 });
-    return file;
+async function readTree(directory) {
+    const entries = await fs.readdir(directory, { recursive: true, withFileTypes: true });
+    const files = {};
+    for(const entry of entries.filter(entry => entry.isFile())) {
+        const file = path.join(entry.parentPath, entry.name);
+        files[path.relative(directory, file).split(path.sep).join('/')] = new Uint8Array(await fs.readFile(file));
+    }
+    return files;
 }
 
-async function sslPack(keyFile, archive, meta) {
-    let cwd = process.cwd();
-    if(config.build) {
-        process.chdir(config.build);
-    }
-    await execute(`zip -r ${archive} . > /dev/null`);
-    let signature = await execute(`openssl dgst -sha256 -hex -sign ${keyFile} -passin env:HAKUNEKO_PASSPHRASE ${archive} | cut -d' ' -f2`);
-    await fs.writeFile(meta, `${archive}?signature=${signature.trim()}`);
-    process.chdir(cwd);
+/**
+ * Create the ZIP archive of the web bundle and its meta file:
+ * `<archive>?signature=<hex>` with an RSA/SHA-256 signature (PKCS#1 v1.5) the
+ * client verifies with its public key (UpdatePackageInfo). The private key
+ * stays in memory; it is never written to disk.
+ * @returns {Promise<string[]>} paths of the archive and the meta file
+ */
+async function pack(directory, archive, meta) {
+    const data = zipSync(await readTree(directory), { level: 6 });
+    const signature = crypto.sign('sha256', data, {
+        key: process.env.HAKUNEKO_PRIVATE_KEY,
+        passphrase: process.env.HAKUNEKO_PASSPHRASE
+    }).toString('hex');
+    await fs.writeFile(path.join(directory, archive), data);
+    await fs.writeFile(path.join(directory, meta), `${archive}?signature=${signature}`);
+    return [ path.join(directory, archive), path.join(directory, meta) ];
 }
 
 /**
@@ -82,31 +91,30 @@ async function sslPack(keyFile, archive, meta) {
  * the static `.../releases/download/<tag>/latest` URL keeps working.
  */
 async function publishRelease(tag, files) {
-    let repo = process.env.GITHUB_REPOSITORY;
-    let sha = process.env.GITHUB_SHA || '';
+    const repo = process.env.GITHUB_REPOSITORY;
+    const sha = process.env.GITHUB_SHA || '';
     try {
-        await execute(`gh release view ${tag} --repo ${repo}`, true);
+        await gh([ 'release', 'view', tag, '--repo', repo ], true);
     } catch(error) {
-        await execute(`gh release create ${tag} --repo ${repo} --title "Web cache (${tag})" --notes "Rolling web-application cache for update channel. Do not use these assets directly, they are consumed by the desktop client updater." ${sha ? `--target ${sha}` : ''}`);
+        const notes = 'Rolling web-application cache for update channel. Do not use these assets directly, they are consumed by the desktop client updater.';
+        await gh([ 'release', 'create', tag, '--repo', repo, '--title', `Web cache (${tag})`, '--notes', notes, ...sha ? [ '--target', sha ] : [] ]);
     }
-    await execute(`gh release upload ${tag} ${files.map(file => `"${file}"`).join(' ')} --repo ${repo} --clobber`);
+    await gh([ 'release', 'upload', tag, ...files, '--repo', repo, '--clobber' ]);
 }
 
 async function main() {
     validateEnvironment();
-    let channel = resolveChannel();
-    let tag = config.tagPrefix + channel;
-    let archive = Date.now().toString(36).toUpperCase() + '.zip';
-    let keyFile = await writePrivateKey();
-    try {
-        await sslPack(keyFile, archive, config.meta);
-        let directory = path.resolve(config.build);
-        await publishRelease(tag, [path.join(directory, archive), path.join(directory, config.meta)]);
-    } finally {
-        await fs.rm(path.dirname(keyFile), { recursive: true, force: true });
-    }
+    const channel = resolveChannel();
+    const tag = config.tagPrefix + channel;
+    const archive = Date.now().toString(36).toUpperCase() + '.zip';
+    const files = await pack(path.resolve(config.build), archive, config.meta);
+    await publishRelease(tag, files);
 }
 
-// exit application as soon as any uncaught exception is thrown
-process.on('unhandledRejection', error => { throw error; });
-main();
+module.exports = { pack, readTree, resolveChannel };
+
+if(require.main === module) {
+    // exit application as soon as any uncaught exception is thrown
+    process.on('unhandledRejection', error => { throw error; });
+    main();
+}

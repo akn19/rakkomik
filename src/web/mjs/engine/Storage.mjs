@@ -1,3 +1,4 @@
+import { unzipSync, zipSync, strToU8 } from 'fflate';
 import EbookGenerator from './EbookGenerator.mjs';
 import Chapter from './Chapter.mjs';
 
@@ -201,26 +202,20 @@ export default class Storage {
     /**
      * Return a promise with the loaded opened zip archive data
      */
-    _openZipArchive(file) {
-        return this.fs.readFile(file)
-            .then(data => {
-                let zip = new JSZip();
-                return zip.loadAsync(data, {});
-            });
+    async _openZipArchive(file) {
+        return unzipSync(await this.fs.readFile(file));
     }
 
     /**
      * Extract file from zip entry to temp and returns a promise that
      * will be resolved with the URI to the extracted file.
      */
-    _extractZipEntry(archive, file) {
-        return archive.files[file].async('uint8array')
-            .then(data => {
-                let name = this.path.join(this.temp, this.path.basename(file));
-                // attach timestamp to force reload of already existing, but overwritten temp files
-                let page = encodeURI('file://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
-                return this.fs.writeFile(name, data).then(() => page);
-            });
+    async _extractZipEntry(archive, file) {
+        let name = this.path.join(this.temp, this.path.basename(file));
+        // attach timestamp to force reload of already existing, but overwritten temp files
+        let page = encodeURI('file://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
+        await this.fs.writeFile(name, archive[file]);
+        return page;
     }
 
     /**
@@ -231,7 +226,7 @@ export default class Storage {
     _loadChapterPagesEPUB(ebook) {
         return this._openZipArchive(ebook)
             .then(archive => {
-                let promises = Object.keys(archive.files).filter(file => {
+                let promises = Object.keys(archive).filter(file => {
                     return /^OEBPS[/\\]img[/\\][^/\\]+$/.test(file);
                 }).map(file => {
                     return this._extractZipEntry(archive, file);
@@ -260,8 +255,8 @@ export default class Storage {
     _loadChapterPagesCBZ(cbz) {
         return this._openZipArchive(cbz)
             .then(archive => {
-                let promises = Object.keys(archive.files).filter(file => {
-                    return /^[^/\\]+$/.test(file);
+                let promises = Object.keys(archive).filter(file => {
+                    return /^[^/\\]+\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(file);
                 }).map(file => {
                     return this._extractZipEntry(archive, file);
                 });
@@ -340,32 +335,29 @@ export default class Storage {
      * Create and save pages to the given e-book file.
      * Callback will be executed after completion and provided with an array of errors (or an empty array when no errors occured).
      */
-    _saveChapterPagesEPUB(ebook, pageData) {
-        let zip = new JSZip();
-        zip.file('mimetype', EbookGenerator.createMimetype());
-        zip.folder('META-INF').file('container.xml', EbookGenerator.createContainerXML());
-        let oebps = zip.folder('OEBPS');
-        oebps.folder('css').file('style.css', EbookGenerator.createStyleCSS());
-        let img = oebps.folder('img');
-        let xhtml = oebps.folder('xhtml');
+    async _saveChapterPagesEPUB(ebook, pageData) {
         let params = [];
-        pageData.forEach((page, index) => {
-            img.file(page.name, page.data);
-            xhtml.file(index + '.xhtml', EbookGenerator.createPageXHTML(page.name));
+        let files = {
+            // the EPUB container requires the mimetype as uncompressed first entry
+            'mimetype': [ strToU8(EbookGenerator.createMimetype()), { level: 0 } ],
+            'META-INF/container.xml': strToU8(EbookGenerator.createContainerXML()),
+            'OEBPS/css/style.css': strToU8(EbookGenerator.createStyleCSS())
+        };
+        for (let [ index, page ] of pageData.entries()) {
+            files['OEBPS/img/' + page.name] = await this._blobToBytes(page.data);
+            files['OEBPS/xhtml/' + index + '.xhtml'] = strToU8(EbookGenerator.createPageXHTML(page.name));
             params.push({
                 img: page.name,
                 xhtml: index + '.xhtml',
                 mime: page.type
             });
-        });
+        }
         let uid = btoa(encodeURIComponent(ebook)).replace(/[^a-zA-Z]/g, '');
         let title = `${this.path.basename(this.path.dirname(ebook))} ${this.path.sep} ${this.path.basename(ebook, extensions.epub)}`;
-        oebps.file('content.opf', EbookGenerator.createContentOPF(uid, title, params));
-        oebps.file('toc.ncx', EbookGenerator.createTocNCX(uid, '', params));
-        return zip.generateAsync({ compression: 'STORE', type: 'uint8array' })
-            .then(data => {
-                return this._writeFile(ebook, data);
-            });
+        files['OEBPS/content.opf'] = strToU8(EbookGenerator.createContentOPF(uid, title, params));
+        files['OEBPS/toc.ncx'] = strToU8(EbookGenerator.createTocNCX(uid, '', params));
+        // images are compressed already: store everything
+        return this._writeFile(ebook, zipSync(files, { level: 0 }));
     }
 
     /**
@@ -417,19 +409,15 @@ export default class Storage {
      * Create and save pages to the given archive file.
      * Callback will be executed after completion and provided with an array of errors (or an empty array when no errors occured).
      */
-    _saveChapterPagesCBZ(archive, pageData, mangaName = '', chapterName = '') {
-        let zip = new JSZip();
-
-        let comicFile = Engine.ComicInfoGenerator.createComicInfoXML(mangaName, chapterName, pageData.length);
-        zip.file('ComicInfo.xml', comicFile);
-
-        pageData.forEach(page => {
-            zip.file(page.name, page.data);
-        });
-        return zip.generateAsync({ compression: 'STORE', type: 'uint8array' })
-            .then(data => {
-                return this._writeFile(archive, data);
-            });
+    async _saveChapterPagesCBZ(archive, pageData, mangaName = '', chapterName = '') {
+        let files = {
+            'ComicInfo.xml': strToU8(Engine.ComicInfoGenerator.createComicInfoXML(mangaName, chapterName, pageData.length))
+        };
+        for (let page of pageData) {
+            files[page.name] = await this._blobToBytes(page.data);
+        }
+        // images are compressed already: store everything
+        return this._writeFile(archive, zipSync(files, { level: 0 }));
     }
 
     /**
@@ -469,19 +457,8 @@ export default class Storage {
      * Helper function to convert a Blob to an Uint8Array
      * https://github.com/electron/electron/blob/master/docs/api/protocol.md#protocolregisterbufferprotocolscheme-handler-completion
      */
-    _blobToBytes(blob) {
-        return new Promise((resolve, reject) => {
-            let reader = new FileReader();
-            reader.onload = event => {
-                // NOTE: Uint8Array() seems slightly better than Buffer.from(), but both are blazing fast
-                resolve(new Uint8Array(event.target.result));
-                //resolve( Buffer.from( event.target.result ) );
-            };
-            reader.onerror = event => {
-                reject(event.target.error);
-            };
-            reader.readAsArrayBuffer(blob);
-        });
+    async _blobToBytes(blob) {
+        return new Uint8Array(await blob.arrayBuffer());
     }
 
     /**

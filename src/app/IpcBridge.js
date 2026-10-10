@@ -1,5 +1,7 @@
+const os = require('node:os');
+const path = require('node:path');
+const { exec } = require('node:child_process');
 const electron = require('electron');
-const exec = require('child_process').exec;
 
 /**
  * Main-side counterpart of src/app/preload.js `window.hakuneko`.
@@ -23,22 +25,19 @@ module.exports = class IpcBridge {
             event.returnValue = { HAKUNEKO_PORTABLE: process.env.HAKUNEKO_PORTABLE };
         });
         electron.ipcMain.on('hakuneko:os:tmpdir', event => {
-            event.returnValue = require('os').tmpdir();
+            event.returnValue = os.tmpdir();
         });
         electron.ipcMain.on('hakuneko:path:sep', event => {
-            event.returnValue = require('path').sep;
+            event.returnValue = path.sep;
         });
         for (const method of ['join', 'dirname', 'basename', 'extname', 'parse', 'normalize']) {
             electron.ipcMain.on(`hakuneko:path:${method}`, (event, ...args) => {
-                event.returnValue = require('path')[method](...args);
+                event.returnValue = path[method](...args);
             });
         }
         electron.ipcMain.handle('hakuneko:dialog:showMessageBox', async (event, options) => {
-            // dialog.showMessageBox resolves to a button index on old Electron
-            // and to { response, checkboxChecked } on new ones — normalize to
-            // the index (Fase 1: version-proof across the 8 -> 44 upgrade).
-            let result = await electron.dialog.showMessageBox(options);
-            return typeof result === 'number' ? result : result.response;
+            // the renderer's confirm()/alert() shims expect the button index
+            return (await electron.dialog.showMessageBox(options)).response;
         });
         electron.ipcMain.handle('hakuneko:dialog:showOpenDialog', (event, options) => {
             return electron.dialog.showOpenDialog(options);
@@ -88,20 +87,7 @@ module.exports = class IpcBridge {
             return electron.session.defaultSession.cookies.remove(url, name);
         });
         electron.ipcMain.handle('hakuneko:session:setProxy', (event, config) => {
-            // setProxy is callback-based on old Electron, Promise-based on new —
-            // single call, settle on whichever signal fires first.
-            return new Promise((resolve, reject) => {
-                let result;
-                try {
-                    result = electron.session.defaultSession.setProxy(config, () => resolve());
-                } catch (error) {
-                    reject(error);
-                    return;
-                }
-                if (result && typeof result.then === 'function') {
-                    result.then(() => resolve(), reject);
-                }
-            });
+            return electron.session.defaultSession.setProxy(config);
         });
     }
 

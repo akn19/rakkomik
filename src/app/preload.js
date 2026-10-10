@@ -61,6 +61,9 @@ contextBridge.exposeInMainWorld('hakuneko', {
         removeCookie: (url, name) => ipcRenderer.invoke('hakuneko:session:removeCookie', url, name),
         setProxy: config => ipcRenderer.invoke('hakuneko:session:setProxy', config)
     },
+    sqlite: {
+        query: (bytes, sql) => ipcRenderer.invoke('hakuneko:sqlite:query', bytes, sql)
+    },
     presence: {
         ensureStarted: () => ipcRenderer.invoke('hakuneko:presence:ensureStarted'),
         setActivity: status => ipcRenderer.invoke('hakuneko:presence:setActivity', status),

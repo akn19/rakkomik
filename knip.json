@@ -1,24 +1,25 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema.json",
     "entry": [
+        "scripts/*.{js,mjs}",
         "src/web/mjs/HakuNeko.mjs",
         "src/web/ui/main.jsx"
     ],
     "project": [
+        "*.js",
+        "*.mjs",
+        "scripts/**/*.{js,mjs}",
         "src/**/*.{js,mjs,jsx}"
     ],
     "ignore": [
         "src/app/preload.js",
-        "src/web/js/**",
         "src/web/mjs/connectors/**",
         "src/web/mjs/engine/HistoryWorker.mjs"
     ],
     "ignoreDependencies": [
-        "discord-rpc",
+        "@xhayper/discord-rpc",
         "pino",
         "innosetup-compiler",
-        "rcedit",
-        "win-7zip",
         "tailwindcss"
     ]
 }

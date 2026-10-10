@@ -1,10 +1,11 @@
-const path = require('path');
-const fs = require('fs');
-const zlib = require('zlib');
+const path = require('node:path');
+const fs = require('node:fs');
+const zlib = require('node:zlib');
+const { EOL: eol } = require('node:os');
+const { exec } = require('node:child_process');
+const { pipeline } = require('node:stream/promises');
+const { Readable } = require('node:stream');
 const asar = require('@electron/asar');
-const https = require('https');
-const eol = require('os').EOL;
-const exec = require('child_process').exec;
 const config = require('./build-app.config');
 
 /**
@@ -31,12 +32,13 @@ class ElectronPackager {
      * @param {*} folder
      */
     async _getSize(folder) {
-        if(process.platform !== 'win32') {
-            let size = await this._executeCommand(`du -k -c "${folder}" | grep total | cut -f1`);
-            return size.trim();
-        } else {
-            throw new Error('Not implemented!');
+        // Installed-Size in KiB, derived from the file sizes (no `du`)
+        let entries = await fs.promises.readdir(folder, { recursive: true, withFileTypes: true });
+        let bytes = 0;
+        for(let entry of entries.filter(entry => entry.isFile())) {
+            bytes += (await fs.promises.stat(path.join(entry.parentPath, entry.name))).size;
         }
+        return String(Math.ceil(bytes / 1024));
     }
 
     /**
@@ -45,8 +47,10 @@ class ElectronPackager {
      * @param {string} target
      */
     async _extractArchive(archive, target) {
+        // symlinks and unix modes of the Electron archive must survive: delegate to the platform's archiver
+        // (bsdtar ships with Windows 10+, `unzip` is required on linux/darwin)
         if(process.platform === 'win32') {
-            await this._executeCommand(`7z x "${archive}" -o"${target}"`);
+            await this._executeCommand(`tar -xf "${archive}" -C "${target}"`);
         } else {
             await this._executeCommand(`unzip "${archive}" -d "${target}"`);
         }
@@ -58,11 +62,8 @@ class ElectronPackager {
      * @param {string} archive
      */
     async _compressArchive(source, archive) {
-        if(process.platform === 'win32') {
-            await this._executeCommand(`7z a "${archive}" "${source}"`);
-        } else {
-            throw new Error('Not implemented!');
-        }
+        // bsdtar picks the ZIP format from the archive suffix (`-a`)
+        await this._executeCommand(`tar -a -c -f "${archive}" -C "${path.dirname(source)}" "${path.basename(source)}"`);
     }
 
     /**
@@ -72,7 +73,7 @@ class ElectronPackager {
      * @param {*} gzip
      */
     _saveFile(file, data, gzip) {
-        fs.ensureDirSync(path.dirname(file));
+        fs.mkdirSync(path.dirname(file), { recursive: true });
         let content = gzip ? zlib.gzipSync(data, { level: 9 }) : data;
         fs.writeFileSync(file, content, typeof content === 'string' ? { encoding: 'utf8' } : undefined);
     }
@@ -82,27 +83,14 @@ class ElectronPackager {
      * @param {*} uri
      * @param {*} file
      */
-    _download(uri, file) {
-        return new Promise( (resolve, reject) => {
-            https.get(uri, response => {
-                if(response.headers['location']) {
-                    this._download(response.headers['location'], file)
-                        .then(() => resolve())
-                        .catch(error => reject(error));
-                } else {
-                    if(response.statusCode === 200) {
-                        console.log('Downloading:', file);
-                        let stream = fs.createWriteStream(file);
-                        response.pipe(stream);
-                        stream.on('finish', () => resolve());
-                        stream.on('error', error => reject(error));
-                    } else {
-                        console.error('Download Failed!');
-                        reject(new Error('Failed to download electron client!'));
-                    }
-                }
-            });
-        });
+    async _download(uri, file) {
+        let response = await fetch(uri, { redirect: 'follow' });
+        if(!response.ok) {
+            throw new Error(`Failed to download electron client (${response.status} ${uri})!`);
+        }
+        console.log('Downloading:', file);
+        await fs.promises.mkdir(path.dirname(file), { recursive: true });
+        await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(file));
     }
 
     /**
@@ -527,7 +515,7 @@ class ElectronPackagerWindows extends ElectronPackager {
         this._architecture = this.architectures[architecture].is;
 
         // NOTE: `innosetup-compiler /?` exits non-zero by design, so probe presence instead.
-        await this._validateCommands('7z --help', 'asar --version', 'where innosetup-compiler');
+        await this._validateCommands('tar --version', 'asar --version', 'where innosetup-compiler');
 
         await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(false);
@@ -546,7 +534,7 @@ class ElectronPackagerWindows extends ElectronPackager {
     async buildZIP(architecture) {
         this._architecture = this.architectures[architecture].zip;
 
-        await this._validateCommands('7z --help', 'asar --version');
+        await this._validateCommands('tar --version', 'asar --version');
 
         await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(true);
@@ -554,7 +542,7 @@ class ElectronPackagerWindows extends ElectronPackager {
 
         let zip = this._dirBuildRoot + '.zip';
         await fs.promises.rm(zip, { recursive: true, force: true });
-        await this._compressArchive('.\\' + this._dirBuildRoot, zip);
+        await this._compressArchive(this._dirBuildRoot, zip);
     }
 
     /**
@@ -577,20 +565,20 @@ class ElectronPackagerWindows extends ElectronPackager {
      *
      */
     async _editResource() {
-        let command = [
-            path.join('node_modules', 'rcedit', 'bin', 'rcedit.exe'),
-            `"${path.join(this._dirBuildRoot, this._configuration.binary.windows)}"`,
-            `--set-version-string "ProductName" "${this._configuration.name.product}"`,
-            `--set-version-string "CompanyName" ""`,
-            `--set-version-string "LegalCopyright" "${(new Date()).getFullYear()}"`,
-            `--set-version-string "FileDescription" "${this._configuration.description.short}"`,
-            `--set-version-string "InternalName" ""`,
-            `--set-version-string "OriginalFilename" "${this._configuration.binary.windows}"`,
-            `--set-file-version "${this._configuration.version}"`,
-            `--set-product-version "${this._configuration.version}"`,
-            `--set-icon "redist\\iss\\app.ico"`
-        ].join(' ');
-        await this._executeCommand(command);
+        console.log('Editing executable resources ...');
+        const { setExecutableResources } = await import('./scripts/pe-resources.mjs');
+        await setExecutableResources(path.join(this._dirBuildRoot, this._configuration.binary.windows), {
+            icon: path.join('redist', 'iss', 'app.ico'),
+            version: this._configuration.version,
+            strings: {
+                ProductName: this._configuration.name.product,
+                CompanyName: '',
+                LegalCopyright: String(new Date().getFullYear()),
+                FileDescription: this._configuration.description.short,
+                InternalName: '',
+                OriginalFilename: this._configuration.binary.windows
+            }
+        });
     }
 
     /**

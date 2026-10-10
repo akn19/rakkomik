@@ -1,4 +1,5 @@
 import Manga from './Manga.mjs';
+import { loadProtobuf } from './Protobuf.mjs';
 import { utf8ToBytes, bytesToUtf8, bytesToBase64, base64ToBytes } from './Crypto.mjs';
 
 /**
@@ -267,9 +268,9 @@ export default class Connector {
             if( encrypted ) {
                 // decrypt mail
                 let decrypted = '';
-                let key = '0x' + encrypted.substr(0, 2) | 0;
+                let key = '0x' + encrypted.slice(0, 2) | 0;
                 for ( let i=2; i<encrypted.length; i+=2) {
-                    decrypted += '%' + ('0' + ('0x' + encrypted.substr(i, 2) ^ key).toString(16)).slice(-2);
+                    decrypted += '%' + ('0' + ('0x' + encrypted.slice(i, i + 2) ^ key).toString(16)).slice(-2);
                 }
                 span.replaceWith( decodeURIComponent( decrypted ) );
             }
@@ -545,6 +546,7 @@ export default class Connector {
      */
 
     async fetchPROTO(request, protoTypes, rootType) {
+        let protobuf = await loadProtobuf();
         let Root = (await protobuf.load(protoTypes)).lookupType(rootType);
         let response = await fetch(request);
         let data = await response.arrayBuffer();
@@ -685,20 +687,10 @@ export default class Connector {
      * https://github.com/electron/electron/blob/master/docs/api/protocol.md#protocolregisterbufferprotocolscheme-handler-completion
      */
     async _blobToBuffer(blob) {
-        return new Promise((resolve, reject) => {
-            let reader = new FileReader();
-            reader.onload = event => {
-                resolve({
-                    mimeType: blob.type,
-                    // NOTE: Uint8Array() seems slightly better than Buffer.from(), but both are blazing fast
-                    data: new Uint8Array(event.target.result)
-                });
-            };
-            reader.onerror = event => {
-                reject(event.target.error);
-            };
-            reader.readAsArrayBuffer(blob);
-        });
+        return {
+            mimeType: blob.type,
+            data: new Uint8Array(await blob.arrayBuffer())
+        };
     }
 
     /**

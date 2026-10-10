@@ -108,19 +108,11 @@ export default class BookmarkImporter {
      *
      */
     async _importBookmarksFMD( file ) {
-        return new Promise( resolve => {
-            let fileReader = new FileReader();
-            fileReader.onload = event => {
-                let db = new window.SQL.Database( new Uint8Array( event.target.result ) );
-                let query = 'SELECT `websitelink` AS `key.combined`, `link` AS `key.manga`, `website` AS `title.connector`, `title` AS `title.manga` FROM `favorites`;';
-                let result = db.exec( query );
-                //let columns = result[0].columns;
-                let rows = result[0].values;
-                let bookmarks = rows.map( this._mapFMDRowToManga.bind( this ) );
-                resolve( bookmarks );
-            };
-            fileReader.readAsArrayBuffer( file );
-        } );
+        // the SQLite engine lives in the main process (node:sqlite): hand the file over as bytes
+        const bytes = new Uint8Array( await file.arrayBuffer() );
+        const query = 'SELECT `websitelink` AS `link`, `link` AS `manga`, `website` AS `connectorTitle`, `title` AS `mangaTitle` FROM `favorites`;';
+        const rows = await window.hakuneko.sqlite.query( bytes, query );
+        return rows.map( this._mapFMDRowToManga.bind( this ) );
     }
 
     /**
@@ -128,16 +120,16 @@ export default class BookmarkImporter {
      */
     _mapFMDRowToManga(row) {
         // NOTE: due to a bug in FMD sometimes the connector has 'http' postfix which needs to be removed
-        let connectorID = this._mapFMDConnectorID( row[0].replace( /http[s]?:/, '' ).split( '/' )[0] );
-        let mangaID = this._mapFMDMangaID( connectorID, new URL( row[1], 'http://hostname.dummy' ).pathname );
+        let connectorID = this._mapFMDConnectorID( row.link.replace( /http[s]?:/, '' ).split( '/' )[0] );
+        let mangaID = this._mapFMDMangaID( connectorID, new URL( row.manga, 'http://hostname.dummy' ).pathname );
         return {
             key: {
                 connector: connectorID,
                 manga: mangaID
             },
             title: {
-                connector: row[2],
-                manga: row[3]
+                connector: row.connectorTitle,
+                manga: row.mangaTitle
             }
         };
     }

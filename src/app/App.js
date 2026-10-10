@@ -12,6 +12,7 @@ const IpcBridge = require('./IpcBridge');
 const FetchWindowManager = require('./FetchWindowManager');
 const FsBridge = require('./FsBridge');
 const DiscordBridge = require('./DiscordBridge');
+const SqliteBridge = require('./SqliteBridge');
 
 const loadingPage = `
 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%); font-family: monospace; font-size: 1.25em; font-weight: bold; text-align: center; opacity: 0.33;">
@@ -34,6 +35,7 @@ module.exports = class App {
         new FetchWindowManager(this._logger).register();
         new FsBridge(this._logger).register();
         new DiscordBridge(this._logger).register();
+        new SqliteBridge(this._logger).register();
     }
 
     _getConfiguration(options) {

@@ -7,8 +7,6 @@
         "jest": true
     },
     "globals": {
-        "protobuf": "readonly",
-        "JSZip": "readonly",
         "PDFDocument": "readonly",
         "HakuNeko": "readonly",
         "Engine": "readonly",
@@ -16,5 +14,8 @@
         "Connector": "readonly",
         "ClipboardConnector": "readonly"
     },
-    "rules": {}
+    "rules": {
+        "unicorn/prefer-node-protocol": "error",
+        "unicorn/no-new-buffer": "error"
+    }
 }

@@ -145,8 +145,8 @@ export default class CxC extends Connector {
         const token = this.auth.accessToken ? this.auth.accessToken : 'freeforcxc2021reading'; //default free content token, may change in the future
         const tokenHash = await sha512Hex(token);
         const tokenCombo = {
-            key: tokenHash.substr(0, 64),
-            iv: tokenHash.substr(30, 32)
+            key: tokenHash.slice(0, 64),
+            iv: tokenHash.slice(30, 62)
         };
         let imageComboString = (await this._decrypt(payload.imageKey, tokenCombo)).split(':');
         const imageCombo = {

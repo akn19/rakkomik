@@ -9,19 +9,6 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-async function copyTree(source, target) {
-    const stats = await fs.stat(source);
-    if (!stats.isDirectory()) {
-        await fs.mkdir(path.dirname(target), { recursive: true });
-        await fs.copyFile(source, target);
-        return;
-    }
-    await fs.mkdir(target, { recursive: true });
-    for (const entry of await fs.readdir(source)) {
-        await copyTree(path.join(source, entry), path.join(target, entry));
-    }
-}
-
 function git(...args) {
     return execFileSync('git', args, { encoding: 'utf8' }).trim();
 }
@@ -29,7 +16,7 @@ function git(...args) {
 /**
  * Write `mjs/VersionInfo.mjs` (branch and revision of the checkout).
  */
-export async function createVersionInfo(file) {
+async function createVersionInfo(file) {
     const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
     const revision = git('rev-parse', 'HEAD');
     const content = [
@@ -59,7 +46,7 @@ export function webBundle({ source, target, include }) {
             // runs after the UI bundle (`ui/dist`) has been written
             await fs.rm(target, { recursive: true, force: true });
             for (const entry of include) {
-                await copyTree(path.join(source, entry), path.join(target, entry));
+                await fs.cp(path.join(source, entry), path.join(target, entry), { recursive: true });
             }
             await createVersionInfo(path.join(target, 'mjs', 'VersionInfo.mjs'));
         }

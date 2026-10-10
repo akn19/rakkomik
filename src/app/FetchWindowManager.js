@@ -1,7 +1,8 @@
 const electron = require('electron');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const crypto = require('node:crypto');
 
 /**
  * Main-side hidden fetch windows (Fase 1 Slice B: replaces
@@ -29,7 +30,7 @@ module.exports = class FetchWindowManager {
     async _run(job) {
         let preloadFile;
         if (job.preloadScript) {
-            preloadFile = path.join(os.tmpdir(), 'hakuneko-fetch-' + Date.now().toString(36) + Math.floor(Math.random() * 0xffffff).toString(36) + '.js');
+            preloadFile = path.join(os.tmpdir(), `hakuneko-fetch-${crypto.randomUUID()}.js`);
             await fs.promises.writeFile(preloadFile, job.preloadScript);
         }
         let preferences = job.preferences || {};

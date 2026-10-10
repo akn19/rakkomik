@@ -1,82 +1,52 @@
-const url = require('url');
-const http = require('http');
-const https = require('https');
 const { ConsoleLogger } = require('./Logger');
 const UpdatePackageInfo = require('./UpdatePackageInfo');
+
+// a stalled update check must not block the application start forever
+const REQUEST_TIMEOUT = 60000;
 
 module.exports = class UpdateServerManager {
 
     constructor(applicationUpdateURL, logger) {
-        try {
-            this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
-            // NOTE: simple hack to check if URL is valid (must not throw error)
-            url.parse(applicationUpdateURL, true).hostname.length;
+        this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
+        // an unusable URL (e.g. `--update-url=DISABLED`) simply disables the updater
+        if(URL.canParse(applicationUpdateURL)) {
             this._applicationUpdateURL = applicationUpdateURL;
-        } catch(error) {
-            this._logger.warn('Initialization of "UpdateServerManager" failed!', error);
+        } else {
+            this._logger.warn('Initialization of "UpdateServerManager" failed!', new Error(`Invalid update URL: ${applicationUpdateURL}`));
             this._applicationUpdateURL = undefined;
         }
     }
 
     /**
-     *
-     * @param {string | URL | RequestOptions} options
+     * Download content via HTTP(S), following redirects.
+     * @param {string} uri
+     * @returns {Promise<Uint8Array>}
      */
-    _getClient(options) {
-        let uri = '';
-        if(typeof options === 'string') {
-            uri = options;
+    async _request(uri) {
+        if(!uri) {
+            throw new Error('Invalid request for connection to the update server!');
         }
-        if(typeof options['href'] === 'string') {
-            uri = options['href'];
+        let response;
+        try {
+            response = await fetch(uri, { redirect: 'follow', signal: AbortSignal.timeout(REQUEST_TIMEOUT) });
+        } catch(error) {
+            // surface the underlying failure (e.g. ECONNREFUSED, Invalid URL) instead of the generic "fetch failed"
+            throw error.cause instanceof Error ? error.cause : error;
         }
-        if(typeof options['url'] === 'string') {
-            uri = options['url'];
+        if(response.status !== 200) {
+            throw new Error('Status: ' + response.status);
         }
-        return uri.startsWith('https:') ? https : http;
-    }
-
-    /**
-     * Download content via HTTP(S).
-     * @param {string | URL | RequestOptions} options
-     */
-    _request(options) {
-        return new Promise((resolve, reject) => {
-            if(!options) {
-                throw new Error('Invalid request for connection to the update server!');
-            }
-            let request = this._getClient(options).request(options, response => {
-                if(response.headers.location && response.headers.location.startsWith('http')) {
-                    this._request(response.headers.location)
-                        .then(data => resolve(data))
-                        .catch(error => reject(error));
-                    return;
-                }
-                if(response.statusCode !== 200) {
-                    reject(new Error('Status: ' + response.statusCode));
-                    return;
-                }
-                let data = [];
-                //response.setEncoding('utf8');
-                response.on('data', chunk => data.push(chunk));
-                response.on('end', () => resolve(Buffer.concat(data)));
-            } );
-            request.on('error', error => reject(error));
-            //request.write(/* REQUEST BODY */);
-            request.end();
-        });
+        return new Uint8Array(await response.arrayBuffer());
     }
 
     /**
      * @returns {Promise<UpdatePackageInfo>}
      */
-    getUpdateInfo() {
-        return this._request(this._applicationUpdateURL)
-            .then(data => {
-                let link = data.toString('utf8').trim();
-                let info = new UpdatePackageInfo(link.split('.')[0], url.parse(link, true).query.signature, url.resolve(this._applicationUpdateURL, link));
-                return Promise.resolve(info);
-            });
+    async getUpdateInfo() {
+        let data = await this._request(this._applicationUpdateURL);
+        let link = new TextDecoder().decode(data).trim();
+        let resolved = new URL(link, this._applicationUpdateURL);
+        return new UpdatePackageInfo(link.split('.')[0], resolved.searchParams.get('signature'), resolved.href);
     }
 
     /**
@@ -85,6 +55,6 @@ module.exports = class UpdateServerManager {
      * @returns {Promise<Uint8Array>} A promise that resolves with the received bytes
      */
     getUpdateArchive(info) {
-        return this._request(info.link);
+        return this._request(info ? info.link : undefined);
     }
 };

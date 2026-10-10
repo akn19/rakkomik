@@ -1,4 +1,4 @@
-const path = require('path');
+const path = require('node:path');
 const electron = require('electron');
 const Configuration = require('./Configuration');
 

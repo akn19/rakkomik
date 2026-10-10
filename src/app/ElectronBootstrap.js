@@ -1,5 +1,5 @@
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
 const electron = require('electron');
 const HeaderSurgery = require('./HeaderSurgery');
 const { ConsoleLogger } = require('./Logger');
@@ -50,7 +50,7 @@ module.exports = class ElectronBootstrap {
     /**
      *
      */
-    launch() {
+    async launch() {
         /*
          * See: https://fossies.org/linux/electron/atom/browser/api/atom_api_protocol.cc
          * { standard, secure, bypassCSP, corsEnabled, supportFetchAPI, allowServiceWorkers }
@@ -66,29 +66,26 @@ module.exports = class ElectronBootstrap {
          */
         this._registerLocalHotkeys();
 
-        return new Promise(resolve => {
-            electron.app.on('ready', () => {
-                this._appIcon = electron.nativeImage.createFromPath(path.join(this._configuration.applicationCacheDirectory, 'img', 'tray', process.platform === 'win32' ? 'logo.ico' : 'logo.png'));
-                this._registerCacheProtocol();
-                this._registerConnectorProtocol();
-                this._createWindow();
-                resolve();
-            });
-            /*
-             * HACK: prevent default in main process, because it cannot be done in render process:
-             *       see: https://github.com/electron/electron/issues/9428#issuecomment-300669586
-             * Proxy credentials are provided by the renderer (Request._loginHandler).
-             */
-            electron.app.on('login', (event, webContents, request, authInfo, callback) => {
-                event.preventDefault();
-                this._provideLoginCredentials(authInfo)
-                    .then(credentials => credentials ? callback(...credentials) : callback())
-                    .catch(() => callback());
-            });
-            electron.app.on('activate', this._createWindow.bind(this));
-            electron.app.on('window-all-closed', this._allWindowsClosedHandler.bind(this));
-            electron.app.on('certificate-error', this._certificateErrorHandler.bind(this));
+        /*
+         * HACK: prevent default in main process, because it cannot be done in render process:
+         *       see: https://github.com/electron/electron/issues/9428#issuecomment-300669586
+         * Proxy credentials are provided by the renderer (Request._loginHandler).
+         */
+        electron.app.on('login', (event, webContents, request, authInfo, callback) => {
+            event.preventDefault();
+            this._provideLoginCredentials(authInfo)
+                .then(credentials => credentials ? callback(...credentials) : callback())
+                .catch(() => callback());
         });
+        electron.app.on('activate', this._createWindow.bind(this));
+        electron.app.on('window-all-closed', this._allWindowsClosedHandler.bind(this));
+        electron.app.on('certificate-error', this._certificateErrorHandler.bind(this));
+
+        await electron.app.whenReady();
+        this._appIcon = electron.nativeImage.createFromPath(path.join(this._configuration.applicationCacheDirectory, 'img', 'tray', process.platform === 'win32' ? 'logo.ico' : 'logo.png'));
+        this._registerCacheProtocol();
+        this._registerConnectorProtocol();
+        this._createWindow();
     }
 
     // Explicit MIME map for protocol.handle (Fase 1 Slice D). The legacy

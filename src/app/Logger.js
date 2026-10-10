@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('node:fs');
 const pino = require('pino');
 
 // Numeric levels compatible with the retired private logger package API.

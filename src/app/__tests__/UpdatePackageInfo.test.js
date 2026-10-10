@@ -1,4 +1,4 @@
-const assert = require('assert');
+const assert = require('node:assert');
 const UpdatePackageInfo = require('../UpdatePackageInfo');
 const publicKey =
 `-----BEGIN PUBLIC KEY-----

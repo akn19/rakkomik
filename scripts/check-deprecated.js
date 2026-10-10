@@ -3,28 +3,25 @@
  *
  * The `deprecated` flag lives in registry metadata (it is NOT part of the
  * published tarball), so this gate queries the registry for every declared
- * package at its INSTALLED version via the registry metadata API
- * (`https://registry.npmjs.org/<name>` → `versions[<v>].deprecated`).
+ * package at its INSTALLED version. The abbreviated metadata document
+ * (`application/vnd.npm.install-v1+json`) carries `versions[<v>].deprecated`
+ * and is a fraction of the size of the full document.
  *
  * Any deprecated package NOT on the recorded exception list below fails
  * the gate (exit 1). Requires network (always available in CI install jobs).
  *
- * Recorded exceptions (pengecualian tercatat — allowed by Aturan 8):
- * - `rcedit`: deprecated upstream ("Package no longer supported"), no
- *   maintained drop-in; build-time only (Windows exe metadata), isolated
- *   from runtime. Re-evaluate in Fase 0.7 (build matrix).
- *   (Fase 0.5 removed the former `@hakuneko/*` + `@logtrine/logtrine`
- *   exceptions with the packages themselves.)
+ * Recorded exceptions (pengecualian tercatat — allowed by Aturan 8): none.
+ * (`rcedit`, the last exception, was replaced by `resedit` + `pe-library`;
+ * record new ones as `['<name>', '<reason>']` entries.)
  */
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
+const REGISTRY = 'https://registry.npmjs.org';
+const REGISTRY_TIMEOUT = 20000;
 
-const ALLOWLIST = new Map([
-    ['rcedit', 'deprecated upstream, no maintained drop-in; build-time Windows-only; re-evaluate Fase 0.7'],
-]);
+const ALLOWLIST = new Map([]);
 
 function declaredPackages() {
     const pkgs = new Map(); // name -> { declaredIn }
@@ -43,7 +40,7 @@ function declaredPackages() {
 
 function installedVersion(name) {
     // Root install first, then the nested src/app install (Fase 0 keeps the
-    // nested layout: `cd src/app && pnpm install`, no workspace symlinks).
+    // nested layout: `pnpm --dir src/app install`, no workspace symlinks).
     const candidates = [
         path.join(ROOT, 'node_modules', name, 'package.json'),
         path.join(ROOT, 'src', 'app', 'node_modules', name, 'package.json'),
@@ -56,31 +53,16 @@ function installedVersion(name) {
     return null;
 }
 
-function registryDocument(name) {
+async function registryDocument(name) {
     // Scoped names need the slash encoded for the registry URL.
-    const encoded = name.replace('/', '%2f');
-    const url = `https://registry.npmjs.org/${encoded}`;
-    return new Promise((resolve, reject) => {
-        const request = https.get(url, { timeout: 20000 }, response => {
-            if (response.statusCode !== 200) {
-                reject(new Error(`registry responded ${response.statusCode} for ${name}`));
-                response.resume();
-                return;
-            }
-            let body = '';
-            response.setEncoding('utf8');
-            response.on('data', chunk => { body += chunk; });
-            response.on('end', () => {
-                try {
-                    resolve(JSON.parse(body));
-                } catch {
-                    reject(new Error(`invalid registry response for ${name}`));
-                }
-            });
-        });
-        request.on('timeout', () => request.destroy(new Error(`registry timeout for ${name}`)));
-        request.on('error', reject);
+    const response = await fetch(`${REGISTRY}/${name.replace('/', '%2f')}`, {
+        headers: { accept: 'application/vnd.npm.install-v1+json' },
+        signal: AbortSignal.timeout(REGISTRY_TIMEOUT),
     });
+    if (!response.ok) {
+        throw new Error(`registry responded ${response.status} for ${name}`);
+    }
+    return response.json();
 }
 
 async function registryDeprecated(name, version) {

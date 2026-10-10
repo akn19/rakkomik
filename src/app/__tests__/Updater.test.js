@@ -1,13 +1,24 @@
-const http = require('http');
-const path = require('path');
-const fs = require('fs');
-const assert = require('assert');
+const http = require('node:http');
+const net = require('node:net');
+const path = require('node:path');
+const fs = require('node:fs');
+const assert = require('node:assert');
 const { FileLogger } = require('../Logger');
 const UpdateServerManager = require('../UpdateServerManager');
 const CacheDirectoryManager = require('../CacheDirectoryManager');
 const Updater = require('../Updater');
 var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
 logger.clear();
+
+// A port nobody listens on at allocation time: the fixture binds it while a test
+// needs the server and leaves it closed for the "cannot be reached" cases.
+async function freePort() {
+    const probe = net.createServer();
+    await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));
+    const { port } = probe.address();
+    await new Promise(resolve => probe.close(resolve));
+    return port;
+}
 
 const publicKey =
 `-----BEGIN PUBLIC KEY-----
@@ -26,6 +37,7 @@ class TestFixture {
         this._latest = undefined;
         this._archive = undefined;
         this._server = http.createServer(this._listener.bind(this));
+        this.port = undefined; // assigned per run, see freePort()
     }
 
     get applicationCacheDirectory() {
@@ -33,7 +45,7 @@ class TestFixture {
     }
 
     get applicationUpdateURL() {
-        return 'http://127.0.0.1:8080/latest';
+        return `http://127.0.0.1:${this.port}/latest`;
     }
 
     get version() {
@@ -123,17 +135,22 @@ class TestFixture {
      * @param {string} latest
      * @param {Uint8Array | Buffer} archive
      */
-    serverStart(latest, archive) {
+    async serverStart(latest, archive) {
         this._latest = latest;
         this._archive = archive;
-        this._server.listen(8080);
+        await new Promise(resolve => this._server.listen(this.port, '127.0.0.1', resolve));
     }
 
     /**
      *
      */
-    serverStop() {
-        this._server.close();
+    async serverStop() {
+        if(!this._server.listening) {
+            return;
+        }
+        // keep-alive sockets must not survive into the next test
+        this._server.closeAllConnections();
+        await new Promise(resolve => this._server.close(resolve));
     }
 }
 
@@ -144,14 +161,18 @@ describe('Updater', function () {
 
     let fixture = new TestFixture();
 
+    beforeAll(async () => {
+        fixture.port = await freePort();
+    });
+
     describe('updateCache()', function () {
 
         it('should update cache when when cache is non-empty and server is newer and archive is valid', async () => {
             fixture.createMockDirectory();
-            fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
+            await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), "111111");
             assert.equal(fs.readFileSync(fixture.index.file, 'utf8'), "OK");
             assert.equal(fs.existsSync(fixture.dummy.file), false);
@@ -160,10 +181,10 @@ describe('Updater', function () {
 
         it('should keep cache when cache is non-empty and server is newer and archive is invalid', async () => {
             fixture.createMockDirectory();
-            fixture.serverStart(fixture.emptyMock.signature, fixture.emptyMock.archive);
+            await fixture.serverStart(fixture.emptyMock.signature, fixture.emptyMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), fixture.version.content);
             assert.equal(fs.readFileSync(fixture.dummy.file, 'utf8'), fixture.dummy.content);
             assert.equal(fs.existsSync(fixture.index.file), false);
@@ -172,10 +193,10 @@ describe('Updater', function () {
 
         it('should keep cache when cache is non-empty and server is newer and archive is valid and signature mismatch', async () => {
             fixture.createMockDirectory();
-            fixture.serverStart(fixture.emptyMock.signature, fixture.archiveMock.archive);
+            await fixture.serverStart(fixture.emptyMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), fixture.version.content);
             assert.equal(fs.readFileSync(fixture.dummy.file, 'utf8'), fixture.dummy.content);
             assert.equal(fs.existsSync(fixture.index.file), false);
@@ -185,10 +206,10 @@ describe('Updater', function () {
         it('should keep cache when cache is non-empty and server is same and archive is valid', async () => {
             fixture.createMockDirectory();
             fs.writeFileSync(fixture.version.file, '111111');
-            fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
+            await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), '111111');
             assert.equal(fs.readFileSync(fixture.dummy.file, 'utf8'), fixture.dummy.content);
             assert.equal(fs.existsSync(fixture.index.file), false);
@@ -198,10 +219,10 @@ describe('Updater', function () {
         it('should keep cache when cache is non-empty and server is same and archive is invalid', async () => {
             fixture.createMockDirectory();
             fs.writeFileSync(fixture.version.file, '000000');
-            fixture.serverStart(fixture.emptyMock.signature, fixture.emptyMock.archive);
+            await fixture.serverStart(fixture.emptyMock.signature, fixture.emptyMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), '000000');
             assert.equal(fs.readFileSync(fixture.dummy.file, 'utf8'), fixture.dummy.content);
             assert.equal(fs.existsSync(fixture.index.file), false);
@@ -210,7 +231,7 @@ describe('Updater', function () {
 
         it('should keep cache when cache is non-empty and server has error', async () => {
             fixture.createMockDirectory();
-            fixture.serverStop();
+            await fixture.serverStop();
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), fixture.version.content);
@@ -221,10 +242,10 @@ describe('Updater', function () {
 
         it('should update cache when cache is empty and server is newer and archive is valid', async () => {
             fixture.deleteMockDirectory();
-            fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
+            await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), "111111");
             assert.equal(fs.readFileSync(fixture.index.file, 'utf8'), "OK");
             assert.equal(fs.existsSync(fixture.dummy.file), false);
@@ -233,10 +254,10 @@ describe('Updater', function () {
 
         it('should keep (empty) cache when cache is empty and server is newer and archive is invalid', async () => {
             fixture.deleteMockDirectory();
-            fixture.serverStart(fixture.emptyMock.signature, fixture.emptyMock.archive);
+            await fixture.serverStart(fixture.emptyMock.signature, fixture.emptyMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.existsSync(fixture.version.file), false);
             assert.equal(fs.existsSync(fixture.index.file), false);
             assert.equal(fs.existsSync(fixture.dummy.file), false);
@@ -245,7 +266,7 @@ describe('Updater', function () {
 
         it('should keep (empty) when cache is empty and server has error', async () => {
             fixture.deleteMockDirectory();
-            fixture.serverStop();
+            await fixture.serverStop();
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
             assert.equal(fs.existsSync(fixture.version.file), false);

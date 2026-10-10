@@ -112,7 +112,7 @@ export default class NicoNicoSeiga extends Connector {
     _decrypt(e, t) {
         var n, r = [], i = 8;
         for (n = 0; n < i; n++)
-            r.push(parseInt(t.substr(2 * n, 2), 16));
+            r.push(parseInt(t.slice(2 * n, 2 * n + 2), 16));
         for (n = 0; n < e.length; n++)
             e[n] = e[n] ^ r[n % i];
         return e;

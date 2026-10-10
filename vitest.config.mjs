@@ -14,9 +14,7 @@ export default defineConfig({
                     name: 'app',
                     globals: true,
                     environment: 'node',
-                    include: ['src/app/**/*.test.js'],
-                    // the update server tests bind the same fixed port (8080)
-                    fileParallelism: false
+                    include: ['src/app/**/*.test.js']
                 }
             },
             {

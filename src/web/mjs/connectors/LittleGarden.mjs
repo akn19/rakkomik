@@ -29,7 +29,7 @@ export default class LittleGarden extends Connector {
     }
 
     async _getChapters(manga) {
-        const slug = manga.id.substr(1);
+        const slug = manga.id.slice(1);
         const operationName = 'chapters';
         const query = 'query chapters($slug: String, $limit: Float, $skip: Float, $order: Float!, $isAdmin: Boolean!) {\n  chapters(limit: $limit, skip: $skip, where: {deleted: false, published: $isAdmin, manga: {slug: $slug, published: $isAdmin, deleted: false}}, order: [{field: "number", order: $order}]) {\nnumber}\n}\n';
         const variables = {
@@ -49,7 +49,7 @@ export default class LittleGarden extends Connector {
     }
 
     async _getPages(chapter) {
-        const mangaSlug = chapter.manga.id.substr(1);
+        const mangaSlug = chapter.manga.id.slice(1);
         const operationName = 'pages';
         const query = 'query pages($slug: String, $number: Float, $isAdmin: Boolean!) {\n  chapters(limit: 1, skip: 0, where: {deleted: false, number: $number, published: $isAdmin, manga: {slug: $slug, published: $isAdmin, deleted: false}}) {\npages { original }}\n}\n';
         const variables = {

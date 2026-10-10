@@ -22,7 +22,7 @@ export default class ComicBunch extends Connector {
         const mangaList = [];
         const uri = new URL('/comics', this.url);
         const request = new Request(uri, this.requestOptions);
-        let data = (await this.fetchDOM(request, 'select[name="sort"] option')).filter(item => item.value != '').map(item => item.value.substr(3));
+        let data = (await this.fetchDOM(request, 'select[name="sort"] option')).filter(item => item.value != '').map(item => item.value.slice(3));
         for(var i = 0; i < data.length; i++) {
             let mangas = await this._getMangasFromPage(data[i]);
             mangaList.push(...mangas);

@@ -1,60 +1,57 @@
-// CommonJS module mocking for Vitest.
+// Package mocking for the CommonJS main process under Vitest.
 //
-// `vi.mock` only intercepts `import`, but the Electron main process (src/app)
-// is CommonJS and pulls its dependencies in with `require()`. This hook gives
-// the app tests what `jest.mock(name[, factory])` used to: register the mocks
-// BEFORE requiring the module under test; only modules inside `src/app` see
-// them (third-party packages keep the real `fs`, `electron`, ...).
-const Module = require('module');
-const path = require('path');
+// `vi.mock` only intercepts `import`, but src/app pulls its dependencies in
+// with `require()`. Node's module customization hooks (`module.registerHooks`)
+// route a package specifier such as `electron` to a virtual CommonJS module
+// whose export is the registered mock - only for modules that live inside
+// src/app, so the test runner and third-party packages keep the real thing.
+//
+// Node builtins (`node:fs`, ...) never reach these hooks. Stub those on the
+// shared export object instead, e.g. `vi.spyOn(require('node:fs'), 'existsSync')`:
+// CommonJS builtins are per-process singletons, so the stub is visible to
+// every module that required them.
+const { registerHooks } = require('node:module');
+const path = require('node:path');
+const { fileURLToPath, pathToFileURL } = require('node:url');
 
-const SCOPE = path.resolve(__dirname, '..', '..');
-const mocks = new Map();
-const originalLoad = Module._load;
+const SCOPE = path.resolve(__dirname, '..', '..') + path.sep;
+// Served by the load hook below; the file itself does not exist.
+const VIRTUAL = pathToFileURL(path.join(__dirname, 'virtual-mock.cjs')).href;
+const MOCKS = '__rakkomikMockModules';
 
-function normalize(name) {
-    return name.startsWith('node:') ? name.slice('node:'.length) : name;
+const mocks = globalThis[MOCKS] ??= new Map();
+
+function requiredFromScope(parentURL) {
+    return typeof parentURL === 'string' && parentURL.startsWith('file:') && fileURLToPath(parentURL).startsWith(SCOPE);
 }
 
-Module._load = function (request, parent) {
-    const name = normalize(request);
-    if (mocks.has(name) && parent && typeof parent.filename === 'string' && parent.filename.startsWith(SCOPE)) {
-        return mocks.get(name);
-    }
-    return originalLoad.apply(this, arguments);
-};
-
-/**
- * Jest-style automock: every function becomes `vi.fn()` (statics and nested
- * objects included), plain values are kept.
- */
-function automock(actual, seen = new Map()) {
-    if (actual === null || (typeof actual !== 'object' && typeof actual !== 'function')) {
-        return actual;
-    }
-    if (seen.has(actual)) {
-        return seen.get(actual);
-    }
-    const mock = typeof actual === 'function' ? vi.fn() : {};
-    seen.set(actual, mock);
-    for (const key of Object.keys(actual)) {
-        let value;
-        try {
-            value = actual[key];
-        } catch {
-            continue;
+registerHooks({
+    resolve(specifier, context, nextResolve) {
+        if (mocks.has(specifier) && requiredFromScope(context.parentURL)) {
+            return { url: `${VIRTUAL}?name=${encodeURIComponent(specifier)}`, format: 'commonjs', shortCircuit: true };
         }
-        mock[key] = automock(value, seen);
+        return nextResolve(specifier, context);
+    },
+    load(url, context, nextLoad) {
+        if (url.startsWith(`${VIRTUAL}?`)) {
+            const name = new URL(url).searchParams.get('name');
+            return {
+                format: 'commonjs',
+                source: `module.exports = globalThis[${JSON.stringify(MOCKS)}].get(${JSON.stringify(name)});`,
+                shortCircuit: true
+            };
+        }
+        return nextLoad(url, context);
     }
-    return mock;
-}
+});
 
 /**
- * Register a mock for `name`; without a factory the real module is automocked.
+ * Register the exports that `require(name)` returns inside src/app.
+ * Call it BEFORE requiring the module under test.
  */
 function mockModule(name, factory) {
-    const exportsOfMock = factory ? factory() : automock(originalLoad.call(Module, name, module, false));
-    mocks.set(normalize(name), exportsOfMock);
+    const exportsOfMock = factory();
+    mocks.set(name, exportsOfMock);
     return exportsOfMock;
 }
 

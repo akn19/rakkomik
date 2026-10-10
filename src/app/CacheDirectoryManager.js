@@ -1,6 +1,6 @@
-const path = require('path');
-const fs = require('fs/promises');
-const jszip = require('jszip');
+const path = require('node:path');
+const fs = require('node:fs/promises');
+const { unzipSync } = require('fflate');
 const { ConsoleLogger } = require('./Logger');
 
 module.exports = class CacheDirectoryManager {
@@ -22,26 +22,6 @@ module.exports = class CacheDirectoryManager {
     }
 
     /**
-     * Extract an entry from an archive to the given directory
-     * and resolve a promise with the path to the extracted file.
-     * @param {JSZip} archive
-     * @param {string} directory
-     * @param {string} entry
-     * @returns {Promise<void>} A promise that will resolve on success, otherwise reject with a related error
-     */
-    _extractZipEntry(archive, directory, entry) {
-        if(!archive.files[entry].dir) {
-            let file = path.join(directory, entry);
-            this._logger.verbose('Extracting:', file);
-            return fs.mkdir(path.dirname(file), { recursive: true })
-                .then(() => archive.files[entry].async('uint8array'))
-                .then(data => fs.writeFile(file, data));
-        } else {
-            return Promise.resolve();
-        }
-    }
-
-    /**
      *
      * @returns {Promise<string>}
      */
@@ -51,18 +31,36 @@ module.exports = class CacheDirectoryManager {
     }
 
     /**
-     *
+     * Target path of an archive entry, refusing entries that would escape the cache directory.
+     * @param {string} entry
+     * @returns {string}
+     */
+    _entryPath(entry) {
+        let root = path.resolve(this._applicationCacheDirectory);
+        let file = path.resolve(root, entry);
+        if(!file.startsWith(root + path.sep)) {
+            throw new Error(`Refusing to extract "${entry}" outside of the cache directory!`);
+        }
+        return file;
+    }
+
+    /**
+     * Replace the content of the cache directory with the content of the (ZIP) archive.
+     * The archive is parsed before the cache is removed, so an invalid archive keeps the current cache.
      * @param {string} version
      * @param {Uint8Array} data
-     * @returns {void}
+     * @returns {Promise<void>}
      */
     async applyUpdateArchive(version, data) {
-        let zip = new jszip();
-        let archive = await zip.loadAsync(data, {});
+        // directory entries (names ending with a slash) are implied by the files inside them
+        let entries = Object.entries(unzipSync(data)).filter(([ entry ]) => !entry.endsWith('/'));
+        let files = entries.map(([ entry, bytes ]) => [ this._entryPath(entry), bytes ]);
         await fs.rm(this._applicationCacheDirectory, { recursive: true, force: true });
-        let entries = Object.keys(archive.files);
-        let promises = entries.map(entry => this._extractZipEntry(archive, this._applicationCacheDirectory, entry));
-        await Promise.all(promises);
+        await Promise.all(files.map(async ([ file, bytes ]) => {
+            this._logger.verbose('Extracting:', file);
+            await fs.mkdir(path.dirname(file), { recursive: true });
+            await fs.writeFile(file, bytes);
+        }));
         await fs.writeFile(this._versionFile, version);
     }
 };

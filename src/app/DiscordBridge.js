@@ -1,14 +1,16 @@
+const electron = require('electron');
 const { ConsoleLogger } = require('./Logger');
 
 const discordPresenceId = '726702836775256094';
 
 /**
  * Main-side Discord rich presence transport (Fase 1 Slice C).
- * Owns the discord-rpc client (node-only); the renderer keeps status
- * computation, event hooks and timers (DiscordPresence.mjs) and drives
- * this bridge. The transport-health heuristics of the old in-renderer
- * client (socket.bytesWritten introspection) are replaced by plain
- * per-call success reporting.
+ * Owns the RPC client (node-only, IPC transport to the local Discord
+ * client); the renderer keeps status computation, event hooks and timers
+ * (DiscordPresence.mjs) and drives this bridge with plain per-call
+ * success reporting. The former `discord-<id>://` URL scheme registration
+ * was dropped: it only served Discord's join/spectate launch, which the
+ * application never offered.
  */
 module.exports = class DiscordBridge {
 
@@ -18,12 +20,6 @@ module.exports = class DiscordBridge {
     }
 
     register() {
-        const electron = require('electron');
-        try {
-            require('discord-rpc').register(discordPresenceId);
-        } catch (error) {
-            this._logger.warn('DiscordPresence - scheme registration failed!', error);
-        }
         electron.ipcMain.handle('hakuneko:presence:ensureStarted', () => {
             return this._ensureStarted();
         });
@@ -40,12 +36,13 @@ module.exports = class DiscordBridge {
             return true;
         }
         try {
-            const DiscordRPC = require('discord-rpc');
-            let client = new DiscordRPC.Client({ transport: 'ipc' });
-            await client.login({ clientId: discordPresenceId });
+            // loaded on first use: the RPC client and its HTTP stack must not delay the application start
+            const { Client } = require('@xhayper/discord-rpc');
+            let client = new Client({ clientId: discordPresenceId, transport: { type: 'ipc' } });
             client.on('disconnected', () => {
                 this._client = null;
             });
+            await client.login();
             this._client = client;
             return true;
         } catch (error) {
@@ -56,11 +53,11 @@ module.exports = class DiscordBridge {
     }
 
     async _setActivity(status) {
-        if (!this._client) {
+        if (!this._client || !this._client.user) {
             return false;
         }
         try {
-            await this._client.setActivity(status);
+            await this._client.user.setActivity(status);
             return true;
         } catch (error) {
             this._logger.warn('DiscordPresence - setActivity failed (' + (error && error.message) + ')');
@@ -73,7 +70,9 @@ module.exports = class DiscordBridge {
             return false;
         }
         try {
-            this._client.clearActivity();
+            if (this._client.user) {
+                await this._client.user.clearActivity();
+            }
             await this._client.destroy();
         } catch (error) {
             this._logger.warn('DiscordPresence - destroy failed (' + (error && error.message) + ')');

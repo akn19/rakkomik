@@ -1,5 +1,10 @@
 // Hermetic UI tests on the real application (isolated profile, no site access):
 // startup budget, connector picker, 10k-title list, chapter list, reader, menu.
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { unzipSync } from 'fflate';
 import { test, expect, reload, connectorsReady, SEED_CONNECTOR, SEED_TITLES } from './support/electronApp.mjs';
 
 const FATHER = 'The Father and the Daughter';
@@ -259,6 +264,72 @@ test.describe('menu and settings', () => {
         });
         expect(warnings.missing).toEqual([]);
         expect(warnings.notDirectory).toHaveLength(1);
+    });
+});
+
+// An FMD favorites database, built with node:sqlite on the test side.
+function fmdDatabase() {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rakkomik-fmd-'));
+    const file = path.join(directory, 'favorites.db');
+    const database = new DatabaseSync(file);
+    database.exec('CREATE TABLE favorites (websitelink TEXT, link TEXT, website TEXT, title TEXT)');
+    const insert = database.prepare('INSERT INTO favorites VALUES (?, ?, ?, ?)');
+    insert.run('example.org/manga/alpha', 'https://example.org/manga/alpha', 'Example', 'Alpha');
+    insert.run('example.net/series/beta', 'https://example.net/series/beta?lang=en', 'Example Net', 'Beta');
+    database.close();
+    const bytes = fs.readFileSync(file);
+    fs.rmSync(directory, { recursive: true, force: true });
+    return Array.from(bytes);
+}
+
+test.describe('archives and bookmark import', () => {
+    test('should write CBZ and EPUB archives and read the CBZ pages back', async ({ app, page }) => {
+        await reload(page);
+        const result = await page.evaluate(async base => {
+            const storage = Engine.Storage;
+            const pages = [];
+            for (const color of [ '#f00', '#0f0' ]) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 8;
+                canvas.height = 8;
+                const context = canvas.getContext('2d');
+                context.fillStyle = color;
+                context.fillRect(0, 0, 8, 8);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                pages.push({ name: `00${pages.length + 1}.png`, type: 'image/png', data: blob });
+            }
+            const archive = storage.path.join(base, 'Archive Test', 'Chapter 1.cbz');
+            const ebook = storage.path.join(base, 'Archive Test', 'Chapter 1.epub');
+            storage._createDirectoryChain(storage.path.dirname(archive));
+            await storage._saveChapterPagesCBZ(archive, pages, 'Archive Test', 'Chapter 1');
+            await storage._saveChapterPagesEPUB(ebook, pages);
+            return { archive, ebook, urls: await storage._loadChapterPagesCBZ(archive) };
+        }, path.join(app.userDirectory, 'mangas'));
+
+        expect(result.urls).toHaveLength(2);
+        expect(result.urls[0]).toMatch(/^file:\/\/.*001\.png\?ts=\d+$/);
+        const cbz = unzipSync(new Uint8Array(fs.readFileSync(result.archive)));
+        expect(Object.keys(cbz).sort()).toEqual([ '001.png', '002.png', 'ComicInfo.xml' ]);
+        expect(Array.from(cbz['001.png'].slice(0, 4))).toEqual([ 0x89, 0x50, 0x4e, 0x47 ]);
+        expect(new TextDecoder().decode(cbz['ComicInfo.xml'])).toContain('<PageCount>2</PageCount>');
+
+        const epub = fs.readFileSync(result.ebook);
+        // EPUB container rule: `mimetype` is the first entry and stored (compression method 0)
+        expect(epub.subarray(30, 38).toString()).toBe('mimetype');
+        expect(epub.readUInt16LE(8)).toBe(0);
+        expect(Object.keys(unzipSync(new Uint8Array(epub)))).toEqual(expect.arrayContaining([ 'mimetype', 'META-INF/container.xml', 'OEBPS/content.opf', 'OEBPS/img/001.png', 'OEBPS/xhtml/1.xhtml' ]));
+    });
+
+    test('should import FMD bookmarks through node:sqlite in the main process', async ({ page }) => {
+        await reload(page);
+        const bookmarks = await page.evaluate(async bytes => {
+            const file = new File([ new Uint8Array(bytes) ], 'favorites.db', { type: 'application/x-sqlite3' });
+            return Engine.BookmarkManager._bookmarkImporter.importBookmarks(file);
+        }, fmdDatabase());
+        expect(bookmarks).toEqual([
+            { key: { connector: 'example.org', manga: '/manga/alpha' }, title: { connector: 'Example', manga: 'Alpha' } },
+            { key: { connector: 'example.net', manga: '/series/beta' }, title: { connector: 'Example Net', manga: 'Beta' } }
+        ]);
     });
 });
 

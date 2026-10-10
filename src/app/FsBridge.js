@@ -1,5 +1,5 @@
 const electron = require('electron');
-const fs = require('fs');
+const fs = require('node:fs');
 
 /**
  * Main-side filesystem bridge for Storage.mjs (Fase 1 Slice C).

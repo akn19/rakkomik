@@ -1,9 +1,20 @@
-const http = require('http');
-const assert = require('assert');
+const http = require('node:http');
+const net = require('node:net');
+const assert = require('node:assert');
 const { FileLogger } = require('../Logger');
 const UpdateServerManager = require('../UpdateServerManager');
 var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
 logger.clear();
+
+// A port nobody listens on at allocation time: the fixture binds it while a test
+// needs the server and leaves it closed for the "cannot be reached" cases.
+async function freePort() {
+    const probe = net.createServer();
+    await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));
+    const { port } = probe.address();
+    await new Promise(resolve => probe.close(resolve));
+    return port;
+}
 
 class TestFixture {
 
@@ -11,13 +22,14 @@ class TestFixture {
         this._latest = undefined;
         this._archive = undefined;
         this._server = http.createServer(this._listener.bind(this));
+        this.port = undefined; // assigned per run, see freePort()
     }
 
     /**
      *
      */
     get applicationUpdateURL() {
-        return 'http://127.0.0.1:8080/latest';
+        return `http://127.0.0.1:${this.port}/latest`;
     }
 
     // signature matches and archive is valid ZIP
@@ -69,22 +81,22 @@ class TestFixture {
      * @param {string} latest
      * @param {Uint8Array | Buffer} archive
      */
-    serverStart(latest, archive) {
+    async serverStart(latest, archive) {
         this._latest = latest;
         this._archive = archive;
-        this._server.listen(8080);
+        await new Promise(resolve => this._server.listen(this.port, '127.0.0.1', resolve));
     }
 
     /**
      *
      */
-    serverStop() {
-        // Node 19+ enables HTTP keep-alive by default, so the client's pooled
-        // sockets would otherwise be reused dead across server restarts
-        // (ECONNRESET). Destroy both ends deterministically per test.
+    async serverStop() {
+        if(!this._server.listening) {
+            return;
+        }
+        // keep-alive sockets must not survive into the next test
         this._server.closeAllConnections();
-        this._server.close();
-        http.globalAgent.destroy();
+        await new Promise(resolve => this._server.close(resolve));
     }
 }
 
@@ -94,6 +106,10 @@ class TestFixture {
 describe('UpdateServerManager', function () {
 
     let fixture = new TestFixture();
+
+    beforeAll(async () => {
+        fixture.port = await freePort();
+    });
 
     describe('constructor()', function () {
 
@@ -121,10 +137,10 @@ describe('UpdateServerManager', function () {
     describe('getUpdateInfo()', function () {
 
         it('should get valid result when URL is valid', async () => {
-            fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
+            await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             let info = await testee.getUpdateInfo();
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(info.version.length, 6);
             assert.equal(/[a-f0-9]+/.test(info.version), true);
             assert.equal(info.signature.length, 512);
@@ -135,14 +151,14 @@ describe('UpdateServerManager', function () {
 
         it('should throw error when URL does not exist', async () => {
             let testee = new UpdateServerManager(fixture.applicationUpdateURL + '/invalid', logger);
-            fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
+            await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             try {
                 await testee.getUpdateInfo();
                 assert.fail('Expected error not thrown!');
             } catch(error) {
                 assert.equal(error.message, 'Status: 404');
             } finally {
-                fixture.serverStop();
+                await fixture.serverStop();
             }
         });
 
@@ -152,7 +168,7 @@ describe('UpdateServerManager', function () {
                 await testee.getUpdateInfo();
                 assert.fail('Expected error not thrown!');
             } catch(error) {
-                assert.equal(error.message, 'connect ECONNREFUSED 127.0.0.1:8080');
+                assert.equal(error.message, `connect ECONNREFUSED 127.0.0.1:${fixture.port}`);
             }
         });
 
@@ -180,24 +196,24 @@ describe('UpdateServerManager', function () {
     describe('getUpdateArchive()', function () {
 
         it('should get valid result when URL is valid', async () => {
-            fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
+            await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             let info = await testee.getUpdateInfo();
             let archive = await testee.getUpdateArchive(info);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(archive.length, fixture.archiveMock.archive.length);
         });
 
         it('should throw error when URL does not exist', async () => {
             let testee = fixture.createTestee();
-            fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
+            await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             try {
                 await testee.getUpdateArchive({link: fixture.applicationUpdateURL + '/invalid'});
                 assert.fail('Expected error not thrown!');
             } catch(error) {
                 assert.equal(error.message, 'Status: 404');
             } finally {
-                fixture.serverStop();
+                await fixture.serverStop();
             }
         });
 
@@ -207,7 +223,7 @@ describe('UpdateServerManager', function () {
                 await testee.getUpdateArchive({link: fixture.applicationUpdateURL + '.zip'});
                 assert.fail('Expected error not thrown!');
             } catch(error) {
-                assert.equal(error.message, 'connect ECONNREFUSED 127.0.0.1:8080');
+                assert.equal(error.message, `connect ECONNREFUSED 127.0.0.1:${fixture.port}`);
             }
         });
 

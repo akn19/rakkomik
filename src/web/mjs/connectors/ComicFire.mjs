@@ -22,7 +22,7 @@ export default class ComicFire extends SpeedBinb {
         let data = await this.fetchDOM(request, 'head title');
         let id = uri.pathname;
         let title = data[0].text.split('|')[0].trim();
-        return new Manga(this, id.substr(6), title);
+        return new Manga(this, id.slice(6), title);
     }
 
     async _getMangas() {
@@ -32,7 +32,7 @@ export default class ComicFire extends SpeedBinb {
         data = data.concat(await this.fetchDOM(request, this.queryManga));
         return data.map(element => {
             return {
-                id: this.getRootRelativeOrAbsoluteLink(element, request.url).substr(6),
+                id: this.getRootRelativeOrAbsoluteLink(element, request.url).slice(6),
                 title: element.text.trim()
             };
         });
@@ -57,7 +57,7 @@ export default class ComicFire extends SpeedBinb {
             language: chapter.language
         };
         if(chapter.id.includes("SWF")) { //legacy format; older chapters may use this
-            ch.id = "http://tachiyomi.yomeru-hj.net/comic/" + ch.id.substr(17).replace("_SWF_Window.html", "");
+            ch.id = "http://tachiyomi.yomeru-hj.net/comic/" + ch.id.slice(17).replace("_SWF_Window.html", "");
             let request = new Request(ch.id + 'books/db/book.xml', this.requestOptions);
             this.fetchDOM(request, 'total:first-of-type')
                 .then((element) => {

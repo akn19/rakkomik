@@ -15,6 +15,7 @@
 > | 2 Lib → native | ✅ kode + smoke live: `crypto-js` → `engine/Crypto.mjs` (SHA-256 sinkron, HMAC, SHA-512, AES-CBC via WebCrypto, MD5/EVP untuk password). Pemakai crypto terverifikasi di situs live (lihat tabel di Fase 2); `LegacyCrypto` dan AES sinkron pure-JS dihapus (pemakai terakhir, MangaDig/CocoManHua, rusak). Menunggu tag `fase-2` dari user | — |
 > | 3 Build Vite | ✅ `polymer-build`/`vinyl-fs`/`merge-stream` pensiun; `vite build --mode web` merakit bundle (plugin `vite.web-bundle.mjs`: salin statis + `VersionInfo.mjs` dari git, tanpa `git stash`) ke `build/web`; Jest → **Vitest 5** (154 tes setara + 12 baru); e2e → **Playwright**. Diverifikasi dengan menjalankan app dari `build/web`. Menunggu tag `fase-3` dari user | — |
 > | 4 UI React | ✅ kode + live: paritas classic light+dark, dialog konektor, reader, indikator status; classic + polyfill + woff2 FA + `theme.html` terhapus; startup shell-first (UI ±0,9 dtk vs HakuNeko asli 6,0 dtk); 10.389 judul lancar; tanpa CDN. Menunggu tag `fase-4` dari user | — |
+> | 5 Modernisasi Node 24 & dependensi | ✅ kode + tes: deprecated ditulis ulang (`url.parse`, `rcedit`, sisa `fs-extra`, shim Electron 8), API Node 24 (`fetch`, `node:sqlite`, `crypto.sign/verify`, `module.registerHooks`, `fs.cp`), paket tak terawat diganti (discord-rpc, jszip, sql.js, rcedit, win-7zip, pino 7). Belum teruji: jalur build Windows (bsdtar, Inno Setup), presence live. Menunggu tag `fase-5` dari user | — |
 
 ## 0. Aturan operasi global (tidak bisa ditawar)
 
@@ -35,7 +36,7 @@
 | pnpm | v11.22.0 terpasang, target v12 (rentang dukungan: pnpm ≥10; direkomendasikan 12). **Jangan kunci versi toolchain di file** — tanpa `packageManager` eksak / `.nvmrc` / `engines` strict (dev memakai fnm di Linux/Windows). Pagar versi = CI matrix multi-OS (lihat audit §2.5) |
 | Manager saat ini | pnpm (`pnpm-lock.yaml`; `src/app` diinstal mandiri via `postinstall`) |
 | Struktur | `src/app` (main), `src/web` (renderer: engine `mjs/`, konektor, UI React `ui/`), `build-*.js`, `deploy-web.js`, `.github/workflows` (pnpm) |
-| Perintah validasi | `pnpm run lint`, `pnpm run test` (Vitest: project `app` + `web`), `pnpm run test:e2e` (build + Playwright, UI hermetik), `pnpm run test:e2e:sites` (situs live, bisa gagal karena situs berubah), `pnpm run knip`, `pnpm run build:web` |
+| Perintah validasi | `pnpm run lint` (app + web + tools), `pnpm run test` (Vitest: project `app` + `web`), `pnpm run test:e2e` (build + Playwright, UI hermetik), `pnpm run test:e2e:sites` (situs live, bisa gagal karena situs berubah), `pnpm run knip`, `pnpm run check:deprecated` (jaringan), `pnpm run build:web` |
 
 ## 2. Fase eksekusi (urut, satu per sesi)
 
@@ -131,6 +132,41 @@ Tes: `ComixTo.test.js` (dekripsi XOR tiga varian, urutan scramble dibanding gene
 - ⚠️ Catatan: dengan "Enable Reader" mati panel konten disembunyikan (perilaku classic), sehingga view React-only tidak tampil. `ui.css` ±780 KB karena gambar latar light+dark tertanam (lib mode).
 - 🔎 Temuan di luar skope: 404 pada `mjs/connectors/AzoraWorld.mjs` (file `azoraworld.mjs` huruf kecil — kemungkinan beda kapitalisasi di FS case-sensitive) dan `mjs/connectors/templates/WordPressMangaStream.mjs` saat konektor dimuat.
 - 🧪 Cara verifikasi live: `pnpm run test:e2e` (Playwright `_electron`, profil sementara, jendela muncul di display). Untuk uji manual: `electron . --cache-directory=./build/web --user-directory=<tmp>` (buat dulu folder `baseDirectory` di profil tmp; jangan `--ozone-platform=headless`: SIGTRAP). Jangan memakai `pkill -f` dengan pola yang juga cocok dengan perintahnya sendiri, dan jangan menjalankan `/usr/bin/hakuneko-desktop` tanpa `--user-directory`/`--cache-directory` terpisah (membuka profil asli user).
+
+### Fase 5 — Modernisasi Node 24 & dependensi (2026-10-10)
+**Arahan user:** tulis ulang kode deprecated, optimalkan pemakaian API Node 24, ganti paket yang tidak terawat ke paket modern (biner Rust lebih disukai bila terawat).
+**Fakta penentu:** Electron 44 menanam **Node 24.21** di proses utama (host Node 24.14) — `node:sqlite`, `module.registerHooks`, `fs.cp`, `fetch`, `crc32` semuanya tersedia tanpa flag.
+
+**Deprecated yang ditulis ulang**
+- `url.parse`/`url.resolve` (DEP0169) di `UpdateServerManager` → WHATWG `URL` + `URL.canParse`; transport `http/https` + redirect manual → `fetch` (`redirect: 'follow'`, `AbortSignal.timeout`), galat jaringan asli (`error.cause`) diteruskan agar pesan tetap `connect ECONNREFUSED …`.
+- Paket `rcedit` (deprecated upstream, biner Windows) → `resedit` 3.1 + `pe-library` 2.0 (`scripts/pe-resources.mjs`, pure JS, lintas platform). Diverifikasi pada `electron.exe` v44.6.0 asli: string versi terganti, grup ikon id 1 berisi 8 frame `app.ico`, PE32+ tetap valid (±400 ms). Allowlist gate deprecated kini kosong.
+- `fs.ensureDirSync` (sisa `fs-extra` yang sudah dicabut) di `build-app.js` membuat **`build:app` pecah di semua platform** → `fs.mkdirSync({ recursive })`.
+- Shim kompatibilitas Electron 8↔44 di `IpcBridge` (`setProxy` callback-vs-promise, `showMessageBox` angka-vs-objek) dibuang; `app.on('ready')` → `await app.whenReady()`.
+- `String.prototype.substr` (Annex B) → `slice` di engine (`Connector`, `Crypto`, `HeaderGenerator`) dan 7 konektor (`NewType`: `substr(0, idx)` dijaga semantiknya dengan `Math.max(0, idx)`); `FileReader` → `Blob.arrayBuffer()`.
+- Sisa legacy yang **dibiarkan** (bukan deprecated, risiko > manfaat): `XMLHttpRequest` di 21 konektor, `.substring` di 4 konektor, `child_process.exec` untuk perintah pasca-unduh milik user (memang perintah shell) dan skrip build (`dpkg-deb`, `rpmbuild`, `hdiutil`, `tar`, `unzip`).
+
+**API Node 24 yang dipakai**
+`fetch` (updater, unduh Electron di `build-app.js` via `stream/promises.pipeline` + `Readable.fromWeb`, gate deprecated dengan metadata ringkas `application/vnd.npm.install-v1+json`), `crypto.verify`/`crypto.sign` satu-panggilan (verifikasi pembaruan; tanda tangan rilis di `deploy-web.js` tanpa `openssl` CLI — kunci privat tidak pernah ditulis ke disk), `node:sqlite` (`SqliteBridge`: impor bookmark FMD di proses utama), `module.registerHooks` (`__tests__/support/mockRequire.js`: mock paket CJS resmi menggantikan monkeypatch `Module._load`; builtin di-stub lewat `vi.spyOn` pada singleton), `fs.cp` (plugin bundle Vite), `readdir({ recursive, withFileTypes })` (ukuran paket deb tanpa `du`, daftar file rilis tanpa `zip` CLI), `crypto.randomUUID`, `Promise.withResolvers` (registri konektor), `URL.canParse`. Prefix `node:` diwajibkan oleh oxlint (`unicorn/prefer-node-protocol`, plus `unicorn/no-new-buffer`); skrip tooling kini ikut dilint (`lint:tools`).
+
+**Paket diganti / dihapus**
+| Sebelum | Sesudah | Catatan |
+|---|---|---|
+| `discord-rpc` 4.0.1 (kode 2021, dep git `register-scheme`) | `@xhayper/discord-rpc` 1.5.1 (2026-09) | API `client.user.setActivity/clearActivity`; registrasi skema `discord-<id>://` dibuang (hanya untuk join/spectate yang tidak pernah ditawarkan); override pnpm `register-scheme` dihapus |
+| `jszip` (vendored 3.2.1 dari 2019 di renderer + dep main) | `fflate` 0.8.3 | renderer: ESM vendored (`src/web/js/fflate.mjs`) via **import map** di `index.html` sehingga engine memakai `import … from 'fflate'` (vitest me-resolve dari node_modules); main: `unzipSync` di `CacheDirectoryManager` (+ penolakan entri yang keluar dari direktori cache) |
+| `sql.js` (vendored asm.js ±2014, 1,5 MB diparse tiap start) | `node:sqlite` (main) | renderer mengirim byte file via IPC `hakuneko:sqlite:query`; hasil baris berindeks nama kolom |
+| `protobufjs` vendored 6.8.8 (2018, `<script>` blocking) | `protobufjs` 8.8.0, dimuat on-demand (`engine/Protobuf.mjs`) | hanya ComicFuz memakainya; diverifikasi live (105 chapter, gambar ter-decode) |
+| `pino` 7.11 | `pino` 10.4 | API `pino.destination` tidak berubah |
+| `win-7zip` 0.1.1 (2015, tidak pernah dipanggil) | dihapus | Windows memakai bsdtar bawaan (`tar -xf`, `tar -a -cf`); linux/darwin tetap `unzip` (simlink + mode unix arsip Electron harus utuh, fflate tidak mengembalikannya) |
+| `zip` + `openssl` CLI (deploy) | `fflate` + `node:crypto` | `deploy-web.js` mengekspor `pack/readTree/resolveChannel`; `gh` dipanggil via `execFile` (tanpa shell) |
+| `innosetup-compiler` 6.3.1 | tetap | satu-satunya pembungkus ISCC yang terawat; tidak ada alternatif Rust |
+
+Rust: toolchain yang sudah Rust tetap (oxlint/oxfmt, Rolldown via Vite 8, Tailwind oxide). Untuk PE, zip, SQLite dan Discord RPC **tidak ada paket Rust di npm yang terawat** — dipilih pure-JS terawat atau API bawaan Node.
+
+**Vendoring:** `scripts/vendor.js` (dijalankan `postinstall`, skrip `vendor`) menghasilkan `src/web/js/fflate.mjs` dan `protobuf.min.js` (gitignored) dari devDependencies root — versi mengikuti lockfile dan gate deprecated. File vendored lama (`jszip.min.js`, `sql.min.js`, `protobufjs.min.js`) dihapus dari git.
+
+**Tes:** unit 181 (baru: `SqliteBridge`, `BookmarkImporter`, `Deploy` = pack→sign→verify→extract satu rantai dengan `UpdatePackageInfo` + `CacheDirectoryManager`; `CacheDirectoryManager` tanpa mock dengan zip sungguhan; fixture server memakai port bebas dinamis sehingga `fileParallelism: false` dihapus), e2e UI 15 (baru: roundtrip CBZ/EPUB di renderer — `mimetype` entri pertama tanpa kompresi — dan impor bookmark via `node:sqlite` di Electron). Pembaca CBZ kini hanya mengembalikan gambar (sebelumnya `ComicInfo.xml` ikut jadi "halaman").
+**Belum teruji:** jalur `build:app` Windows (bsdtar, `innosetup-compiler`) dan macOS; rich presence live (butuh Discord berjalan). `node:sqlite` berstatus "Active development" di Node 24 (satu ExperimentalWarning di stderr proses utama).
+**Ukuran (median 5 kali, profil benchmark 10.389 judul):** UI tampil 877 → **817 ms**, konektor siap 1906 → 1856 ms, heap renderer idle 37 → **24 MB** (1,7 MB JS vendored tidak lagi diparse saat start). Pelajaran: `@xhayper/discord-rpc` (menarik `@discordjs/rest`) dan `node:sqlite` harus di-`require` saat pertama dipakai — versi eager menaikkan waktu UI tampil ke 1027 ms.
 
 ## 3. Backlog fitur (di luar modernisasi, dikerjakan kapan saja)
 

@@ -1,6 +1,5 @@
 const { mockModule } = require('./support/mockRequire');
-mockModule('fs');
-const fs = require('fs');
+const fs = require('node:fs');
 
 mockModule('electron', () => {
     return {
@@ -42,10 +41,12 @@ describe('App', function() {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        // builtins are not module-mocked: stub the shared `fs` export object instead
+        vi.spyOn(fs, 'existsSync');
     });
 
     afterEach(() => {
-        //
+        vi.restoreAllMocks();
     });
 
     describe('_configuration', function() {

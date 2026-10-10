@@ -74,7 +74,7 @@ export default class NewType extends Connector {
             if (Array.isArray(image))
                 image = image.filter(url => url.startsWith('/'))[0];
             if (image.includes("/h1200"))
-                image = image.substr(0, image.indexOf("/h1200"));
+                image = image.slice(0, Math.max(0, image.indexOf("/h1200")));
             return this.getAbsolutePath(image, request.url);
         });
     }

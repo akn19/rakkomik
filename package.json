@@ -18,26 +18,27 @@
     "@tanstack/react-virtual": "3.14.13",
     "@vitejs/plugin-react": "6.1.2",
     "electron": "44.6.0",
+    "fflate": "0.8.3",
     "innosetup-compiler": "6.3.1",
-    "jszip": "3.10.2",
     "knip": "6.39.0",
     "lucide-react": "1.53.0",
     "oxfmt": "0.72.0",
     "oxlint": "1.87.0",
-    "rcedit": "5.0.2",
+    "pe-library": "2.0.1",
+    "protobufjs": "8.8.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "resedit": "3.1.0",
     "tailwindcss": "4.3.3",
     "vite": "8.3.3",
-    "vitest": "5.0.3",
-    "win-7zip": "0.1.1"
+    "vitest": "5.0.3"
   },
   "scripts": {
-    "postinstall": "node node_modules/electron/install.js && cd src/app && pnpm install --no-optional",
+    "postinstall": "node node_modules/electron/install.js && pnpm --dir src/app install --no-optional && node scripts/vendor.js",
     "start": "pnpm run start:dev",
     "start:dev": "electron . --update-url=DISABLED --cache-directory=./src/web --disable-http-cache",
     "start:build": "pnpm run build:web && electron . --update-url=DISABLED --cache-directory=./build/web",
-    "lint": "pnpm run lint:app && pnpm run lint:web",
+    "lint": "pnpm run lint:app && pnpm run lint:web && pnpm run lint:tools",
     "lint:app": "oxlint ./src/app --ignore-path .gitignore",
     "lint:web": "oxlint ./src/web/mjs ./src/web/ui --ignore-path .gitignore",
     "format": "pnpm run format:app && pnpm run format:web",
@@ -54,6 +55,8 @@
     "test:e2e": "pnpm run build:web && playwright test --project=ui",
     "test:e2e:sites": "pnpm run build:web && playwright test --project=sites",
     "knip": "knip",
-    "check:deprecated": "node scripts/check-deprecated.js"
+    "check:deprecated": "node scripts/check-deprecated.js",
+    "vendor": "node scripts/vendor.js",
+    "lint:tools": "oxlint ./scripts ./build-app.js ./deploy-web.js ./vite.config.mjs ./vite.web-bundle.mjs ./vitest.config.mjs ./playwright.config.mjs ./src/__tests__"
   }
 }

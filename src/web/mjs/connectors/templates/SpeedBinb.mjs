@@ -445,8 +445,8 @@ export default class SpeedBinb extends Connector {
     _tt(t) {
         var n = Date.now().toString(16).padStart(16, 'x') // w.getRandomString(16)
             , i = Array(Math.ceil(16 / t.length) + 1).join(t)
-            , r = i.substr(0, 16)
-            , e = i.substr(-16, 16)
+            , r = i.slice(0, 16)
+            , e = i.slice(-16)
             , s = 0
             , u = 0
             , h = 0;

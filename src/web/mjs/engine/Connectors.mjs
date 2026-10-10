@@ -14,9 +14,9 @@ export default class Connectors extends EventTarget {
         ipc.listen('on-connector-protocol-handler', this._onConnectorProtocolHandler.bind(this));
         this._list = [];
         this._isReady = false;
-        this._ready = new Promise(resolve => {
-            this._resolveReady = resolve;
-        });
+        const { promise, resolve } = Promise.withResolvers();
+        this._ready = promise;
+        this._resolveReady = resolve;
     }
 
     async _loadPlugins(uri) {

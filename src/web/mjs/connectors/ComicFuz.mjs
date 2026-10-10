@@ -1,4 +1,5 @@
 import Connector from '../engine/Connector.mjs';
+import { loadProtobuf } from '../engine/Protobuf.mjs';
 import Manga from '../engine/Manga.mjs';
 import { hexToBytes, aesCbcDecrypt } from '../engine/Crypto.mjs';
 
@@ -97,7 +98,7 @@ export default class ComicFuz extends Connector {
     }
 
     async _createPROTORequest(uri, rootType, payload) {
-        const root = await protobuf.load(this.protoTypes);
+        const root = await (await loadProtobuf()).load(this.protoTypes);
         const messageType = root.lookupType(rootType);
         const message = messageType.encode(payload);
         return new Request(uri, {

@@ -1,127 +1,72 @@
-const { mockModule } = require('./support/mockRequire');
-mockModule('fs/promises');
-const fs = require('fs/promises');
-
-mockModule('jszip');
-const jszip = require('jszip');
-
-const path = require('path');
+// Cache replacement contract: parsed before the old cache goes, so a broken
+// archive keeps it; entries can never escape the cache directory.
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { zipSync, strToU8 } = require('fflate');
 const { FileLogger } = require('../Logger');
 const CacheDirectoryManager = require('../CacheDirectoryManager');
-var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
+
+const logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
 logger.clear();
 
-var loadAsyncMock;
-// `new JSZip()` needs a constructor-compatible implementation (not an arrow function)
-jszip.mockImplementation(function() {
-    return {
-        loadAsync: loadAsyncMock
-    };
+let cache = null;
+
+function seedCache() {
+    fs.mkdirSync(path.join(cache, 'directory'), { recursive: true });
+    fs.writeFileSync(path.join(cache, 'version'), '7ede91');
+    fs.writeFileSync(path.join(cache, 'directory', 'file'), 'DUMMY');
+}
+
+beforeEach(() => {
+    cache = fs.mkdtempSync(path.join(os.tmpdir(), 'rakkomik-cache-'));
 });
 
-describe('CacheDirectoryManager', function () {
+afterEach(() => {
+    fs.rmSync(cache, { recursive: true, force: true });
+});
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
+describe('CacheDirectoryManager', () => {
 
-    afterEach(() => {
-        //
-    });
-
-    describe('getCurrentVersion()', function () {
+    describe('getCurrentVersion()', () => {
         it('should get version when file exists', async () => {
-            fs.readFile.mockReturnValueOnce(Promise.resolve('xxx'));
-            let testee = new CacheDirectoryManager('/cache', logger);
-            let version = await testee.getCurrentVersion();
-            expect(version).toEqual('xxx');
+            fs.writeFileSync(path.join(cache, 'version'), 'xxx');
+            await expect(new CacheDirectoryManager(cache, logger).getCurrentVersion()).resolves.toBe('xxx');
         });
-        it('should get undefined when an error occurs', async () => {
-            fs.readFile.mockReturnValueOnce(Promise.reject(new Error('File not found!')));
-            let testee = new CacheDirectoryManager('/cache', logger);
-            let version = await testee.getCurrentVersion();
-            expect(version).toEqual(undefined);
+        it('should get undefined when the file is missing', async () => {
+            await expect(new CacheDirectoryManager(cache, logger).getCurrentVersion()).resolves.toBeUndefined();
         });
     });
 
-    describe('_extractZipEntry()', function () {
-        it('should skip directory entries', async () => {
-            fs.mkdir.mockReturnValueOnce(Promise.resolve());
-            fs.writeFile.mockReturnValueOnce(Promise.resolve());
-            let archiveMock = {
-                files: {
-                    'dir/sub': {
-                        dir: true,
-                        async: vi.fn(() => Promise.resolve('RAW BYTES'))
-                    }
-                }
-            };
-            let testee = new CacheDirectoryManager('/cache', logger);
-            await testee._extractZipEntry(archiveMock, '/cache', 'dir/sub');
-            expect(fs.mkdir).not.toHaveBeenCalled();
-            expect(fs.writeFile).not.toHaveBeenCalled();
-            expect(archiveMock.files['dir/sub'].async).not.toHaveBeenCalled();
+    describe('applyUpdateArchive()', () => {
+        it('should keep the existing cache when the archive is invalid', async () => {
+            seedCache();
+            const testee = new CacheDirectoryManager(cache, logger);
+            await expect(testee.applyUpdateArchive('1.0.0', new Uint8Array([ 0x87, 0xfb, 0x74, 0x63 ]))).rejects.toThrow();
+            expect(fs.readFileSync(path.join(cache, 'version'), 'utf8')).toBe('7ede91');
+            expect(fs.readFileSync(path.join(cache, 'directory', 'file'), 'utf8')).toBe('DUMMY');
         });
-        it('should create directory and extract file', async () => {
-            fs.mkdir.mockReturnValueOnce(Promise.resolve());
-            fs.writeFile.mockReturnValueOnce(Promise.resolve());
-            let archiveMock = {
-                files: {
-                    'dir/sub/file': {
-                        dir: false,
-                        async: vi.fn(() => Promise.resolve('RAW BYTES'))
-                    }
-                }
-            };
-            let testee = new CacheDirectoryManager('/cache', logger);
-            await testee._extractZipEntry(archiveMock, '/cache', 'dir/sub/file');
-            expect(fs.mkdir).toHaveBeenCalledTimes(1);
-            expect(fs.mkdir).toHaveBeenLastCalledWith(path.normalize('/cache/dir/sub'), { recursive: true });
-            expect(fs.writeFile).toHaveBeenCalledTimes(1);
-            expect(fs.writeFile).toHaveBeenLastCalledWith(path.normalize('/cache/dir/sub/file'), 'RAW BYTES');
-            expect(archiveMock.files['dir/sub/file'].async).toHaveBeenCalledTimes(1);
-            expect(archiveMock.files['dir/sub/file'].async).toHaveBeenLastCalledWith('uint8array');
-        });
-    });
 
-    describe('applyUpdateArchive()', function () {
-        it('should keep existing cache when archive is invalid', async () => {
-            loadAsyncMock = vi.fn(() => Promise.reject());
-            let testee = new CacheDirectoryManager('/cache', logger);
-            testee._extractZipEntry = vi.fn();
-            expect.assertions(5);
-            try {
-                await testee.applyUpdateArchive('1.0.0', 'ARCHIVE BYTES');
-            } catch(error) {
-                expect(loadAsyncMock).toHaveBeenCalledTimes(1);
-                expect(loadAsyncMock).toHaveBeenLastCalledWith('ARCHIVE BYTES', {});
-                expect(fs.rm).not.toHaveBeenCalled();
-                expect(fs.writeFile).not.toHaveBeenCalled();
-                expect(testee._extractZipEntry).not.toHaveBeenCalled();
-            }
+        it('should replace the existing cache with the archive content and write the version', async () => {
+            seedCache();
+            const archive = zipSync({
+                'index.html': strToU8('OK'),
+                'js/': new Uint8Array(0),
+                'js/app.js': strToU8('console.log(1);')
+            });
+            await new CacheDirectoryManager(cache, logger).applyUpdateArchive('111111', archive);
+            expect(fs.readFileSync(path.join(cache, 'version'), 'utf8')).toBe('111111');
+            expect(fs.readFileSync(path.join(cache, 'index.html'), 'utf8')).toBe('OK');
+            expect(fs.readFileSync(path.join(cache, 'js', 'app.js'), 'utf8')).toBe('console.log(1);');
+            expect(fs.existsSync(path.join(cache, 'directory'))).toBe(false);
         });
-        it('should replace existing cache when archive is valid', async () => {
-            let archive = {
-                files: {
-                    'index.html': null,
-                    'js': null,
-                    'js/app.js': null
-                }
-            };
-            loadAsyncMock = vi.fn(() => Promise.resolve(archive));
-            let testee = new CacheDirectoryManager('/cache', logger);
-            testee._extractZipEntry = vi.fn();
-            await testee.applyUpdateArchive('1.0.0', 'ARCHIVE BYTES');
-            expect(loadAsyncMock).toHaveBeenCalledTimes(1);
-            expect(loadAsyncMock).toHaveBeenLastCalledWith('ARCHIVE BYTES', {});
-            expect(fs.rm).toHaveBeenCalled();
-            expect(fs.rm).toHaveBeenLastCalledWith(path.normalize('/cache'), { recursive: true, force: true });
-            expect(fs.writeFile).toHaveBeenCalled();
-            expect(fs.writeFile).toHaveBeenLastCalledWith(path.normalize('/cache/version'), '1.0.0');
-            expect(testee._extractZipEntry).toHaveBeenCalledTimes(3);
-            expect(testee._extractZipEntry).toHaveBeenCalledWith(archive, path.normalize('/cache'), 'index.html');
-            expect(testee._extractZipEntry).toHaveBeenCalledWith(archive, path.normalize('/cache'), 'js');
-            expect(testee._extractZipEntry).toHaveBeenCalledWith(archive, path.normalize('/cache'), 'js/app.js');
+
+        it('should refuse entries that escape the cache directory', async () => {
+            seedCache();
+            const archive = zipSync({ '../escaped.txt': strToU8('nope') });
+            await expect(new CacheDirectoryManager(cache, logger).applyUpdateArchive('1.0.0', archive)).rejects.toThrow(/outside of the cache directory/);
+            expect(fs.existsSync(path.join(path.dirname(cache), 'escaped.txt'))).toBe(false);
+            expect(fs.readFileSync(path.join(cache, 'version'), 'utf8')).toBe('7ede91');
         });
     });
 });
