@@ -91,7 +91,28 @@ class ElectronPackager {
      */
     async _compressArchive(source, archive) {
         // bsdtar picks the ZIP format from the archive suffix (`-a`)
-        await this._executeCommand(`tar -a -c -f "${archive}" -C "${path.dirname(source)}" "${path.basename(source)}"`);
+        await this._executeCommand(`${this._zipTool} -a -c -f "${archive}" -C "${path.dirname(source)}" "${path.basename(source)}"`);
+    }
+
+    /**
+     * Windows and macOS ship bsdtar as `tar`, but the `tar` of a Linux host is GNU tar, which cannot write a ZIP.
+     */
+    get _zipTool() {
+        return process.platform === 'linux' ? 'bsdtar' : 'tar';
+    }
+
+    /**
+     * Put the web part (`pnpm run build:web`) next to `app.asar`: the packaged application finds it there, uses it
+     * and does not update it (see `Configuration.bundledWebDirectory` of the application).
+     * @param {string} resourcesDirectory the directory that holds `app.asar`
+     */
+    async _bundleWebPart(resourcesDirectory) {
+        const web = path.join('build', 'web');
+        if(!fs.existsSync(path.join(web, 'index.html'))) {
+            throw new Error(`The web part is missing in "${web}", run 'pnpm run build:web' first!`);
+        }
+        console.log('Bundle web part ...');
+        await fs.promises.cp(web, path.join(resourcesDirectory, 'web'), { recursive: true });
     }
 
     /**
@@ -285,9 +306,10 @@ class ElectronPackagerLinux extends ElectronPackager {
     async _bundleElectron() {
         console.log('Bundle electron ...');
         let folder = this._stagingExecutableDirectory;
-        await this._downloadElectron(this._configuration.version, this._architecture.platform, folder);
+        await this._downloadElectron(this._configuration.electron, this._architecture.platform, folder);
         await fs.promises.rm(path.join(folder, 'resources', 'default_app.asar'), { recursive: true, force: true });
         await asar.createPackage(config.src, path.join(folder, 'resources', 'app.asar'));
+        await this._bundleWebPart(path.join(folder, 'resources'));
         await fs.promises.rename(path.join(folder, 'electron'), path.join(folder, this._configuration.binary.linux));
         await this._applyFuses(path.join(folder, this._configuration.binary.linux));
         // chmod 4755 fixes https://github.com/electron/electron/issues/17972
@@ -545,7 +567,7 @@ class ElectronPackagerWindows extends ElectronPackager {
     async buildZIP(architecture) {
         this._architecture = this.architectures[architecture].zip;
 
-        await this._validateCommands('tar --version', 'asar --version');
+        await this._validateCommands(`${this._zipTool} --version`, 'asar --version');
 
         await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(true);
@@ -563,12 +585,13 @@ class ElectronPackagerWindows extends ElectronPackager {
     async _bundleElectron(portable) {
         console.log('Bundle electron ...');
         let folder = this._stagingExecutableDirectory;
-        await this._downloadElectron(this._configuration.version, this._architecture.platform, folder);
+        await this._downloadElectron(this._configuration.electron, this._architecture.platform, folder);
         await fs.promises.rm(path.join(folder, 'resources', 'default_app.asar'), { recursive: true, force: true });
         if(portable) {
             this._saveFile(path.join(folder, this._configuration.binary.windows + '.portable'), 'Delete this File to disable Portable Mode');
         }
         await asar.createPackage(config.src, path.join(folder, 'resources', 'app.asar'));
+        await this._bundleWebPart(path.join(folder, 'resources'));
         await fs.promises.rename(path.join(folder, 'electron.exe'), path.join(folder, this._configuration.binary.windows));
         await this._applyFuses(path.join(folder, this._configuration.binary.windows));
     }
@@ -713,11 +736,12 @@ class ElectronPackagerDarwin extends ElectronPackager {
     async buildDMG(architecture) {
         this._architecture = this.architectures[architecture].dmg;
 
-        await this._validateCommands('hdiutil info');
+        await this._validateCommands('hdiutil info', 'which codesign');
 
         await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(false);
         await this._createPList();
+        await this._signApplication();
 
         let dmg = this._dirBuildRoot + '.dmg';
         await fs.promises.rm(dmg, { recursive: true, force: true });
@@ -742,9 +766,10 @@ class ElectronPackagerDarwin extends ElectronPackager {
     async _bundleElectron() {
         console.log('Bundle electron ...');
         let folder = path.join(this._dirBuildRoot, 'Electron.app', 'Contents');
-        await this._downloadElectron(this._configuration.version, this._architecture.platform, this._dirBuildRoot);
+        await this._downloadElectron(this._configuration.electron, this._architecture.platform, this._dirBuildRoot);
         await fs.promises.rm(path.join(folder, 'Resources', 'default_app.asar'), { recursive: true, force: true });
         await asar.createPackage(config.src, path.join(folder, 'Resources', 'app.asar'));
+        await this._bundleWebPart(path.join(folder, 'Resources'));
         await fs.promises.rename(path.join(folder, 'MacOS', 'Electron'), path.join(folder, 'MacOS', this._configuration.binary.darwin));
         await fs.promises.rm(path.join(folder, 'Resources', 'electron.icns'), { recursive: true, force: true });
         await fs.promises.cp(path.join('redist', 'macos', 'icon.icns'), path.join(folder, 'Resources', this._configuration.binary.darwin + '.icns'), { recursive: true });
@@ -754,43 +779,42 @@ class ElectronPackagerDarwin extends ElectronPackager {
     }
 
     /**
-     *
+     * Give the Electron bundle the name of the application. Only the keys that name it change; everything else
+     * (the minimum macOS version, the principal class, the main menu) stays as this version of Electron ships it.
      */
-    _createPList() {
-        console.log('Creating P-List Info ...');
+    async _createPList() {
+        console.log('Patching P-List Info ...');
         let file = path.join(this._dirBuildRoot, this._configuration.name.product + '.app', 'Contents', 'Info.plist');
-        let content = [
-            '<?xml version="1.0" encoding="UTF-8"?>',
-            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
-            '<plist version="1.0">',
-            '<dict>',
-            '	<key>CFBundleDisplayName</key>',
-            `	<string>${this._configuration.name.product}</string>`,
-            // execytable is required
-            '	<key>CFBundleExecutable</key>',
-            `	<string>${this._configuration.binary.darwin}</string>`,
-            // icon file is required
-            '	<key>CFBundleIconFile</key>',
-            `	<string>${this._configuration.binary.darwin}.icns</string>`,
-            '	<key>CFBundleIdentifier</key>',
-            `	<string>${this._configuration.url}</string>`,
-            '	<key>CFBundleName</key>',
-            `	<string>${this._configuration.name.product}</string>`,
-            '	<key>CFBundlePackageType</key>',
-            '	<string>APPL</string>',
-            '	<key>CFBundleShortVersionString</key>',
-            `	<string>${this._configuration.version}</string>`,
-            '	<key>CFBundleVersion</key>',
-            `	<string>${this._configuration.version}</string>`,
-            '	<key>LSMinimumSystemVersion</key>',
-            '	<string>10.10.0</string>',
-            '	<key>NSHighResolutionCapable</key>',
-            '	<true/>',
-            '</dict>',
-            '</plist>'
-        ];
-        this._saveFile(file, content.join(eol), false);
+        let content = await fs.promises.readFile(file, 'utf8');
+        const names = {
+            CFBundleDisplayName: this._configuration.name.product,
+            CFBundleExecutable: this._configuration.binary.darwin,
+            CFBundleIconFile: this._configuration.binary.darwin + '.icns',
+            CFBundleIdentifier: this._configuration.identifier,
+            CFBundleName: this._configuration.name.product,
+            CFBundleShortVersionString: this._configuration.version,
+            CFBundleVersion: this._configuration.version
+        };
+        for(const [ key, value ] of Object.entries(names)) {
+            const entry = new RegExp(`(<key>${key}</key>\\s*<string>)[^<]*(</string>)`);
+            if(!entry.test(content)) {
+                throw new Error(`The Info.plist of Electron has no key "${key}"!`);
+            }
+            content = content.replace(entry, (match, open, close) => open + value + close);
+        }
+        await fs.promises.writeFile(file, content);
         return file;
+    }
+
+    /**
+     * Sign the application ad hoc. Apple Silicon refuses to run code whose signature does not match its files, and the
+     * signature of the Electron bundle no longer does after the renaming, the new Info.plist and the added files. An
+     * ad hoc signature needs no Apple developer account; Gatekeeper still asks the user once when the app is opened.
+     */
+    async _signApplication() {
+        console.log('Signing the application (ad hoc) ...');
+        let application = path.join(this._dirBuildRoot, this._configuration.name.product + '.app');
+        await this._executeCommand(`codesign --force --deep --sign - "${application}"`);
     }
 
     get _appleScript() {
@@ -820,32 +844,52 @@ class ElectronPackagerDarwin extends ElectronPackager {
     }
 }
 
+// the targets of the command line and the host that builds each of them
+const hosts = { windows: 'win32', linux: 'linux', macos: 'darwin' };
+
 /**
- *
+ * node build-app.js [windows] [linux] [macos]
+ * Without a target the packages of the platform that runs the build are made. The packages of Linux and macOS need
+ * tools of their own platform (dpkg and rpm, hdiutil and codesign), so they can only be built there. Windows can be
+ * built anywhere with bsdtar, but only a Windows host also builds the installer (Inno Setup).
+ * @param {string[]} targets
  */
-async function main() {
-    if(process.platform === 'win32') {
-        let packager = new ElectronPackagerWindows(config);
-        await packager.buildIS('64');
-        await packager.buildIS('ARM64');
-        await packager.buildZIP('64');
-        await packager.buildZIP('ARM64');
+async function main(targets) {
+    for(const target of targets) {
+        if(!(target in hosts)) {
+            throw new Error(`Unknown target "${target}", use one of: ${Object.keys(hosts).join(', ')}`);
+        }
+        if(target !== 'windows' && process.platform !== hosts[target]) {
+            throw new Error(`The ${target} packages can only be built on ${target}; the "Build Desktop Installers" workflow builds them.`);
+        }
     }
-    if(process.platform === 'linux') {
-        let packager = new ElectronPackagerLinux(config);
-        await packager.buildDEB('64');
-        await packager.buildDEB('ARM64');
-        await packager.buildRPM('64');
-        await packager.buildRPM('ARM64');
-    }
-    if(process.platform === 'darwin') {
-        let packager = new ElectronPackagerDarwin(config);
-        await packager.buildDMG('64');
-        // TODO(Fase 1): + await packager.buildDMG('ARM64') once Electron >= 11
-        // (darwin-arm64 has no 8.x build upstream — 404 as of this phase).
+    for(const target of targets) {
+        if(target === 'windows') {
+            let packager = new ElectronPackagerWindows(config);
+            if(process.platform === 'win32') {
+                await packager.buildIS('64');
+                await packager.buildIS('ARM64');
+            } else {
+                console.log('Skipping the Inno Setup installers, they can only be built on Windows.');
+            }
+            await packager.buildZIP('64');
+            await packager.buildZIP('ARM64');
+        }
+        if(target === 'linux') {
+            let packager = new ElectronPackagerLinux(config);
+            await packager.buildDEB('64');
+            await packager.buildDEB('ARM64');
+            await packager.buildRPM('64');
+            await packager.buildRPM('ARM64');
+        }
+        if(target === 'macos') {
+            let packager = new ElectronPackagerDarwin(config);
+            await packager.buildDMG('64');
+            await packager.buildDMG('ARM64');
+        }
     }
 }
 
 // exit application as soon as any uncaught exception is thrown
 process.on('unhandledRejection', error => { throw error; });
-main();
+main(process.argv.length > 2 ? process.argv.slice(2) : Object.keys(hosts).filter(target => hosts[target] === process.platform));

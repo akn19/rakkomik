@@ -9,6 +9,13 @@ on:
       - master
       - '*.*.*'
   workflow_dispatch:
+  # the release workflow builds the installers of a tag with it
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git ref to build, e.g. refs/tags/v1.0.0 (the ref of the run when empty)'
+        type: string
+        default: ''
 
 jobs:
   build:
@@ -18,9 +25,10 @@ jobs:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout ${{ github.repository }} @ ${{ github.ref }}
+      - name: Checkout ${{ github.repository }} @ ${{ inputs.ref || github.ref }}
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 1
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -40,11 +48,17 @@ jobs:
         run: pnpm run lint
       - name: Check deprecated dependencies
         run: pnpm run check:deprecated
+      # builds the web part first, which every installer carries, then the installers of this platform
       - name: Build (app)
         run: pnpm run build:app
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.os }}
-          path: build/*
+          path: |
+            build/*.deb
+            build/*.rpm
+            build/*.exe
+            build/*.zip
+            build/*.dmg
           if-no-files-found: error

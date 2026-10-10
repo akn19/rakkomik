@@ -35,14 +35,22 @@ It is not meant to be a mass downloader to stock up thousands of chapters that w
 ## Installation
 
 **Arch Linux:** every tagged release is published to the [AUR](https://aur.archlinux.org) as `rakkomik`
-(`yay -S rakkomik`, or any other AUR helper). The package runs on the system `electron` package.
+(`yay -S rakkomik`, or any other AUR helper). The package runs on the system `electron` package and contains the
+web part, so a new version of the package is what updates it. `pnpm run build:arch` builds the package of a checkout,
+see [Building the Arch package](docs/development.md#building-the-arch-package).
 
-**Other platforms:** installers (`.deb`, `.rpm`, `.exe`, portable `.zip`, `.dmg`) are built by the
-_Build Desktop Installers_ workflow and are available as artifacts of its runs. They can also be built locally,
-see [Building the installers](docs/development.md#building-the-installers).
+**Windows, macOS and other Linux distributions:** every tagged release has its installers attached on the
+[releases page](https://github.com/akn19/rakkomik/releases), each for x86-64 and ARM64: an installer and a portable
+`.zip` for Windows, a `.dmg` for macOS, and `.deb` and `.rpm` packages for Linux. The _Build Desktop Installers_
+workflow builds them on demand, and they can be built locally, see
+[Building the installers](docs/development.md#building-the-installers).
 
-The application itself is small: it stores its web part (engine, connectors and user interface) in a cache
-directory and updates it from the [update URL](#command-line-options) when it starts.
+The installers are not signed with a certificate, so Windows and macOS warn before the first start. On Windows choose
+_More info_ and then _Run anyway_. On macOS open the application with a right click and _Open_, or remove the
+quarantine mark once: `xattr -dr com.apple.quarantine /Applications/RakKomik.app`.
+
+Every installer and the Arch package carry the web part (engine, connectors and user interface) and do not update it
+themselves: a new version of the installer or package brings the new web part.
 
 ## Usage
 
@@ -86,6 +94,10 @@ rakkomik [OPTIONS]
 -c, --cache-directory=<DIR>   directory where the web part is stored
 --user-directory=<DIR>        directory where settings, bookmarks and lists are stored
 ```
+
+An application that ships with its web part, in the folder `web` next to `app.asar` (the Arch package and the
+installers), uses that folder as the default cache directory and has the update off by default. Give
+`--cache-directory=<DIR>` or `--update-url=<URL>` to choose differently; the two are independent.
 
 ## Data locations
 

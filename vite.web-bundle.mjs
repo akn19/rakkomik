@@ -10,14 +10,35 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 function git(...args) {
-    return execFileSync('git', args, { encoding: 'utf8' }).trim();
+    // stderr stays out of the build log: a failure is thrown with its message anyway
+    return execFileSync('git', args, { encoding: 'utf8', stdio: [ 'ignore', 'pipe', 'pipe' ] }).trim();
+}
+
+/**
+ * The name of the checkout: its branch, or the tag of a detached checkout (CI builds a release from its tag).
+ * RAKKOMIK_BRANCH names it when the checkout has a made-up branch, like the one makepkg checks a release tag out on
+ * (packaging/aur/PKGBUILD).
+ */
+function checkoutName() {
+    if(process.env.RAKKOMIK_BRANCH) {
+        return process.env.RAKKOMIK_BRANCH;
+    }
+    const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
+    if(branch === 'HEAD') {
+        try {
+            return git('describe', '--tags', '--exact-match', 'HEAD');
+        } catch {
+            // a detached checkout that is not at a tag keeps the name HEAD
+        }
+    }
+    return branch;
 }
 
 /**
  * Write `mjs/VersionInfo.mjs` (branch and revision of the checkout).
  */
 async function createVersionInfo(file) {
-    const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
+    const branch = checkoutName();
     const revision = git('rev-parse', 'HEAD');
     const content = [
         'export default {',

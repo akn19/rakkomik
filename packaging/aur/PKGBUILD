@@ -2,10 +2,15 @@
 #
 # Published by .github/workflows/release.yml: the workflow sets pkgver to the release tag, the deploy
 # action fills in the checksums of the local files (updpkgsums) and pushes this directory to the AUR.
+# `pnpm run build:arch` builds the same package from a working tree: RAKKOMIK_SOURCE then replaces the git tag,
+# RAKKOMIK_BRANCH the branch name that the About dialog shows and RAKKOMIK_PNPM_STORE the store of pnpm.
 #
-# The application is the Electron shell of src/app (the web part is delivered by the application's own
-# updater). It runs on the system `electron` package and so follows Arch's Electron releases: no Electron
-# version is pinned here, the application is kept compatible with the current Electron instead.
+# The package is self-contained. It installs the Electron shell of src/app (app.asar) and the web part
+# (engine, connectors and user interface, built from the same tag) side by side in /usr/lib/rakkomik. The
+# application finds the folder `web` next to app.asar, uses it and leaves its own updater off: a new version of
+# the package is what updates the web part. It runs on the system `electron` package and so follows Arch's
+# Electron releases: no Electron version is pinned here, the application is kept compatible with the current
+# Electron instead.
 
 pkgname=rakkomik
 pkgver=1.0.0
@@ -16,7 +21,7 @@ url='https://github.com/akn19/rakkomik'
 license=('Unlicense')
 depends=('bash' 'electron' 'hicolor-icon-theme')
 makedepends=('git' 'nodejs' 'pnpm')
-source=("git+$url.git#tag=v$pkgver"
+source=("$pkgname::${RAKKOMIK_SOURCE:-git+$url.git#tag=v$pkgver}"
         "$pkgname.sh"
         "$pkgname.desktop")
 sha256sums=('SKIP'
@@ -25,17 +30,26 @@ sha256sums=('SKIP'
 
 build() {
     cd "$pkgname"
+    local store="${RAKKOMIK_PNPM_STORE:-$srcdir/pnpm-store}"
+
+    # The web part. The root project is installed without its scripts: they would download the Electron binary
+    # (the system Electron is used) and install src/app, which is done below. The browser builds of fflate and
+    # protobufjs are vendored into src/web/js by hand, as the postinstall script does.
+    pnpm install --frozen-lockfile --ignore-scripts --store-dir "$store"
+    node scripts/vendor.js
+    # the About dialog names the branch: a release is named after its tag, not after the branch makepkg makes of it
+    RAKKOMIK_BRANCH="${RAKKOMIK_BRANCH:-v$pkgver}" pnpm run build:web
 
     # The runtime dependencies of src/app as a plain node_modules tree (nodeLinker: hoisted in
     # src/app/pnpm-workspace.yaml): an asar cannot follow the symlinks of pnpm's default layout.
-    pnpm --dir src/app install --frozen-lockfile --no-optional --store-dir "$srcdir/pnpm-store"
+    pnpm --dir src/app install --frozen-lockfile --no-optional --store-dir "$store"
 
     # pack the shell without its tests and the package manager files
     mkdir "$srcdir/app"
     tar -C src/app --exclude=__tests__ --exclude='*.log' --exclude=pnpm-lock.yaml --exclude=pnpm-workspace.yaml \
         --exclude=node_modules/.bin --exclude=node_modules/.pnpm --exclude=node_modules/.modules.yaml \
         --exclude=node_modules/.pnpm-workspace-state-v1.json -cf - . | tar -C "$srcdir/app" -xf -
-    pnpm dlx @electron/asar@4 pack "$srcdir/app" "$srcdir/app.asar"
+    pnpm exec asar pack "$srcdir/app" "$srcdir/app.asar"
 }
 
 package() {
@@ -44,6 +58,7 @@ package() {
     install -Dm644 "$srcdir/$pkgname.desktop" "$pkgdir/usr/share/applications/$pkgname.desktop"
 
     cd "$pkgname"
+    cp -r build/web "$pkgdir/usr/lib/$pkgname/web"
     for size in 16 24 32 48 64 96 128 256; do
         install -Dm644 "redist/deb/usr/share/icons/hicolor/${size}x${size}/apps/$pkgname.png" \
             "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/$pkgname.png"

@@ -24,6 +24,7 @@
 | `pnpm start` | run the application against `./src/web` (no update, no cache download) |
 | `pnpm run watch:ui` | rebuild the React user interface into `src/web/ui/dist` when a file changes; an open window keeps the build it loaded, so restart the application to see the change |
 | `pnpm run start:build` | build the web part and run the application against `build/web` |
+| `pnpm run build:arch` | build the Arch Linux package of the working tree into `build/`, see [below](#building-the-arch-package) |
 | `pnpm run lint` | oxlint over the application, the engine, the user interface, the scripts and the end-to-end tests |
 | `pnpm run test` | unit tests (Vitest: the projects `app` and `web`) |
 | `pnpm run test:e2e` | build the web part and run the tests of the real application (Playwright, project `ui`) |
@@ -31,7 +32,9 @@
 | `pnpm run knip` | unused files, exports and dependencies |
 | `pnpm run check:deprecated` | fails when a dependency (at its installed version) is deprecated; needs network |
 | `pnpm run build:web` | the web part in `build/web` |
-| `pnpm run build:app` | the installers of the current platform, see [below](#building-the-installers) |
+| `pnpm run build:app` | the web part, then the installers of the current platform, see [below](#building-the-installers) |
+| `pnpm run build:win` | the web part, then the Windows packages (on Linux and macOS only the portable `.zip`) |
+| `pnpm run build:mac` | the web part, then the macOS `.dmg` files (macOS only) |
 | `pnpm run deploy:web` | publish the web part (CI only), see [releasing](releasing.md#web-part) |
 | `pnpm run icons` | regenerate every icon from `assets/icon.svg` |
 
@@ -91,20 +94,43 @@ them as they are.
 
 ## Building the installers
 
-`pnpm run build:app` builds the installers of the platform it runs on, from the Electron version that is installed:
+`pnpm run build:app` builds the web part and then the installers of the platform it runs on, from the Electron version
+that is installed. `pnpm run build:win` and `pnpm run build:mac` name the platform instead, and
+`node build-app.js <windows|linux|macos>` does the same without building the web part. Every output is x86-64 and
+ARM64, named with the version of `package.json`:
 
-| Platform | Output | Needs |
-|---|---|---|
-| Linux | `.deb`, `.rpm` | `fakeroot`, `dpkg`, `lintian`, `rpm`, `unzip` |
-| Windows | Inno Setup installer, portable `.zip` | `innosetup-compiler`, `tar` |
-| macOS | `.dmg` | `hdiutil` |
+| Platform | Output | Needs | Built on |
+|---|---|---|---|
+| Linux | `.deb`, `.rpm` | `fakeroot`, `dpkg`, `lintian`, `rpm`, `unzip` | Linux |
+| Windows | Inno Setup installer, portable `.zip` | `innosetup-compiler` (installer), `bsdtar` or `tar` (zip) | the installer on Windows, the zip on any host with `bsdtar` |
+| macOS | `.dmg` | `hdiutil`, `codesign` | macOS |
 
-`app.asar` contains `src/app` with its runtime dependencies. On Linux and Windows the Electron binary is hardened
-with fuses before it is packaged (no `ELECTRON_RUN_AS_NODE`, no `NODE_OPTIONS`, no inspector arguments; the
-application only loads from `app.asar`) and the result is read back. The _Build Desktop Installers_ workflow builds
-all three platforms.
+The portable `.zip` of Windows is the one package that can be built from another platform: on Linux install `bsdtar`
+(libarchive), because GNU tar cannot write a ZIP, and `unzip`. Everything else needs the tools of its own platform;
+the _Build Desktop Installers_ workflow builds all of them (start it by hand from the Actions tab), and a release does
+it for you, see [releasing](releasing.md#releases).
+
+`app.asar` contains `src/app` with its runtime dependencies, and the web part from `build/web` sits next to it in the
+folder `web`, so the application runs without the web part release (see [architecture](architecture.md#delivery-and-updates-of-the-web-part)).
+On Linux and Windows the Electron binary is hardened with fuses before it is packaged (no `ELECTRON_RUN_AS_NODE`, no
+`NODE_OPTIONS`, no inspector arguments; the application only loads from `app.asar`) and the result is read back. On
+macOS the application is signed ad hoc, because Apple Silicon refuses code whose signature does not match its files
+after the bundle was renamed; the Info.plist of Electron keeps its keys and only the keys that name the application
+change. Neither platform has a certificate, so Windows SmartScreen and macOS Gatekeeper warn the user once.
+
+## Building the Arch package
+
+`pnpm run build:arch` builds `build/rakkomik-<version>-1-any.pkg.tar.zst`. Install it with
+`sudo pacman -U build/rakkomik-*.pkg.tar.zst` and remove it with `sudo pacman -R rakkomik`. It needs `makepkg`
+(`base-devel`), `git`, `node` and `pnpm` on the `PATH`; the last two do not have to be pacman packages.
+
+`scripts/build-arch.sh` copies the working tree, uncommitted changes included, into a throwaway git checkout and runs
+the `PKGBUILD` of the AUR package (`packaging/aur`) on it, with `RAKKOMIK_SOURCE` in place of the release tag. So the
+package built here is the package the AUR delivers. It reuses the pnpm store of the project, which makes a build take
+about half a minute once the dependencies have been downloaded. The package holds the Electron shell and the web part
+and runs on the system `electron`, see [releasing](releasing.md#aur-package).
 
 ## Generated and ignored files
 
 `src/web/js/fflate.mjs` and `protobuf.min.js` (vendored), `src/web/ui/dist` (user interface bundle), `build/` (web
-part and installers), `test-results/`, `playwright-report/`, `junit*.xml` and the `*.log` files of the logger tests.
+part, installers and the Arch package), `test-results/`, `playwright-report/`, `junit*.xml` and the `*.log` files of the logger tests.

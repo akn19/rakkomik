@@ -94,6 +94,12 @@ Writes are atomic: a file is written next to its target and renamed over it.
 - **Client:** the update URL points at the `latest` asset of that release. It names the archive and its signature;
   the application checks the signature against the public key in `src/app/Configuration.js` before it extracts the
   archive over the cache directory.
+- **Packaged applications** (the Arch package and every installer) ship the web part in the folder `web` next to
+  `app.asar` (`build:web` runs before the packagers do). When that folder has an `index.html`, the application uses it
+  as its cache directory and leaves the update off (`Configuration.bundledWebDirectory`, applied in `App`); a
+  `--cache-directory` or `--update-url` on the command line wins, each on its own. Development (`electron .`) has no
+  `app.asar`, so it is not affected. Such an application does not depend on the web part release or its signing key;
+  a new version of the package or installer is what updates the web part.
 
 ## Requests and interstitials
 
