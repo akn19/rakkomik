@@ -8,7 +8,8 @@ import {
     toggleChaptermark,
     deleteChaptermark,
     isChapterMarked,
-    showChapterFolder
+    showChapterFolder,
+    subscribeChapterStatus
 } from './engine.js';
 import { fetchChapterList, addChapterDownloads } from './queries.js';
 import { useSelection } from './selection.jsx';
@@ -106,6 +107,11 @@ export default function ChaptersPanel({ readerEnabled }) {
         enabled: !!manga
     });
     const chapters = React.useMemo(() => chaptersQuery.data || [], [chaptersQuery.data]);
+
+    // A download changes the status of its chapter in place (queued, downloading, completed), which React cannot see:
+    // a query that re-reads the list returns the same objects and keeps its old data. So redraw the rows on the event.
+    const [, redraw] = React.useReducer(count => count + 1, 0);
+    React.useEffect(() => subscribeChapterStatus(redraw), []);
 
     const markedChapter = React.useSyncExternalStore(
         subscribeChaptermarks,

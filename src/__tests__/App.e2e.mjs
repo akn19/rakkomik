@@ -154,6 +154,37 @@ test.describe('chapters and reader', () => {
         await expect.poll(() => page.evaluate(() => Engine.BookmarkManager.bookmarks.length)).toBe(before);
     });
 
+    // A download changes the status of its chapter in place, and the icon of the row has to follow: cloud, then the
+    // download cloud while it is queued and downloading, then the folder. It writes a chapter, so it has its own app.
+    test('should follow the download of a chapter with the icon of its row', async ({ isolatedApp }) => {
+        const { page } = isolatedApp;
+        await openSeededManga(page);
+        // the page list is held back, so the chapter stays in the downloading stage until the test lets it go
+        await page.evaluate(async () => {
+            const chapterModule = '/mjs/engine/Chapter.mjs';
+            const { default: Chapter } = await import(chapterModule);
+            Chapter.prototype.getPages = function(callback) {
+                window.finishPages = () => callback(null, [ 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/>') ]);
+            };
+        });
+        const status = page.locator('[role=list] > div > div').first().getByRole('button').first();
+        const icon = status.locator('svg');
+        const iconIs = name => new RegExp(`(^|\\s)lucide-${name}(\\s|$)`);
+
+        await expect(status).toHaveAttribute('title', /^AVAILABLE/);
+        await expect(icon).toHaveClass(iconIs('cloud'));
+        await status.click();
+        await expect(status).toHaveAttribute('title', /^(QUEUED|DOWNLOADING)/);
+        await expect(icon).toHaveClass(iconIs('cloud-download'));
+        // the job asked for the page list: it is downloading now
+        await expect.poll(() => page.evaluate(() => typeof window.finishPages)).toBe('function');
+        await expect(status).toHaveAttribute('title', 'DOWNLOADING');
+        await expect(icon).toHaveClass(iconIs('cloud-download'));
+        await page.evaluate(() => window.finishPages());
+        await expect(status).toHaveAttribute('title', /^DOWNLOADED/);
+        await expect(icon).toHaveClass(iconIs('folder-open'));
+    });
+
     test('should read a chapter: thumbnails, full-window reading, zoom, chapter order and Escape', async ({ page }) => {
         await reload(page);
         await openSeededManga(page);

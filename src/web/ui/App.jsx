@@ -6,8 +6,8 @@ import { queryClient } from './queries.js';
 import { subscribeDownloads, subscribeSettings } from './engine.js';
 
 export default function App() {
-    // Live chapter badges: any download event refreshes chapter lists
-    // (chapter objects mutate in place; invalidation re-reads them).
+    // Any download event re-reads the chapter lists, which refreshes their statuses from the manga folder. It does
+    // not redraw them (the objects stay the same): the chapter panel does that itself on a status change.
     React.useEffect(() => subscribeDownloads(() => {
         queryClient.invalidateQueries({ queryKey: ['chapters'] });
     }), []);

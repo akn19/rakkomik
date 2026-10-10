@@ -242,6 +242,16 @@ export function subscribeDownloads(listener) {
 }
 
 /**
+ * Calls the listener when the status of a chapter changes (queued, downloading, completed, failed). The chapter
+ * objects change in place, so a view that shows their status has to redraw itself on this.
+ */
+export function subscribeChapterStatus(listener) {
+    // the engine announces it on the document, under the name Enums.EventListener.onChapterStatusChanged
+    document.addEventListener('onChapterStatusChanged', listener);
+    return () => document.removeEventListener('onChapterStatusChanged', listener);
+}
+
+/**
  * Merge one manager event into the view list (classic jobs.html parity):
  * update a tracked job in place, drop it when completed, replace a failed
  * twin, and track new queued/downloading jobs.
