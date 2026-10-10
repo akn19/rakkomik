@@ -88,7 +88,7 @@ The settings are in the menu. The most important ones:
 rakkomik [OPTIONS]
 
 -u, --update-url=<URL>        URL that is checked for updates of the web part
-                              (default: https://github.com/akn19/rakkomik/releases/download/web-master/latest;
+                              (default: https://github.com/akn19/rakkomik/releases/download/web-main/latest;
                               an unusable value such as DISABLED turns the update off)
 --startup-url=<URL>           entry point of the web part (default: hakuneko://cache/index.html)
 -c, --cache-directory=<DIR>   directory where the web part is stored

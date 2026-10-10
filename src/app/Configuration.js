@@ -23,7 +23,7 @@ module.exports = class Configuration {
     constructor(configuration) {
         let options = configuration || {};
         let applicationExecutableDirectory = path.dirname(electron.app.getPath('exe'));
-        this._applicationUpdateURL = options['applicationUpdateURL'] || 'https://github.com/akn19/rakkomik/releases/download/web-master/latest';
+        this._applicationUpdateURL = options['applicationUpdateURL'] || 'https://github.com/akn19/rakkomik/releases/download/web-main/latest';
         // the scheme is part of the engine's contract: Connectors.mjs loads its modules over hakuneko://
         this._applicationStartupURL = options['applicationStartupURL'] || 'hakuneko://cache/index.html';
         this._applicationCacheDirectory = options['applicationCacheDirectory'] || path.join(applicationExecutableDirectory, 'cache');

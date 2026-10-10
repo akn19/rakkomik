@@ -23,7 +23,7 @@ async function gh(args, silent) {
 }
 
 /**
- * Channel this deployment publishes (`master`, `6.1.7`, ...).
+ * Channel this deployment publishes (`main`, `6.1.7`, ...).
  * In CI derived from GITHUB_REF (`refs/heads/<branch>`), otherwise from
  * the CHANNEL environment variable (manual runs).
  */
@@ -36,7 +36,7 @@ function resolveChannel() {
     if(match) {
         return match[1].replace(/\//g, '-');
     }
-    throw new Error('Cannot derive deployment channel: set CHANNEL or run in GitHub Actions (GITHUB_REF)! E.g. CHANNEL=master node deploy-web.js');
+    throw new Error('Cannot derive deployment channel: set CHANNEL or run in GitHub Actions (GITHUB_REF)! E.g. CHANNEL=main node deploy-web.js');
 }
 
 function validateEnvironment() {

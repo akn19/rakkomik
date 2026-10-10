@@ -5,8 +5,8 @@
 | Workflow | Runs on | What it does |
 |---|---|---|
 | `ci-pr.yml` | pull requests | lint, deprecated dependency check, web build and unit tests on Windows, Linux and macOS; a [git-cliff](https://git-cliff.org) preview of the changes since the last release in the job summary |
-| `build-app.yml` | pushes to `master` and `*.*.*` branches, by hand, and `release.yml` | builds the web part and the installers of the three platforms and uploads them as artifacts (only the `.deb`, `.rpm`, `.exe`, `.zip` and `.dmg` files) |
-| `continuous-deployment.yml` | pushes to `master` and `*.*.*` branches | publishes the web part (`pnpm run deploy:web`) |
+| `build-app.yml` | pushes to `main` and `*.*.*` branches, by hand, and `release.yml` | builds the web part and the installers of the three platforms and uploads them as artifacts (only the `.deb`, `.rpm`, `.exe`, `.zip` and `.dmg` files) |
+| `continuous-deployment.yml` | pushes to `main` and `*.*.*` branches | publishes the web part (`pnpm run deploy:web`) |
 | `release.yml` | tags `vX.Y.Z`, by hand | release notes, GitHub release, AUR package, installers attached to the release |
 | `continuous-integration.yml` | nothing (switched off with `branches: DISABLED`) | an older push-triggered copy of the pull request checks |
 
@@ -42,14 +42,14 @@ git-cliff from your distribution or run `pnpm dlx git-cliff`.
 
 ## Web part
 
-`continuous-deployment.yml` runs `pnpm run deploy:web` on every push to `master` or to a `*.*.*` branch:
+`continuous-deployment.yml` runs `pnpm run deploy:web` on every push to `main` or to a `*.*.*` branch:
 
 - the **channel** is the branch name (slashes become `-`); `CHANNEL=<name>` sets it for a manual run;
 - `build/web` is zipped as `<TIMESTAMP>.zip`, the archive is signed with the private key and the meta file `latest`
   is written (`<archive>?signature=<signature>`);
 - both files are uploaded to the rolling GitHub release `web-<channel>` (created on first use), so
   `https://github.com/<owner>/<repo>/releases/download/web-<channel>/latest` always names the newest archive. That
-  URL is the default update URL of the application (`master` channel).
+  URL is the default update URL of the application (`main` channel).
 
 The private key must belong to the public key in `src/app/Configuration.js`; an archive that does not verify is
 rejected by the application.
