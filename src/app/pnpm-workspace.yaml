@@ -1,10 +1,7 @@
-# Instalasi mandiri src/app (nested, lihat pnpm-workspace.yaml root).
-# Menampung `overrides` + `allowBuilds` untuk resolusi discord-rpc.
-# Catatan pin: pino 7.11.0 (bukan latest) — lini terakhir yang jalan di
-# runtime Node 12 Electron 8; naikkan setelah upgrade Electron (Fase 1).
+# Instalasi mandiri src/app (nested; dipasang oleh `postinstall` di root).
+# `nodeLinker: hoisted`: app.asar berisi pohon `node_modules` fisik — Electron tidak bisa
+# `require` lewat symlink ke store `.pnpm` di dalam asar (ENOENT saat start). pnpm 11+ hanya
+# membaca pengaturan autentikasi dari `.npmrc`, jadi pengaturannya tinggal di berkas ini.
 packages:
   - .
-overrides:
-  register-scheme: 0.0.2
-allowBuilds:
-  register-scheme: true
+nodeLinker: hoisted

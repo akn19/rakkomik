@@ -4,21 +4,18 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  register-scheme: 0.0.2
-
 importers:
 
   .:
     dependencies:
       '@xhayper/discord-rpc':
-        specifier: 1.5.1
+        specifier: ^1.5.1
         version: 1.5.1
       fflate:
-        specifier: 0.8.3
+        specifier: ^0.8.3
         version: 0.8.3
       pino:
-        specifier: 10.4.0
+        specifier: ^10.4.0
         version: 10.4.0
 
 packages:

@@ -9,9 +9,12 @@
     "url": "https://github.com/manga-download/hakuneko"
   },
   "main": "main.js",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "dependencies": {
-    "@xhayper/discord-rpc": "1.5.1",
-    "fflate": "0.8.3",
-    "pino": "10.4.0"
+    "@xhayper/discord-rpc": "^1.5.1",
+    "fflate": "^0.8.3",
+    "pino": "^10.4.0"
   }
 }
