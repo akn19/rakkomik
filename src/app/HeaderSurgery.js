@@ -61,17 +61,14 @@ class CookieJar {
     }
 }
 
-function randomChromeUA() {
-    const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-    const version = `${rnd(131, 132)}.${rnd(0, 99)}.${rnd(0, 9999)}.${rnd(0, 999)}`;
-    return `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${version} Safari/537.36`;
-}
-
 module.exports = class HeaderSurgery {
 
-    constructor() {
-        //Like the renderer Request.userAgent: one plausible Chrome UA per launch.
-        this.userAgent = randomChromeUA();
+    /**
+     * @param {string} [userAgent] the application's user agent (ElectronBootstrap passes
+     *   Chromium's own); requests that still carry the raw Electron one are aligned to it
+     */
+    constructor(userAgent) {
+        this.userAgent = userAgent || `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome || '120.0.0.0'} Safari/537.36`;
     }
 
     applyBeforeSendHeaders(url, requestHeaders) {
@@ -90,7 +87,7 @@ module.exports = class HeaderSurgery {
         }
         delete requestHeaders['x-host'];
 
-        // Always overwrite the electron user agent
+        // Align stray Electron user agents with the application's one
         if (requestHeaders['User-Agent'] && requestHeaders['User-Agent'].toLowerCase().includes('electron')) {
             requestHeaders['User-Agent'] = this.userAgent;
         }
@@ -100,9 +97,9 @@ module.exports = class HeaderSurgery {
             delete requestHeaders['x-user-agent'];
         }
 
-        // Prevent loading anything from cache (espacially CloudFlare protection)
-        requestHeaders['Cache-Control'] = requestHeaders['no-cache'];
-        requestHeaders['Pragma'] = requestHeaders['no-cache'];
+        // Always revalidate (an interstitial must never be served from the cache)
+        requestHeaders['Cache-Control'] = 'no-cache';
+        requestHeaders['Pragma'] = 'no-cache';
 
         /*
          * Overwrite the Referer header, but

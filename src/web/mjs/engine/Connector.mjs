@@ -1,4 +1,5 @@
 import Manga from './Manga.mjs';
+import { isChallengeResponse } from './AntiScraping.mjs';
 import { loadProtobuf } from './Protobuf.mjs';
 import { utf8ToBytes, bytesToUtf8, bytesToBase64, base64ToBytes } from './Crypto.mjs';
 
@@ -437,6 +438,10 @@ export default class Connector {
         if(response.status >= 500 && retries > 0) {
             await this.wait(2500);
             return this.fetchDOM(request, selector, retries - 1);
+        }
+        // fetch() already tried to complete the interstitial in a hidden window (AntiScraping.mjs)
+        if(isChallengeResponse(response)) {
+            throw new Error(`The anti-bot check of "${new URL(request.url).origin}" could not be completed (status: ${response.status})`);
         }
         const content = response.headers.get('content-type');
         if(response.status === 200 || content.includes('text/html')) {

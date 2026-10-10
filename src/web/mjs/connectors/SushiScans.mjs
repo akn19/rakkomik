@@ -1,5 +1,4 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
-import HeaderGenerator from '../engine/HeaderGenerator.mjs';
 
 export default class SushiScans extends WordPressMangastream {
 
@@ -38,7 +37,6 @@ export default class SushiScans extends WordPressMangastream {
         await this.wait(1500);
         let request = new Request(payload, this.requestOptions);
         request.headers.set('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8');
-        request.headers.set('x-user-agent', HeaderGenerator.randomUA());
         let response = await fetch(request);
         let data = await response.blob();
         data = await this._blobToBuffer(data);

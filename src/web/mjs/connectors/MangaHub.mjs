@@ -1,6 +1,5 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
-import HeaderGenerator from '../engine/HeaderGenerator.mjs';
 
 export default class MangaHub extends Connector {
 
@@ -136,7 +135,6 @@ export default class MangaHub extends Connector {
     }
 
     async _fetchApiKey(mangaSlug, chapterNumber, stop = false) {
-        this.requestOptions.headers.set('x-user-agent', HeaderGenerator.randomUA());
         let path = '';
         if (mangaSlug && chapterNumber) {
             await this._updateCookies(chapterNumber);

@@ -48,7 +48,7 @@ export const test = base.extend({
         const page = await electronApp.firstWindow();
         const external = [];
         page.on('request', request => {
-            if (!/^(hakuneko|connector|data|blob|devtools|chrome-extension):/.test(request.url())) {
+            if (!/^(hakuneko|connector|data|blob|devtools|chrome-extension):/.test(request.url()) && !/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(request.url())) {
                 external.push(request.url());
             }
         });

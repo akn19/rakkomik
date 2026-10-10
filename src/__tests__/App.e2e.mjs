@@ -1,6 +1,7 @@
 // Hermetic UI tests on the real application (isolated profile, no site access):
 // startup budget, connector picker, 10k-title list, chapter list, reader, menu.
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -330,6 +331,116 @@ test.describe('archives and bookmark import', () => {
             { key: { connector: 'example.org', manga: '/manga/alpha' }, title: { connector: 'Example', manga: 'Alpha' } },
             { key: { connector: 'example.net', manga: '/series/beta' }, title: { connector: 'Example Net', manga: 'Beta' } }
         ]);
+    });
+});
+
+// A local site behind interstitials, like the ones anti-bot services serve:
+// `/auto` completes by itself, `/manual` needs a click, `/stuck` never completes.
+// A completed check is granted its cookie by the `/pass` endpoint (a Set-Cookie
+// header, as the real services do: HeaderSurgery makes it usable across sites),
+// after which every route answers with the real content.
+function createGateServer() {
+    const hits = { auto: [], manual: [], stuck: [] };
+    const page = (title, body) => `<!doctype html><html><head><title>${title}</title></head><body>${body}</body></html>`;
+    const server = http.createServer((request, response) => {
+        const [ route, query ] = request.url.slice(1).split('?');
+        if (route === 'pass') {
+            response.writeHead(204, { 'set-cookie': `${query}=passed; Path=/; Secure` });
+            return response.end();
+        }
+        const passed = (request.headers.cookie || '').includes(`${route}=passed`);
+        if (hits[route]) {
+            hits[route].push(passed ? 'content' : 'interstitial');
+        }
+        if (passed) {
+            response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+            return response.end(page('Content', `<h1>${route} passed</h1>`));
+        }
+        const interstitial = (status, body) => {
+            response.writeHead(status, { 'content-type': 'text/html; charset=utf-8', 'cf-mitigated': 'challenge', server: 'cloudflare' });
+            response.end(page('Just a moment...', body));
+        };
+        const pass = `fetch('/pass?${route}').then(() => location.reload())`;
+        switch (route) {
+            case 'auto':
+                return interstitial(503, `<div id="challenge-running"></div><script>setTimeout(() => ${pass}, 700);</script>`);
+            case 'manual':
+                return interstitial(403, `<div id="challenge-stage"><button id="verify">Verify you are human</button></div><script>document.getElementById('verify').onclick = () => ${pass};</script>`);
+            case 'stuck':
+                return interstitial(503, `<div id="challenge-running"></div>`);
+            default:
+                response.writeHead(404);
+                return response.end();
+        }
+    });
+    return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve({
+        url: `http://127.0.0.1:${server.address().port}`,
+        hits,
+        close: () => new Promise(done => {
+            server.closeAllConnections();
+            server.close(done);
+        })
+    })));
+}
+
+const fetchHeading = (base, route) => [ async ([ base, route, id ]) => {
+    const connector = Engine.Connectors.find(entry => entry.id === id);
+    const [ heading ] = await connector.fetchDOM(new Request(`${base}/${route}`, connector.requestOptions), 'h1');
+    return heading.textContent;
+}, [ base, route, SEED_CONNECTOR ] ];
+
+const visibleWindows = app => app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter(window => window.isVisible()).length);
+
+test.describe('anti-bot interstitials', () => {
+    test('should complete an interstitial that finishes by itself, then retry the request', async ({ page }) => {
+        const gate = await createGateServer();
+        try {
+            await reload(page);
+            await connectorsReady(page);
+            await expect(page.evaluate(...fetchHeading(gate.url, 'auto'))).resolves.toBe('auto passed');
+            // fetch (challenged), hidden window (challenged), the page's own reload (content), fetch again (content)
+            expect(gate.hits.auto).toEqual([ 'interstitial', 'interstitial', 'content', 'content' ]);
+        } finally {
+            await gate.close();
+        }
+    });
+
+    test('should show the window to the user when the interstitial needs a click', async ({ app, page }) => {
+        const gate = await createGateServer();
+        try {
+            await reload(page);
+            await connectorsReady(page);
+            await page.evaluate(() => { Engine.Request.interactiveAfter = 500; });
+            const windowOpened = app.electronApp.waitForEvent('window', { timeout: 15000 });
+            const pending = page.evaluate(...fetchHeading(gate.url, 'manual'));
+            const challenge = await windowOpened;
+            await expect.poll(() => visibleWindows(app), { timeout: 10000 }).toBe(2);
+            await challenge.click('#verify');
+            await expect(pending).resolves.toBe('manual passed');
+            expect(gate.hits.manual).toEqual([ 'interstitial', 'interstitial', 'content', 'content' ]);
+            await expect.poll(() => visibleWindows(app), { timeout: 10000 }).toBe(1);
+        } finally {
+            await gate.close();
+        }
+    });
+
+    test('should give up with a clear error when the interstitial never completes', async ({ app, page }) => {
+        const gate = await createGateServer();
+        try {
+            await reload(page);
+            await connectorsReady(page);
+            await page.evaluate(() => {
+                Engine.Request.interactiveAfter = 300;
+                Engine.Request.challengeTimeout = 1500;
+                Engine.Request.interactiveTimeout = 1500;
+            });
+            await expect(page.evaluate(...fetchHeading(gate.url, 'stuck'))).rejects.toThrow(/anti-bot check of "http:\/\/127\.0\.0\.1:\d+" could not be completed \(status: 503\)/);
+            // fetch (challenged), the hidden window (never completes): no retry without a completed check
+            expect(gate.hits.stuck).toEqual([ 'interstitial', 'interstitial' ]);
+            await expect.poll(() => app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), { timeout: 10000 }).toBe(1);
+        } finally {
+            await gate.close();
+        }
     });
 });
 

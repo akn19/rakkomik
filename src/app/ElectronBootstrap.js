@@ -57,6 +57,12 @@ module.exports = class ElectronBootstrap {
          */
         electron.protocol.registerSchemesAsPrivileged(this._schemes);
 
+        // One user agent for everything (renderer fetch(), hidden fetch windows, navigator.userAgent):
+        // Chromium's own, without the Electron and application product tokens that websites do not
+        // know. Cookies granted by anti-bot interstitials are bound to the user agent that earned them.
+        const products = [ 'Electron', electron.app.name ].map(name => RegExp.escape(name)).join('|');
+        electron.app.userAgentFallback = electron.app.userAgentFallback.replace(new RegExp(` (?:${products})/\\S+`, 'g'), '');
+
         // update userdata path (e.g. for portable version)
         electron.app.setPath('userData', this._configuration.applicationUserDataDirectory);
 
@@ -458,7 +464,7 @@ module.exports = class ElectronBootstrap {
         // surgery — the renderer round-trip MUST NOT be used here: on modern
         // Electron an async webRequest listener hangs every request before
         // the hook even fires (verified live on Electron 44).
-        const surgery = new HeaderSurgery();
+        const surgery = new HeaderSurgery(electron.app.userAgentFallback);
         electron.session.defaultSession.webRequest.onBeforeSendHeaders(urlFilterAll, (details, callback) => {
             try {
                 callback({
@@ -478,7 +484,7 @@ module.exports = class ElectronBootstrap {
 
     _setupHeadersReceived() {
         // See _setupBeforeSendHeaders for why this stays synchronous.
-        const surgery = this._headerSurgery || new HeaderSurgery();
+        const surgery = this._headerSurgery || new HeaderSurgery(electron.app.userAgentFallback);
         electron.session.defaultSession.webRequest.onHeadersReceived(urlFilterAll, (details, callback) => {
             try {
                 callback({
