@@ -1,4 +1,4 @@
-# Audit Modernisasi HakuNeko
+# Audit Modernisasi RakKomik
 
 > Tanggal: 2026-10-04 · Basis: Electron 8.3.4 (Chromium 80 / Node 14) → target Electron 44.x
 > Status: **dokumen analisis, belum ada perubahan kode**.
@@ -31,7 +31,7 @@
 | `fs-extra` 11.4.0 | Sehat, tapi sebagian besar sudah dicover `fs/promises` + `fs.cp` bawaan Node 20+ | Migrasi bertahap ke native, lalu lepas dependensi |
 | `jszip` 3.10.1 | Sehat, tidak ada pengganti native | Tetap, kunci versi |
 | `@logtrine/logtrine` 1.1.2 | Privat; harus hilang (keputusan §6.2) | → logger publik (`pino`/`winston`) |
-| `@hakuneko/*-binaries` (ffmpeg/imagemagick/kindlegen) | Privat; skope-cut §6 menghapus pemakainya | **Hapus semua** (lihat §6.2) |
+| paket privat `*-binaries` (ffmpeg/imagemagick/kindlegen) | Privat; skope-cut §6 menghapus pemakainya | **Hapus semua** (lihat §6.2) |
 
 ### 2.2 Renderer lib (`src/web/js`, dimuat via `<script>` di `index.html`)
 
@@ -125,7 +125,7 @@ Sudah dikonfirmasi via grep (bukan dugaan):
 
 - **Konektor dimuat dinamis saat runtime**: `Connectors.mjs` me-`list` direktori `hakuneko://cache/mjs/connectors/*.mjs` lalu `await import(file)`. Artinya **1340 konektor + `img/connectors/*` adalah aset statis, bukan modul bundle** — di Vite mereka masuk `public/` (atau disalin via plugin) dan **tidak boleh dibundle/di-tree-shake**.
 - Yang **boleh** dibundle Vite: `index.html` + `mjs/engine/*` (+ UI baru nanti).
-- **Penjebak:** `build-web.js` saat ini mem-bundle **frontend Polymer via HTML Imports** (`lib/hakuneko/.../app.html` sebagai fragments). **Vite/Rollup tidak memproses HTML Imports** — jadi migrasi Vite penuh **terblokir sampai UI Polymer diganti React (§5, WAJIB)**.
+- **Penjebak:** `build-web.js` saat ini mem-bundle **frontend Polymer via HTML Imports** (`lib/<app>/.../app.html` sebagai fragments). **Vite/Rollup tidak memproses HTML Imports** — jadi migrasi Vite penuh **terblokir sampai UI Polymer diganti React (§5, WAJIB)**.
 
 ### 4.2 Bentuk target yang direkomendasikan
 
@@ -159,7 +159,7 @@ Keputusan: **hanya engine + konektor yang dipertahankan; seluruh UI diganti**. I
 
 | Dipertahankan (engine) | Diganti total (UI) |
 |---|---|
-| `mjs/engine/*`, `mjs/connectors/*` (1340 konektor), `mjs/VersionInfo.mjs` | `index.html` (shell + inline script), `lib/hakuneko/*` (26 file), `lib/polymer`, `lib/iron-*`, `lib/webcomponentsjs`, `lib/shadycss` |
+| `mjs/engine/*`, `mjs/connectors/*` (1340 konektor), `mjs/VersionInfo.mjs` | `index.html` (shell + inline script), `lib/<app>/*` (26 file), `lib/polymer`, `lib/iron-*`, `lib/webcomponentsjs`, `lib/shadycss` |
 | Protokol `hakuneko://` + `connector://`, `fetchUI`, EbookGenerator | `theme.html` ×2, `replaceDialogs()`, window controls inline |
 | Urutan muat: engine expose `window.Engine` **sebelum** UI mount (konektor bergantung pada global ini) | Duplikasi tema light/dark → satu codebase |
 
@@ -272,9 +272,9 @@ Konsekuensi:
 
 | Paket privat | Dipakai oleh | Pengganti / aksi |
 |---|---|---|
-| `@hakuneko/ffmpeg-binaries` | Jalur video `DownloadJob` + hack `PATH` `App.js` + tahap `_bundleStaticBinary` di `build-app.js` | **Hapus total** (paket + 3 pemakaian). Tidak ada pengganti — fitur videonya dihapus (§6.1) |
-| `@hakuneko/imagemagick-binaries` | Tidak ada pemakaian otomatis di kode (satu-satunya rujukan harfiah `convert` hanyalah **contoh teks** di setting `postChapterDownloadCommand` milik user) | **Hapus** paket + tahap bundle. Fitur post-command generik tetap; contoh teks disesuaikan (user yang butuh pasang ImageMagick sistem sendiri) |
-| `@hakuneko/kindlegen-binaries` | **Nol rujukan** di seluruh `src/` — dead weight yang ikut dibundle | **Hapus** paket + tahap bundle |
+| `ffmpeg-binaries` (paket privat) | Jalur video `DownloadJob` + hack `PATH` `App.js` + tahap `_bundleStaticBinary` di `build-app.js` | **Hapus total** (paket + 3 pemakaian). Tidak ada pengganti — fitur videonya dihapus (§6.1) |
+| `imagemagick-binaries` (paket privat) | Tidak ada pemakaian otomatis di kode (satu-satunya rujukan harfiah `convert` hanyalah **contoh teks** di setting `postChapterDownloadCommand` milik user) | **Hapus** paket + tahap bundle. Fitur post-command generik tetap; contoh teks disesuaikan (user yang butuh pasang ImageMagick sistem sendiri) |
+| `kindlegen-binaries` (paket privat) | **Nol rujukan** di seluruh `src/` — dead weight yang ikut dibundle | **Hapus** paket + tahap bundle |
 | `@logtrine/logtrine` | `ConsoleLogger` di 6 file `src/app` + `FileLogger` di 4 file test | Ganti **pino (diputuskan)** — cepat, API kecil, paket publik. Effort S–M (bungkus kompatibilitas `ConsoleLogger`/`FileLogger(level)` bila ingin minim diff) |
 
 Setelah §6.2, `build-app.js` kehilangan 3 pemanggilan `_bundleStaticBinary` (+ helper-nya bila tak dipakai lagi) dan ukuran installer menyusut signifikan (3 set biner × 3 platform hilang). Tidak ada lagi dependensi pada registry/scope privat — instalasi full dari npm publik.
@@ -284,7 +284,7 @@ Setelah §6.2, `build-app.js` kehilangan 3 pemanggilan `_bundleStaticBinary` (+ 
 Hasil penelusuran mekanisme yang ada (`UpdateServerManager` → `Updater` → `CacheDirectoryManager`, rilis via `deploy-web.js`):
 
 - **Protokolnya sudah host-agnostik.** `GET applicationUpdateURL` → badan respons = teks satu baris `<versi>.zip?signature=<hex>` → app unduh zip → verifikasi **RSA-SHA256 lokal** dengan public key yang di-embed di `Configuration.js` → timpa direktori cache → tulis file `version`. Tidak ada logika yang mengharuskan server privat.
-- **Default URL-nya BAHKAN sudah GitHub** (`https://manga-download.github.io/hakuneko/master/latest`). Penandatanganan terjadi saat rilis (CI, openssl + `key.pem` ber-passphrase), bukan di server.
+- **Default URL-nya BAHKAN sudah GitHub** (GitHub Pages upstream, jalur `master/latest`). Penandatanganan terjadi saat rilis (CI, openssl + `key.pem` ber-passphrase), bukan di server.
 - **Tidak perlu repo sendiri — repo utama cukup (bahkan sudah begitu).** Fakta: `deploy-web.js` + `deploy-web.config` saat ini mem-publish ke **branch `gh-pages` di repo yang sama**, folder per channel (`master/`, `6.1.7/` …), dan URL update menunjuk ke sana. Dua opsi satu-repo:
   - **(a) Pertahankan `gh-pages` (perubahan ~nol).** Alur `deploy-web.js` (fetch → checkout branch → `git rm` versi lama → commit → push → trigger pages build) tetap jalan apa adanya; kode app tidak berubah. Kekurangan: histori branch tumbuh ±10–15 MB per deploy (zip bundel saat ini ≈33 MB source), dan butuh workaround trigger pages-build via API.
   - **(b, direkomendasikan) GitHub Releases assets di repo utama.** `latest` (meta) + `<versi>.zip` sebagai aset rilis; update-URL → `…/releases/latest/download/latest`. Untung: tanpa branch kedua, tanpa git-bloat sama sekali (aset ≠ objek git), rollback = pilih rilis lama, changelog gratis, CI lebih sederhana (`gh release upload`, hapus logika git-stash/checkout/push + trigger pages). Redirect 302 berantai sudah ditangani `_request` (rekursif). Hindari opsi ketiga (zip di-commit ke branch reguler / `raw.githubusercontent`) — itu yang menggelembungkan histori git.
