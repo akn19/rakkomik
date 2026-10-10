@@ -1,0 +1,109 @@
+# https://help.github.com/en/articles/workflow-syntax-for-github-actions
+#
+# A release is a tag `vX.Y.Z` (no suffix: it becomes the AUR `pkgver`) whose number equals the
+# `version` of package.json and src/app/package.json. Pushing the tag
+#   1. writes the release notes with git-cliff (cliff.toml) from the conventional commit messages,
+#   2. creates (or updates) the GitHub release with them,
+#   3. publishes packaging/aur to the AUR as the package `rakkomik`.
+# Run the workflow by hand with the tag as input to publish an existing tag again.
+#
+# Required repository secret for step 3:
+#   AUR_SSH_PRIVATE_KEY   private half of an SSH key whose public half is added to the AUR account
+#                         (the first push creates the AUR package when the name is still free)
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish again, e.g. v1.0.0'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check the tag
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::The tag \"$TAG\" is not of the form vX.Y.Z!"
+            exit 1
+          fi
+      - name: Checkout ${{ github.repository }} @ ${{ env.TAG }}
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          fetch-depth: 0
+      - name: Check the tag against the package versions
+        run: |
+          version="${TAG#v}"
+          for file in package.json src/app/package.json; do
+            declared=$(jq -r .version "$file")
+            if [ "$declared" != "$version" ]; then
+              echo "::error file=$file::The version $declared of $file does not match the tag $TAG!"
+              exit 1
+            fi
+          done
+      - name: Generate the release notes (git-cliff)
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --verbose --latest --strip header
+        env:
+          OUTPUT: RELEASE_NOTES.md
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file RELEASE_NOTES.md --latest
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file RELEASE_NOTES.md --latest
+          fi
+
+  aur:
+    name: AUR package
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ env.TAG }}
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - name: Set the package version
+        run: sed -i "s/^pkgver=.*/pkgver=${TAG#v}/; s/^pkgrel=.*/pkgrel=1/" packaging/aur/PKGBUILD
+      # This action receives the AUR key; its major version floats on purpose (no pinned versions in this project).
+      - name: Publish to the AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v4
+        with:
+          pkgname: rakkomik
+          pkgbuild: packaging/aur/PKGBUILD
+          assets: |
+            packaging/aur/rakkomik.sh
+            packaging/aur/rakkomik.desktop
+          commit_username: ${{ github.repository_owner }}
+          commit_email: ${{ github.repository_owner }}@users.noreply.github.com
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update to ${{ env.TAG }}
+          updpkgsums: true
+          # build the package once before it is published (installs its dependencies in the action's container)
+          test: true
+          test_flags: --clean --cleanbuild --syncdeps --noconfirm

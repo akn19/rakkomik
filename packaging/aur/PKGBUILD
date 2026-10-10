@@ -1,0 +1,52 @@
+# Maintainer: akn19 <akn19@users.noreply.github.com>
+#
+# Published by .github/workflows/release.yml: the workflow sets pkgver to the release tag, the deploy
+# action fills in the checksums of the local files (updpkgsums) and pushes this directory to the AUR.
+#
+# The application is the Electron shell of src/app (the web part is delivered by the application's own
+# updater). It runs on the system `electron` package and so follows Arch's Electron releases: no Electron
+# version is pinned here, the application is kept compatible with the current Electron instead.
+
+pkgname=rakkomik
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Manga and comic downloader'
+arch=('any')
+url='https://github.com/akn19/rakkomik'
+license=('Unlicense')
+depends=('bash' 'electron' 'hicolor-icon-theme')
+makedepends=('git' 'nodejs' 'pnpm')
+source=("git+$url.git#tag=v$pkgver"
+        "$pkgname.sh"
+        "$pkgname.desktop")
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP')
+
+build() {
+    cd "$pkgname"
+
+    # The runtime dependencies of src/app as a plain node_modules tree (nodeLinker: hoisted in
+    # src/app/pnpm-workspace.yaml): an asar cannot follow the symlinks of pnpm's default layout.
+    pnpm --dir src/app install --frozen-lockfile --no-optional --store-dir "$srcdir/pnpm-store"
+
+    # pack the shell without its tests and the package manager files
+    mkdir "$srcdir/app"
+    tar -C src/app --exclude=__tests__ --exclude='*.log' --exclude=pnpm-lock.yaml --exclude=pnpm-workspace.yaml \
+        --exclude=node_modules/.bin --exclude=node_modules/.pnpm --exclude=node_modules/.modules.yaml \
+        --exclude=node_modules/.pnpm-workspace-state-v1.json -cf - . | tar -C "$srcdir/app" -xf -
+    pnpm dlx @electron/asar@4 pack "$srcdir/app" "$srcdir/app.asar"
+}
+
+package() {
+    install -Dm644 "$srcdir/app.asar" "$pkgdir/usr/lib/$pkgname/app.asar"
+    install -Dm755 "$srcdir/$pkgname.sh" "$pkgdir/usr/bin/$pkgname"
+    install -Dm644 "$srcdir/$pkgname.desktop" "$pkgdir/usr/share/applications/$pkgname.desktop"
+
+    cd "$pkgname"
+    for size in 16 24 32 48 64 96 128 256; do
+        install -Dm644 "redist/deb/usr/share/icons/hicolor/${size}x${size}/apps/$pkgname.png" \
+            "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/$pkgname.png"
+    done
+    install -Dm644 assets/icon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
+}

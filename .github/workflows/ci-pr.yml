@@ -45,3 +45,28 @@ jobs:
         env:
           DISPLAY: ':99'
         run: pnpm run test
+
+
+  changelog:
+    name: Changelog preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ github.ref }}
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Generate the unreleased changes (git-cliff)
+        id: cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --verbose --unreleased --strip header
+      - name: Show them in the job summary
+        env:
+          CONTENT: ${{ steps.cliff.outputs.content }}
+        run: |
+          {
+            echo '## Changes since the last release'
+            echo
+            printf '%s\n' "$CONTENT"
+          } >> "$GITHUB_STEP_SUMMARY"
