@@ -21,7 +21,7 @@ export default function StartView() {
                 <br />
                 The philosophy is <u>ad-hoc consumption</u>, get it when you want to read/watch it.
                 <br />
-                Read the &quot;how to use&quot; documentation at hakuneko.download (link available in the menu)
+                Read the documentation on GitHub (link available in the menu)
             </p>
             <h3 className="mb-[0.1em] text-[1.17em] font-bold">Find a site to get the content you want to view</h3>
             <div className={CARD}>

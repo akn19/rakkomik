@@ -21,10 +21,9 @@ const VIEWS = [
 ];
 
 const HELP_LINKS = [
-    { icon: 'home', title: 'Visit the HakuNeko Homepage', href: 'https://hakuneko.download' },
-    { icon: 'book', title: 'Read the Online Documentation', href: 'https://hakuneko.download/docs/interface/' },
-    { icon: 'bug', title: 'Open a Ticket on GitHub', href: 'https://hakuneko.download/docs/troubleshoot/' },
-    { icon: 'discord', title: 'Login to the Community Support Channel', href: 'https://discordapp.com/invite/A5d3NDf' },
+    { icon: 'home', title: 'Visit the RakKomik Homepage', href: 'https://github.com/akn19/rakkomik' },
+    { icon: 'book', title: 'Read the Online Documentation', href: 'https://github.com/akn19/rakkomik#readme' },
+    { icon: 'bug', title: 'Open a Ticket on GitHub', href: 'https://github.com/akn19/rakkomik/issues' },
     { icon: 'streetView', title: 'Show your external IP and Geolocation', href: 'https://ipinfo.io/json' }
 ];
 
@@ -106,7 +105,7 @@ function About() {
                 <div className="mb-[0.5em] bg-(--menu-credits-background-color) p-[0.5em] [border:var(--menu-control-border)]">
                     <div>
                         &copy; {new Date().getFullYear()}{' '}
-                        <ExternalLink href="https://git.io/hakuneko">HakuNeko</ExternalLink> rev.{' '}
+                        <ExternalLink href="https://github.com/akn19/rakkomik">RakKomik</ExternalLink> rev.{' '}
                         <ExternalLink href={version.link} title="Revision History">
                             {version.branch}@{version.revision}
                         </ExternalLink>
@@ -117,15 +116,7 @@ function About() {
                             <tr>
                                 <td className="w-px py-[2px] pr-[0.5em] align-top whitespace-nowrap">Development:</td>
                                 <td className="py-[2px] align-top">
-                                    <ExternalLink href="https://github.com/orgs/manga-download/people">Maintainers</ExternalLink>
-                                    <br />
-                                    <ExternalLink href="https://github.com/manga-download/hakuneko/graphs/contributors">Contributors</ExternalLink>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td className="w-px py-[2px] pr-[0.5em] align-top whitespace-nowrap">Artwork:</td>
-                                <td className="py-[2px] align-top">
-                                    <ExternalLink href="https://www.deviantart.com/hakuneko3kune">HakuNeko3Kune</ExternalLink>
+                                    <ExternalLink href="https://github.com/akn19/rakkomik/graphs/contributors">Contributors</ExternalLink>
                                 </td>
                             </tr>
                             <tr>

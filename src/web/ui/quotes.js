@@ -1,4 +1,4 @@
-/** Anime quotes ported verbatim from the classic frontend (lib/hakuneko/.../quotes.html).
+/** Anime quotes ported verbatim from the classic frontend.
  * Shown on the Start view; content parity, no curation. */
 const QUOTES = [
         {

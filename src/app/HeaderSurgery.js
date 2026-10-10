@@ -159,7 +159,7 @@ module.exports = class HeaderSurgery {
             delete requestHeaders['accept'];
         }
 
-        // Avoid detection of HakuNeko through lowercase accept header
+        // Avoid detection of the application through the lowercase accept header
         if (requestHeaders['accept']) {
             requestHeaders['Accept'] = requestHeaders['accept'];
             delete requestHeaders['accept'];

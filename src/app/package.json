@@ -1,12 +1,12 @@
 {
-  "name": "hakuneko-desktop",
+  "name": "rakkomik",
   "version": "1.0.0",
-  "description": "Desktop Client for HakuNeko Web-Application",
-  "author": "Ronny Wegener <wegener.ronny@gmail.com>",
+  "description": "Desktop client of RakKomik, a downloader for manga and comics",
+  "author": "RakKomik contributors <https://github.com/akn19/rakkomik>",
   "license": "Unlicense",
   "repository": {
     "type": "git",
-    "url": "https://github.com/manga-download/hakuneko"
+    "url": "https://github.com/akn19/rakkomik"
   },
   "main": "main.js",
   "engines": {

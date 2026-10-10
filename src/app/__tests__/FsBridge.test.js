@@ -37,9 +37,9 @@ describe('FsBridge', () => {
 
     it('should register mkdir, rename and unlink channels', () => {
         const map = handlers();
-        expect(typeof map['hakuneko:fs:mkdir']).toBe('function');
-        expect(typeof map['hakuneko:fs:rename']).toBe('function');
-        expect(typeof map['hakuneko:fs:unlink']).toBe('function');
+        expect(typeof map['rakkomik:fs:mkdir']).toBe('function');
+        expect(typeof map['rakkomik:fs:rename']).toBe('function');
+        expect(typeof map['rakkomik:fs:unlink']).toBe('function');
         // nothing synchronous is left: a sendSync round trip would block the renderer
         expect(electron.ipcMain.on).not.toHaveBeenCalled();
     });
@@ -47,9 +47,9 @@ describe('FsBridge', () => {
     it('should create directory chains with mkdir and accept existing ones', async () => {
         const map = handlers();
         const nested = path.join(dir, 'a', 'b', 'c');
-        await expect(map['hakuneko:fs:mkdir']({}, nested)).resolves.toBeUndefined();
+        await expect(map['rakkomik:fs:mkdir']({}, nested)).resolves.toBeUndefined();
         expect(fs.statSync(nested).isDirectory()).toBe(true);
-        await expect(map['hakuneko:fs:mkdir']({}, nested)).resolves.toBeUndefined();
+        await expect(map['rakkomik:fs:mkdir']({}, nested)).resolves.toBeUndefined();
     });
 
     it('should move a file atomically via rename', async () => {
@@ -57,21 +57,21 @@ describe('FsBridge', () => {
         const source = path.join(dir, 'a.tmp-1');
         const target = path.join(dir, 'a');
         fs.writeFileSync(source, 'payload');
-        await expect(map['hakuneko:fs:rename']({}, source, target)).resolves.toBeUndefined();
+        await expect(map['rakkomik:fs:rename']({}, source, target)).resolves.toBeUndefined();
         expect(fs.existsSync(source)).toBe(false);
         expect(fs.readFileSync(target, 'utf8')).toBe('payload');
     });
 
     it('should reject rename when the source is missing', async () => {
         const map = handlers();
-        await expect(map['hakuneko:fs:rename']({}, path.join(dir, 'ghost'), path.join(dir, 'x'))).rejects.toThrow();
+        await expect(map['rakkomik:fs:rename']({}, path.join(dir, 'ghost'), path.join(dir, 'x'))).rejects.toThrow();
     });
 
     it('should remove files via unlink', async () => {
         const map = handlers();
         const file = path.join(dir, 'stray.tmp-1');
         fs.writeFileSync(file, 'x');
-        await expect(map['hakuneko:fs:unlink']({}, file)).resolves.toBeUndefined();
+        await expect(map['rakkomik:fs:unlink']({}, file)).resolves.toBeUndefined();
         expect(fs.existsSync(file)).toBe(false);
     });
 });

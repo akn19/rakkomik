@@ -1,7 +1,7 @@
 // Vite plugin: assembles the web-application bundle (`vite build --mode web`).
 //
 // The engine (`mjs/engine`) and the connectors (`mjs/connectors`) are NOT bundled:
-// connectors are discovered at runtime (`hakuneko://cache/mjs/connectors/`) and
+// connectors are discovered at runtime (the `mjs/connectors/` listing of the cache) and
 // imported individually, and they share the engine modules by URL (one `Connector`
 // class instance, `instanceof` keeps working). So the bundle is the static source
 // tree plus the freshly built React UI (`ui/dist`) and a generated VersionInfo.
@@ -23,11 +23,11 @@ async function createVersionInfo(file) {
         'export default {',
         '    branch: {',
         `        label: '${branch}',`,
-        `        link: 'https://github.com/manga-download/hakuneko/commits/${branch}',`,
+        `        link: 'https://github.com/akn19/rakkomik/commits/${branch}',`,
         '    },',
         '    revision: {',
         `        label: '${revision.slice(0, 6)}',`,
-        `        link: 'https://github.com/manga-download/hakuneko/commits/${revision}',`,
+        `        link: 'https://github.com/akn19/rakkomik/commits/${revision}',`,
         '    }',
         '};'
     ].join('\n');

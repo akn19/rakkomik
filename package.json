@@ -1,8 +1,8 @@
 {
-  "name": "hakuneko-dev",
+  "name": "rakkomik",
   "version": "1.0.0",
-  "description": "HakuNeko",
-  "author": "The HakuNeko Development Team <https://github.com/orgs/manga-download/people>",
+  "description": "Manga and comic downloader",
+  "author": "RakKomik contributors <https://github.com/akn19/rakkomik>",
   "license": "Unlicense",
   "main": "src/app/main.js",
   "engines": {
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://git.io/hakuneko"
+    "url": "https://github.com/akn19/rakkomik.git"
   },
   "devDependencies": {
     "@electron/asar": "^4.3.1",
@@ -62,6 +62,7 @@
     "knip": "knip",
     "check:deprecated": "node scripts/check-deprecated.js",
     "vendor": "node scripts/vendor.js",
+    "icons": "electron scripts/icons.js",
     "lint:tools": "oxlint ./scripts ./build-app.js ./deploy-web.js ./vite.config.mjs ./vite.web-bundle.mjs ./vitest.config.mjs ./playwright.config.mjs ./src/__tests__"
   }
 }

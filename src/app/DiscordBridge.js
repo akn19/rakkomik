@@ -20,13 +20,13 @@ module.exports = class DiscordBridge {
     }
 
     register() {
-        electron.ipcMain.handle('hakuneko:presence:ensureStarted', () => {
+        electron.ipcMain.handle('rakkomik:presence:ensureStarted', () => {
             return this._ensureStarted();
         });
-        electron.ipcMain.handle('hakuneko:presence:setActivity', (event, status) => {
+        electron.ipcMain.handle('rakkomik:presence:setActivity', (event, status) => {
             return this._setActivity(status);
         });
-        electron.ipcMain.handle('hakuneko:presence:clearAndDestroy', () => {
+        electron.ipcMain.handle('rakkomik:presence:clearAndDestroy', () => {
             return this._clearAndDestroy();
         });
     }

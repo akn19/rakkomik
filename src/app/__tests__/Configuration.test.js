@@ -9,7 +9,7 @@ mockModule('electron', () => {
             getAppPath: vi.fn(() => '/usr/bin'),
             getPath: vi.fn(type => {
                 switch(type) {
-                    case 'exe': return '/usr/bin/hakuneko';
+                    case 'exe': return '/usr/bin/rakkomik';
                     case 'userData': return undefined;
                     case 'userCache': return undefined;
                     default: return undefined;
@@ -39,8 +39,8 @@ describe('Configuration', function() {
         applicationUpdateURL: 'applicationUpdateURL',
         connectorProtocol: 'connectorProtocol',
         applicationStartupURL: 'protocol://applicationStartupURL',
-        applicationCacheDirectory: path.resolve('/home/.cache/hakuneko'),
-        applicationUserDataDirectory: path.resolve('/home/.config/hakuneko')
+        applicationCacheDirectory: path.resolve('/home/.cache/rakkomik'),
+        applicationUserDataDirectory: path.resolve('/home/.config/rakkomik')
     };
 
     describe('isPortable', function() {
@@ -48,13 +48,13 @@ describe('Configuration', function() {
             fs.existsSync.mockReturnValueOnce(true);
             expect(Configuration.isPortableMode).toEqual(true);
             expect(fs.existsSync).toHaveBeenCalledTimes(1);
-            expect(fs.existsSync).toHaveBeenLastCalledWith('/usr/bin/hakuneko.portable');
+            expect(fs.existsSync).toHaveBeenLastCalledWith('/usr/bin/rakkomik.portable');
         });
         it('should be false when file not exists', () => {
             fs.existsSync.mockReturnValueOnce(false);
             expect(Configuration.isPortableMode).toEqual(false);
             expect(fs.existsSync).toHaveBeenCalledTimes(1);
-            expect(fs.existsSync).toHaveBeenLastCalledWith('/usr/bin/hakuneko.portable');
+            expect(fs.existsSync).toHaveBeenLastCalledWith('/usr/bin/rakkomik.portable');
         });
     });
 
@@ -153,17 +153,17 @@ describe('Configuration', function() {
     describe('applicationUserPluginsDirectory', function() {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
-            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve('/usr/bin/userdata/hakuneko.plugins'));
+            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve('/usr/bin/userdata/rakkomik.plugins'));
             expect(electron.app.getPath).toHaveBeenCalledTimes(1);
             expect(electron.app.getPath).toHaveBeenLastCalledWith('exe');
         });
         it('should be changed by absolute user data directory from options', () => {
             let testee = new Configuration(expected);
-            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve(expected.applicationUserDataDirectory, 'hakuneko.plugins'));
+            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve(expected.applicationUserDataDirectory, 'rakkomik.plugins'));
         });
         it('should be changed by relative user data directory from options', () => {
             let testee = new Configuration({ applicationUserDataDirectory: '../data' });
-            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve('/usr/data/hakuneko.plugins'));
+            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve('/usr/data/rakkomik.plugins'));
         });
     });
 });

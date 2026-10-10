@@ -31,7 +31,7 @@ describe('settings directory validation', () => {
     });
 
     it('should not warn when the directory does not exist yet', async () => {
-        const error = new Error("Error invoking remote method 'hakuneko:fs:stat': Error: ENOENT: no such file or directory, stat '/data/mangas'");
+        const error = new Error("Error invoking remote method 'rakkomik:fs:stat': Error: ENOENT: no such file or directory, stat '/data/mangas'");
         await expect(validate(error)).resolves.toBe('/data/mangas');
         expect(globalThis.alert).not.toHaveBeenCalled();
         expect(console.warn).not.toHaveBeenCalled();

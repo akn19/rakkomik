@@ -9,7 +9,7 @@ const ReaderView = React.lazy(() => import('./views/Reader.jsx'));
 const DownloadsView = React.lazy(() => import('./views/Downloads.jsx'));
 const BookmarksView = React.lazy(() => import('./views/BookmarksView.jsx'));
 
-// Hash history: the app runs on a custom scheme (hakuneko://), not http,
+// Hash history: the app runs on a custom scheme, not http,
 // so path history is unusable (audit §5.2).
 const rootRoute = createRootRoute({ component: Shell });
 

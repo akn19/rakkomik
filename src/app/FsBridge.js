@@ -13,28 +13,28 @@ module.exports = class FsBridge {
     }
 
     register() {
-        electron.ipcMain.handle('hakuneko:fs:mkdir', (event, path) => {
+        electron.ipcMain.handle('rakkomik:fs:mkdir', (event, path) => {
             // recursive: creates the missing parents, no error when it exists
             return fs.promises.mkdir(path, { recursive: true }).then(() => undefined);
         });
-        electron.ipcMain.handle('hakuneko:fs:writeFile', (event, path, data, encoding) => {
+        electron.ipcMain.handle('rakkomik:fs:writeFile', (event, path, data, encoding) => {
             let payload = typeof data === 'string' ? data : Buffer.from(data);
             return fs.promises.writeFile(path, payload, encoding).then(() => undefined);
         });
-        electron.ipcMain.handle('hakuneko:fs:rename', (event, oldPath, newPath) => {
+        electron.ipcMain.handle('rakkomik:fs:rename', (event, oldPath, newPath) => {
             // Atomic when both paths share a filesystem (guaranteed by writing
             // temp files next to their target, see Storage._writeFileAtomic).
             return fs.promises.rename(oldPath, newPath).then(() => undefined);
         });
-        electron.ipcMain.handle('hakuneko:fs:unlink', (event, path) => {
+        electron.ipcMain.handle('rakkomik:fs:unlink', (event, path) => {
             return fs.promises.unlink(path).then(() => undefined);
         });
-        electron.ipcMain.handle('hakuneko:fs:readFile', (event, path, encoding) => {
+        electron.ipcMain.handle('rakkomik:fs:readFile', (event, path, encoding) => {
             return fs.promises.readFile(path, encoding || undefined).then(data => {
                 return typeof data === 'string' ? data : new Uint8Array(data);
             });
         });
-        electron.ipcMain.handle('hakuneko:fs:stat', (event, path) => {
+        electron.ipcMain.handle('rakkomik:fs:stat', (event, path) => {
             return fs.promises.stat(path).then(stats => {
                 return {
                     isDirectory: stats.isDirectory(),
@@ -43,7 +43,7 @@ module.exports = class FsBridge {
                 };
             });
         });
-        electron.ipcMain.handle('hakuneko:fs:readdir', (event, path) => {
+        electron.ipcMain.handle('rakkomik:fs:readdir', (event, path) => {
             return fs.promises.readdir(path);
         });
     }

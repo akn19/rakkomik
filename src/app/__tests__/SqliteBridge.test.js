@@ -31,7 +31,7 @@ function favoritesDatabase() {
 }
 
 function leftoverTempDirectories() {
-    return fs.readdirSync(os.tmpdir()).filter(entry => entry.startsWith('hakuneko-sqlite-'));
+    return fs.readdirSync(os.tmpdir()).filter(entry => entry.startsWith('rakkomik-sqlite-'));
 }
 
 describe('SqliteBridge', () => {
@@ -52,7 +52,7 @@ describe('SqliteBridge', () => {
     it('should answer the renderer over IPC', async () => {
         new SqliteBridge({ warn: vi.fn() }).register();
         const [ channel, handler ] = electron.ipcMain.handle.mock.calls[0];
-        expect(channel).toBe('hakuneko:sqlite:query');
+        expect(channel).toBe('rakkomik:sqlite:query');
         const rows = await handler({}, favoritesDatabase(), 'SELECT COUNT(*) AS count FROM favorites');
         expect(rows).toEqual([ { count: 2 } ]);
     });

@@ -5,8 +5,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Classic tokens, names and values verbatim from
- * lib/hakuneko/frontend@classic-light/theme.html (`:root`) and
- * frontend@classic-dark/theme.html ("Ken's Daedal Dark", `.dark`).
+ * the classic light theme (`:root`) and
+ * the classic dark theme ("Ken's Daedal Dark", `.dark`).
  * The React rewrite keeps the classic look; shell components read the
  * tokens (`bg-(--manga-list-background-color)`), never raw palette colors.
  * Separators/list borders merge the identical manga/chapter/menu tokens. */
@@ -283,28 +283,21 @@ body {
         border-bottom-color: var(--input-disabled-border-color);
     }
 
+    /* Dropdown chevron: inline SVG (classic colours), no image file */
     .rk-field-select {
         padding-right: 1.5em;
-        background-image: url('../img/dropdown-classic-light.png');
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M9 13l7 7 7-7' fill='none' stroke='%23007FFE' stroke-opacity='.75' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
         background-position: right center;
         background-size: auto 1.5em;
         background-repeat: no-repeat;
     }
 
     .dark .rk-field-select {
-        background-image: url('../img/dropdown-classic-dark.png');
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M9 13l7 7 7-7' fill='none' stroke='%237687D6' stroke-opacity='.75' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     }
 
-    /* Classic content backdrop (faint illustration). */
+    /* Content backdrop: the theme's page colour. */
     .rk-content-bg {
         background-color: var(--page-control-background-color);
-        background-image: url('../img/background-classic-light.png');
-        background-size: cover;
-        background-repeat: no-repeat;
-        background-position: left top;
-    }
-
-    .dark .rk-content-bg {
-        background-image: url('../img/background-classic-dark.png');
     }
 }

@@ -70,11 +70,11 @@ module.exports = class App {
             this._extractor.printInfo();
             this.printInfo();
             this._configuration.printInfo();
-            // add HakuNeko's portable mode as environment variable to be easily available in render process
+            // add the portable mode as environment variable to be easily available in render process
             if(Configuration.isPortableMode) {
-                process.env.HAKUNEKO_PORTABLE = 'TRUE';
+                process.env.RAKKOMIK_PORTABLE = 'TRUE';
             } else {
-                delete process.env.HAKUNEKO_PORTABLE;
+                delete process.env.RAKKOMIK_PORTABLE;
             }
             await this._electron.launch();
             await this._electron.loadHTML(loadingPage);

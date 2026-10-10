@@ -244,7 +244,6 @@ class ElectronPackagerLinux extends ElectronPackager {
         await this._bundleElectron();
         this._createManpage();
         this._createChangelog();
-        //this._createMenuEntry(); // => only menu or desktop is recommend
         this._createDesktopShortcut();
         await this._createControlDEB();
         this._createPostScript('postrm');
@@ -270,7 +269,6 @@ class ElectronPackagerLinux extends ElectronPackager {
         await this._bundleElectron();
         this._createManpage();
         this._createChangelog();
-        //this._createMenuEntry(); // => only menu or desktop is recommend
         this._createDesktopShortcut();
         let specs = await this._createSpecsRPM();
 
@@ -361,22 +359,6 @@ class ElectronPackagerLinux extends ElectronPackager {
             'Exec=' + path.join('/usr', 'lib', this._configuration.name.package, this._configuration.binary.linux),
             'Icon=' + this._configuration.name.package,
             'Categories=' + this._configuration.meta.categories
-        ];
-        this._saveFile(file, content.join(eol), false);
-    }
-
-    /**
-     *
-     */
-    _createMenuEntry() {
-        console.log('Creatng Menu Entry');
-        let file = path.join(this._dirBuildRoot, 'usr', 'share', 'menu', this._configuration.name.package);
-        let content = [
-            `?package(${this._configuration.name.package}):needs="X11" \\`,
-            ` section="${this._configuration.meta.menu}" \\`,
-            ` title="${this._configuration.name.product}" \\`,
-            ` icon="/usr/share/pixmaps/${this._configuration.name.package}.xpm" \\`,
-            ` command="${path.join('/usr/lib', this._configuration.name.package, this._configuration.binary.linux)}"`
         ];
         this._saveFile(file, content.join(eol), false);
     }
@@ -765,9 +747,9 @@ class ElectronPackagerDarwin extends ElectronPackager {
         await asar.createPackage(config.src, path.join(folder, 'Resources', 'app.asar'));
         await fs.promises.rename(path.join(folder, 'MacOS', 'Electron'), path.join(folder, 'MacOS', this._configuration.binary.darwin));
         await fs.promises.rm(path.join(folder, 'Resources', 'electron.icns'), { recursive: true, force: true });
-        await fs.promises.cp('res/icon.icns', path.join(folder, 'Resources', this._configuration.binary.darwin + '.icns'), { recursive: true });
+        await fs.promises.cp(path.join('redist', 'macos', 'icon.icns'), path.join(folder, 'Resources', this._configuration.binary.darwin + '.icns'), { recursive: true });
         await fs.promises.mkdir(path.join(this._dirBuildRoot, '.images'), { recursive: true });
-        await fs.promises.cp('res/OSXSetup.png', path.join(this._dirBuildRoot, '.images', 'OSXSetup.png'), { recursive: true });
+        await fs.promises.cp(path.join('redist', 'macos', 'OSXSetup.png'), path.join(this._dirBuildRoot, '.images', 'OSXSetup.png'), { recursive: true });
         await fs.promises.rename(path.join(this._dirBuildRoot, 'Electron.app'), path.join(this._dirBuildRoot, this._configuration.name.product + '.app'));
     }
 

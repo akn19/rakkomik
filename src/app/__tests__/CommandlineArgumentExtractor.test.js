@@ -48,19 +48,19 @@ describe('CommandlineArgumentExtractor', function() {
     describe('options when containing argument', function() {
 
         it('--update-url', () => {
-            let expected = 'https://raw.gihub.com/manga-downloader/releases/0.4.0/latest';
+            let expected = 'https://example.test/rakkomik/releases/0.4.0/latest';
             let testee = new CommandlineArgumentExtractor([`--update-url=${expected}`]);
             expect(testee.options.applicationUpdateURL).toEqual(expected);
         });
 
         it('-u', () => {
-            let expected = 'https://raw.gihub.com/manga-downloader/releases/0.4.0/latest';
+            let expected = 'https://example.test/rakkomik/releases/0.4.0/latest';
             let testee = new CommandlineArgumentExtractor(['-u', expected]);
             expect(testee.options.applicationUpdateURL).toEqual(expected);
         });
 
         it('--startup-url', () => {
-            let expected = 'cache://hakuneko/index.html';
+            let expected = 'cache://rakkomik/index.html';
             let testee = new CommandlineArgumentExtractor([`--startup-url=${expected}`]);
             expect(testee.options.applicationStartupURL).toEqual(expected);
         });

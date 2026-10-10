@@ -27,10 +27,10 @@ function initialDark() {
 const WINDOW_BUTTON = 'rk-icon rounded px-1.5 py-0.5 hover:bg-black/20';
 
 function Titlebar({ dark, onToggleTheme }) {
-    const hakuneko = typeof window !== 'undefined' ? window.hakuneko : undefined;
+    const bridge = typeof window !== 'undefined' ? window.hakuneko : undefined;
     const act = fn => () => {
-        if (hakuneko) {
-            fn(hakuneko).catch?.(() => undefined);
+        if (bridge) {
+            fn(bridge).catch?.(() => undefined);
         }
     };
     return (
@@ -40,7 +40,6 @@ function Titlebar({ dark, onToggleTheme }) {
             </span>
             <span className="flex items-center gap-1 text-[11pt] font-medium text-(--text-color)">
                 RakKomik
-                <span className="rounded bg-amber-200 px-1 py-px text-[10px] font-bold uppercase text-amber-900">Beta</span>
             </span>
             <span className="rk-no-drag flex items-center justify-end gap-0.5">
                 <button

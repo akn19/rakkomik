@@ -1,5 +1,5 @@
 // FMD bookmark import: the SQLite file is handed to the main process as bytes
-// (node:sqlite), the rows map to HakuNeko bookmark keys.
+// (node:sqlite), the rows map to the bookmark keys of the engine.
 let BookmarkImporter = null;
 
 beforeAll(async () => {

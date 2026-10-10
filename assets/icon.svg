@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RakKomik: a stack of books">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34497f"/>
+      <stop offset="1" stop-color="#16213f"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#tile)"/>
+  <ellipse cx="256" cy="384" rx="176" ry="13" fill="#0a1124" opacity=".5"/>
+
+  <!-- bookmark ribbon peeking out of the top book -->
+  <path d="M322 112h26v50l-13-11-13 11z" fill="#ff6b6b"/>
+
+  <!-- top book (teal) -->
+  <g>
+    <rect x="92" y="136" width="272" height="74" rx="14" fill="#21a99a"/>
+    <rect x="128" y="147" width="226" height="52" rx="6" fill="#fff3d6"/>
+    <path d="M140 167h200M140 178h200" stroke="#e6d3a3" stroke-width="3" stroke-linecap="round"/>
+    <rect x="104" y="136" width="6" height="74" fill="#0f6f65" opacity=".45"/>
+    <rect x="114" y="136" width="6" height="74" fill="#0f6f65" opacity=".45"/>
+  </g>
+
+  <!-- middle book (amber) -->
+  <g>
+    <rect x="116" y="216" width="316" height="74" rx="14" fill="#f7b32b"/>
+    <rect x="154" y="227" width="268" height="52" rx="6" fill="#fff3d6"/>
+    <path d="M166 247h244M166 258h244" stroke="#e6d3a3" stroke-width="3" stroke-linecap="round"/>
+    <rect x="128" y="216" width="6" height="74" fill="#a86f00" opacity=".4"/>
+    <rect x="138" y="216" width="6" height="74" fill="#a86f00" opacity=".4"/>
+  </g>
+
+  <!-- bottom book (vermilion) -->
+  <g>
+    <rect x="76" y="296" width="360" height="74" rx="14" fill="#ef5b3f"/>
+    <rect x="116" y="307" width="308" height="52" rx="6" fill="#fff3d6"/>
+    <path d="M128 327h284M128 338h284" stroke="#e6d3a3" stroke-width="3" stroke-linecap="round"/>
+    <rect x="88" y="296" width="6" height="74" fill="#8f2410" opacity=".4"/>
+    <rect x="98" y="296" width="6" height="74" fill="#8f2410" opacity=".4"/>
+  </g>
+</svg>

@@ -1,7 +1,7 @@
 /**
  * Copies the browser builds of the renderer's third-party modules into
  * `src/web/js` (generated at `postinstall`, not committed). The engine and
- * the connectors are served as plain static files over `hakuneko://cache`,
+ * the connectors are served as plain static files from the application cache,
  * so they cannot resolve `node_modules`:
  * - `fflate.mjs`      ES module, reachable as the bare specifier `fflate`
  *                     through the import map in `src/web/index.html`.

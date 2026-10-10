@@ -15,7 +15,7 @@ module.exports = class SqliteBridge {
     }
 
     register() {
-        electron.ipcMain.handle('hakuneko:sqlite:query', (event, bytes, sql) => {
+        electron.ipcMain.handle('rakkomik:sqlite:query', (event, bytes, sql) => {
             return SqliteBridge.query(bytes, sql);
         });
     }
@@ -29,7 +29,7 @@ module.exports = class SqliteBridge {
         // loaded on first use: SQLite is only needed when a user imports bookmarks
         const { DatabaseSync } = require('node:sqlite');
         // `node:sqlite` opens files only, so the bytes land in a private temp directory for the duration of the query
-        let directory = await fs.mkdtemp(path.join(os.tmpdir(), 'hakuneko-sqlite-'));
+        let directory = await fs.mkdtemp(path.join(os.tmpdir(), 'rakkomik-sqlite-'));
         try {
             let file = path.join(directory, 'database.sqlite');
             await fs.writeFile(file, bytes);

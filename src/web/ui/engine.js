@@ -262,22 +262,22 @@ export function hasActiveDownloads() {
 }
 
 export function subscribeAppClose(listener) {
-    const hakuneko = typeof window !== 'undefined' ? window.hakuneko : undefined;
-    if (!hakuneko || typeof hakuneko.on !== 'function') {
+    const bridge = typeof window !== 'undefined' ? window.hakuneko : undefined;
+    if (!bridge || typeof bridge.on !== 'function') {
         return () => undefined;
     }
-    hakuneko.on('close', listener);
+    bridge.on('close', listener);
     return () => {
-        if (typeof hakuneko.off === 'function') {
-            hakuneko.off('close', listener);
+        if (typeof bridge.off === 'function') {
+            bridge.off('close', listener);
         }
     };
 }
 
 export function quitApp() {
-    const hakuneko = typeof window !== 'undefined' ? window.hakuneko : undefined;
-    if (hakuneko) {
-        hakuneko.send('quit');
+    const bridge = typeof window !== 'undefined' ? window.hakuneko : undefined;
+    if (bridge) {
+        bridge.send('quit');
     }
 }
 
@@ -361,11 +361,11 @@ export async function browseDirectory(currentPath) {
 }
 
 export async function browseFile() {
-    const hakuneko = typeof window !== 'undefined' ? window.hakuneko : undefined;
-    if (!hakuneko) {
+    const bridge = typeof window !== 'undefined' ? window.hakuneko : undefined;
+    if (!bridge) {
         return null;
     }
-    const result = await hakuneko.dialog.showOpenDialog({ properties: ['openFile'] });
+    const result = await bridge.dialog.showOpenDialog({ properties: ['openFile'] });
     const filePaths = result && !result.canceled ? result.filePaths || [] : [];
     return filePaths.length ? filePaths[0] : null;
 }

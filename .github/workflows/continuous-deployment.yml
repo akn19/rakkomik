@@ -11,7 +11,7 @@ on:
 
 jobs:
   linux:
-    #if: github.actor && secrets['HAKUNEKO_PASSPHRASE']
+    #if: github.actor && secrets['RAKKOMIK_PASSPHRASE']
     name: Ubuntu
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +43,6 @@ jobs:
           # PEM signing key (contents of key.pem) + its passphrase, both as
           # repository secrets. GITHUB_REF/GITHUB_REPOSITORY/GITHUB_SHA are
           # provided by the runner and select the rolling release channel.
-          HAKUNEKO_PRIVATE_KEY: ${{ secrets.HAKUNEKO_PRIVATE_KEY }}
-          HAKUNEKO_PASSPHRASE: ${{ secrets.HAKUNEKO_PASSPHRASE }}
+          RAKKOMIK_PRIVATE_KEY: ${{ secrets.RAKKOMIK_PRIVATE_KEY }}
+          RAKKOMIK_PASSPHRASE: ${{ secrets.RAKKOMIK_PASSPHRASE }}
         run: pnpm run deploy:web

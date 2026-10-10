@@ -11,14 +11,14 @@ mockModule('electron', () => {
             getAppPath: vi.fn(() => '/usr/bin'),
             getPath: vi.fn(type => {
                 switch(type) {
-                    case 'exe': return '/usr/bin/hakuneko';
+                    case 'exe': return '/usr/bin/rakkomik';
                     case 'appData': return 'data';
-                    case 'userData': return 'data/hakuneko';
-                    case 'userCache': return 'cache/hakuneko';
+                    case 'userData': return 'data/rakkomik';
+                    case 'userCache': return 'cache/rakkomik';
                     default: return undefined;
                 }
             }),
-            name: 'HakuNeko'
+            name: 'RakKomik'
         },
         dialog: {},
         shell: {},

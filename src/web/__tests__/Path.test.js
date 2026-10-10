@@ -11,7 +11,7 @@ beforeAll(async () => {
 const COMMON = [
     '', '.', '..', '/', '//', '///', 'a', 'a/', 'a//b', '/a', '/a/', '/a/b/c', '/a/b/../c', 'a/../..', '../a', './a/./b/',
     '/a/b/c.txt', 'a.b.c', '.bashrc', '..a', 'a.', 'a..', '...', '.a.', '/a/b/.', 'a/b/..', '/..', '/../a', 'file.tar.gz',
-    '/home/user/dir/file.txt', '/home/user/Mangas/One Piece/Chapter 1 - Romance Dawn/001.png', 'C:\\windows\\style', '/tmp/hakuneko/'
+    '/home/user/dir/file.txt', '/home/user/Mangas/One Piece/Chapter 1 - Romance Dawn/001.png', 'C:\\windows\\style', '/tmp/rakkomik/'
 ];
 
 const WINDOWS = [
@@ -22,7 +22,7 @@ const WINDOWS = [
 
 const JOINS = [
     [], [ '' ], [ '', '' ], [ 'a', 'b' ], [ 'a/', 'b' ], [ '/a', 'b/' ], [ '', 'a' ], [ 'a', '', 'b' ], [ '..', 'a' ], [ '/', '..' ],
-    [ 'a', '..', '..', 'b' ], [ '/tmp', 'hakuneko', 'page 1.png' ], [ '/cfg', 'hakuneko.' ], [ 'a/', '/b' ], [ '.', 'a' ], [ 'a', '.' ],
+    [ 'a', '..', '..', 'b' ], [ '/tmp', 'rakkomik', 'page 1.png' ], [ '/cfg', 'rakkomik.' ], [ 'a/', '/b' ], [ '.', 'a' ], [ 'a', '.' ],
     [ 'C:', 'a' ], [ 'C:\\', 'a' ], [ 'C:\\a', '..', 'b' ], [ '\\\\server', 'share' ], [ '//server', 'share' ], [ '\\\\server\\share', 'dir' ],
     [ '\\\\server\\share\\', 'dir', 'file.txt' ], [ '\\', 'a' ], [ '//', 'a' ], [ '///', 'a' ], [ 'a\\', '\\b' ], [ 'C:\\Users\\me', 'Mangas', 'Title' ]
 ];

@@ -24,6 +24,7 @@ module.exports = class Configuration {
         let options = configuration || {};
         let applicationExecutableDirectory = path.dirname(electron.app.getPath('exe'));
         this._applicationUpdateURL = options['applicationUpdateURL'] || 'https://github.com/akn19/rakkomik/releases/download/web-master/latest';
+        // the scheme is part of the engine's contract: Connectors.mjs loads its modules over hakuneko://
         this._applicationStartupURL = options['applicationStartupURL'] || 'hakuneko://cache/index.html';
         this._applicationCacheDirectory = options['applicationCacheDirectory'] || path.join(applicationExecutableDirectory, 'cache');
         this._applicationUserDataDirectory = options['applicationUserDataDirectory'] || path.join(applicationExecutableDirectory, 'userdata');
@@ -77,7 +78,7 @@ module.exports = class Configuration {
     }
 
     get applicationUserPluginsDirectory() {
-        return path.join(this.applicationUserDataDirectory, 'hakuneko.plugins');
+        return path.join(this.applicationUserDataDirectory, 'rakkomik.plugins');
     }
 
     _absolute(endpoint) {

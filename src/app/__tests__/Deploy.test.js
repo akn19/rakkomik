@@ -28,15 +28,15 @@ beforeEach(() => {
     fs.mkdirSync(path.join(build, 'js'));
     fs.writeFileSync(path.join(build, 'index.html'), '<html>CACHE</html>');
     fs.writeFileSync(path.join(build, 'js', 'app.js'), 'console.log("app");');
-    process.env.HAKUNEKO_PRIVATE_KEY = keys.privateKey;
-    process.env.HAKUNEKO_PASSPHRASE = PASSPHRASE;
+    process.env.RAKKOMIK_PRIVATE_KEY = keys.privateKey;
+    process.env.RAKKOMIK_PASSPHRASE = PASSPHRASE;
 });
 
 afterEach(() => {
     fs.rmSync(build, { recursive: true, force: true });
     fs.rmSync(cache, { recursive: true, force: true });
-    delete process.env.HAKUNEKO_PRIVATE_KEY;
-    delete process.env.HAKUNEKO_PASSPHRASE;
+    delete process.env.RAKKOMIK_PRIVATE_KEY;
+    delete process.env.RAKKOMIK_PASSPHRASE;
     delete process.env.CHANNEL;
     delete process.env.GITHUB_REF;
 });

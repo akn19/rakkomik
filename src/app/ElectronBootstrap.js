@@ -5,8 +5,8 @@ const electron = require('electron');
 const HeaderSurgery = require('./HeaderSurgery');
 const { ConsoleLogger } = require('./Logger');
 const urlFilterAll = { urls: ['http://*/*', 'https://*/*'] };
-const trayTooltipMinimize = 'HakuNeko\nClick to hide window';
-const trayTooltipRestore = 'HakuNeko\nClick to show window';
+const trayTooltipMinimize = 'RakKomik\nClick to hide window';
+const trayTooltipRestore = 'RakKomik\nClick to show window';
 
 module.exports = class ElectronBootstrap {
 
@@ -344,7 +344,8 @@ module.exports = class ElectronBootstrap {
         }
         return {
             platform: process.platform,
-            env: { HAKUNEKO_PORTABLE: process.env.HAKUNEKO_PORTABLE },
+            // the engine reads the portable flag under this key of the bridge's `env`
+            env: { HAKUNEKO_PORTABLE: process.env.RAKKOMIK_PORTABLE },
             tmpdir: os.tmpdir(),
             paths
         };
@@ -361,7 +362,7 @@ module.exports = class ElectronBootstrap {
         this._window = new electron.BrowserWindow({
             width: 1120,
             height: 680,
-            title: 'HakuNeko',
+            title: 'RakKomik',
             icon: this._appIcon,
             show: false,
             backgroundColor: '#f8f8f8',
@@ -370,7 +371,7 @@ module.exports = class ElectronBootstrap {
                 nodeIntegration: false,
                 contextIsolation: true, // Fase 1 Slice C: renderer is de-privileged, preload bridge only
                 preload: path.join(__dirname, 'preload.js'),
-                additionalArguments: [ '--hakuneko-bootstrap=' + encodeURIComponent(JSON.stringify(this._rendererBootstrap())) ],
+                additionalArguments: [ '--rakkomik-bootstrap=' + encodeURIComponent(JSON.stringify(this._rendererBootstrap())) ],
                 webSecurity: false // required to open local images in browser
             },
             frame: false

@@ -4,7 +4,7 @@
 // - Bundles ONLY the React UI (`src/web/ui/main.jsx` → `ui/dist/ui.js` +
 //   `ui/dist/ui.css`, fixed names so `index.html` can load them).
 // - Engine (`mjs/engine/*`) and connectors (`mjs/connectors/*`) are NOT
-//   bundled: connectors are runtime-discovered over `hakuneko://cache` via
+//   bundled: connectors are runtime-discovered through the cache listing via
 //   dynamic `import()` and must stay individual static files (audit §4.1).
 //
 // Flows:

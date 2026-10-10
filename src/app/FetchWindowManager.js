@@ -31,7 +31,7 @@ module.exports = class FetchWindowManager {
     }
 
     register() {
-        electron.ipcMain.handle('hakuneko:fetch', (event, job) => {
+        electron.ipcMain.handle('rakkomik:fetch', (event, job) => {
             return this._run(job);
         });
     }
@@ -43,7 +43,7 @@ module.exports = class FetchWindowManager {
     async _run(job) {
         let preloadFile;
         if (job.preloadScript) {
-            preloadFile = path.join(os.tmpdir(), `hakuneko-fetch-${crypto.randomUUID()}.js`);
+            preloadFile = path.join(os.tmpdir(), `rakkomik-fetch-${crypto.randomUUID()}.js`);
             await fs.promises.writeFile(preloadFile, job.preloadScript);
         }
         let preferences = job.preferences || {};

@@ -40,11 +40,11 @@ function resolveChannel() {
 }
 
 function validateEnvironment() {
-    if(!process.env.HAKUNEKO_PRIVATE_KEY) {
-        throw new Error('Missing environment variable "HAKUNEKO_PRIVATE_KEY" providing the PEM signing key!');
+    if(!process.env.RAKKOMIK_PRIVATE_KEY) {
+        throw new Error('Missing environment variable "RAKKOMIK_PRIVATE_KEY" providing the PEM signing key!');
     }
-    if(!process.env.HAKUNEKO_PASSPHRASE) {
-        throw new Error('Missing environment variable "HAKUNEKO_PASSPHRASE" to decrypt private key for signature!');
+    if(!process.env.RAKKOMIK_PASSPHRASE) {
+        throw new Error('Missing environment variable "RAKKOMIK_PASSPHRASE" to decrypt private key for signature!');
     }
     if(!process.env.GITHUB_TOKEN) {
         throw new Error('Missing environment variable "GITHUB_TOKEN" for GitHub Releases upload (gh CLI)!');
@@ -77,8 +77,8 @@ async function readTree(directory) {
 async function pack(directory, archive, meta) {
     const data = zipSync(await readTree(directory), { level: 6 });
     const signature = crypto.sign('sha256', data, {
-        key: process.env.HAKUNEKO_PRIVATE_KEY,
-        passphrase: process.env.HAKUNEKO_PASSPHRASE
+        key: process.env.RAKKOMIK_PRIVATE_KEY,
+        passphrase: process.env.RAKKOMIK_PASSPHRASE
     }).toString('hex');
     await fs.writeFile(path.join(directory, archive), data);
     await fs.writeFile(path.join(directory, meta), `${archive}?signature=${signature}`);
