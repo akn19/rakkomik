@@ -49,6 +49,19 @@ module.exports = class Configuration {
         return fs.existsSync(electron.app.getPath('exe') + '.portable');
     }
 
+    /**
+     * The web part that ships with a packaged application: the folder `web` next to `app.asar`, where the Arch
+     * package and the installers put it. Undefined in development (`electron .`), where nothing is packed.
+     */
+    static get bundledWebDirectory() {
+        const application = electron.app.getAppPath();
+        if(path.basename(application) !== 'app.asar') {
+            return undefined;
+        }
+        const directory = path.join(path.dirname(application), 'web');
+        return fs.existsSync(path.join(directory, 'index.html')) ? directory : undefined;
+    }
+
     get publicKey() {
         return publicKey;
     }

@@ -1,5 +1,6 @@
 const { mockModule } = require('./support/mockRequire');
 const fs = require('node:fs');
+const path = require('node:path');
 
 mockModule('electron', () => {
     return {
@@ -28,6 +29,7 @@ mockModule('electron', () => {
 });
 
 
+const electron = require('electron');
 const App = require('../App.js');
 const Configuration = require('../Configuration');
 const ConfigurationLinux = require('../ConfigurationLinux');
@@ -72,6 +74,39 @@ describe('App', function() {
                 expect(testee._configuration instanceof ConfigurationWindows).toBeTruthy();
             }
 
+        });
+
+        describe('with a web part that ships with the application', () => {
+            const resources = path.join('/opt', 'rakkomik', 'resources');
+            const argv = process.argv;
+
+            beforeEach(() => {
+                electron.app.getAppPath.mockImplementation(() => path.join(resources, 'app.asar'));
+                fs.existsSync.mockImplementation(file => file === path.join(resources, 'web', 'index.html'));
+            });
+
+            afterEach(() => {
+                electron.app.getAppPath.mockImplementation(() => '/usr/bin');
+                process.argv = argv;
+            });
+
+            it('should use it as the cache directory and leave the update off', () => {
+                let testee = new App(logger);
+                expect(testee._configuration.applicationCacheDirectory).toEqual(path.join(resources, 'web'));
+                expect(testee._configuration.applicationUpdateURL).toEqual('DISABLED');
+            });
+            it('should leave the cache directory and the update URL to the command line', () => {
+                process.argv = [ ...argv, '--cache-directory=/custom/cache', '--update-url=https://example.org/latest' ];
+                let testee = new App(logger);
+                expect(testee._configuration.applicationCacheDirectory).toEqual(path.resolve('/custom/cache'));
+                expect(testee._configuration.applicationUpdateURL).toEqual('https://example.org/latest');
+            });
+            it('should decide on each of the two by itself', () => {
+                process.argv = [ ...argv, '--update-url=https://example.org/latest' ];
+                let testee = new App(logger);
+                expect(testee._configuration.applicationCacheDirectory).toEqual(path.join(resources, 'web'));
+                expect(testee._configuration.applicationUpdateURL).toEqual('https://example.org/latest');
+            });
         });
     });
 });

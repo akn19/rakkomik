@@ -167,6 +167,17 @@ describe('Updater', function () {
 
     describe('updateCache()', function () {
 
+        it('should not ask the server when the update is disabled', async () => {
+            fixture.createMockDirectory();
+            let serverManager = new UpdateServerManager('DISABLED', logger);
+            let getUpdateInfo = vi.spyOn(serverManager, 'getUpdateInfo');
+            let testee = new Updater(serverManager, new CacheDirectoryManager(fixture.applicationCacheDirectory, logger), logger);
+            await testee.updateCache(publicKey);
+            assert.equal(getUpdateInfo.mock.calls.length, 0);
+            assert.equal(fs.readFileSync(fixture.dummy.file, 'utf8'), fixture.dummy.content);
+            fixture.deleteMockDirectory();
+        });
+
         it('should update cache when when cache is non-empty and server is newer and archive is valid', async () => {
             fixture.createMockDirectory();
             await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);

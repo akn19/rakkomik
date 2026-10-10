@@ -8,13 +8,23 @@ module.exports = class UpdateServerManager {
 
     constructor(applicationUpdateURL, logger) {
         this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
-        // an unusable URL (e.g. `--update-url=DISABLED`) simply disables the updater
+        // an unusable URL simply disables the updater: `DISABLED` on purpose (packaged applications bring their own
+        // web part), anything else is a mistake that is worth a warning
         if(URL.canParse(applicationUpdateURL)) {
             this._applicationUpdateURL = applicationUpdateURL;
         } else {
-            this._logger.warn('Initialization of "UpdateServerManager" failed!', new Error(`Invalid update URL: ${applicationUpdateURL}`));
+            if(applicationUpdateURL !== 'DISABLED') {
+                this._logger.warn('Initialization of "UpdateServerManager" failed!', new Error(`Invalid update URL: ${applicationUpdateURL}`));
+            }
             this._applicationUpdateURL = undefined;
         }
+    }
+
+    /**
+     * @returns {boolean} true when there is no usable update URL
+     */
+    get isDisabled() {
+        return this._applicationUpdateURL === undefined;
     }
 
     /**

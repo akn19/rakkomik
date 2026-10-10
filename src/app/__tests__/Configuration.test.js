@@ -58,6 +58,25 @@ describe('Configuration', function() {
         });
     });
 
+    describe('bundledWebDirectory', function() {
+        const resources = path.join('/opt', 'rakkomik', 'resources');
+        it('should be undefined while the application is not packed', () => {
+            expect(Configuration.bundledWebDirectory).toBeUndefined();
+            expect(fs.existsSync).not.toHaveBeenCalled();
+        });
+        it('should be the web folder next to app.asar when it has an index page', () => {
+            electron.app.getAppPath.mockReturnValueOnce(path.join(resources, 'app.asar'));
+            fs.existsSync.mockReturnValueOnce(true);
+            expect(Configuration.bundledWebDirectory).toEqual(path.join(resources, 'web'));
+            expect(fs.existsSync).toHaveBeenLastCalledWith(path.join(resources, 'web', 'index.html'));
+        });
+        it('should be undefined when the web folder next to app.asar has no index page', () => {
+            electron.app.getAppPath.mockReturnValueOnce(path.join(resources, 'app.asar'));
+            fs.existsSync.mockReturnValueOnce(false);
+            expect(Configuration.bundledWebDirectory).toBeUndefined();
+        });
+    });
+
     describe('publicKey', function() {
         it('should be valid after initialization', () => {
             let testee = new Configuration(undefined);

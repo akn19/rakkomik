@@ -39,6 +39,15 @@ module.exports = class App {
     }
 
     _getConfiguration(options) {
+        // A web part that ships with the application is used and not updated, each unless the command line says otherwise.
+        const bundled = Configuration.bundledWebDirectory;
+        if(bundled) {
+            options = {
+                ...options,
+                applicationCacheDirectory: options.applicationCacheDirectory || bundled,
+                applicationUpdateURL: options.applicationUpdateURL || 'DISABLED'
+            };
+        }
         if(Configuration.isPortableMode) {
             return new Configuration(options);
         }

@@ -134,6 +134,32 @@ describe('UpdateServerManager', function () {
         });
     });
 
+    describe('isDisabled', function () {
+
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        it('should be false when URL is valid', async () => {
+            let testee = new UpdateServerManager('https://localhost', logger);
+            assert.equal(testee.isDisabled, false);
+        });
+
+        it('should be true without a warning when the update is disabled on purpose', async () => {
+            let warn = vi.spyOn(logger, 'warn');
+            let testee = new UpdateServerManager('DISABLED', logger);
+            assert.equal(testee.isDisabled, true);
+            assert.equal(warn.mock.calls.length, 0);
+        });
+
+        it('should be true with a warning when URL is invalid', async () => {
+            let warn = vi.spyOn(logger, 'warn');
+            let testee = new UpdateServerManager('null', logger);
+            assert.equal(testee.isDisabled, true);
+            assert.equal(warn.mock.calls.length, 1);
+        });
+    });
+
     describe('getUpdateInfo()', function () {
 
         it('should get valid result when URL is valid', async () => {
