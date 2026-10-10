@@ -19,8 +19,12 @@ export default class Connector {
          */
         this.isLocked = false;
         this.initialized = false;
-        //
-        this.isUpdating = false;
+        /*
+         * Progress of the running update of the manga list (see updateMangas), undefined while idle:
+         * the requests that the fetch helpers of this class completed since the update started.
+         * READONLY: it follows isUpdating, assign that instead.
+         */
+        this.updateProgress = undefined;
         //
         this.mangaCache = undefined;
         //
@@ -43,6 +47,17 @@ export default class Connector {
 
     canHandleURI(uri) {
         return this.url === uri.origin;
+    }
+
+    /**
+     * Whether the manga list is being updated. Assigning it starts (true) or ends (false) the progress of the update.
+     */
+    get isUpdating() {
+        return this.updateProgress !== undefined;
+    }
+
+    set isUpdating(value) {
+        this.updateProgress = value ? { requests: 0, startedAt: Date.now() } : undefined;
     }
 
     /**
@@ -422,6 +437,20 @@ export default class Connector {
     }
 
     /**
+     * Same as fetch(), but the completed request counts for the progress of a running update.
+     * The fetch helpers below use it; connectors that call fetch() themselves are not counted.
+     */
+    async _countedFetch(request) {
+        try {
+            return await fetch(request);
+        } finally {
+            if(this.updateProgress) {
+                this.updateProgress.requests++;
+            }
+        }
+    }
+
+    /**
      * Get the content for the given Request
      * and get all elements matching the given CSS selector.
      */
@@ -434,7 +463,7 @@ export default class Connector {
         if(request instanceof URL) {
             request = new Request(request.href, this.requestOptions);
         }
-        const response = await fetch(request.clone());
+        const response = await this._countedFetch(request.clone());
         if(response.status >= 500 && retries > 0) {
             await this.wait(2500);
             return this.fetchDOM(request, selector, retries - 1);
@@ -464,7 +493,7 @@ export default class Connector {
         if( request instanceof URL ) {
             request = new Request( request.href, this.requestOptions );
         }
-        return fetch( request )
+        return this._countedFetch( request )
             .then( response => {
                 if( response.status >= 500 && retries > 0 ) {
                     return this.wait( 5000 )
@@ -509,7 +538,7 @@ export default class Connector {
         if(!/\/[imsuy]*g[imsuy]*$/.test('' + regex)) {
             throw new Error('The provided RegExp must contain the global "g" modifier!');
         }
-        let response = await fetch(request);
+        let response = await this._countedFetch(request);
         let data = await response.text();
         let result = [];
         let match = undefined;
@@ -553,7 +582,7 @@ export default class Connector {
     async fetchPROTO(request, protoTypes, rootType) {
         let protobuf = await loadProtobuf();
         let Root = (await protobuf.load(protoTypes)).lookupType(rootType);
-        let response = await fetch(request);
+        let response = await this._countedFetch(request);
         let data = await response.arrayBuffer();
         data = Root.decode(new Uint8Array(data));
         return Root.toObject(data);

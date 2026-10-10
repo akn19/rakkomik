@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { openExternalLink, findConnectorsByManga } from './engine.js';
 import { useConnectors } from './connectorsState.js';
 import { updateMangaList } from './queries.js';
+import { useUpdateProgress, updateMessage } from './updateProgress.js';
 import { useToast } from './notify.jsx';
 import Icon from './icon.jsx';
 
@@ -39,6 +40,9 @@ function CardButton({ icon, title, enabled, busy, onClick }) {
 
 function Card({ connector, selected, updating, onSelect, onUpdate }) {
     const links = connector.links || {};
+    const progress = useUpdateProgress(connector);
+    // the engine knows about updates that were started from the main window as well
+    const running = updating || !!progress;
     return (
         <div
             role="option"
@@ -82,19 +86,23 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
                         <CardButton
                             icon="refresh"
                             title={`Synchronize local manga list with online list from <${connector.label}>`}
-                            enabled={!updating}
-                            busy={updating}
+                            enabled={!running}
+                            busy={running}
                             onClick={onUpdate}
                         />
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-[0.25em] overflow-hidden">
-                    {(connector.tags || []).map(tag => (
-                        <span key={tag} className="rounded-[0.5em] bg-(--connector-tag-background-color) px-[0.3em] whitespace-nowrap text-(--connector-tag-color)">
-                            {tag}
-                        </span>
-                    ))}
-                </div>
+                {running ? (
+                    <div className="truncate text-(--connector-tag-color)">{updateMessage(progress)}</div>
+                ) : (
+                    <div className="flex flex-wrap gap-[0.25em] overflow-hidden">
+                        {(connector.tags || []).map(tag => (
+                            <span key={tag} className="rounded-[0.5em] bg-(--connector-tag-background-color) px-[0.3em] whitespace-nowrap text-(--connector-tag-color)">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

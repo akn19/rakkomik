@@ -48,7 +48,8 @@ directory and updates it from the [update URL](#command-line-options) when it st
 
 1. Select a website (the _connector_); use the filters to narrow the list down.
 2. Click the refresh button to load the manga list of the website. This can take a few minutes the first time;
-   the list is kept for the next start.
+   the status line shows how many requests have completed and for how long the update has been running, and the
+   list is kept for the next start.
 3. Find a manga and select it, optionally filter its chapters by language.
 4. Select the chapters and download them. The _Downloads_ page shows the queue and its progress,
    _Bookmarks_ keeps your favorites.

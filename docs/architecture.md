@@ -73,7 +73,9 @@ React user interface. The website connectors load in the background afterwards, 
   individually, so connectors and engine share the same module instances by URL. Connectors in the user's plugin
   folder are registered first; when an ID is used twice the first one wins.
 - **User interface** (`ui`): React with TanStack Router and Query, Tailwind, Lucide icons. It talks to the engine
-  through `ui/engine.js` and reads its colours from the theme tokens in `ui/index.css`.
+  through `ui/engine.js` and reads its colours from the theme tokens in `ui/index.css`. During a manga list update it
+  samples `Connector.updateProgress` (the requests the fetch helpers completed since the update started) twice a
+  second and shows the count, the elapsed time and a bar in the status line and on the connector cards.
 
 Writes are atomic: a file is written next to its target and renamed over it.
 

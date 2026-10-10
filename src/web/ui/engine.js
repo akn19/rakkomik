@@ -71,6 +71,18 @@ export async function whenConnectorsReady() {
     }
 }
 
+/**
+ * Progress of the running manga list update of a connector: the requests it completed so far and the seconds
+ * since it started; `undefined` when the connector is not updating (or is no engine connector).
+ */
+export function getUpdateProgress(connector) {
+    const progress = connector ? connector.updateProgress : undefined;
+    if (!progress) {
+        return undefined;
+    }
+    return { requests: progress.requests, seconds: Math.max(0, Math.floor((Date.now() - progress.startedAt) / 1000)) };
+}
+
 export function getEngineStatus() {
     let engine = null;
     try {

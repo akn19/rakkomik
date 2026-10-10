@@ -300,4 +300,38 @@ body {
     .rk-content-bg {
         background-color: var(--page-control-background-color);
     }
+
+    /* Progress of a task without a known total (a manga list update): a bar that sweeps back and forth */
+    .rk-progress {
+        position: relative;
+        height: 3px;
+        overflow: hidden;
+        background-color: var(--job-list-progress-background-color);
+    }
+
+    .rk-progress::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -35%;
+        width: 35%;
+        background-color: var(--manga-refresh-button-color);
+        animation: rk-sweep 1.2s ease-in-out infinite;
+    }
+}
+
+@keyframes rk-sweep {
+    to {
+        left: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rk-progress::before {
+        left: 0;
+        width: 100%;
+        opacity: 0.5;
+        animation: none;
+    }
 }

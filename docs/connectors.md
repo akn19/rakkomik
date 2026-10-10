@@ -50,6 +50,11 @@ cannot list its manga (too large, or no list at all) implements only `_getMangaF
 | `getAbsolutePath(reference, base)` | resolve a link against a base |
 | `wait(ms)` | pause between requests of a site that limits the rate |
 
+While the user updates the manga list, the helpers count the requests they complete: `connector.updateProgress` is
+`{ requests, startedAt }` during an update and `undefined` otherwise, and the user interface shows the count and the
+elapsed time (the total is not known, so there is no percentage). A connector that calls `fetch()` itself is not
+counted and shows only the elapsed time, so prefer the helpers.
+
 Create requests with `new Request(url, this.requestOptions)`; the options carry the credentials and the default
 headers. The `x-` headers (`x-referer`, `x-origin`, `x-cookie`, `x-user-agent`, ...) are turned into real headers by
 the main process, see [architecture](architecture.md#requests-and-interstitials). Interstitials are handled below

@@ -444,6 +444,67 @@ test.describe('anti-bot interstitials', () => {
     });
 });
 
+// A website that answers its manga list page by page, and slowly: the update of its connector takes a while.
+function createPagedServer(delay) {
+    const server = http.createServer((request, response) => {
+        const number = new URL(request.url, 'http://localhost').searchParams.get('page');
+        setTimeout(() => {
+            response.writeHead(200, { 'content-type': 'application/json' });
+            response.end(JSON.stringify([ { id: `/manga/${number}-a`, title: `Paged ${number} A` }, { id: `/manga/${number}-b`, title: `Paged ${number} B` } ]));
+        }, delay);
+    });
+    return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve({
+        url: `http://127.0.0.1:${server.address().port}`,
+        close: () => new Promise(done => {
+            server.closeAllConnections();
+            server.close(done);
+        })
+    })));
+}
+
+test.describe('manga list update', () => {
+    test('should show the progress of the update while it runs', async ({ page }) => {
+        const server = await createPagedServer(700);
+        const connectorID = 'mangadex';
+        try {
+            await reload(page);
+            await connectorsReady(page);
+            // the connector asks the local site instead of its real website, one request per page
+            await page.evaluate(({ id, base }) => {
+                const connector = Engine.Connectors.find(entry => entry.id === id);
+                connector.initialize = async () => undefined;
+                connector._getMangas = async function() {
+                    const mangas = [];
+                    for (let number = 1; number <= 4; number++) {
+                        mangas.push(...await this.fetchJSON(`${base}/list?page=${number}`));
+                    }
+                    return mangas;
+                };
+            }, { id: connectorID, base: server.url });
+            await pickConnector(page, connectorID);
+            await page.getByTitle(/^Synchronize local manga list with online list from </).first().click();
+
+            const bar = page.getByRole('progressbar', { name: 'Updating manga list' });
+            await expect(bar).toBeVisible();
+            // the status line counts the requests that completed, and the count grows
+            await expect(page.getByText(/^Updating… 1 request · \d+:\d{2}$/)).toBeVisible();
+            await expect(page.getByText(/^Updating… [2-9] requests · \d+:\d{2}$/)).toBeVisible();
+
+            await expect(page.getByText('Manga list updated (8 titles).')).toBeVisible({ timeout: 15000 });
+            await expect(page.getByText('Mangas: 8 / 8')).toBeVisible();
+            await expect(bar).toHaveCount(0);
+            expect(await page.evaluate(id => Engine.Connectors.find(entry => entry.id === id).updateProgress, connectorID)).toBeUndefined();
+        } finally {
+            await page.evaluate(id => {
+                const connector = Engine.Connectors.find(entry => entry.id === id);
+                delete connector.initialize;
+                delete connector._getMangas;
+            }, connectorID);
+            await server.close();
+        }
+    });
+});
+
 test('should hand the renderer its platform data up front', async ({ app, page }) => {
     // preload bridge: values arrive through additionalArguments, no synchronous IPC
     const bootstrap = await page.evaluate(() => ({

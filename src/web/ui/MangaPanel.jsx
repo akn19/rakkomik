@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { toggleBookmark, isMangaBookmarked, subscribeBookmarks } from './engine.js';
 import { useConnectors } from './connectorsState.js';
 import { fetchMangaList, updateMangaList } from './queries.js';
+import { useUpdateProgress, describeUpdateProgress, updateMessage } from './updateProgress.js';
 import { useToast } from './notify.jsx';
 import { useSelection } from './selection.jsx';
 import ConnectorDialog from './connectors.jsx';
@@ -41,6 +42,9 @@ export default function MangaPanel({ readerEnabled }) {
     // the default (first) connector is only known once the list is complete and sorted
     const effectiveId = connectorId || (ready && connectors[0] ? connectors[0].id : '');
     const connector = connectors.find(entry => entry.id === effectiveId);
+    const progress = useUpdateProgress(connector);
+    // the engine knows about updates that were started elsewhere as well (the connector dialog)
+    const refreshing = updating || !!progress;
     const bookmarked = React.useSyncExternalStore(
         subscribeBookmarks,
         () => (selectedManga ? isMangaBookmarked(selectedManga) : false)
@@ -162,9 +166,9 @@ export default function MangaPanel({ readerEnabled }) {
                     onClick={() => update(connector)}
                     disabled={!connector}
                     title={refreshTitle}
-                    className={refreshClass + (updating ? ' cursor-progress! text-(--manga-button-disabled-color)!' : '')}
+                    className={refreshClass + (refreshing ? ' cursor-progress! text-(--manga-button-disabled-color)!' : '')}
                 >
-                    <Icon name="refresh" size={14} spin={updating} />
+                    <Icon name="refresh" size={14} spin={refreshing} />
                 </button>
                 <Icon name="search" size={14} className="rk-icon" />
                 <input
@@ -218,7 +222,7 @@ export default function MangaPanel({ readerEnabled }) {
                             title={refreshTitle}
                             className={'align-middle ' + refreshClass}
                         >
-                            <Icon name="refresh" size={14} spin={updating} />
+                            <Icon name="refresh" size={14} spin={refreshing} />
                         </button>
                         &nbsp;button to update list
                         <br />
@@ -227,12 +231,12 @@ export default function MangaPanel({ readerEnabled }) {
                         <br />
                         and may take more than 10mins
                         <br />
-                        If the icon is still spinning,
+                        While the status line below
                         <br />
-                        it&apos;s still working
+                        keeps counting requests, it&apos;s still working
                         <br />
                         <br />
-                        To check the activity press F12
+                        To see the requests press F12
                         <br />
                         and go to the network tab
                     </div>
@@ -263,13 +267,20 @@ export default function MangaPanel({ readerEnabled }) {
                     })}
                 </div>
             </div>
+            {refreshing && (
+                <div role="progressbar" aria-label="Updating manga list" aria-valuetext={describeUpdateProgress(progress) || 'Updating'} className="rk-progress" />
+            )}
             <StatusLine
-                message={`Mangas: ${mangas.length} / ${total}`}
-                busy={updating || mangaQuery.isPending || !ready}
+                message={refreshing ? updateMessage(progress) : `Mangas: ${mangas.length} / ${total}`}
+                busy={refreshing || mangaQuery.isPending || !ready}
                 busyTitle={
                     !ready
                         ? `Loading connectors (${connectors.length})`
-                        : connector ? `${updating ? 'Updating' : 'Loading'} manga list (${connector.label})` : ''
+                        : connector
+                            ? refreshing
+                                ? `Updating manga list (${connector.label}): ${describeUpdateProgress(progress) || 'waiting for the website'}`
+                                : `Loading manga list (${connector.label})`
+                            : ''
                 }
             />
             <ConnectorDialog
