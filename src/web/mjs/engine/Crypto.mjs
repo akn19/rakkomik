@@ -12,7 +12,7 @@
  *   readable — no silent credential orphaning.
  * - `LegacyCrypto` is a minimal, module-local, SYNC `CryptoJS`-shaped adapter
  *   (pure-JS AES-CBC decrypt) for the obfuscated connectors that cannot be
- *   rewritten by hand (Comikey, MangaDig). It must only ever be pulled in via
+ *   rewritten by hand (MangaDig). It must only ever be pulled in via
  *   `import { LegacyCrypto as CryptoJS }` (shadowing, never global).
  */
 const te = new TextEncoder();
