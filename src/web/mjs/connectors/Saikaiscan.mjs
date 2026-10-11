@@ -12,9 +12,6 @@ export default class SaikaiScan extends Connector {
         this.api = 'https://api.saikaiscans.net/api/stories';
         this.imagesurl = 'https://s3-alpha.saikaiscans.net';
         this.novelContentQuery = 'div#leitor-serie-body';
-        this.novelFormat = 'image/png';
-        this.novelWidth = '56em';
-        this.novelPadding = '1.5em';
         this.links = {
             login: 'https://saikaiscan.net/login'
         };
@@ -78,31 +75,6 @@ export default class SaikaiScan extends Connector {
     }
 
     async _getPagesNovel(request) {
-        let darkmode = Engine.Settings.NovelColorProfile();
-        let script = `
-           new Promise((resolve, reject) => {
-               
-                document.body.style.width = '${this.novelWidth}';
-                let novel = document.querySelector('${this.novelContentQuery}');
-                novel.style.maxWidth = '${this.novelWidth}';
-                novel.style.margin = '0';
-                novel.style.padding = '${this.novelPadding}';
-                novel.style.backgroundColor = '${darkmode.background}'
-                novel.style.color = '${darkmode.text}'
-                let script = document.createElement('script');
-                script.onerror = error => reject(error);
-                script.onload = async function() {
-                    try{
-                        let canvas = await html2canvas(novel);
-                        resolve(canvas.toDataURL('${this.novelFormat}'));
-                    }catch (error){
-                        reject(error)
-                    }
-                }
-                script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
-                document.body.appendChild(script);
-            });
-        `;
-        return [ await Engine.Request.fetchUI(request, script, 30000, true) ];
+        return [ await Engine.Request.fetchNovel(request, this.novelContentQuery) ];
     }
 }

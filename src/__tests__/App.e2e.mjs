@@ -300,6 +300,7 @@ test.describe('menu and settings', () => {
         await page.getByTitle('Toggle menu').click();
         await expect(page.getByText('About', { exact: true })).toBeVisible();
         await expect(page.getByText('Enable Reader')).toBeVisible();
+        await expect(page.getByText('Novel File Format')).toBeVisible();
         await expect(page.getByText('Frontend')).toHaveCount(0);
         await page.keyboard.press('Escape');
         await expect(page.getByText('About', { exact: true })).toBeHidden();
@@ -579,6 +580,252 @@ test.describe('manga list update', () => {
             }, connectorID);
             await server.close();
         }
+    });
+});
+
+// A website with a novel: a chapter that is there at once, a chapter its script fills in later, and a picture in it.
+function createNovelServer() {
+    const picture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    const chapter = `
+        <h2>Chapter 1</h2>
+        <p>First &amp; <em>foremost</em></p>
+        <p class="junk">text that only fools a copier</p>
+        <p class="ghost">another one</p>
+        <div class="ad"><p>Buy now</p></div>
+        <p>https://novels.example</p>
+        <p>Last <a href="/elsewhere" onclick="steal()">linked</a> text</p>
+        <p><img src="/placeholder.gif" data-src="/cover.png" alt="Cover"></p>`;
+    const page = body => `<!doctype html><html><head><title>Novel</title><style>.junk { display: none } .ghost { visibility: hidden }</style></head><body><div class="menu">Menu</div>${body}</body></html>`;
+    const server = http.createServer((request, response) => {
+        switch (request.url) {
+            case '/chapter':
+                response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+                return response.end(page(`<div class="content">${chapter}</div>`));
+            case '/late':
+                response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+                return response.end(page('<div class="content"></div><script>const content = document.querySelector(".content"); setTimeout(() => { content.innerHTML = "<p>Loading</p>"; }, 300); setTimeout(() => { content.innerHTML = "<p>Loading the whole chapter</p>"; }, 500);</script>'));
+            case '/cover.png':
+                response.writeHead(200, { 'content-type': 'image/png' });
+                return response.end(picture);
+            default:
+                response.writeHead(404);
+                return response.end();
+        }
+    });
+    return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve({
+        url: `http://127.0.0.1:${server.address().port}`,
+        picture,
+        close: () => new Promise(done => {
+            server.closeAllConnections();
+            server.close(done);
+        })
+    })));
+}
+
+// resolved by the application's own protocol (a runtime URL, not a project file)
+const NOVEL_MODULE = '/mjs/engine/Novel.mjs';
+
+test.describe('novels', () => {
+    const takeNovel = (url, selector, options) => [ async ([ url, selector, options, module ]) => {
+        const { readNovelPage } = await import(module);
+        return readNovelPage(await Engine.Request.fetchNovel(new Request(url), selector, options));
+    }, [ url, selector, options, NOVEL_MODULE ] ];
+
+    test('should take the text of a chapter from a page, the way a visitor sees it', async ({ page }) => {
+        const site = await createNovelServer();
+        try {
+            await reload(page);
+            const xhtml = await page.evaluate(...takeNovel(`${site.url}/chapter`, 'div.content', { obstacles: '.ad', ignoredTexts: [ 'https://novels.example' ] }));
+            expect(xhtml).toBe([
+                '<h2>Chapter 1</h2>',
+                '<p>First &amp; <em>foremost</em></p>',
+                '<p>Last linked text</p>',
+                `<p><img src="${site.url}/cover.png" alt="Cover"/></p>`
+            ].join('\n'));
+        } finally {
+            await site.close();
+        }
+    });
+
+    test('should wait for a chapter that its page fills in later', async ({ page }) => {
+        const site = await createNovelServer();
+        try {
+            await reload(page);
+            await expect(page.evaluate(...takeNovel(`${site.url}/late`, 'div.content'))).resolves.toBe('<p>Loading the whole chapter</p>');
+        } finally {
+            await site.close();
+        }
+    });
+
+    test('should fail clearly when the page has no such chapter', async ({ app, page }) => {
+        const site = await createNovelServer();
+        try {
+            await reload(page);
+            await expect(page.evaluate(...takeNovel(`${site.url}/chapter`, 'div.missing', { timeout: 1000 }))).rejects.toThrow('The novel content "div.missing" was not found!');
+            // the window that loaded the page is closed again
+            await expect.poll(() => app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), { timeout: 10000 }).toBe(1);
+        } finally {
+            await site.close();
+        }
+    });
+
+    test('should store a chapter as an EPUB or a PDF, and read the EPUB back', async ({ app, page }) => {
+        const site = await createNovelServer();
+        try {
+            await reload(page);
+            const stored = await page.evaluate(async ([ url, module ]) => {
+                const { readNovelPage } = await import(module);
+                const chapter = { title: 'Chapter 1 - A & B', language: 'en', status: 'available', manga: { title: 'My Novel', existingChapters: [], connector: { label: 'Site', requestOptions: {} } } };
+                const text = `<p>First &amp; foremost</p>\n<p><img src="${url}/cover.png" alt="Cover"/></p>`;
+                const blob = new Blob([ text ], { type: 'application/xhtml+xml;charset=utf-8' });
+                const paths = {};
+                try {
+                    // the format of the chapters of comics does not matter: a novel is text
+                    Engine.Settings.chapterFormat.value = '.cbz';
+                    for (const format of [ '.epub', '.pdf' ]) {
+                        Engine.Settings.novelFormat.value = format;
+                        await Engine.Storage.saveChapterPages(chapter, [ blob ]);
+                        paths[format] = Engine.Storage._novelOutputPath(chapter);
+                    }
+                    const pages = await Engine.Storage.loadChapterPages(paths['.epub']);
+                    return { paths, registered: Object.keys(chapter.manga.existingChapters), pages: pages.map(entry => readNovelPage(entry)) };
+                } finally {
+                    Engine.Settings.chapterFormat.value = 'img';
+                    Engine.Settings.novelFormat.value = '.epub';
+                }
+            }, [ site.url, NOVEL_MODULE ]);
+
+            expect(stored.paths['.epub']).toBe(path.join(app.userDirectory, 'mangas', 'My Novel', 'Chapter 1 - A & B.epub'));
+            expect(stored.paths['.pdf']).toBe(path.join(app.userDirectory, 'mangas', 'My Novel', 'Chapter 1 - A & B.pdf'));
+            expect(stored.registered.sort()).toEqual([ 'Chapter 1 - A & B.epub', 'Chapter 1 - A & B.pdf' ]);
+            // nothing but the two files of the novel was stored
+            expect(fs.readdirSync(path.join(app.userDirectory, 'mangas', 'My Novel')).sort()).toEqual([ 'Chapter 1 - A & B.epub', 'Chapter 1 - A & B.pdf' ]);
+
+            const epub = fs.readFileSync(stored.paths['.epub']);
+            expect(epub.subarray(30, 38).toString()).toBe('mimetype');
+            expect(epub.readUInt16LE(8)).toBe(0);
+            const archive = unzipSync(new Uint8Array(epub));
+            expect(Object.keys(archive)).toEqual([ 'mimetype', 'META-INF/container.xml', 'OEBPS/css/style.css', 'OEBPS/img/1.png', 'OEBPS/xhtml/chapter.xhtml', 'OEBPS/content.opf', 'OEBPS/toc.ncx' ]);
+            expect(Buffer.from(archive['OEBPS/img/1.png']).equals(site.picture)).toBe(true);
+            const chapterXHTML = new TextDecoder().decode(archive['OEBPS/xhtml/chapter.xhtml']);
+            expect(chapterXHTML).toContain('<h1>Chapter 1 - A &amp; B</h1>');
+            expect(chapterXHTML).toContain('<p>First &amp; foremost</p>');
+            expect(chapterXHTML).toContain('<img src="../img/1.png" alt="Cover"/>');
+            expect(new TextDecoder().decode(archive['OEBPS/content.opf'])).toContain('<dc:title>My Novel - Chapter 1 - A &amp; B</dc:title>');
+
+            // what the reader gets: the text, with the picture as a file
+            expect(stored.pages).toHaveLength(1);
+            expect(stored.pages[0]).toContain('<p>First &amp; foremost</p>');
+            expect(stored.pages[0]).toMatch(/<img src="file:\/\/[^"]*\/1\.png\?ts=\d+" alt="Cover"\/>/);
+
+            // the PDF is a document of text, printed by the main process
+            const pdf = fs.readFileSync(stored.paths['.pdf']);
+            expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+            expect(pdf.subarray(-6).toString()).toContain('%%EOF');
+            expect(pdf.length).toBeGreaterThan(1000);
+        } finally {
+            await site.close();
+        }
+    });
+
+    test('should download a novel as text, know the chapter as downloaded after a restart, and read it from the file', async ({ isolatedApp }) => {
+        const { page, userDirectory } = isolatedApp;
+        await openSeededManga(page);
+        await page.evaluate(async module => {
+            const { createNovelPage } = await import(module);
+            const chapterModule = '/mjs/engine/Chapter.mjs';
+            const { default: Chapter } = await import(chapterModule);
+            Chapter.prototype.getPages = function(callback) {
+                callback(null, [ createNovelPage('<h1>Chapter 85</h1>\n<p>Once upon a time</p>') ]);
+            };
+        }, NOVEL_MODULE);
+        const row = () => page.locator('[role=list] > div > div').first();
+        await row().getByRole('button').first().click();
+        await expect(row().getByRole('button').first()).toHaveAttribute('title', /^DOWNLOADED/, { timeout: 15000 });
+
+        // the chapters of comics are stored in a folder of images (the default), a novel is an e-book anyway
+        const directory = path.join(userDirectory, 'mangas', FATHER);
+        expect(fs.readdirSync(directory)).toEqual([ 'Chapter 85.epub' ]);
+        const archive = unzipSync(new Uint8Array(fs.readFileSync(path.join(directory, 'Chapter 85.epub'))));
+        expect(new TextDecoder().decode(archive['OEBPS/xhtml/chapter.xhtml'])).toContain('<p>Once upon a time</p>');
+
+        // after a restart the manga reads its directory: the e-book is the chapter, not a file next to it
+        await reload(page);
+        await connectorsReady(page);
+        await pickConnector(page, SEED_CONNECTOR);
+        await page.evaluate(async id => {
+            const chapterModule = '/mjs/engine/Chapter.mjs';
+            const { default: Chapter } = await import(chapterModule);
+            const connector = Engine.Connectors.find(entry => entry.id === id);
+            connector.initialize = async () => undefined;
+            // no status: each chapter finds out by itself whether it is on the device
+            connector._getChapterList = (manga, callback) => callback(null, [ 85, 84 ].map(number => new Chapter(manga, '/c/' + number, 'Chapter ' + number, 'en')));
+        }, SEED_CONNECTOR);
+        await page.getByRole('option', { name: new RegExp(`^${FATHER}`) }).click();
+        await expect(page.getByText('Chapters: 2 / 2')).toBeVisible();
+        await expect(row().getByRole('button').first()).toHaveAttribute('title', /^DOWNLOADED/);
+        await expect(page.locator('[role=list] > div > div').nth(1).getByRole('button').first()).toHaveAttribute('title', /^AVAILABLE/);
+
+        // and the reader gets the text out of the file
+        await row().getByTitle(/^Show preview/).click();
+        await page.getByRole('button', { name: 'Page 1', exact: true }).click();
+        await expect(page.locator('article.rk-novel p')).toHaveText('Once upon a time');
+    });
+
+    test('should read a chapter of a novel as text: thumbnail, reader, zoom and colours', async ({ page }) => {
+        await reload(page);
+        await openSeededManga(page);
+        await page.evaluate(async module => {
+            const { createNovelPage } = await import(module);
+            const chapterModule = '/mjs/engine/Chapter.mjs';
+            const { default: Chapter } = await import(chapterModule);
+            // the text of an e-book can hold more than a chapter: the reader cleans it up once more
+            Chapter.prototype.getPages = function(callback) {
+                callback(null, [ createNovelPage('<h1>Chapter 80</h1>\n<p>First &amp; <em>foremost</em></p>\n<p>Second paragraph</p><script>window.pwned = true</script><p onclick="window.pwned = true">Third</p>') ]);
+            };
+        }, NOVEL_MODULE);
+        await page.locator('[role=list] > div > div').nth(5).getByTitle(/^Show preview/).click();
+        const thumbnail = page.getByRole('button', { name: 'Page 1', exact: true });
+        await expect(thumbnail).toContainText('Chapter 80 First & foremost Second paragraph Third');
+        await thumbnail.click();
+
+        const text = page.locator('article.rk-novel');
+        await expect(text.locator('h1')).toHaveText('Chapter 80');
+        await expect(text.locator('p')).toHaveText([ 'First & foremost', 'Second paragraph', 'Third' ]);
+        await expect(text.locator('em')).toHaveText('foremost');
+        await expect(text.locator('script')).toHaveCount(0);
+        await expect(text.locator('[onclick]')).toHaveCount(0);
+        expect(await page.evaluate(() => window.pwned)).toBeUndefined();
+        await expect(page.locator('img.rk-page')).toHaveCount(0);
+
+        // the colours chosen for novels (light unless told otherwise) and a column that is no wider than a page of a book
+        await expect(text).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+        await expect(text).toHaveCSS('color', 'rgb(0, 0, 0)');
+        expect((await text.boundingBox()).width).toBeLessThanOrEqual(56 * 16 * 1.01);
+        await page.evaluate(() => {
+            Engine.Settings.NovelColorProfiles.value = 'Dark';
+        });
+        await page.keyboard.press('Escape');
+        await thumbnail.click();
+        await expect(text).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+        await expect(text).toHaveCSS('color', 'rgb(255, 255, 255)');
+        await page.evaluate(() => {
+            Engine.Settings.NovelColorProfiles.value = 'Light';
+        });
+
+        // zoom sets the size of the letters, and the text can be selected
+        const size = () => text.evaluate(element => parseFloat(getComputedStyle(element).fontSize));
+        const before = await size();
+        await page.keyboard.press('+');
+        expect(await size()).toBeGreaterThan(before);
+        await page.keyboard.press('-');
+        await page.keyboard.press('-');
+        expect(await size()).toBeLessThan(before);
+        await expect(text).toHaveCSS('user-select', 'text');
+
+        await page.keyboard.press('Escape');
+        await expect(text).toHaveCount(0);
+        await expect(thumbnail).toBeVisible();
     });
 });
 

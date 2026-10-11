@@ -85,32 +85,6 @@ export default class Tapas extends Connector {
     }
 
     async _getPagesNovel(request) {
-        let darkmode = Engine.Settings.NovelColorProfile();
-        let script = `
-            new Promise((resolve, reject) => {
-                document.body.style.width = '56em';
-                let novel = document.querySelector('.ep-epub-content');
-                novel.style.padding = '1.5em';
-                [...novel.querySelectorAll(":not(:empty)")].forEach(ele => {
-                    ele.style.backgroundColor = '${darkmode.background}'
-                    ele.style.color = '${darkmode.text}'
-                })
-                novel.style.backgroundColor = '${darkmode.background}'
-                novel.style.color = '${darkmode.text}'
-                let script = document.createElement('script');
-                script.onerror = error => reject(error);
-                script.onload = async function() {
-                    try{
-                        let canvas = await html2canvas(novel);
-                        resolve(canvas.toDataURL('image/png'));
-                    }catch (error){
-                        reject(error)
-                    }
-                }
-                script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
-                document.body.appendChild(script);
-            });
-        `;
-        return [ await Engine.Request.fetchUI(request, script, 30000, true) ];
+        return [ await Engine.Request.fetchNovel(request, '.ep-epub-content') ];
     }
 }

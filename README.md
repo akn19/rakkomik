@@ -26,6 +26,7 @@ It is not meant to be a mass downloader to stock up thousands of chapters that w
 
 - Browse the manga lists of around a thousand website connectors and filter them by tag or language.
 - Download chapters as a folder of images, a comic book archive (`.cbz`) or an ebook (`.epub`).
+- Novels are text: they are downloaded as an ebook (`.epub`) or a PDF document (`.pdf`), and the reader shows them as text.
 - Download queue, bookmarks and chapter marks, a built-in chapter preview and reader, light and dark theme.
 - Add a manga by link: paste the link of a manga or chapter, or open a local folder as a source.
 - Pages that sit behind an anti-bot check are loaded like in a browser: in a hidden window that is shown to you
@@ -75,6 +76,7 @@ The settings are in the menu. The most important ones:
 | Bookmarks Directory | Where bookmarks and chapter marks are stored (not available in portable mode) |
 | Use Sub-Directories | One sub-directory per website inside the manga directory |
 | Chapter File Format | Folder with images, comic book archive (`.cbz`) or ebook (`.epub`) |
+| Novel File Format | Ebook (`.epub`) or PDF document (`.pdf`) for novels, whatever the chapter file format is |
 | Chapter Title Format | Name template of a chapter with the placeholders `%C%` `%M%` `%VOL%` `%CH%` `%T%` `%O%` |
 | Ignore errors on download | Treat a chapter as downloaded even if some of its images failed |
 | Disable Concurrent Downloads | Download media one after another instead of concurrently (slow connections, frequent failures) |

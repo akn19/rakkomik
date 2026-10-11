@@ -259,15 +259,31 @@ Rust: toolchain yang sudah Rust tetap (oxlint/oxfmt, Rolldown via Vite 8, Tailwi
 
 ## 3. Backlog fitur (di luar modernisasi, dikerjakan kapan saja)
 
-### F-B1 — Novel wajib teks: Markdown + EPUB-teks (diputuskan, audit §6.1)
-**Tujuan:** novel tidak boleh keluar sebagai gambar. Opsi `chapterFormat` Markdown (`.md`) + EPUB novel dibangun ulang sebagai teks.
-1. Baca: `Storage.saveChapterPages` (+ `_saveChapterPagesEPUB` sebagai pola), `Settings.chapterFormat`, `templates/WordPressMadaraNovel._getPagesNovel`, `DownloadJob._downloadPages*`.
-2. Tambah opsi format + cabang simpan `.md` (satu file per chapter + frontmatter YAML); ilustrasi diunduh + direferensikan relatif, bukan sebagai halaman.
-3. Sediakan jalur teks: pilihan (a) `_getPagesText` per konektor novel, atau (b) fallback generik re-fetch + ekstraksi; putuskan saat eksekusi (dilarang CDN runtime; konverter: `turndown` atau hand-rolled). Pensiunkan jalur screenshot `html2canvas` untuk output.
-4. EPUB-teks untuk novel: `EbookGenerator` + `_saveChapterPagesEPUB` mendukung halaman XHTML teks (bukan screenshot). Manga tidak berubah.
-5. Fallback otomatis: format image-based + konten novel → simpan sebagai teks (Markdown default; EPUB-teks bila EPUB dipilih). Mekanisme deteksi novel diputuskan saat eksekusi.
-**Verify:** `pnpm run lint` · unduh 1 chapter novel sebagai `.md` (frontmatter + body terbaca, tanpa tag HTML bocor; ilustrasi berupa file + referensi, bukan screenshot) · unduh 1 chapter novel sebagai EPUB-teks (terbuka di reader, teks terseleksi) · unduh novel dengan format folder/CBZ terpilih → jatuh ke teks otomatis · unduh 1 chapter manga CBZ tetap identik.
-**Exit:** aturan novel-wajib-teks berlaku untuk semua format + semua smoke hijau.
+### F-B1 — Novel wajib teks: EPUB-teks + PDF (✅ kode + tes + uji live, 2026-10-11; audit §6.1)
+**Keputusan user (2026-10-11):** novel tersedia sebagai **EPUB dan PDF**; Markdown **dibatalkan** (tidak dibuat). Novel tidak lagi keluar sebagai gambar di format apa pun.
+
+**Rancangan.** Satu bab novel berjalan lewat engine sebagai satu *halaman novel*: fragmen XHTML dalam URL `data:application/xhtml+xml`. Bentuk itu muat di semua tempat yang memuat daftar URL halaman (`Chapter.getPages`, `DownloadJob`, pratinjau Reader), sehingga `DownloadJob` tidak berubah; `Storage` yang mengubahnya menjadi EPUB atau PDF.
+
+**Yang berubah** (menyentuh engine `src/web/mjs` dengan sengaja: aturan "jangan ubah engine" hanya berlaku untuk rebrand)
+- `engine/Novel.mjs` (baru): halaman novel (`createNovelPage`/`readNovelPage`/`isNovelBlob`), daftar dan penggantian ilustrasi, dan `serializeNovel`: DOM → XHTML yang pasti well-formed. Yang dipertahankan: paragraf, judul, penekanan, kutipan, daftar, garis, `pre`, ilustrasi (alamat malas-muat `data-src` dipilih atas placeholder `src`, relatif dijadikan absolut, protokol dibatasi, piksel pelacak dibuang). Yang dibuang: skrip, gaya, form, iklan, teks tersembunyi (`hidden`, `display:none`, `visibility:hidden`), tautan (teksnya tetap), semua atribut, karakter yang tidak boleh ada di XML. `createNovelScript` mengirimnya ke jendela tersembunyi sebagai kode (sumber fungsi yang sama yang diuji) dan menunggu isi muncul dan berhenti bertambah.
+- `Request.fetchNovel(request, selektor, { obstacles, ignoredTexts })`. **13 file konektor** diganti: 3 template (`WordPressMadaraNovel` dengan ±29 pewaris, `NovelCool` dengan 7, `HeanCms`) dan 10 konektor (KolNovel, NovelRingan, Novelgo, SakuraNovel, Miauscan, Saikaiscan, ScanManga, Tapas, GremoryMangas, TsundokuTraducoes); selektor elemen isi dan elemen pengganggu sama dengan skrip screenshot lama. `html2canvas` (dimuat dari CDN) dan semua properti tata letak screenshot hilang dari kode (dijaga `NovelConnectors.test.js`).
+- `Settings.novelFormat` ("Novel File Format": EPUB, bawaan, atau PDF), terpisah dari `chapterFormat`. Deskripsi "Light/Dark mode for Novels" tidak lagi menyebut gambar: pengaturan itu kini mewarnai Reader.
+- `Storage`: `_saveChapterNovel` menyimpan sebagai EPUB atau PDF apa pun `chapterFormat`-nya; ilustrasi diunduh dengan opsi request konektor, yang gagal dilewati (peringatan di konsol), bab tidak gagal. Pembaca EPUB-teks untuk Reader (`_loadChapterNovelEPUB`), `_downloadedChapterPath`, dan `existingChapters` diperbarui setelah simpan. `Chapter.file.novel` + `Manga.isChapterFileExisting`/`isChapterFileCached`: bab dianggap terunduh bila file format bab **atau** file format novel ada di folder manga (tanpa ini novel di format CBZ/folder akan tampak "available" lagi dan file `.epub`-nya muncul sebagai entri offline tersendiri).
+- `EbookGenerator`: dokumen EPUB-teks (EPUB 2, satu `OEBPS/xhtml/chapter.xhtml`), HTML cetak untuk PDF (A5, CSP tanpa apa pun selain `data:`), `escapeXML`. Perbaikan di jalur gambar yang sudah ada: judul dengan `&` atau `<` sebelumnya menghasilkan XML EPUB yang rusak.
+- `src/app/PdfBridge.js` + `preload` (`window.hakuneko.pdf.render`) + `App.js`: `printToPDF` Chromium di jendela tanpa skrip, tanpa jaringan, tanpa navigasi, di partisi sendiri; halaman dimuat dari file temp (URL `data:` dibatasi ±2 MB, halaman beserta ilustrasi bisa lebih besar); batas waktu 120 dtk; jendela dan file temp selalu dibereskan. Teks tetap teks (bisa diseleksi dan dicari), aksara Jepang ikut tercetak, judul dokumen jadi metadata PDF, PDF bertag dan beranjang (outline).
+- Reader (`ui/novel.js`, `views/Reader.jsx`, `index.css`): halaman novel tampil sebagai teks, dibersihkan sekali lagi (bisa berasal dari EPUB user), dengan warna pengaturan novel; zoom mengatur ukuran huruf; thumbnail berisi kutipan teks.
+
+**Validasi**
+- Unit: 555 lulus (+163 tes baru: `Novel` 54, `EbookGenerator` 14, `StorageNovel` 30, `ChapterFiles` 17, `NovelConnectors` 18, `UiNovel` 13, `PdfBridge` 13, `Settings` +4); lint 0 galat dan jumlah peringatan tidak berubah (271); knip bersih; `git diff --check` hanya menandai CR pada `GremoryMangas.mjs`, yang memang berakhiran baris CRLF (dipertahankan).
+- e2e (Electron sungguhan) 28 lulus, 6 baru: ekstraksi dari halaman sungguhan lewat jendela tersembunyi (gaya CSS yang menyembunyikan teks, `data-src`, pengganggu, teks iklan), menunggu isi yang diisi skrip belakangan, galat yang jelas, simpan EPUB dan PDF (isi zip, `mimetype` tersimpan tanpa kompresi di urutan pertama, PDF dari proses utama) lalu baca ulang, unduhan lewat `DownloadJob` yang disimpan sebagai `.epub` walau format bab folder gambar dan dikenali sebagai terunduh setelah aplikasi dimulai ulang lalu dibaca dari file, dan Reader (thumbnail, teks, zoom, warna, skrip tidak berjalan). Bug yang ditemukan e2e dan diperbaiki: kutipan thumbnail memuat teks `<script>`.
+- Uji live pada konektor `NovelRingan` terhadap novelringan.com (satu bab sungguhan): satu halaman novel, 2.322 karakter XHTML bersih; EPUB lolos `xmllint` untuk keempat dokumen XML-nya; PDF 2 halaman A5, judul, bertag, teks terekstrak oleh `pdftotext`.
+
+**Belum teruji / batas**
+- Konektor lain belum dijalankan terhadap situsnya (Novelgo, SakuraNovel, Saikaiscan dan banyak lain memberi 403 dari mesin uji; selektornya dipindahkan apa adanya dari skrip lama dan dikunci tesnya, tetapi tidak dicoba live). Satu konektor Madara, satu situs HeanCms dan NovelCool belum dicoba.
+- `epubcheck` tidak terpasang: EPUB divalidasi sebagai XML dan dibuka oleh pembaca EPUB milik RakKomik sendiri, tidak oleh pembaca pihak ketiga.
+- Reader tidak menampilkan PDF (bab novel yang tersimpan sebagai PDF memberi "PDF preview not yet supported!"); PDF dicetak dan diuji hanya di Linux (Windows dan macOS belum).
+- Teks hanya diambil bila jendela tersembunyi melihatnya: halaman yang mengisi teks lebih dari ±0,5 dtk setelah berhenti berubah, atau yang memerlukan login/pembayaran, perlu konektor sendiri seperti sebelumnya.
+- Sisa kode PDF lama berbasis gambar tetap ada di `Storage.mjs` (`_saveChapterPagesPDF`, `_addImageToPDF`, `pdfTargetHeight`, `_pdfImageType`) dan global `PDFDocument` di `.oxlintrc.json`: tidak terjangkau (tidak ada yang memanggilnya, `pdfkit` sudah dihapus), tidak disentuh.
 
 ### F-B2 — E2E `puppeteer-core` → Playwright (✅ selesai 2026-10-10, lihat Fase 4)
 **Tujuan:** harness e2e konektor tanpa puppeteer.

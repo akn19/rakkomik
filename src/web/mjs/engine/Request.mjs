@@ -1,4 +1,5 @@
 import { DETECTION_SCRIPT, installChallengeBypass } from './AntiScraping.mjs';
+import { createNovelPage, createNovelScript } from './Novel.mjs';
 
 export default class Request {
 
@@ -176,6 +177,25 @@ export default class Request {
             interactiveAfter: this.interactiveAfter,
             interactiveTimeout: this.interactiveTimeout
         });
+    }
+
+    /**
+     * Load the page of a chapter of a novel in a hidden window and take the text of the chapter from it (see Novel.mjs).
+     * The images of the page are not loaded: the text is all there is to take, illustrations are downloaded when the chapter is stored.
+     * @param {Request} request the page of the chapter
+     * @param {string} contentQuery selector of the element that holds the text of the chapter
+     * @param {object} [options]
+     * @param {string} [options.obstacles] selector of the elements inside of the content that are not part of the text
+     * @param {string[]} [options.ignoredTexts] paragraphs that consist of one of these texts are not part of the text
+     * @param {number} [options.timeout] how long [ms] to wait for the text to show up (10 seconds unless told otherwise)
+     * @returns {Promise<string>} the novel page, to be put into the page list of the chapter
+     */
+    async fetchNovel(request, contentQuery, options) {
+        let xhtml = await this.fetchUI(request, createNovelScript(contentQuery, options), 30000);
+        if (typeof xhtml !== 'string' || !xhtml) {
+            throw new Error(`No text was found in the chapter "${request.url}"!`);
+        }
+        return createNovelPage(xhtml);
     }
 
 }

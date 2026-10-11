@@ -5,6 +5,7 @@ import { markChapterRead } from '../engine.js';
 import { useSelection } from '../selection.jsx';
 import Icon from '../icon.jsx';
 import { fetchPages, resolveChapter } from '../queries.js';
+import { isNovelPage, novelColors, novelExcerpt, novelMarkup } from '../novel.js';
 import { useToast } from '../notify.jsx';
 
 const readerRoute = getRouteApi('/reader');
@@ -29,6 +30,39 @@ function PageImage({ src, index, width, padding }) {
             onError={onError}
             style={{ width: `${width}%`, margin: `${padding}em auto` }}
         />
+    );
+}
+
+/**
+ * A chapter of a novel is text, not an image: it is shown as text, in the colours chosen for novels. The zoom of the
+ * reader sets the size of the letters, 75% is the size of the text of the application.
+ */
+function NovelPage({ page, index, width, padding }) {
+    const markup = React.useMemo(() => novelMarkup(page), [page]);
+    const colors = novelColors();
+    return (
+        <article
+            id={`rk-page-${index}`}
+            className="rk-page rk-novel"
+            style={{ fontSize: `${width / 75}em`, margin: `${padding}em auto`, backgroundColor: colors.background, color: colors.text }}
+            dangerouslySetInnerHTML={{ __html: markup }}
+        />
+    );
+}
+
+function NovelThumbnail({ page, index, onOpen }) {
+    const excerpt = React.useMemo(() => novelExcerpt(page), [page]);
+    return (
+        <button
+            type="button"
+            title={`Page ${index + 1}`}
+            aria-label={`Page ${index + 1}`}
+            onClick={onOpen}
+            className="m-[0.5em] inline-block h-[16em] w-[16em] cursor-pointer overflow-hidden rounded-[1em] bg-(--page-thumbnail-background-color) p-[1em] text-left align-top [border:var(--page-thumbnail-border)] [box-shadow:var(--page-thumbnail-shadow)]"
+        >
+            <Icon name="book" size={20} className="mb-[0.5em]" />
+            <span className="block text-[0.8em] leading-snug">{excerpt}</span>
+        </button>
     );
 }
 
@@ -371,24 +405,31 @@ export default function ReaderView() {
             )}
             {mode === 'thumbs' && media.length > 0 && (
                 <div ref={containerRef} className="h-full overflow-y-scroll p-[1em] pt-[3em] select-none">
-                    {media.map((page, index) => (
-                        <button
-                            key={`${index}-${String(page).slice(-32)}`}
-                            type="button"
-                            title={`Page ${index + 1}`}
-                            onClick={() => {
-                                setStartPage(index);
-                                setMode('read');
-                            }}
-                            className="m-[0.5em] inline-block h-[16em] w-[16em] cursor-pointer rounded-[1em] bg-(--page-thumbnail-background-color) bg-contain bg-center bg-no-repeat [border:var(--page-thumbnail-border)] [box-shadow:var(--page-thumbnail-shadow)]"
-                            style={{ backgroundImage: `url('${String(page).replace(/'/g, "\\'")}')` }}
-                        />
-                    ))}
+                    {media.map((page, index) => {
+                        const open = () => {
+                            setStartPage(index);
+                            setMode('read');
+                        };
+                        return isNovelPage(page) ? (
+                            <NovelThumbnail key={`${index}-${String(page).slice(-32)}`} page={page} index={index} onOpen={open} />
+                        ) : (
+                            <button
+                                key={`${index}-${String(page).slice(-32)}`}
+                                type="button"
+                                title={`Page ${index + 1}`}
+                                onClick={open}
+                                className="m-[0.5em] inline-block h-[16em] w-[16em] cursor-pointer rounded-[1em] bg-(--page-thumbnail-background-color) bg-contain bg-center bg-no-repeat [border:var(--page-thumbnail-border)] [box-shadow:var(--page-thumbnail-shadow)]"
+                                style={{ backgroundImage: `url('${String(page).replace(/'/g, "\\'")}')` }}
+                            />
+                        );
+                    })}
                 </div>
             )}
             {mode === 'read' && media.length > 0 && (
                 <div ref={containerRef} className="h-full overflow-y-scroll bg-(--page-reader-background-color) select-none">
-                    {media.map((page, index) => (
+                    {media.map((page, index) => isNovelPage(page) ? (
+                        <NovelPage key={`${index}-${String(page).slice(-32)}`} page={page} index={index} width={imageWidth} padding={imagePadding} />
+                    ) : (
                         <PageImage key={`${index}-${String(page).slice(-32)}`} src={page} index={index} width={imageWidth} padding={imagePadding} />
                     ))}
                 </div>

@@ -58,13 +58,13 @@ export default class Manga extends EventTarget {
         if( !this.existingChapters ) {
             return false;
         }
-        return this.existingChapters[chapter.file.full];
+        return this.existingChapters[chapter.file.full] || ( chapter.file.novel && this.existingChapters[chapter.file.novel] );
     }
 
     isChapterFileCached( fileName ) {
         // use !! to convert result to bool
         return !!this.chapterCache.find( chapter => {
-            return fileName === chapter.file.full;
+            return fileName === chapter.file.full || fileName === chapter.file.novel;
         } );
     }
 

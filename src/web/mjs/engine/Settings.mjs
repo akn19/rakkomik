@@ -123,6 +123,20 @@ export default class Settings extends EventTarget {
             value: extensions.img
         };
 
+        this.novelFormat = {
+            label: 'Novel File Format',
+            description: [
+                'Store novels in the selected file format.',
+                'A novel is always saved as text, whatever the chapter file format is.'
+            ].join('\n'),
+            input: types.select,
+            options: [
+                { value: extensions.epub, name: 'Ebook Reader (*.epub)' },
+                { value: extensions.pdf, name: 'Portable Document (*.pdf)' },
+            ],
+            value: extensions.epub
+        };
+
         this.recompressionFormat = {
             label: 'De-Scrambling Format',
             description: [
@@ -262,8 +276,7 @@ export default class Settings extends EventTarget {
             label: 'Light/Dark mode for Novels',
             description: [
                 'Choose between light and dark mode for novels.',
-                'This changes the image itself not just the reader view.',
-                'This may not work for all connectors that support novels.'
+                'This changes the reader view, the files of downloaded novels are not affected.'
             ].join('\n'),
             input: types.select,
             options: [

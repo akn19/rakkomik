@@ -98,3 +98,43 @@ describe('settings of background loaded connectors', () => {
         expect(late.config.token.value).toBe('abc');
     });
 });
+
+describe('settings of novels', () => {
+    function settings() {
+        globalThis.window = {
+            hakuneko: { app: { getPath: () => '/docs' }, platform: 'linux', env: {} }
+        };
+        return new Settings();
+    }
+
+    afterEach(() => {
+        delete globalThis.window;
+    });
+
+    it('should store novels as EPUB unless told otherwise, and offer EPUB and PDF', () => {
+        const { novelFormat } = settings();
+        expect(novelFormat.input).toBe('select');
+        expect(novelFormat.value).toBe('.epub');
+        expect(novelFormat.options.map(option => option.value)).toEqual(['.epub', '.pdf']);
+        expect(novelFormat.options.map(option => option.name)).toEqual(['Ebook Reader (*.epub)', 'Portable Document (*.pdf)']);
+    });
+
+    it('should keep the format of novels apart from the format of the chapters of comics', () => {
+        const { chapterFormat, novelFormat } = settings();
+        expect(chapterFormat.options.map(option => option.value)).toEqual(['img', '.cbz', '.epub']);
+        expect(novelFormat).not.toBe(chapterFormat);
+    });
+
+    it('should show the format of novels with the general settings', () => {
+        globalThis.Engine = { Connectors: [] };
+        const general = settings().getCategorizedSettings();
+        expect(general[0].category).toBe('General');
+        expect(general[0].settings.map(setting => setting.label)).toContain('Novel File Format');
+    });
+
+    it('should not claim that the colours of the reader change the files of novels', () => {
+        const { NovelColorProfiles } = settings();
+        expect(NovelColorProfiles.description).not.toMatch(/image/i);
+        expect(NovelColorProfiles.description).toContain('reader');
+    });
+});

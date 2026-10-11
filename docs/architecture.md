@@ -41,6 +41,7 @@ assets/icon.svg         the logo; every icon is generated from it
 | `FetchWindowManager` | hidden browser windows for pages that need a real browser, see [below](#requests-and-interstitials) |
 | `HeaderSurgery` | request and response header rules, applied synchronously to every request |
 | `SqliteBridge` | reads SQLite bookmark databases (imports of other downloaders) with `node:sqlite` |
+| `PdfBridge` | prints the page of a novel chapter to a PDF document, in a window that can do nothing but show it (no scripts, no network) |
 | `DiscordBridge` | Discord activity over the local Discord client |
 | `Logger` | file and console loggers |
 
@@ -67,8 +68,8 @@ React user interface. The website connectors load in the background afterwards, 
 
 - **Engine** (`mjs/engine`): `Connector` (the base class every website extends), `Connectors` (discovery and
   registration), `Request` (all network access), `DownloadManager`/`DownloadJob`, `Storage`, `Settings`,
-  `BookmarkManager`, `ChaptermarkManager`, `EbookGenerator` (CBZ and EPUB), `Path` (the path functions of
-  `node:path`, computed in the page).
+  `BookmarkManager`, `ChaptermarkManager`, `EbookGenerator` (CBZ, EPUB and the PDF of a novel), `Novel` (the text of
+  a novel chapter), `Path` (the path functions of `node:path`, computed in the page).
 - **Connectors** (`mjs/connectors`): every `*.mjs` file of that folder is listed at runtime and imported
   individually, so connectors and engine share the same module instances by URL. Connectors in the user's plugin
   folder are registered first; when an ID is used twice the first one wins.
@@ -84,6 +85,29 @@ React user interface. The website connectors load in the background afterwards, 
   "Failed to fetch dynamically imported module".
 
 Writes are atomic: a file is written next to its target and renamed over it.
+
+## Novels
+
+A novel is text, so a chapter is never an image. A connector takes the text of a chapter from its page with
+`Engine.Request.fetchNovel`: a hidden window loads the page, waits until the text stops changing and cleans it up
+in the page (`serializeNovel` in `mjs/engine/Novel.mjs`). Paragraphs, headings, emphasis, quotes, lists and
+illustrations stay; scripts, forms, advertisements, hidden text, links and every attribute go, so the result is
+well-formed by construction. It is an XHTML fragment inside a `data:` URL, a *novel page*, which travels where a
+page list holds image links: the download job fetches it like an image, and `Storage` stores it as an EPUB or a PDF
+(setting *Novel File Format*), whatever the format of the chapters of comics is. The illustrations of the chapter
+are downloaded with the request options of the connector; one that fails is left out and does not fail the chapter.
+
+- **EPUB:** the text is `OEBPS/xhtml/chapter.xhtml`, the illustrations are in `OEBPS/img`. The reader finds a novel
+  there and shows its text.
+- **PDF:** the main process prints the chapter with Chromium (`printToPDF`): A5 pages, text that stays text, any writing
+  system the fonts of the system cover. The illustrations are part of the page as `data:` URLs. The reader does not
+  show a PDF yet.
+- **Reader:** a novel page is shown as text in the colours of the setting *Light/Dark mode for Novels*; the zoom of the
+  reader sets the size of the letters. The page is cleaned up once more before it is shown, because it can come from
+  an EPUB of the user.
+- **Files:** a novel has the extension of its own format, so a chapter counts as downloaded when the directory of the
+  manga holds its file in the chapter format or in the novel format (`Chapter.file.novel`), and the files of a
+  downloaded chapter are looked up the same way (`Storage._downloadedChapterPath`).
 
 ## Delivery and updates of the web part
 

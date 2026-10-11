@@ -66,6 +66,24 @@ When an image needs a special request (headers, a token, decryption), return a `
 `this.createConnectorURI(payload)` encodes the payload, and the engine calls `_handleConnectorURI(payload)` of the
 connector to produce the image data when the link is requested. Override `_handleConnectorURI` to do the request.
 
+## Novels
+
+A novel is text, never an image. Take the text of a chapter from its page with `Engine.Request.fetchNovel` and return
+the result as the only page of the chapter:
+
+```js
+async _getPages(chapter) {
+    const request = new Request(new URL(chapter.id, this.url), this.requestOptions);
+    return [ await Engine.Request.fetchNovel(request, 'div.entry-content', { obstacles: 'div.ad', ignoredTexts: [ this.url ] }) ];
+}
+```
+
+The second parameter selects the element that holds the text. The options are optional: `obstacles` selects what in it
+is no part of the text (advertisements), `ignoredTexts` lists paragraphs that are no part of the text either (a site
+that signs every chapter with its address). Hidden text (`display: none`, `visibility: hidden`) is never taken, and the
+page may fill the text in after it loaded. Illustrations in the text are downloaded with `this.requestOptions` when
+the chapter is stored. The engine stores the chapter as an EPUB or a PDF; a connector does not deal with formats.
+
 ## Settings of a connector
 
 `this.config` declares settings that appear in the settings of the application, for example a login:

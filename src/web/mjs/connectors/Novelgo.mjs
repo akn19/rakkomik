@@ -13,9 +13,6 @@ export default class Novelgo extends Connector {
         this.queryMangas = 'div.novel-item-content h3.novel-item-title a';
         this.novelContentQuery = 'div.noveils-chapter-wrapper div#chapter-post-content';
         this.novelObstaclesQuery = 'div.code-block';
-        this.novelFormat = 'image/png';
-        this.novelWidth = '56em'; // parseInt(1200 / window.devicePixelRatio) + 'px';
-        this.novelPadding = '1.5em';
     }
 
     async _getMangasFromPage(page) {
@@ -65,33 +62,7 @@ export default class Novelgo extends Connector {
     }
 
     async _getPagesNovel(request) {
-        let darkmode = Engine.Settings.NovelColorProfile();
-        let script = `
-            new Promise(resolve => {
-                document.body.style.width = '${this.novelWidth}';
-                let container = document.querySelector('div.noveils-chapter-page div.container');
-                container.style.maxWidth = '${this.novelWidth}';
-                container.style.padding = '0';
-                container.style.margin = '0';
-                let novel = document.querySelector('${this.novelContentQuery}');
-                novel.style.padding = '${this.novelPadding}';
-                [...novel.querySelectorAll(":not(:empty)")].forEach(ele => {
-                    ele.style.backgroundColor = '${darkmode.background}'
-                    ele.style.color = '${darkmode.text}'
-                })
-                novel.style.backgroundColor = '${darkmode.background}'
-                novel.style.color = '${darkmode.text}'
-                document.querySelectorAll('${this.novelObstaclesQuery}').forEach(element => element.style.display = 'none');
-                let script = document.createElement('script');
-                script.onload = async function() {
-                    let canvas = await html2canvas(novel);
-                    resolve(canvas.toDataURL('${this.novelFormat}'));
-                }
-                script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
-                document.body.appendChild(script);
-            });
-        `;
-        return [ await Engine.Request.fetchUI(request, script, 30000, true) ];
+        return [ await Engine.Request.fetchNovel(request, this.novelContentQuery, { obstacles: this.novelObstaclesQuery }) ];
     }
 
     async _getPages(chapter) {

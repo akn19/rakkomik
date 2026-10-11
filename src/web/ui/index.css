@@ -301,6 +301,67 @@ body {
         background-color: var(--page-control-background-color);
     }
 
+    /* The text of a novel in the reader: a column of a book, in the colours chosen for novels (set on the element). */
+    .rk-novel {
+        max-width: 56em;
+        padding: 1.5em;
+        line-height: 1.6;
+        user-select: text;
+        overflow-wrap: anywhere;
+    }
+
+    .rk-novel p {
+        margin: 0 0 1em 0;
+    }
+
+    .rk-novel h1,
+    .rk-novel h2,
+    .rk-novel h3,
+    .rk-novel h4,
+    .rk-novel h5,
+    .rk-novel h6 {
+        margin: 0 0 1em 0;
+        font-weight: bold;
+        line-height: 1.25;
+        text-align: center;
+    }
+
+    .rk-novel h1 {
+        font-size: 1.6em;
+    }
+
+    .rk-novel h2 {
+        font-size: 1.4em;
+    }
+
+    .rk-novel h3 {
+        font-size: 1.2em;
+    }
+
+    .rk-novel blockquote {
+        margin: 1em 2em;
+    }
+
+    .rk-novel ul,
+    .rk-novel ol {
+        margin: 0 0 1em 2em;
+        list-style: revert;
+    }
+
+    .rk-novel pre {
+        white-space: pre-wrap;
+    }
+
+    .rk-novel hr {
+        margin: 2em 0;
+    }
+
+    .rk-novel img {
+        display: block;
+        max-width: 100%;
+        margin: 1em auto;
+    }
+
     /* Progress of a task without a known total (a manga list update): a bar that sweeps back and forth */
     .rk-progress {
         position: relative;

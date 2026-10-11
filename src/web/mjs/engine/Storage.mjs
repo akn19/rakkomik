@@ -1,6 +1,8 @@
 import { unzipSync, zipSync, strToU8 } from 'fflate';
 import EbookGenerator from './EbookGenerator.mjs';
 import Chapter from './Chapter.mjs';
+import { bytesToBase64 } from './Crypto.mjs';
+import { createNovelPage, isNovelBlob, listNovelImages, replaceNovelImages } from './Novel.mjs';
 import { createPath } from './Path.mjs';
 
 const extensions = {
@@ -25,6 +27,7 @@ export default class Storage {
         this.platform = window.hakuneko.platform;
         this.shell = window.hakuneko.shell;
         this.fs = window.hakuneko.fs;
+        this.pdf = window.hakuneko.pdf;
         this.path = createPath(this.platform);
         this.config = this.path.join(window.hakuneko.app.getPath('userData'), 'hakuneko.');
         this.temp = this.path.join(window.hakuneko.os.tmpdir, 'hakuneko');
@@ -45,7 +48,7 @@ export default class Storage {
      * Open the system's file browser and navigate to the given chapter item
      */
     showFolderContent(chapter) {
-        this.shell.showItemInFolder(this._chapterOutputPath(chapter));
+        this.shell.showItemInFolder(this._downloadedChapterPath(chapter));
     }
 
     /**
@@ -184,7 +187,7 @@ export default class Storage {
      * and a reference to the page list (undefined on error).
      */
     loadChapterPages(chapter) {
-        let path = chapter instanceof Chapter ? this._chapterOutputPath(chapter) : chapter;
+        let path = chapter instanceof Chapter ? this._downloadedChapterPath(chapter) : chapter;
         if (typeof path !== 'string') {
             return Promise.reject(new Error('Invalid parameter "chapter", must be <String> or <Chapter> type!'));
         }
@@ -227,6 +230,9 @@ export default class Storage {
     _loadChapterPagesEPUB(ebook) {
         return this._openZipArchive(ebook)
             .then(archive => {
+                if (archive[EbookGenerator.novelChapterPath]) {
+                    return this._loadChapterNovelEPUB(archive).then(page => [page]);
+                }
                 let promises = Object.keys(archive).filter(file => {
                     return /^OEBPS[/\\]img[/\\][^/\\]+$/.test(file);
                 }).map(file => {
@@ -237,6 +243,25 @@ export default class Storage {
             .then(pages => {
                 return Promise.resolve(pages.sort());
             });
+    }
+
+    /**
+     * Read the text of a novel from an e-book made by `_saveChapterNovelEPUB`. The text is returned as a novel page
+     * (see Novel.mjs), the illustrations in it are extracted to the temp folder.
+     */
+    async _loadChapterNovelEPUB(archive) {
+        let xhtml = new TextDecoder().decode(archive[EbookGenerator.novelChapterPath]);
+        let body = /<body[^>]*>([\s\S]*)<\/body>/.exec(xhtml);
+        let text = body ? body[1] : xhtml;
+        let sources = new Map();
+        for (let source of listNovelImages(text)) {
+            let file = /^\.\.\/img\/([^/\\]+)$/.exec(source);
+            if (file && archive['OEBPS/img/' + file[1]]) {
+                sources.set(source, await this._extractZipEntry(archive, 'OEBPS/img/' + file[1]));
+            }
+        }
+        // an illustration that is not in the archive is left out
+        return createNovelPage(replaceNovelImages(text, source => sources.get(source)));
     }
 
     /**
@@ -300,6 +325,9 @@ export default class Storage {
      */
     saveChapterPages(chapter, content) {
         try {
+            if (content.some(page => isNovelBlob(page))) {
+                return this._saveChapterNovel(chapter, content);
+            }
             let leadingZeroes = String(content.length).length;
             let pageData = content.map((page, index) => {
                 return {
@@ -330,6 +358,91 @@ export default class Storage {
         } catch (error) {
             return Promise.reject(error);
         }
+    }
+
+    /**
+     * Save a novel: the text of the chapter (see Novel.mjs) and its illustrations. A novel is text, so it is stored as
+     * an e-book or a portable document (the setting "Novel File Format"), whatever the chapter file format is: the
+     * pages of a comic are of no use for it.
+     */
+    async _saveChapterNovel(chapter, content) {
+        let output = this._novelOutputPath(chapter);
+        let text = (await Promise.all(content.filter(page => isNovelBlob(page)).map(page => page.text()))).join('\n');
+        let images = await this._downloadNovelImages(chapter, text);
+        await this._createDirectoryChain(this.path.dirname(output));
+        if (output.endsWith(extensions.pdf)) {
+            await this._saveChapterNovelPDF(output, chapter, text, images);
+        } else {
+            await this._saveChapterNovelEPUB(output, chapter, text, images);
+        }
+        this._registerExistingChapter(chapter, output);
+        await this._runPostChapterDownloadCommand(chapter, output);
+    }
+
+    /**
+     * Download the illustrations of a novel chapter. An illustration that fails is left out, it is not worth the chapter.
+     * @returns {Promise<Map<string, Blob>>} the images by the address they were loaded from
+     */
+    async _downloadNovelImages(chapter, text) {
+        let images = new Map();
+        let options = (chapter.manga && chapter.manga.connector && chapter.manga.connector.requestOptions) || {};
+        for (let source of listNovelImages(text)) {
+            try {
+                let response = await fetch(source, { ...options, signal: AbortSignal.timeout(60000) });
+                let blob = await response.blob();
+                if (!response.ok || !blob.type.startsWith('image/')) {
+                    throw new Error(`The answer is no image (status: ${response.status}, type: "${blob.type}")`);
+                }
+                images.set(source, blob);
+            } catch (error) {
+                console.warn(`The illustration "${source.slice(0, 200)}" of "${chapter.title}" was left out!`, error);
+            }
+        }
+        return images;
+    }
+
+    /**
+     * Create and save a novel chapter as e-book: the text is a document of its own, next to the illustrations.
+     */
+    async _saveChapterNovelEPUB(ebook, chapter, text, images) {
+        let title = this._novelTitle(chapter);
+        let language = this._novelLanguage(chapter);
+        let files = {
+            // the EPUB container requires the mimetype as uncompressed first entry
+            'mimetype': [ strToU8(EbookGenerator.createMimetype()), { level: 0 } ],
+            'META-INF/container.xml': strToU8(EbookGenerator.createContainerXML()),
+            'OEBPS/css/style.css': strToU8(EbookGenerator.createNovelStyleCSS())
+        };
+        let illustrations = [];
+        let names = new Map();
+        let leadingZeroes = String(images.size).length;
+        for (let [ source, blob ] of images) {
+            let name = this._pageFileName(names.size + 1, blob.type, leadingZeroes);
+            names.set(source, name);
+            illustrations.push({ name: name, mime: blob.type.split(';')[0] });
+            // images are compressed already: store them
+            files['OEBPS/img/' + name] = [ await this._blobToBytes(blob), { level: 0 } ];
+        }
+        let body = replaceNovelImages(text, source => names.has(source) ? '../img/' + names.get(source) : undefined);
+        let uid = btoa(encodeURIComponent(ebook)).replace(/[^a-zA-Z]/g, '');
+        files[EbookGenerator.novelChapterPath] = strToU8(EbookGenerator.createNovelChapterXHTML(title, chapter.title, body, language));
+        files['OEBPS/content.opf'] = strToU8(EbookGenerator.createNovelContentOPF(uid, title, language, illustrations));
+        files['OEBPS/toc.ncx'] = strToU8(EbookGenerator.createNovelTocNCX(uid, title));
+        return this._writeFile(ebook, zipSync(files));
+    }
+
+    /**
+     * Create and save a novel chapter as portable document. The main process prints it (see PdfBridge), from a page
+     * that holds the illustrations as data URLs.
+     */
+    async _saveChapterNovelPDF(pdf, chapter, text, images) {
+        let sources = new Map();
+        for (let [ source, blob ] of images) {
+            sources.set(source, `data:${blob.type};base64,${bytesToBase64(await this._blobToBytes(blob))}`);
+        }
+        let body = replaceNovelImages(text, source => sources.get(source));
+        let page = EbookGenerator.createNovelPrintHTML(this._novelTitle(chapter), chapter.title, body, this._novelLanguage(chapter));
+        return this._writeFile(pdf, await this.pdf.render(page));
     }
 
     /**
@@ -537,6 +650,53 @@ export default class Storage {
             output += Engine.Settings.chapterFormat.value;
         }
         return output;
+    }
+
+    /**
+     * Helper function to generate the path where a novel chapter is stored: the novel format decides, not the chapter format.
+     */
+    _novelOutputPath(chapter) {
+        let output = this._mangaOutputPath(chapter.manga);
+        output = this.path.join(output, this.sanatizePath(chapter.title));
+        return output + (Engine.Settings.novelFormat.value === extensions.pdf ? extensions.pdf : extensions.epub);
+    }
+
+    /**
+     * Helper function to generate the path of a chapter that is on the users device. A chapter that holds a novel is
+     * stored as novel (see `_saveChapterNovel`), which is not known before it was downloaded: it is the one the manga
+     * directory holds, unless the chapter is there in its own file format.
+     */
+    _downloadedChapterPath(chapter) {
+        let output = this._chapterOutputPath(chapter);
+        let existing = chapter.manga && chapter.manga.existingChapters;
+        if (!existing || chapter.status === statusDefinitions.offline || existing[this.path.basename(output)]) {
+            return output;
+        }
+        let novel = this._novelOutputPath(chapter);
+        return existing[this.path.basename(novel)] ? novel : output;
+    }
+
+    /**
+     * Tell the manga about a file that was just stored, because its list of the files in its directory is a snapshot.
+     */
+    _registerExistingChapter(chapter, output) {
+        if (chapter.manga && chapter.manga.existingChapters) {
+            chapter.manga.existingChapters[this.path.basename(output)] = true;
+        }
+    }
+
+    /**
+     * Helper function to generate the title of the e-book or portable document of a novel chapter.
+     */
+    _novelTitle(chapter) {
+        return `${chapter.manga.title} - ${chapter.title}`;
+    }
+
+    /**
+     * Helper function to get the language of a novel chapter as BCP 47 tag, 'und' (undetermined) when it is not known.
+     */
+    _novelLanguage(chapter) {
+        return /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i.test(chapter.language) ? chapter.language : 'und';
     }
 
     /**

@@ -62,7 +62,9 @@ export default class Chapter extends EventTarget {
         return {
             name: name,
             extension: extension,
-            full: name + extension
+            full: name + extension,
+            // a novel is stored in the novel format, whatever the format of the other chapters is (see Storage)
+            novel: name + Engine.Settings.novelFormat.value
         };
     }
 

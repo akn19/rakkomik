@@ -69,6 +69,9 @@ contextBridge.exposeInMainWorld('hakuneko', {
     sqlite: {
         query: (bytes, sql) => ipcRenderer.invoke('rakkomik:sqlite:query', bytes, sql)
     },
+    pdf: {
+        render: html => ipcRenderer.invoke('rakkomik:pdf:render', html)
+    },
     presence: {
         ensureStarted: () => ipcRenderer.invoke('rakkomik:presence:ensureStarted'),
         setActivity: status => ipcRenderer.invoke('rakkomik:presence:setActivity', status),
