@@ -17,6 +17,12 @@ const statusDefinitions = {
     offline: 'offline', // chapter/manga that cannot be downloaded, but exist in manga directory
 };
 
+// the file of a chapter that is a page: a picture, or one of the generic names of _pageFileName(), but no hidden file
+const pageFile = /^[^./\\][^/\\]*\.(jpe?g|png|gif|webp|avif|bmp|img|bin)$/i;
+
+// the pages of a folder or an archive come in the order of their numbers (1, 2, 10), like the chapters in the chapter panel
+const pageOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
 export default class Storage {
 
     // TODO: use dependency injection instead of globals for EbookGenerator
@@ -191,13 +197,15 @@ export default class Storage {
         if (typeof path !== 'string') {
             return Promise.reject(new Error('Invalid parameter "chapter", must be <String> or <Chapter> type!'));
         }
-        if (path.endsWith(extensions.epub)) {
+        // the extension of a file that was not made by this application may be in capitals
+        let name = path.toLowerCase();
+        if (name.endsWith(extensions.epub)) {
             return this._loadChapterPagesEPUB(path);
         }
-        if (path.endsWith(extensions.pdf)) {
+        if (name.endsWith(extensions.pdf)) {
             return this._loadChapterPagesPDF(path);
         }
-        if (path.endsWith(extensions.cbz)) {
+        if (name.endsWith(extensions.cbz)) {
             return this._loadChapterPagesCBZ(path);
         }
         return this._loadChapterPagesFolder(path);
@@ -216,7 +224,7 @@ export default class Storage {
     async _extractZipEntry(archive, file) {
         let name = this.path.join(this.temp, this.path.basename(file));
         // attach timestamp to force reload of already existing, but overwritten temp files
-        let page = encodeURI('file://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
+        let page = this._makeValidFileURL(this.temp, this.path.basename(file)) + '?ts=' + Date.now();
         await this._createDirectoryChain(this.temp);
         await this.fs.writeFile(name, archive[file]);
         return page;
@@ -235,13 +243,10 @@ export default class Storage {
                 }
                 let promises = Object.keys(archive).filter(file => {
                     return /^OEBPS[/\\]img[/\\][^/\\]+$/.test(file);
-                }).map(file => {
+                }).sort(pageOrder.compare).map(file => {
                     return this._extractZipEntry(archive, file);
                 });
                 return Promise.all(promises);
-            })
-            .then(pages => {
-                return Promise.resolve(pages.sort());
             });
     }
 
@@ -282,14 +287,11 @@ export default class Storage {
         return this._openZipArchive(cbz)
             .then(archive => {
                 let promises = Object.keys(archive).filter(file => {
-                    return /^[^/\\]+\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(file);
-                }).map(file => {
+                    return pageFile.test(file);
+                }).sort(pageOrder.compare).map(file => {
                     return this._extractZipEntry(archive, file);
                 });
                 return Promise.all(promises);
-            })
-            .then(pages => {
-                return Promise.resolve(pages.sort());
             });
     }
 
@@ -301,7 +303,7 @@ export default class Storage {
     _loadChapterPagesFolder(directory) {
         return this.fs.readdir(directory)
             .then(files => {
-                let pages = files.map(file => this._makeValidFileURL(directory, file));
+                let pages = files.filter(file => pageFile.test(file)).sort(pageOrder.compare).map(file => this._makeValidFileURL(directory, file));
                 return Promise.resolve(pages);
             });
     }
@@ -310,7 +312,12 @@ export default class Storage {
      *
      */
     _makeValidFileURL(directory, file) {
-        return encodeURI('file://' + this.path.join(directory, file).replace(/\\/g, '/'))
+        let location = this.path.join(directory, file);
+        // only on Windows a backslash separates folders, elsewhere it is part of a name
+        if (this.path.sep === '\\') {
+            location = location.replace(/\\/g, '/');
+        }
+        return encodeURI('file://' + location)
             // some special cases are not covered with encodeURI and needs to be replaced manually
             .replace(this.fileURISubstitutions.rgx, m => this.fileURISubstitutions.map[m]);
     }
@@ -463,7 +470,8 @@ export default class Storage {
             params.push({
                 img: page.name,
                 xhtml: index + '.xhtml',
-                mime: page.type
+                // a media type of the manifest has no parameters, like the one of a novel
+                mime: page.type.split(';')[0]
             });
         }
         let uid = btoa(encodeURIComponent(ebook)).replace(/[^a-zA-Z]/g, '');
@@ -554,10 +562,10 @@ export default class Storage {
     _runPostChapterDownloadCommand(chapter, path) {
         let command = Engine.Settings.postChapterDownloadCommand.value; // `echo "%C% | %M% | %O%" > "%PATH%.txt"`;
         if (command) {
-            command = command.replace(/%PATH%/g, path);
-            command = command.replace(/%C%/g, chapter.manga.connector.label);
-            command = command.replace(/%M%/g, chapter.manga.title);
-            command = command.replace(/%O%/g, chapter.title);
+            // one pass with a function: a replacement string would expand "$&" and the like in a title, and a title
+            // that holds a placeholder would be replaced again
+            let values = { PATH: path, C: chapter.manga.connector.label, M: chapter.manga.title, O: chapter.title };
+            command = command.replace(/%(PATH|C|M|O)%/g, (placeholder, name) => values[name]);
             this.exec(command, { cwd: this.path.dirname(path), windowsHide: true }, error => {
                 if (error) {
                     console.error(error);
@@ -726,7 +734,18 @@ export default class Storage {
             // TODO: max. 32 chars per part
             path = path.replace(/[/:]/g, '');
         }
-        return path.replace(/[.\s]+$/g, '').trim();
+        // trailing dots and blanks: counted from the end, a pattern for them takes a time that grows with the square of a long title
+        let end = path.length;
+        while (end > 0 && (path.charAt(end - 1) === '.' || path.charAt(end - 1).trim() === '')) {
+            end--;
+        }
+        path = path.slice(0, end).trim();
+        if (this.platform.indexOf('win') === 0) {
+            // the devices of Windows (CON, NUL, COM1, ...) cannot be the name of a file or a folder, with or without an extension
+            path = path.replace(/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?=\.|$)/i, '$1_');
+        }
+        // a name that is nothing once it is cleaned would be the folder that it is put in
+        return path || '_';
     }
 
     /**
@@ -803,7 +822,10 @@ export default class Storage {
      */
     saveBookmarks(key, value, indentation) {
         return new Promise((resolve, reject) => {
-            this._writeFileAtomic(this._bookmarkOutputPath + key, JSON.stringify(value, undefined, indentation)).then(() => resolve(), error => reject(error));
+            let file = this._bookmarkOutputPath + key;
+            let data = JSON.stringify(value, undefined, indentation);
+            // the directory may be gone (deleted, or a drive that is not there): it is created like the one of the downloads
+            this._createDirectoryChain(this.path.dirname(file)).then(() => this._writeFileAtomic(file, data)).then(() => resolve(), error => reject(error));
         });
     }
 

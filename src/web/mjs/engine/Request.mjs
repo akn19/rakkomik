@@ -85,10 +85,10 @@ export default class Request {
     async _loginRequestHandler(authInfo) {
         let proxyAuth = this._settings.proxyAuth.value;
         if (authInfo.isProxy && proxyAuth && proxyAuth.includes(':')) {
-            let auth = proxyAuth.split(':');
-            let username = auth[0];
-            let password = auth[1];
-            console.log('login event', authInfo.isProxy, username, password);
+            // the user name ends at the first colon, the password may have more of them
+            let separator = proxyAuth.indexOf(':');
+            let username = proxyAuth.slice(0, separator);
+            let password = proxyAuth.slice(separator + 1);
             return [username, password];
         }
         return null;

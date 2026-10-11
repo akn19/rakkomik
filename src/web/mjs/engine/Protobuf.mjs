@@ -16,12 +16,15 @@ export function loadProtobuf() {
     loading ??= new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = new URL('../../js/protobuf.min.js', import.meta.url).href;
-        script.onload = () => resolve(globalThis.protobuf);
-        script.onerror = () => {
+        // a failed load is not remembered: the next call tries again
+        const fail = () => {
             loading = null;
             script.remove();
             reject(new Error('Failed to load the protobuf library!'));
         };
+        // a script that does not define the library is a failed load as well
+        script.onload = () => (globalThis.protobuf ? resolve(globalThis.protobuf) : fail());
+        script.onerror = fail;
         document.head.append(script);
     });
     return loading;

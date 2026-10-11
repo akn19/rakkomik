@@ -70,8 +70,8 @@ export default class DownloadJob extends EventTarget {
         this.setStatus( statusDefinitions.downloading );
         this.chapter.getPages( ( error, data ) => {
             if( !error && data ) {
-                // manga pages
-                if( data instanceof Array ) {
+                // manga pages (a chapter without any is no chapter: it fails below, like a missing list)
+                if( data instanceof Array && data.length > 0 ) {
                     this._downloadPages( data, directory, callback );
                     return;
                 }
@@ -93,13 +93,16 @@ export default class DownloadJob extends EventTarget {
     }
 
     async _downloadPages(pages, directory, callback) {
+        // the requests of the pages share one signal: when a page fails the others are stopped
+        const abort = new AbortController();
         try {
-            const content = Engine.Settings.useSequentialMediaDownloads.value ? await this._downloadPagesSequential(pages) : await this._downloadPagesConcurrent(pages);
+            const content = Engine.Settings.useSequentialMediaDownloads.value ? await this._downloadPagesSequential(pages) : await this._downloadPagesConcurrent(pages, abort.signal);
             await Engine.Storage.saveChapterPages(this.chapter, content);
             this.setProgress(100);
             this.setStatus(statusDefinitions.completed);
             callback();
         } catch(error) {
+            abort.abort();
             this.errors.push(error);
             console.error(error, pages);
             this.setProgress(100);
@@ -116,7 +119,7 @@ export default class DownloadJob extends EventTarget {
             // the job instead of leaking activeCount and starving the queue.
             const response = await fetch(page, { ...this.requestOptions, signal: AbortSignal.timeout(120000) });
             if(response.status !== 200 && !Engine.Settings.ignoreErrorOnDownload.value) {
-                throw new Error(`Page " ${page}" returned status: ${response.status} - ${response.statusText}`);
+                throw new Error(`Page "${page}" returned status: ${response.status} - ${response.statusText}`);
             }
             result.push(await response.blob());
             this.setProgress(this.progress + (pages.length ? 100/pages.length : 0));
@@ -124,23 +127,23 @@ export default class DownloadJob extends EventTarget {
         return result;
     }
 
-    async _downloadPagesConcurrent(pages) {
+    async _downloadPagesConcurrent(pages, signal) {
         const throttle = this.throttle || 50;
         // get data for all pages of chapter
         let promises = pages.map(async (page, index) => {
             await this._wait(index * throttle);
+            // a page that comes after a failed one is not requested, and one that is on its way is stopped
+            signal.throwIfAborted();
             // NOTE: bounded per-page timeout — see _downloadPagesSequential.
-            const response = await fetch(page, { ...this.requestOptions, signal: AbortSignal.timeout(120000) });
+            const response = await fetch(page, { ...this.requestOptions, signal: AbortSignal.any([signal, AbortSignal.timeout(120000)]) });
             if(response.status !== 200 && !Engine.Settings.ignoreErrorOnDownload.value) {
-                throw new Error(`Page " ${page}" returned status: ${response.status} - ${response.statusText}`);
+                throw new Error(`Page "${page}" returned status: ${response.status} - ${response.statusText}`);
             }
+            // the job has failed already: its progress is not moved on, and nobody is told
+            signal.throwIfAborted();
             this.setProgress(this.progress + (pages.length ? 100/pages.length : 0));
             return response.blob();
         });
-        /*
-         * TODO: abort/block all other page downloads that are still running for this job ...
-         * https://stackoverflow.com/questions/31424561/wait-until-all-es6-promises-complete-even-rejected-promises
-         */
         return Promise.all(promises);
     }
 }

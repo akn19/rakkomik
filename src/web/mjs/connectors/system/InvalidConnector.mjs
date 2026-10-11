@@ -14,6 +14,13 @@ export default class InvalidConnector extends Connector {
     }
 
     /**
+     * There is no website to initialize, and what asks for the lists is told that the connector is gone.
+     */
+    async _initializeConnector() {
+        // nothing to do
+    }
+
+    /**
      *
      */
     _getMangaList( callback ) {

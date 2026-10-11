@@ -6,6 +6,13 @@ const events = {
     changed: 'changed'
 };
 
+/**
+ * The titles come from the file of a user: in the page of the results they are text, never markup.
+ */
+function escapeHTML( text ) {
+    return String( text ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' ).replace( /"/g, '&quot;' ).replace( /'/g, '&#39;' );
+}
+
 export default class BookmarkManager extends EventTarget {
 
     // TODO: use dependency injection instead of globals for Engine.Connetors, Engine.Storage
@@ -25,6 +32,8 @@ export default class BookmarkManager extends EventTarget {
 
     async importBookmarks( file ) {
         let bookmarks = await this._bookmarkImporter.importBookmarks( file );
+        // the connectors register in the background after the UI is shown: a website that is not registered yet is not an unsupported one
+        await Engine.ConnectorsReady;
         let added = '';
         let exists = '';
         let dropped = '';
@@ -32,16 +41,16 @@ export default class BookmarkManager extends EventTarget {
             // check if connector / website is supported
             let supported = Engine.Connectors.findIndex( c => c.id === bookmark.key.connector ) > -1;
             if( !supported ) {
-                dropped += `<tr><td style="color: #808080; font-weight: bold; padding-right: 1em;">${ bookmark.title.connector }</td><td>${ bookmark.title.manga }</td></tr>`;
+                dropped += `<tr><td style="color: #808080; font-weight: bold; padding-right: 1em;">${ escapeHTML( bookmark.title.connector ) }</td><td>${ escapeHTML( bookmark.title.manga ) }</td></tr>`;
             }
             // check if bookmark does not exist
             let exist = this.bookmarks.findIndex( b => bookmark.key.manga === b.key.manga && bookmark.key.connector === b.key.connector ) > -1;
             if( exist ) {
-                exists += `<tr><td style="color: #808080; font-weight: bold; padding-right: 1em;">${ bookmark.title.connector }</td><td>${ bookmark.title.manga }</td></tr>`;
+                exists += `<tr><td style="color: #808080; font-weight: bold; padding-right: 1em;">${ escapeHTML( bookmark.title.connector ) }</td><td>${ escapeHTML( bookmark.title.manga ) }</td></tr>`;
             }
             // is supported and can be added
             if( supported && !exist ) {
-                added += `<tr><td style="color: #808080; font-weight: bold; padding-right: 1em;">${ bookmark.title.connector }</td><td>${ bookmark.title.manga }</td></tr>`;
+                added += `<tr><td style="color: #808080; font-weight: bold; padding-right: 1em;">${ escapeHTML( bookmark.title.connector ) }</td><td>${ escapeHTML( bookmark.title.manga ) }</td></tr>`;
                 this.bookmarks.push( bookmark );
             }
         } );
@@ -112,7 +121,7 @@ export default class BookmarkManager extends EventTarget {
         </body>
         </html>`;
         let dataURL = 'data:text/html;utf8,' + encodeURIComponent(content);
-        window.open( dataURL, '_blank', 'title=Boommark Import Results,center=true,width=800,height=600' );
+        window.open( dataURL, '_blank', 'title=Bookmark Import Results,center=true,width=800,height=600' );
     }
 
     /**
@@ -124,7 +133,7 @@ export default class BookmarkManager extends EventTarget {
         Engine.Storage.loadBookmarks( 'bookmarks' )
             .then( data => {
                 try {
-                    if( !data || !data.length || data.length === 0 ) {
+                    if( !Array.isArray( data ) || data.length === 0 ) {
                         throw new Error( 'Invalid bookmark list!' );
                     }
                     this.bookmarks = data;

@@ -1,7 +1,16 @@
+/**
+ * Discord takes at most 128 characters for the details and the state of an activity, and refuses the whole activity otherwise.
+ */
+function clip(text) {
+    return text.length > 128 ? text.slice(0, 127).toWellFormed() + '…' : text;
+}
+
 export default class DiscordPresence {
 
     constructor(settings) {
         this.updater = null;
+        // the request for a new connection that waits (see startDiscordPresence)
+        this.retry = null;
         this.statusNew = false;
 
         this._settings = settings; // Engine.Settings
@@ -38,7 +47,7 @@ export default class DiscordPresence {
 
     _onSelectConnector(event) {
         this.isThisHentai(event.detail.tags);
-        this.status['details'] = 'Browsing ' + event.detail.label;
+        this.status['details'] = clip('Browsing ' + event.detail.label);
         if (this.status.state) delete this.status.state;
         this.status.startTimestamp = + new Date();
         this.statusNew = true;
@@ -47,8 +56,8 @@ export default class DiscordPresence {
 
     _onSelectManga(event) {
         this.isThisHentai(event.detail.connector.tags);
-        this.status['details'] = 'Browsing ' + event.detail.connector.label;
-        this.status['state'] = 'Looking at ' + event.detail.title;
+        this.status['details'] = clip('Browsing ' + event.detail.connector.label);
+        this.status['state'] = clip('Looking at ' + event.detail.title);
         this.status.startTimestamp = + new Date();
         this.statusNew = true;
         if (this.enabled) this.startDiscordPresence();
@@ -56,8 +65,8 @@ export default class DiscordPresence {
 
     _onSelectChapter(event) {
         this.isThisHentai(event.detail.manga.connector.tags);
-        this.status['details'] = 'Viewing ' + event.detail.manga.title;
-        this.status['state'] = event.detail.title.padEnd(2); // State min. length is 2 char
+        this.status['details'] = clip('Viewing ' + event.detail.manga.title);
+        this.status['state'] = clip(event.detail.title.padEnd(2)); // State min. length is 2 char
         this.status.startTimestamp = + new Date();
         this.statusNew = true;
         if (this.enabled) this.startDiscordPresence();
@@ -91,6 +100,8 @@ export default class DiscordPresence {
         this.statusNew = false;
         clearInterval(this.updater);
         this.updater = null;
+        clearTimeout(this.retry);
+        this.retry = null;
         await window.hakuneko.presence.clearAndDestroy();
     }
 
@@ -111,11 +122,14 @@ export default class DiscordPresence {
                 }, 15200);
             }
         } else {
-            // Waiting delay for Discord API to allow new connection
-            setTimeout(() => {
-                // Re-evaluate if enabled
-                this._onSettingsChanged();
-            }, 120000);
+            // Waiting delay for Discord API to allow new connection (one request waits, however often this is asked)
+            if(!this.retry) {
+                this.retry = setTimeout(() => {
+                    this.retry = null;
+                    // Re-evaluate if enabled
+                    this._onSettingsChanged();
+                }, 120000);
+            }
         }
     }
 }

@@ -9,6 +9,7 @@ beforeAll(async () => {
 afterEach(() => {
     vi.unstubAllGlobals();
     delete globalThis.Engine;
+    delete globalThis.protobuf;
 });
 
 function site() {
@@ -49,7 +50,7 @@ describe('request counting', () => {
                 return respond(200, '<p></p>', 'text/html');
             }
             if (url.endsWith('/flaky')) {
-                return fetch.mock.calls.filter(call => /\/flaky$/.test(typeof call[0] === 'string' ? call[0] : call[0].url)).length > 1
+                return fetch.mock.calls.filter(call => (typeof call[0] === 'string' ? call[0] : call[0].url).endsWith('/flaky')).length > 1
                     ? respond(200, '<p></p>', 'text/html')
                     : respond(503, '', 'text/html');
             }
@@ -76,6 +77,18 @@ describe('request counting', () => {
         expect(connector.updateProgress.requests).toBe(4);
     });
 
+    it('should count the request of a protocol buffers call, but not the loading of its types', async () => {
+        const type = { decode: bytes => bytes, toObject: bytes => ({ size: bytes.length }) };
+        const load = vi.fn(async () => ({ lookupType: () => type }));
+        globalThis.protobuf = { load };
+        vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array([1, 2, 3]))));
+        const connector = site();
+        connector.isUpdating = true;
+        await expect(connector.fetchPROTO('https://site.test/proto', 'https://site.test/types.proto', 'Root')).resolves.toEqual({ size: 3 });
+        expect(load).toHaveBeenCalledTimes(1);
+        expect(connector.updateProgress.requests).toBe(1);
+    });
+
     it('should count a retried request every time it is sent', async () => {
         stubFetch();
         const connector = site();
@@ -84,6 +97,21 @@ describe('request counting', () => {
         connector.isUpdating = true;
         await connector.fetchDOM('https://site.test/flaky', 'p', 1);
         expect(connector.updateProgress.requests).toBe(2);
+    });
+
+    it('should count a request when it completes, not when it is sent', async () => {
+        let complete = null;
+        vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => {
+            complete = () => resolve(respond(200, '[1]', 'application/json'));
+        })));
+        const connector = site();
+        connector.isUpdating = true;
+        const pending = connector.fetchJSON('https://site.test/json');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(connector.updateProgress.requests).toBe(0);
+        complete();
+        await pending;
+        expect(connector.updateProgress.requests).toBe(1);
     });
 
     it('should count a failed request as well', async () => {

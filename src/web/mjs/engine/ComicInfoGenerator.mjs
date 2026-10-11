@@ -19,8 +19,12 @@ export default class ComicInfoGenerator {
             '"': '&quot;'
         };
 
-        return str.replace(/[<>&'"]/g, function (c) {
-            return symbols[c];
-        });
+        // XML 1.0 has no place for a lone surrogate, most control characters, U+FFFE and U+FFFF, not even as an entity
+        return str.toWellFormed()
+            // eslint-disable-next-line no-control-regex
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
+            .replace(/[<>&'"]/g, function (c) {
+                return symbols[c];
+            });
     }
 }

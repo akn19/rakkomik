@@ -89,6 +89,10 @@ export default class Connectors extends EventTarget {
                             throw error;
                         }
                         let connector = new module.default();
+                        // the list is sorted by label below: one without a label would end the registration of all that follow
+                        if(typeof connector.label !== 'string') {
+                            throw new Error('The connector has no label!');
+                        }
                         if(this._list.find(c => c.id === connector.id)) {
                             console.warn(`The connector "${connector.label}" with ID "${connector.id}" is already registered`);
                         } else {

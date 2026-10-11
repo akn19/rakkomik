@@ -51,14 +51,29 @@ export default class FolderConnector {
     }
 
     /**
+     * The entries of the given directory that are shown: not the hidden ones (.git, .DS_Store, ...), and those that the
+     * given function accepts, which is told the name of the entry and whether it is a directory.
+     */
+    _readEntries( directory, accept ) {
+        return Engine.Storage._readDirectoryEntries( directory )
+            .then( entries => {
+                entries = entries.filter( entry => !entry.startsWith( '.' ) );
+                return Promise.all( entries.map( entry => {
+                    return Engine.Storage.directoryExist( Engine.Storage.path.join( directory, entry ) ).then( () => true, () => false );
+                } ) )
+                    .then( directories => entries.filter( ( entry, index ) => accept( entry, directories[index] ) ) );
+            } );
+    }
+
+    /**
      *
      */
     _getMangaList( callback ) {
         let directory = this.config.path.value;
-        Engine.Storage._readDirectoryEntries( directory )
+        // the mangas are the folders of the directory
+        this._readEntries( directory, ( entry, isDirectory ) => isDirectory )
             .then( entries => {
                 let mangaList = entries.map( entry => {
-                // TODO: exclude files
                     let manga = new Manga( this, Engine.Storage.path.join( directory, entry ), entry, statusDefinitions.completed );
                     manga.getChapters = this.getChapters.bind( manga );
                     return manga;
@@ -80,7 +95,8 @@ export default class FolderConnector {
         if( !( manga instanceof Manga ) ) {
             return callback( new Error( 'This method must be used from a <Manga> object\'s context!' ), [] );
         }
-        Engine.Storage._readDirectoryEntries( manga.id )
+        // the chapters are the folders and the archives of the manga (see Storage.loadChapterPages)
+        manga.connector._readEntries( manga.id, ( entry, isDirectory ) => isDirectory || /\.(cbz|epub|pdf)$/i.test( entry ) )
             .then( entries => {
                 let chapterList = entries.map( entry => {
                     let chapter = new Chapter( manga, Engine.Storage.path.join( manga.id, entry ), entry, undefined, statusDefinitions.offline );

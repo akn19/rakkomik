@@ -183,6 +183,21 @@ describe('serializing the text of a chapter', () => {
         expect(serialize('<div>'.repeat(150) + 'shallow enough' + '</div>'.repeat(150))).toBe('<p>shallow enough</p>');
     });
 
+    it('should leave out the nodes that are neither text nor elements, like comments', () => {
+        // the test double does not parse comments, so they are put into the tree by hand
+        const body = createElement('body', {}, [
+            { nodeType: 8, nodeValue: 'a comment that must not be shown' },
+            createElement('p', {}, [createText('shown')]),
+            { nodeType: 7, nodeValue: 'an instruction' }
+        ]);
+        expect(Novel.serializeNovel(body)).toBe('<p>shown</p>');
+    });
+
+    it('should keep the text of CDATA sections like any other text', () => {
+        const body = createElement('body', {}, [createElement('p', {}, [{ nodeType: 4, nodeValue: 'cdata <text>' }])]);
+        expect(Novel.serializeNovel(body)).toBe('<p>cdata &lt;text&gt;</p>');
+    });
+
     it('should always produce well-formed XHTML', () => {
         const result = serialize('<div><p>A &amp; B <em>x<b>y</em> z</b></p>Loose <u>text</u><br><br><ul><li>i<li>j</ul><img src="/a.png" alt="&lt;&amp;&quot;"><p>"quotes" & <tags></p></div>');
         expect(result).not.toBe('');

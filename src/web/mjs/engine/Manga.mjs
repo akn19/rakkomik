@@ -178,13 +178,13 @@ export default class Manga extends EventTarget {
         name = name.replace( reCh, '' ).trim();
         chapter = this._padNumberPrefixWithZeros( chapter, 4 );
 
-        // apply extracted parts to format from user settings
-        result = result.replace( /%VOL%/i, volume ); // volume number replacement
-        result = result.replace( /%CH%/i, chapter ); // chapter number replacement
-        result = result.replace( /%T%/i, name ); // clean title replacement
-        result = result.replace( /%O%/i, title ); // original title replacement
-        result = result.replace( /%M%/i, this.title ); // original title replacement
-        result = result.replace( /%C%/i, this.connector.label ); // original title replacement
+        // apply extracted parts to format from user settings (replacer functions: the texts are put in as they are, e.g. '$&' is no pattern)
+        result = result.replace( /%VOL%/i, () => volume ); // volume number replacement
+        result = result.replace( /%CH%/i, () => chapter ); // chapter number replacement
+        result = result.replace( /%T%/i, () => name ); // clean title replacement
+        result = result.replace( /%O%/i, () => title ); // original title replacement
+        result = result.replace( /%M%/i, () => this.title ); // original title replacement
+        result = result.replace( /%C%/i, () => this.connector.label ); // original title replacement
 
         return result;
     }

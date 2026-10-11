@@ -26,8 +26,12 @@ export default class ChaptermarkManager extends EventTarget {
             return;
         }
 
-        let marks = chaptermarks.filter( c => this._findIndex( c ) < 0 );
-        this.chaptermarks = this.chaptermarks.concat( marks );
+        // a manga has one mark: of the merged marks the first one wins, as the mark that is there already does
+        chaptermarks.forEach( c => {
+            if( this._findIndex( c ) < 0 ) {
+                this.chaptermarks.push( c );
+            }
+        } );
         this._syncChaptermarks( undefined );
     }
 
@@ -75,7 +79,7 @@ export default class ChaptermarkManager extends EventTarget {
         Engine.Storage.loadBookmarks( 'chaptermarks' )
             .then( data => {
                 try {
-                    if( !data ) {
+                    if( !Array.isArray( data ) ) {
                         throw new Error( 'Invalid chaptermark list!' );
                     }
                     this.chaptermarks = data;

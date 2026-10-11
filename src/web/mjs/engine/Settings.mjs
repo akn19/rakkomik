@@ -330,7 +330,12 @@ export default class Settings extends EventTarget {
                     && this[key]
                     && this[key].input
                     && this[key].input !== types.disabled) {
-                    this[key].value = await this._getDecryptedValue(this[key].input, data[key]);
+                    let value = await this._getDecryptedValue(this[key].input, data[key]);
+                    // a choice that is not offered (any more: the PDF of the chapter format that HakuNeko had) keeps the default
+                    if (!this._isOffered(this[key], value)) {
+                        continue;
+                    }
+                    this[key].value = value;
                     this[key].value = this._getValidValue('General', this[key]);
                 }
             }
@@ -343,7 +348,11 @@ export default class Settings extends EventTarget {
                         && data.connectors[connector.id][key] !== undefined
                         && connector.config[key]
                         && connector.config[key].input) {
-                        connector.config[key].value = await this._getDecryptedValue(connector.config[key].input, data.connectors[connector.id][key]);
+                        let value = await this._getDecryptedValue(connector.config[key].input, data.connectors[connector.id][key]);
+                        if (!this._isOffered(connector.config[key], value)) {
+                            continue;
+                        }
+                        connector.config[key].value = value;
                         connector.config[key].value = this._getValidValue(connector.label, connector.config[key], true);
                     }
                 }
@@ -411,6 +420,13 @@ export default class Settings extends EventTarget {
     /**
      *
      */
+    /**
+     * A choice is only taken when it is one of the options that the setting offers.
+     */
+    _isOffered(setting, value) {
+        return setting.input !== types.select || !Array.isArray(setting.options) || setting.options.some(option => option.value === value);
+    }
+
     _getValidValue(scope, setting, silent) {
         let value = setting.value;
         switch (setting.input) {

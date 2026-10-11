@@ -62,7 +62,6 @@ export default class Blacklist {
             '*://*.fqtag.com/*',
             '*://*.fundingchoices.google.com/*',
             '*://*.genieessp.com/*',
-            '*://*.genieessp.com/*',
             '*://*.google-analytics.com/*',
             '*://*.google.com/ads/*',
             '*://*.google.com/adsense/*',

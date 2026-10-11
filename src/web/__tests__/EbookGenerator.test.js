@@ -121,3 +121,22 @@ describe('page to print a novel chapter from', () => {
         expect(html).not.toMatch(/<script|<link|@import|url\(/i);
     });
 });
+
+describe('the parts that every EPUB has', () => {
+    it('should state the type of an EPUB in the mimetype file, exactly: readers compare it byte for byte', () => {
+        expect(EbookGenerator.createMimetype()).toBe('application/epub+zip');
+    });
+
+    it('should tell readers where the package of the book is', () => {
+        const container = EbookGenerator.createContainerXML();
+        expectWellFormed(container);
+        expect(container.startsWith('<?xml version="1.0" encoding="UTF-8" ?>')).toBe(true);
+        expect(container).toContain('<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">');
+        expect(container).toContain('<rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>');
+    });
+
+    it('should keep the images of a comic page inside of the page', () => {
+        const css = EbookGenerator.createStyleCSS();
+        expect(css).toMatch(/img\s*\{[^}]*max-height:\s*100%;[^}]*max-width:\s*100%;[^}]*\}/);
+    });
+});

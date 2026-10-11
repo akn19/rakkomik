@@ -17,18 +17,24 @@ export default class ClipboardConnector {
 
         this.clipboard = window.hakuneko.clipboard;
         this.mangaCache = [];
+        this.updateCallbacks = [];
     }
 
     /**
      *
      */
     updateMangas(callback) {
+        // an update that is asked for while another one runs is answered when that one is over
+        this.updateCallbacks.push(callback);
         if(!this.isUpdating) {
             this.isUpdating = true;
-            this._getMangaList((_, mangas) => {
-                this.mangaCache = mangas;
+            this._getMangaList((error, mangas) => {
+                // the list of an update that failed does not replace the one that is there
+                if(!error) {
+                    this.mangaCache = mangas;
+                }
                 this.isUpdating = false;
-                this.getMangas(callback);
+                this.updateCallbacks.splice(0).forEach(waiting => error ? waiting(error, this.mangaCache) : this.getMangas(waiting));
             });
         }
     }
@@ -44,13 +50,23 @@ export default class ClipboardConnector {
      *
      */
     async _getMangaList(callback) {
-        let text = await this.clipboard.readText();
+        let text = undefined;
+        try {
+            text = await this.clipboard.readText();
+        } catch(error) {
+            callback(error, []);
+            return;
+        }
         let promises = !text ? [] : text.split(/\r?\n/).map(async line => {
             try {
                 let uri = new URL(line);
                 let connectors = Engine.Connectors.filter(connector => connector.canHandleURI && connector.canHandleURI(uri));
                 if(!connectors.length) {
-                    connectors = Engine.Connectors.filter(connector => connector.url && connector.url.includes(uri.hostname));
+                    // the host of the link is the host of the connector, or one is a subdomain of the other (www.example.com)
+                    connectors = Engine.Connectors.filter(connector => {
+                        let host = connector.url && new URL(connector.url).hostname;
+                        return host && (host === uri.hostname || host.endsWith('.' + uri.hostname) || uri.hostname.endsWith('.' + host));
+                    });
                 }
                 if(connectors.length > 1) {
                     connectors = connectors.filter(connector => uri.pathname.startsWith(new URL(connector.url).pathname));

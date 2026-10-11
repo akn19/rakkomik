@@ -84,7 +84,8 @@ export default class BookmarkImporter {
          * The key is based on HakuNeko connector IDs
          */
         this._mangaMap = {
-            'mangadex': id => id.match( /^\/[a-z]+\/(\d+)($|\/.*$)/ )[1],
+            // the number of the old ids, or the UUID of the current ones
+            'mangadex': id => id.match( /^\/[a-z]+\/(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})($|\/.*$)/ )[1],
             'mangarock': id => id.split( '/' ).pop(),
             //'mangapark': id => ( id.indexOf( '/series' ) > -1 ? id : undefined ),
             'mangatube': id => id.split( '/' ).pop()
@@ -98,7 +99,7 @@ export default class BookmarkImporter {
         if( file.size < 2 ) {
             throw new Error( `Invalid file size: ${file.size}` );
         }
-        if( file.type === 'application/x-sqlite3' || file.name.endsWith( '.db' ) ) {
+        if( file.type === 'application/x-sqlite3' || file.name.toLowerCase().endsWith( '.db' ) ) {
             return await this._importBookmarksFMD( file );
         }
         throw new Error(`File type '${file.type}' is not supported!`);
@@ -112,7 +113,15 @@ export default class BookmarkImporter {
         const bytes = new Uint8Array( await file.arrayBuffer() );
         const query = 'SELECT `websitelink` AS `link`, `link` AS `manga`, `website` AS `connectorTitle`, `title` AS `mangaTitle` FROM `favorites`;';
         const rows = await window.hakuneko.sqlite.query( bytes, query );
-        return rows.map( this._mapFMDRowToManga.bind( this ) );
+        // a favorite that cannot be converted must not cost the user all the others
+        return rows.flatMap( row => {
+            try {
+                return [ this._mapFMDRowToManga( row ) ];
+            } catch( error ) {
+                console.warn( 'Skipped a favorite that cannot be converted:', row, error.message );
+                return [];
+            }
+        } );
     }
 
     /**

@@ -19,12 +19,16 @@ export default class Connector {
          */
         this.isLocked = false;
         this.initialized = false;
+        // the running initialization: callers who ask meanwhile wait for it (see initialize)
+        this.initialization = undefined;
         /*
          * Progress of the running update of the manga list (see updateMangas), undefined while idle:
          * the requests that the fetch helpers of this class completed since the update started.
          * READONLY: it follows isUpdating, assign that instead.
          */
         this.updateProgress = undefined;
+        // the callbacks of the calls of updateMangas that wait for the running update (see updateMangas)
+        this.updateCallbacks = [];
         //
         this.mangaCache = undefined;
         //
@@ -80,12 +84,18 @@ export default class Connector {
     async initialize() {
         try {
             if(!this.initialized) {
-                await this._initializeConnector();
+                // callers who ask while the initialization runs wait for it, instead of starting it again
+                if(!this.initialization) {
+                    this.initialization = Promise.resolve(this._initializeConnector()).finally(() => {
+                        this.initialization = undefined;
+                    });
+                }
+                await this.initialization;
                 this.initialized = true;
             }
         } catch(error) {
-            // only throw when not in offline mode
-            if(!error.stack.startsWith('ERR_INTERNET_DISCONNECTED')) {
+            // only throw when not in offline mode (the error code is in the message, also when it comes through the IPC bridge)
+            if(!String(error && error.stack || error).includes('ERR_INTERNET_DISCONNECTED')) {
                 throw error;
             }
         }
@@ -109,20 +119,35 @@ export default class Connector {
      */
     updateMangas( callback ) {
         if( this.isUpdating ) {
+            // the running update answers this call as well
+            this.updateCallbacks.push( callback );
             return;
         }
         this.isUpdating = true;
+        // every caller gets the answer of the update, once
+        let callbacks = this.updateCallbacks = [ callback ];
+        callback = ( error, mangas ) => {
+            while( callbacks.length ) {
+                callbacks.shift()( error, mangas );
+            }
+        };
         this.initialize()
             .then( () => {
-                this._getMangaList( ( error, mangas ) => {
+                // a connector that fails without calling back (e.g. an async override) ends the update through the catch below
+                return this._getMangaList( ( error, mangas ) => {
                     if( error || !mangas || mangas.length === 0 ) {
                         this.isUpdating = false;
                         callback( error, undefined );
                         return;
                     }
                     // remove duplicates by checking if manga with given ID is first occurance in list
-                    mangas = mangas.filter( ( manga, index ) => {
-                        return index === mangas.findIndex( m => m.id === manga.id );
+                    let ids = new Set();
+                    mangas = mangas.filter( manga => {
+                        if( ids.has( manga.id ) ) {
+                            return false;
+                        }
+                        ids.add( manga.id );
+                        return true;
                     } );
                     // sort by title
                     mangas.sort( ( a, b ) => {
@@ -163,7 +188,7 @@ export default class Connector {
                 return Promise.resolve( [] );
             } )
             .then( existingMangaTitles => {
-                this.existingManga = existingMangaTitles;
+                this.existingMangas = existingMangaTitles;
                 // check if manga list is cached
                 return this.mangaCache && this.mangaCache.length ? this._getUpdatedMangasFromCache() : this._getUpdatedMangasFromFile();
             } )
@@ -270,7 +295,7 @@ export default class Connector {
 
     adLinkDecrypt(element) {
         let uri = new URL(element.href);
-        if(uri.hostname === 'nofil.net' && element.pathname.includes('safeme')) {
+        if(uri.hostname === 'nofil.net' && element.pathname.includes('safeme') && uri.searchParams.has('url')) {
             element.href = uri.searchParams.get('url');
         }
     }
@@ -349,7 +374,8 @@ export default class Connector {
              * => use the protocol of the connector's base url
              */
             if( refURI.protocol === window.location.protocol ) {
-                refURI.protocol = baseURI.protocol;
+                // a scheme that is not special (the one of the application) cannot be changed by assigning to the URL
+                refURI = new URL( baseURI.protocol + refURI.href.slice( refURI.protocol.length ) );
             }
 
             // case: element.href => absolute link that contains base url of connector (e.g. http://connector.net/sub/page.html)
@@ -385,10 +411,10 @@ export default class Connector {
             case typeof reference === 'string':
                 refURI = new URL( reference, baseURI.href );
                 break;
-            case reference['src'] !== undefined:
+            case reference && reference['src'] !== undefined:
                 refURI = new URL( reference.getAttribute( 'src' ), baseURI.href );
                 break;
-            case reference['href'] !== undefined:
+            case reference && reference['href'] !== undefined:
                 refURI = new URL( reference.getAttribute( 'href' ), baseURI.href );
                 break;
             default:
@@ -466,14 +492,14 @@ export default class Connector {
         const response = await this._countedFetch(request.clone());
         if(response.status >= 500 && retries > 0) {
             await this.wait(2500);
-            return this.fetchDOM(request, selector, retries - 1);
+            return this.fetchDOM(request, selector, retries - 1, encoding);
         }
         // fetch() already tried to complete the interstitial in a hidden window (AntiScraping.mjs)
         if(isChallengeResponse(response)) {
             throw new Error(`The anti-bot check of "${new URL(request.url).origin}" could not be completed (status: ${response.status})`);
         }
         const content = response.headers.get('content-type');
-        if(response.status === 200 || content.includes('text/html')) {
+        if(response.status === 200 || (content && content.includes('text/html'))) {
             const data = await response.arrayBuffer();
             const dom = this.createDOM(new TextDecoder(encoding || 'utf8').decode(data));
             return Promise.resolve(!selector ? dom : [...dom.querySelectorAll(selector)]);
@@ -493,7 +519,8 @@ export default class Connector {
         if( request instanceof URL ) {
             request = new Request( request.href, this.requestOptions );
         }
-        return this._countedFetch( request )
+        // send a copy: a request with a body can be sent once, but it may have to be sent again
+        return this._countedFetch( request.clone() )
             .then( response => {
                 if( response.status >= 500 && retries > 0 ) {
                     return this.wait( 5000 )
@@ -528,14 +555,14 @@ export default class Connector {
                     throw new Error(this.label + ' errors: ' + data.errors.map(error => error.message).join('\n'));
                 }
                 if (!data.data) {
-                    throw new Error(this.label + 'No data available!');
+                    throw new Error(this.label + ': No data available!');
                 }
                 return data.data;
             });
     }
 
     async fetchRegex(request, regex) {
-        if(!/\/[imsuy]*g[imsuy]*$/.test('' + regex)) {
+        if(!(regex && regex.global)) {
             throw new Error('The provided RegExp must contain the global "g" modifier!');
         }
         let response = await this._countedFetch(request);
@@ -545,6 +572,10 @@ export default class Connector {
         // eslint-disable-next-line no-cond-assign
         while(match = regex.exec(data)) {
             result.push(match[1]);
+            // a match without characters does not move on by itself
+            if(match[0] === '') {
+                regex.lastIndex++;
+            }
         }
         return result;
     }
