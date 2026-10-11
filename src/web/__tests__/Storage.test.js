@@ -543,17 +543,57 @@ describe('Storage command after a download', () => {
         expect(console.error.mock.calls[0][0].message).toBe('Command failed: false');
     });
 
-    it('should put a title with a $ in it into the command as it is', () => {
-        const { exec } = run('echo %M%', plainChapter('Chapter 1', 'Q$&A $$ $\' $`'));
-        expect(exec.mock.calls[0][0]).toBe('echo Q$&A $$ $\' $`');
+    it('should put the path into the command as it is, whatever it holds: it is the real one of the chapter', () => {
+        const { exec } = run('tag "%PATH%"', plainChapter(), 'linux', '/dl/Q$&A $$ $\' $`/Chapter 1.cbz');
+        expect(exec.mock.calls[0][0]).toBe('tag "/dl/Q$&A $$ $\' $`/Chapter 1.cbz"');
     });
 
-    // NOTE: the titles come from websites and are put into the command of the user without any quoting, so a title
-    // that holds a quote ends the argument the command puts it into, and what follows is run by the shell (command
-    // injection by a site). It is the behaviour of HakuNeko, where the command is the business of the user.
-    it('should put a title with quotes into the command unchanged', () => {
-        const { exec } = run('echo "%M%"', plainChapter('Chapter 1', 'a"; echo pwned; "'));
-        expect(exec.mock.calls[0][0]).toBe('echo "a"; echo pwned; ""');
+    // The titles come from websites and the command is run by a shell: a title that is put into the command as it is could
+    // end the argument that it is in and have the shell run what follows (command injection by a website).
+    describe('the titles of a website', () => {
+        // what sh and cmd.exe read as more than text
+        const DANGEROUS = ['"', '\'', '`', '$', '\\', ';', '&', '|', '<', '>', '(', ')', '^', '%', '\n', '\r', '\t', '\u0000', '\u001f', '\u007f'];
+
+        it.each(DANGEROUS)('should not put the character %j into the command', character => {
+            for (const [placeholder, chapter] of [
+                ['%M%', plainChapter('Chapter 1', `a${character}b`)],
+                ['%O%', plainChapter(`a${character}b`)],
+                ['%C%', plainChapter('Chapter 1', 'My Manga', 'available', { label: `a${character}b`, id: 'site' })]
+            ]) {
+                const { exec } = run(`echo ${placeholder}`, chapter);
+                expect(exec.mock.calls[0][0]).toBe('echo a_b');
+            }
+        });
+
+        it('should keep a title from ending the quotes of the command and running what follows (sh)', () => {
+            const { exec } = run('echo "%M%" >> log.txt', plainChapter('Chapter 1', 'a"; touch /tmp/pwned; echo "'));
+            const command = exec.mock.calls[0][0];
+            expect(command).toBe('echo "a__ touch /tmp/pwned_ echo _" >> log.txt');
+            // between the quotes of the command there is nothing left that ends them or starts something
+            expect(command.match(/"([^"]*)"/)[1]).not.toMatch(/["';&|`$\\<>]/);
+        });
+
+        it('should keep a title from running a command, or an expansion, in cmd.exe', () => {
+            const { exec } = run('echo "%M%" & echo "%O%"', plainChapter('x" & calc & "%USERNAME%', 'y" | del * | "'), 'win32');
+            expect(exec.mock.calls[0][0]).toBe('echo "y_ _ del * _ _" & echo "x_ _ calc _ __USERNAME_"');
+        });
+
+        it('should keep a title that holds a placeholder from being replaced again', () => {
+            const { exec } = run('echo %M% %O%', plainChapter('%PATH%', '%O%'));
+            expect(exec.mock.calls[0][0]).toBe('echo _O_ _PATH_');
+        });
+
+        it('should leave the titles that hold nothing a shell reads alone, whatever the writing system', () => {
+            for (const title of ['One Piece', '日本語 マンガ', 'Re:Zero - Starting Life', 'Vol. 1: A, B + C = D!', 'Oh! #1 [Special] {x} *? ~ @', 'Ünïcode — “quoted” …', 'Tom & Jerry'.replace('&', 'and')]) {
+                const { exec } = run('echo %M%', plainChapter('Chapter 1', title));
+                expect(exec.mock.calls[0][0]).toBe(`echo ${title}`);
+            }
+        });
+
+        it('should treat a title that is no text the way it did before: as the text that it becomes', () => {
+            const { exec } = run('echo %M% %O%', { title: undefined, status: 'available', manga: { title: 12, connector: { label: 'Site', id: 'site' } } });
+            expect(exec.mock.calls[0][0]).toBe('echo 12 undefined');
+        });
     });
 });
 

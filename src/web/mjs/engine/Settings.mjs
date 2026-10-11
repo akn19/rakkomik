@@ -249,6 +249,9 @@ export default class Settings extends EventTarget {
                 '  %M% - Manga title',
                 '  %O% - Chapter title',
                 '',
+                'The titles come from the website: quotes and the characters $ ` \\ ; & | < > ( ) ^ % in them are replaced',
+                'by _ before the command runs. %PATH% is not changed, put it in quotes.',
+                '',
                 'Examples:',
                 '  echo "%C% | %M% | %O%" > "%PATH%.txt"'
             ].join('\n'),

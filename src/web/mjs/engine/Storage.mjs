@@ -23,6 +23,17 @@ const pageFile = /^[^./\\][^/\\]*\.(jpe?g|png|gif|webp|avif|bmp|img|bin)$/i;
 // the pages of a folder or an archive come in the order of their numbers (1, 2, 10), like the chapters in the chapter panel
 const pageOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
+/**
+ * A title as the text of a command. The titles come from a website and the command is run by a shell (sh, cmd.exe), so
+ * what a shell reads as more than text is replaced by "_": quotes, the characters that start a substitution, a separator
+ * or a redirection, and control characters (a line break ends a command). Without it a title could end the argument that
+ * it is put into and have the shell run what follows.
+ */
+function plainText(text) {
+    // eslint-disable-next-line no-control-regex
+    return String(text).replace(/[\u0000-\u001f\u007f"'`$\\;&|<>()^%]/g, '_');
+}
+
 export default class Storage {
 
     // TODO: use dependency injection instead of globals for EbookGenerator
@@ -563,8 +574,9 @@ export default class Storage {
         let command = Engine.Settings.postChapterDownloadCommand.value; // `echo "%C% | %M% | %O%" > "%PATH%.txt"`;
         if (command) {
             // one pass with a function: a replacement string would expand "$&" and the like in a title, and a title
-            // that holds a placeholder would be replaced again
-            let values = { PATH: path, C: chapter.manga.connector.label, M: chapter.manga.title, O: chapter.title };
+            // that holds a placeholder would be replaced again. The path is the real one of the chapter and stays as it
+            // is: it belongs in the quotes of the command.
+            let values = { PATH: path, C: plainText(chapter.manga.connector.label), M: plainText(chapter.manga.title), O: plainText(chapter.title) };
             command = command.replace(/%(PATH|C|M|O)%/g, (placeholder, name) => values[name]);
             this.exec(command, { cwd: this.path.dirname(path), windowsHide: true }, error => {
                 if (error) {
