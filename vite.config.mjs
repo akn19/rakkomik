@@ -1,11 +1,11 @@
-// Vite build for the React frontend (Fase 3 tooling + Fase 4 shell).
+// Vite build for the React frontend.
 //
 // What this builds (and what it deliberately does NOT):
 // - Bundles ONLY the React UI (`src/web/ui/main.jsx` → `ui/dist/ui.js` +
 //   `ui/dist/ui.css`, fixed names so `index.html` can load them).
 // - Engine (`mjs/engine/*`) and connectors (`mjs/connectors/*`) are NOT
 //   bundled: connectors are runtime-discovered through the cache listing via
-//   dynamic `import()` and must stay individual static files (audit §4.1).
+//   dynamic `import()` and must stay individual static files.
 //
 // Flows:
 // - dev (cache-directory = ./src/web): `pnpm run watch:ui`, then

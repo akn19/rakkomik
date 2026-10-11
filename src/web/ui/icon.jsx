@@ -58,7 +58,7 @@ import {
 } from 'lucide-react';
 
 /**
- * Single icon component (audit §5.8: Font Awesome → Lucide).
+ * Single icon component (Lucide icons).
  * Tree-shaken (only the used icons join the bundle), offline-safe.
  * `filled` renders solid glyphs (e.g. active bookmark stars).
  */

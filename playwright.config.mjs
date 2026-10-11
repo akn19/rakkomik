@@ -1,4 +1,4 @@
-// End-to-end tests on the packaged web bundle inside Electron (F-B2).
+// End-to-end tests on the packaged web bundle inside Electron.
 // - project `ui`: hermetic UI tests (isolated profile, no site access)
 // - project `sites`: live connector smoke tests against the real websites
 // Both launch Electron through Playwright's `_electron` API (no remote debugging port).

@@ -1,5 +1,5 @@
 /**
- * Engine bridge (audit §5.3).
+ * Engine bridge.
  *
  * The engine is NOT imported as a module: it is loaded as classic scripts
  * that expose `window.Engine` BEFORE the React shell mounts (see

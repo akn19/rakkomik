@@ -215,9 +215,9 @@ class ElectronPackagerLinux extends ElectronPackager {
      */
     constructor(configuration) {
         super(configuration);
-        // Desktop-only (Fase 0.7): x86_64 + arm64. i386/armv7l/armhf dropped
+        // Desktop only: x86_64 + arm64. i386/armv7l/armhf are not built
         // (upstream Electron no longer ships them). RISC-V stays conditional
-        // on upstream Electron providing riscv64 builds (none as of this phase).
+        // on upstream Electron providing riscv64 builds (it provides none yet).
         this.architectures = {
             '64': {
                 name: 'amd64',
@@ -495,7 +495,7 @@ class ElectronPackagerWindows extends ElectronPackager {
      */
     constructor(configuration) {
         super(configuration);
-        // Desktop-only (Fase 0.7): x86_64 + arm64. i386 dropped
+        // Desktop only: x86_64 + arm64. i386 is not built
         // (upstream Electron deprecated it).
         this.architectures = {
             '64': {
@@ -562,7 +562,7 @@ class ElectronPackagerWindows extends ElectronPackager {
         await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(false);
         await this._editResource();
-        // All remaining architectures are 64-bit (i386 was dropped in Fase 0.7).
+        // Every architecture that is built is 64-bit (there is no i386 build).
         let setup = this._createScriptIS(true);
 
         await this._executeCommand(`innosetup-compiler "${setup}"`);
@@ -689,12 +689,10 @@ class ElectronPackagerDarwin extends ElectronPackager {
      */
     constructor(configuration) {
         super(configuration);
-        // Desktop-only (Fase 0.7): x86_64 now, arm64 declared (see main()).
-        // Minimum macOS version follows the Electron/Chromium target and is
-        // set with the Fase 1 upgrade (LSMinimumSystemVersion below is the
-        // pre-upgrade value, kept intentionally). Notarization is OPTIONAL:
-        // it needs a paid Apple Developer account; without it macOS users
-        // bypass Gatekeeper manually. Not a prerequisite for any phase.
+        // Desktop only: x86_64 and arm64. The minimum macOS version is the one
+        // of the Electron build (the Info.plist step below keeps it).
+        // Notarization is OPTIONAL: it needs a paid Apple Developer account;
+        // without it macOS users bypass Gatekeeper manually.
         this.architectures = {
             '64': {
                 dmg: {

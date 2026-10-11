@@ -1,5 +1,5 @@
 /**
- * Synchronous header surgery for session webRequest hooks (Fase 1 fix).
+ * Synchronous header surgery for session webRequest hooks.
  *
  * The renderer round-trip (`_ipcSend` + async listener) MUST NOT be used
  * here: on modern Electron an async webRequest listener hangs every request

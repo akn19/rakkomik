@@ -1,4 +1,4 @@
-// Unit tests (Fase 3/F-B2). The Vite build config (`vite.config.mjs`) is a
+// Unit tests. The Vite build config (`vite.config.mjs`) is a
 // library build rooted in `src/web/ui`, so tests get their own config.
 // The e2e suite runs on Playwright (`playwright.config.mjs`), not here.
 import { defineConfig } from 'vitest/config';

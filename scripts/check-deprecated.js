@@ -1,5 +1,5 @@
 /**
- * CI gate: refuse deprecated dependencies (AGENTIC-PLAN Fase 0.7 / audit Aturan 8).
+ * CI gate: refuse deprecated dependencies.
  *
  * The `deprecated` flag lives in registry metadata (it is NOT part of the
  * published tarball), so this gate queries the registry for every declared
@@ -39,8 +39,8 @@ function declaredPackages() {
 }
 
 function installedVersion(name) {
-    // Root install first, then the nested src/app install (Fase 0 keeps the
-    // nested layout: `pnpm --dir src/app install`, no workspace symlinks).
+    // Root install first, then the nested src/app install (the nested layout:
+    // `pnpm --dir src/app install`, no workspace symlinks).
     const candidates = [
         path.join(ROOT, 'node_modules', name, 'package.json'),
         path.join(ROOT, 'src', 'app', 'node_modules', name, 'package.json'),

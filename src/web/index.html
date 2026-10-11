@@ -14,7 +14,7 @@
         import HakuNeko from './mjs/HakuNeko.mjs'
 
         // https://github.com/electron/electron/blob/master/docs/api/dialog.md#dialogshowmessageboxbrowserwindow-options
-        // Fase 1: dialogs via the preload bridge instead of electron.remote.
+        // The dialogs are shown by the main process, through the preload bridge.
         function replaceDialogs() {
             alert = async (message, title, type) => {
                 let options = {

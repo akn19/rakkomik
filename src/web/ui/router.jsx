@@ -11,7 +11,7 @@ import BookmarksView from './views/BookmarksView.jsx';
 // "Failed to fetch dynamically imported module". The app reads from local disk, so splitting saves no download.
 
 // Hash history: the app runs on a custom scheme, not http,
-// so path history is unusable (audit §5.2).
+// so path history is unusable.
 const rootRoute = createRootRoute({ component: Shell });
 
 const startRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: StartView });

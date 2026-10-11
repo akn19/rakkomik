@@ -1,5 +1,5 @@
 /**
- * Native crypto helpers replacing `crypto-js` (Fase 2).
+ * Native crypto helpers (no dependency on `crypto-js`).
  *
  * Rules:
  * - Hashing is intentionally SYNCHRONOUS (compact pure-JS SHA-256) so hot call

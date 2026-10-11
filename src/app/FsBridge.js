@@ -2,7 +2,7 @@ const electron = require('electron');
 const fs = require('node:fs');
 
 /**
- * Main-side filesystem bridge for Storage.mjs (Fase 1 Slice C).
+ * Main-side filesystem bridge for Storage.mjs.
  * Promise-based throughout (ipcMain.handle); binary payloads cross IPC as
  * Uint8Array (structured clone).
  */

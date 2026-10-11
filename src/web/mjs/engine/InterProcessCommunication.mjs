@@ -1,7 +1,7 @@
 export default class InterProcessCommunication {
 
     constructor() {
-        // Fase 1 Slice C: main-to-renderer subscriptions via preload bridge.
+        // Main-to-renderer subscriptions go through the preload bridge.
         // Replies use the dynamic response channel created by the main side.
     }
 

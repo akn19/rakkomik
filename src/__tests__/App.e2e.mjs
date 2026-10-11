@@ -53,7 +53,7 @@ test.describe('startup', () => {
     test('should show the shell first and load the connectors in the background', async ({ page }) => {
         await reload(page);
         const marks = await page.evaluate(() => Object.fromEntries(performance.getEntriesByType('mark').map(entry => [entry.name, entry.startTime])));
-        // shell-first (audit 5.7): interactive in < 1s on a normal machine; the budget is generous for slow CI
+        // shell-first: interactive in < 1s on a normal machine; the budget is generous for slow CI
         expect(marks['rk:shell']).toBeLessThan(2000);
         await connectorsReady(page);
         const total = await page.evaluate(() => Engine.Connectors.length);

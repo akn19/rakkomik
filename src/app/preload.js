@@ -12,7 +12,7 @@ if (!argument) {
 }
 const bootstrap = JSON.parse(decodeURIComponent(argument.slice(BOOTSTRAP_ARGUMENT.length)));
 
-// Renderer-facing bridge (Fase 1: remote -> preload + IPC), Promise-based (invoke)
+// Renderer-facing bridge, Promise-based (invoke)
 // throughout. Binary payloads cross IPC as Uint8Array (structured clone).
 // The name of the global is a contract with the engine (src/web/mjs), which reads
 // `window.hakuneko` and is deliberately left untouched.

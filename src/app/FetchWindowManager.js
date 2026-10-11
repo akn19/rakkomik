@@ -10,8 +10,7 @@ const DEFAULT_INTERACTIVE_AFTER = 15000;
 const DEFAULT_INTERACTIVE_TIMEOUT = 180000;
 
 /**
- * Main-side hidden fetch windows (Fase 1 Slice B: replaces
- * `new (require('electron').remote.BrowserWindow)` in Request.mjs).
+ * Main-side hidden fetch windows, used by Request.mjs.
  * The full flow (load, interstitial detection, script injection) runs here; the
  * renderer only supplies serializable job parameters and receives the
  * (structured-clone safe) result.

@@ -1,13 +1,12 @@
-# Fase 0: nested-install layout (opsi b, AGENTIC-PLAN).
-# `src/app` BUKAN anggota workspace ini — ia proyek mandiri dengan pnpm-workspace.yaml
-# sendiri, dipasang oleh `postinstall` (`pnpm --dir src/app install`) agar app.asar berisi
-# file fisik, bukan symlink store pnpm (alasan dan `nodeLinker` ada di berkas itu).
+# Nested install layout: `src/app` is NOT a member of this workspace. It is a project of its own, with a
+# pnpm-workspace.yaml of its own, installed by `postinstall` (`pnpm --dir src/app install`) so that app.asar holds
+# real files and not symlinks into the pnpm store (the reason and the `nodeLinker` setting are in that file).
 packages:
   - .
 allowBuilds:
-  # pnpm memblokir skrip install secara default; paket di bawah ini disetujui
-  # karena dibutuhkan tooling (dikelola via `pnpm approve-builds`).
+  # pnpm blocks install scripts by default; the packages below are approved because the tooling needs them
+  # (managed with `pnpm approve-builds`).
   '@parcel/watcher': true
   core-js: true
-  electron: true # unduh biner Electron saat install — wajib untuk start/test
+  electron: true # downloads the Electron binary on install: required to start and to test
   unrs-resolver: true

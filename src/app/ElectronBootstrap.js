@@ -95,11 +95,11 @@ module.exports = class ElectronBootstrap {
         this._createWindow();
     }
 
-    // Explicit MIME map for protocol.handle (Fase 1 Slice D). The legacy
-    // registerBufferProtocol relied on Chromium content sniffing ("autodetect")
-    // which no longer exists; module scripts additionally require an explicit
-    // JavaScript MIME type. Extensionless connector icons fall back to
-    // application/octet-stream (still rendered by <img>).
+    // Explicit MIME map for protocol.handle. Unlike the former
+    // registerBufferProtocol it does not sniff the content ("autodetect"),
+    // and module scripts require an explicit JavaScript MIME type.
+    // Extensionless connector icons fall back to application/octet-stream
+    // (still rendered by <img>).
     _mimeType(file) {
         if(file.endsWith('.mjs') || file.endsWith('.js')) {
             return 'text/javascript';
@@ -195,7 +195,7 @@ module.exports = class ElectronBootstrap {
     }
 
     /**
-     * Ask the renderer for proxy credentials (Fase 1: replaces remote.app 'login').
+     * Ask the renderer for proxy credentials.
      * @returns {Promise<Array<string>|null>} [username, password] or null
      */
     async _provideLoginCredentials(authInfo) {
@@ -369,7 +369,7 @@ module.exports = class ElectronBootstrap {
             webPreferences: {
                 experimentalFeatures: true,
                 nodeIntegration: false,
-                contextIsolation: true, // Fase 1 Slice C: renderer is de-privileged, preload bridge only
+                contextIsolation: true, // the renderer is de-privileged: the preload bridge is all it has
                 preload: path.join(__dirname, 'preload.js'),
                 additionalArguments: [ '--rakkomik-bootstrap=' + encodeURIComponent(JSON.stringify(this._rendererBootstrap())) ],
                 webSecurity: false // required to open local images in browser

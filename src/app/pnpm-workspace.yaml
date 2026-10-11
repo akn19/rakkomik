@@ -1,7 +1,7 @@
-# Instalasi mandiri src/app (nested; dipasang oleh `postinstall` di root).
-# `nodeLinker: hoisted`: app.asar berisi pohon `node_modules` fisik — Electron tidak bisa
-# `require` lewat symlink ke store `.pnpm` di dalam asar (ENOENT saat start). pnpm 11+ hanya
-# membaca pengaturan autentikasi dari `.npmrc`, jadi pengaturannya tinggal di berkas ini.
+# Stand-alone install of src/app (nested: `postinstall` of the root project runs it).
+# `nodeLinker: hoisted`: app.asar holds a real `node_modules` tree. Electron cannot `require` through a symlink into
+# the `.pnpm` store inside an asar (ENOENT at start). pnpm 11+ only reads authentication settings from `.npmrc`, so
+# the setting lives in this file.
 packages:
   - .
 nodeLinker: hoisted

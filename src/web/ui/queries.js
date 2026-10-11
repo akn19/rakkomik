@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { getEngine, whenConnectorsReady } from './engine.js';
 
 /**
- * TanStack Query layer (audit §5.2 server-state).
+ * TanStack Query layer (server state).
  *
  * The engine APIs are callback-based (`getMangas(cb)`, `updateMangas(cb)`,
  * `manga.getChapters(cb)`); this module wraps them in promises and owns the

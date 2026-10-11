@@ -76,8 +76,8 @@ export default class DiscordPresence {
     async updateStatus() {
         if(this.enabled && this.statusNew) {
             if(!this.hentai || this.hentai && this.enabledHentai) {
-                // Fase 1 Slice C: transport lives in main (DiscordBridge);
-                // success clears the pending flag (replaces socket heuristics).
+                // The transport lives in the main process (DiscordBridge);
+                // success clears the pending flag.
                 if(await window.hakuneko.presence.setActivity(this.status)) {
                     this.statusNew = false;
                 }

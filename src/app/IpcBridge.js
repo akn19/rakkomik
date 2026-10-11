@@ -3,7 +3,7 @@ const electron = require('electron');
 
 /**
  * Main-side counterpart of the preload bridge (src/app/preload.js).
- * Registers all renderer-invoked channels (Fase 1: remote -> preload + IPC).
+ * Registers all renderer-invoked channels.
  * Everything is Promise-based: the values the renderer needs inline (platform,
  * paths, ...) are handed to the preload at window creation (ElectronBootstrap).
  */

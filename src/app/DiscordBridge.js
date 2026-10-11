@@ -4,7 +4,7 @@ const { ConsoleLogger } = require('./Logger');
 const discordPresenceId = '726702836775256094';
 
 /**
- * Main-side Discord rich presence transport (Fase 1 Slice C).
+ * Main-side Discord rich presence transport.
  * Owns the RPC client (node-only, IPC transport to the local Discord
  * client); the renderer keeps status computation, event hooks and timers
  * (DiscordPresence.mjs) and drives this bridge with plain per-call

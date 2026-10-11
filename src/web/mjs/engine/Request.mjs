@@ -5,7 +5,7 @@ export default class Request {
 
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Blacklist, Enums
     constructor(ipc, settings) {
-        // Fase 1 Slice B: fetch windows run in the main process (FetchWindowManager).
+        // Fetch windows run in the main process (FetchWindowManager).
         // The application's user agent (set once in ElectronBootstrap) is used for the fetch
         // windows as well: cookies granted by an interstitial are bound to the user agent that
         // earned them, so fetch() and the hidden windows must present the same one.
@@ -79,7 +79,7 @@ export default class Request {
     }
 
     /**
-     * Answer the main process 'login' request (Fase 1: replaces remote.app 'login').
+     * Answer the main process 'login' request.
      * @returns {Promise<Array<string>|null>} [username, password] or null
      */
     async _loginRequestHandler(authInfo) {
@@ -137,8 +137,8 @@ export default class Request {
 
     /**
      * Run the request in a hidden main-process window (FetchWindowManager).
-     * fetchJapscan was removed in Slice B (zero callers); preferences must be
-     * serializable (no callbacks can cross the IPC boundary).
+     * The preferences must be serializable (no callbacks can cross the IPC
+     * boundary).
      */
     async fetchBrowser(request, preloadScript, runtimeScript, preferences, timeout) {
         return window.hakuneko.fetch({

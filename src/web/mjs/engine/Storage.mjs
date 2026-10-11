@@ -21,7 +21,7 @@ export default class Storage {
 
     // TODO: use dependency injection instead of globals for EbookGenerator
     constructor() {
-        // Fase 1 Slice C: filesystem via preload bridge (window.hakuneko), paths computed here (Path.mjs).
+        // The filesystem is reached through the preload bridge (window.hakuneko), paths are computed here (Path.mjs).
         // TODO: Use recursive native fs helpers where bulk operations are needed
         this.dialog = window.hakuneko.dialog;
         this.platform = window.hakuneko.platform;
@@ -52,7 +52,7 @@ export default class Storage {
     }
 
     /**
-     * Execute a post-download command in the main process (Fase 1: IPC).
+     * Execute a post-download command in the main process (over IPC).
      */
     exec(command, options, callback) {
         window.hakuneko.exec(command, options)

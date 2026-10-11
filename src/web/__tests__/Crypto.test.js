@@ -1,4 +1,4 @@
-// Regression tests for the native crypto helpers (Fase 2, crypto-js removal).
+// Regression tests for the native crypto helpers.
 // Uses dynamic import() to load the ES module under test.
 const nodeCrypto = require('node:crypto');
 
