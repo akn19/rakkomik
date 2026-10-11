@@ -85,6 +85,13 @@ describe('the test of a package', () => {
         expect(starts[0].args).toEqual([ '-a', '/usr/bin/node', path.resolve('node_modules', '@playwright', 'test', 'cli.js'), 'test', '--project=ui' ]);
     });
 
+    it('should report the failures as annotations as well on GitHub Actions', async () => {
+        writePackage('linux');
+        const { main, starts } = load({ env: { DISPLAY: ':0', GITHUB_ACTIONS: 'true' } });
+        await main();
+        expect(starts[0].args).toEqual([ path.resolve('node_modules', '@playwright', 'test', 'cli.js'), 'test', '--project=ui', '--reporter=list,github' ]);
+    });
+
     it('should take a Wayland display for a display', async () => {
         writePackage('linux');
         const { main, starts } = load({ env: { WAYLAND_DISPLAY: 'wayland-0' } });

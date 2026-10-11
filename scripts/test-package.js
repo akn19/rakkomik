@@ -61,6 +61,10 @@ async function main() {
     }
 
     const command = [ process.execPath, path.join(ROOT, 'node_modules', '@playwright', 'test', 'cli.js'), 'test', '--project=ui' ];
+    // on GitHub Actions a failure is also an annotation of the run, which anyone can read (the log is for the admins)
+    if(process.env.GITHUB_ACTIONS === 'true') {
+        command.push('--reporter=list,github');
+    }
     if(process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
         command.unshift('xvfb-run', '-a');
     }
