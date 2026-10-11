@@ -64,8 +64,10 @@ var suite = function() {
             let testee = new Configuration(undefined);
             expect(testee.publicKey.startsWith('-----BEGIN PUBLIC KEY-----')).toBeTruthy();
             expect(testee.publicKey.endsWith('-----END PUBLIC KEY-----')).toBeTruthy();
-            expect(testee.publicKey.includes('owIDAQAB')).toBeTruthy();
-            expect(testee.publicKey.length).toEqual(450);
+            // a key the signatures of the updates can be verified with
+            let key = require('node:crypto').createPublicKey(testee.publicKey);
+            expect(key.asymmetricKeyType).toBe('rsa');
+            expect(key.asymmetricKeyDetails.modulusLength).toBeGreaterThanOrEqual(2048);
         });
         it('should not be overwritten by public key from options', () => {
             let testee = new Configuration(expected);

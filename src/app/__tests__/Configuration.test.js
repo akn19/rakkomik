@@ -82,8 +82,16 @@ describe('Configuration', function() {
             let testee = new Configuration(undefined);
             expect(testee.publicKey.startsWith('-----BEGIN PUBLIC KEY-----')).toBeTruthy();
             expect(testee.publicKey.endsWith('-----END PUBLIC KEY-----')).toBeTruthy();
-            expect(testee.publicKey.includes('owIDAQAB')).toBeTruthy();
-            expect(testee.publicKey.length).toEqual(450);
+            // a key the signatures of the updates can be verified with
+            let key = require('node:crypto').createPublicKey(testee.publicKey);
+            expect(key.asymmetricKeyType).toBe('rsa');
+            expect(key.asymmetricKeyDetails.modulusLength).toBeGreaterThanOrEqual(2048);
+        });
+        it('should be the key of RakKomik (change this when the signing key is replaced on purpose)', () => {
+            let crypto = require('node:crypto');
+            let key = crypto.createPublicKey(new Configuration(undefined).publicKey);
+            expect(crypto.createHash('sha256').update(key.export({ type: 'spki', format: 'der' })).digest('hex'))
+                .toBe('7e68ab55af6e08460efbaa584b96103c10f0f6bb4b0b006d56de4bbe82f8be54');
         });
         it('should not be overwritten by public key from options', () => {
             let testee = new Configuration(expected);

@@ -54,6 +54,26 @@ git-cliff from your distribution or run `pnpm dlx git-cliff`.
 The private key must belong to the public key in `src/app/Configuration.js`; an archive that does not verify is
 rejected by the application.
 
+### Signing key
+
+The application extracts an archive only when its signature verifies against the public key in
+`src/app/Configuration.js`. Whoever holds the private key can publish code to every application that updates its web
+part, so the private key never goes into the repository, not even encrypted (git ignores `*.pem`, which is a safety
+net and not a place to keep it). It lives in the secrets of the repository (see [secrets](#secrets)) and in a safe
+place of its own: without it no update can be signed. The public key is public by design.
+
+Create the pair outside of the working tree; the first command asks for the passphrase:
+
+```sh
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -aes-256-cbc -out ~/rakkomik-update-key.pem
+openssl pkey -in ~/rakkomik-update-key.pem -pubout
+```
+
+Put the output of the second command into `publicKey` in `src/app/Configuration.js` and update the fingerprint that
+`Configuration.test.js` pins on purpose. Put the contents of the `.pem` file and its passphrase into the secrets
+`RAKKOMIK_PRIVATE_KEY` and `RAKKOMIK_PASSPHRASE`. An application trusts the key it was built with: after a replacement,
+applications built before it reject the archives with the new signature until they are replaced by another way.
+
 ## AUR package
 
 `packaging/aur` holds the package of the [AUR](https://aur.archlinux.org):
