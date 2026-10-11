@@ -41,6 +41,17 @@ async function useFakeChapters(page) {
     }, SEED_CONNECTOR);
 }
 
+// The page list of a chapter never comes by itself: its download stays where it is until `window.finishPages()` is called.
+async function holdPages(page) {
+    await page.evaluate(async () => {
+        const chapterModule = '/mjs/engine/Chapter.mjs';
+        const { default: Chapter } = await import(chapterModule);
+        Chapter.prototype.getPages = function(callback) {
+            window.finishPages = () => callback(null, [ 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/>') ]);
+        };
+    });
+}
+
 async function openSeededManga(page) {
     await connectorsReady(page);
     await pickConnector(page, SEED_CONNECTOR);
@@ -178,11 +189,115 @@ test.describe('chapters and reader', () => {
         await expect(icon).toHaveClass(iconIs('cloud-download'));
         // the job asked for the page list: it is downloading now
         await expect.poll(() => page.evaluate(() => typeof window.finishPages)).toBe('function');
-        await expect(status).toHaveAttribute('title', 'DOWNLOADING');
+        await expect(status).toHaveAttribute('title', /^DOWNLOADING/);
         await expect(icon).toHaveClass(iconIs('cloud-download'));
         await page.evaluate(() => window.finishPages());
         await expect(status).toHaveAttribute('title', /^DOWNLOADED/);
         await expect(icon).toHaveClass(iconIs('folder-open'));
+    });
+
+    // The icon of a chapter that is on its way cancels the download, and the place of the job goes back to the queue.
+    test('should cancel the download of a chapter with the icon of its row, and download it after that', async ({ isolatedApp }) => {
+        const { page } = isolatedApp;
+        await openSeededManga(page);
+        await holdPages(page);
+        const status = page.locator('[role=list] > div > div').first().getByRole('button').first();
+        const icon = status.locator('svg');
+        const iconIs = name => new RegExp(`(^|\\s)lucide-${name}(\\s|$)`);
+
+        await status.click();
+        await expect.poll(() => page.evaluate(() => typeof window.finishPages)).toBe('function');
+        await expect(status).toHaveAttribute('title', /^DOWNLOADING\nClick to cancel the download$/);
+        // the request of the first download is still on its way when the second click comes
+        await page.evaluate(() => {
+            window.late = window.finishPages;
+            delete window.finishPages;
+        });
+        await status.click();
+        await expect(page.getByText('Canceled "Chapter 85".')).toBeVisible();
+        await expect(status).toHaveAttribute('title', /^AVAILABLE/);
+        await expect(icon).toHaveClass(iconIs('cloud'));
+        expect(await page.evaluate(() => Engine.DownloadManager.jobs.length)).toBe(0);
+        // the pages come too late: nothing is written, and the chapter stays as it is
+        await page.evaluate(() => window.late());
+        await expect(status).toHaveAttribute('title', /^AVAILABLE/);
+        await expect(page.getByText('0 Download(s)')).toBeVisible();
+
+        // the place of the job was given back, so the chapter can be downloaded after all
+        await status.click();
+        await expect.poll(() => page.evaluate(() => typeof window.finishPages)).toBe('function');
+        await page.evaluate(() => window.finishPages());
+        await expect(status).toHaveAttribute('title', /^DOWNLOADED/);
+        await expect(icon).toHaveClass(iconIs('folder-open'));
+    });
+
+    test('should cancel one download from the download list, and then all the others', async ({ isolatedApp }) => {
+        const { page } = isolatedApp;
+        await openSeededManga(page);
+        await holdPages(page);
+        const statusOf = index => page.locator('[role=list] > div > div').nth(index).getByRole('button').first();
+        for (const index of [0, 1, 2]) {
+            await statusOf(index).click();
+        }
+        // one runs for the website, the others wait for it
+        await expect(page.getByText('3 Download(s)')).toBeVisible();
+        await expect(statusOf(0)).toHaveAttribute('title', /^DOWNLOADING/);
+        await expect(statusOf(1)).toHaveAttribute('title', /^QUEUED/);
+        await expect(statusOf(2)).toHaveAttribute('title', /^QUEUED/);
+
+        await page.getByTitle('Toggle download list').click();
+        await expect(page.getByTitle('Cancel this download')).toHaveCount(3);
+        await page.getByTitle('Cancel this download').nth(1).click();
+        await expect(page.getByText('Canceled "Chapter 84".')).toBeVisible();
+        await expect(page.getByText('2 Download(s)')).toBeVisible();
+        await expect(page.getByTitle('Cancel this download')).toHaveCount(2);
+        await expect(statusOf(1)).toHaveAttribute('title', /^AVAILABLE/);
+        await expect(statusOf(0)).toHaveAttribute('title', /^DOWNLOADING/);
+        await expect(statusOf(2)).toHaveAttribute('title', /^QUEUED/);
+
+        // all of them: nothing is stopped before it is confirmed
+        await page.getByTitle('Cancel all downloads').click();
+        await expect(page.getByText('2 download(s) that wait or run will be stopped.')).toBeVisible();
+        await page.getByRole('button', { name: 'Keep them' }).click();
+        await expect(page.getByText('Cancel all downloads?')).toBeHidden();
+        await expect(page.getByText('2 Download(s)')).toBeVisible();
+        await page.getByTitle('Cancel all downloads').click();
+        await page.getByRole('button', { name: 'Cancel downloads' }).click();
+        await expect(page.getByText('Canceled 2 download(s).')).toBeVisible();
+        await expect(page.getByText('0 Download(s)')).toBeVisible();
+        for (const index of [0, 1, 2]) {
+            await expect(statusOf(index)).toHaveAttribute('title', /^AVAILABLE/);
+        }
+        await expect(page.getByTitle('Cancel all downloads')).toBeDisabled();
+        expect(await page.evaluate(() => Engine.DownloadManager.jobs.length)).toBe(0);
+    });
+
+    test('should cancel downloads in the downloads view', async ({ isolatedApp }) => {
+        const { page } = isolatedApp;
+        await openSeededManga(page);
+        await holdPages(page);
+        const statusOf = index => page.locator('[role=list] > div > div').nth(index).getByRole('button').first();
+        await statusOf(0).click();
+        await statusOf(1).click();
+        await expect(statusOf(0)).toHaveAttribute('title', /^DOWNLOADING/);
+        await page.getByTitle('Toggle menu').click();
+        await page.getByRole('button', { name: 'Downloads', exact: true }).click();
+
+        // the download bar of the left column counts them too: this is about the view
+        const view = page.getByRole('main');
+        await expect(view.getByText('2 Download(s)')).toBeVisible();
+        await expect(view.getByTitle('Cancel this download')).toHaveCount(2);
+        await view.getByTitle('Cancel this download').nth(1).click();
+        await expect(page.getByText('Canceled "Chapter 84".')).toBeVisible();
+        await expect(view.getByText('1 Download(s)')).toBeVisible();
+        await expect(view.getByText('Chapter 84 — WestManga')).toBeHidden();
+
+        await view.getByTitle('Cancel all downloads').click();
+        await page.getByRole('button', { name: 'Cancel downloads' }).click();
+        await expect(page.getByText('Canceled 1 download(s).')).toBeVisible();
+        await expect(view.getByText('The queue is empty.')).toBeVisible();
+        await expect(view.getByTitle('Cancel all downloads')).toBeDisabled();
+        expect(await page.evaluate(() => Engine.DownloadManager.jobs.length)).toBe(0);
     });
 
     test('should read a chapter: thumbnails, full-window reading, zoom, chapter order and Escape', async ({ page }) => {

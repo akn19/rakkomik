@@ -758,4 +758,17 @@ describe('canceling downloads', () => {
         expect(second.status).toBe('completed');
         expect(first.status).toBe('canceled');
     });
+
+    it('should leave no download in the list of the interface, and none active, once they are canceled', async () => {
+        const manager = createManager();
+        globalThis.window = { Engine: { DownloadManager: manager } };
+        // what the application does when it starts
+        bridge.subscribeDownloads(() => undefined);
+        await oneRunsOneWaits(manager);
+        expect(bridge.getDownloadJobs()).toHaveLength(2);
+        expect(bridge.hasActiveDownloads()).toBe(true);
+        manager.cancelAll();
+        expect(bridge.getDownloadJobs()).toEqual([]);
+        expect(bridge.hasActiveDownloads()).toBe(false);
+    });
 });

@@ -160,6 +160,41 @@ describe('ui engine bridge', () => {
         bridge.restartChapterDownload({ id: 'c' });
     });
 
+    it('should drop a job that was canceled, like one that completed', () => {
+        const job = { status: 'queued', isSame: () => false };
+        const list = bridge.mergeDownloadJobs([], job);
+        expect(list).toEqual([job]);
+        job.status = 'canceled';
+        expect(bridge.mergeDownloadJobs(list, job)).toEqual([]);
+        // a canceled job that nobody tracks is not a download either
+        expect(bridge.mergeDownloadJobs([], { status: 'canceled', isSame: () => false })).toEqual([]);
+        // and the list that was given is left as it was
+        expect(list).toEqual([job]);
+    });
+
+    it('should hand the cancelation of downloads to the manager, and give its answer back', () => {
+        const manager = {
+            cancel: vi.fn(() => true),
+            cancelChapter: vi.fn(() => false),
+            cancelAll: vi.fn(() => 3)
+        };
+        fakeEngine({ DownloadManager: manager });
+        const job = { id: 'job' };
+        const chapter = { id: 'chapter' };
+        expect(bridge.cancelDownload(job)).toBe(true);
+        expect(manager.cancel).toHaveBeenCalledExactlyOnceWith(job);
+        expect(bridge.cancelChapterDownload(chapter)).toBe(false);
+        expect(manager.cancelChapter).toHaveBeenCalledExactlyOnceWith(chapter);
+        expect(bridge.cancelAllDownloads()).toBe(3);
+        expect(manager.cancelAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not hide that there is no engine to cancel the downloads', () => {
+        expect(() => bridge.cancelDownload({})).toThrow(/Engine global is not available/);
+        expect(() => bridge.cancelChapterDownload({})).toThrow(/Engine global is not available/);
+        expect(() => bridge.cancelAllDownloads()).toThrow(/Engine global is not available/);
+    });
+
     it('should find connectors by local manga titles', async () => {
         fakeEngine({
             Connectors: [{ id: 'c1' }, { id: 'c2' }],

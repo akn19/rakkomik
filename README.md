@@ -27,7 +27,8 @@ It is not meant to be a mass downloader to stock up thousands of chapters that w
 - Browse the manga lists of around a thousand website connectors and filter them by tag or language.
 - Download chapters as a folder of images, a comic book archive (`.cbz`) or an ebook (`.epub`).
 - Novels are text: they are downloaded as an ebook (`.epub`) or a PDF document (`.pdf`), and the reader shows them as text.
-- Download queue, bookmarks and chapter marks, a built-in chapter preview and reader, light and dark theme.
+- Download queue that can be canceled, one download or all of them, bookmarks and chapter marks, a built-in chapter
+  preview and reader, light and dark theme.
 - Add a manga by link: paste the link of a manga or chapter, or open a local folder as a source.
 - Pages that sit behind an anti-bot check are loaded like in a browser: in a hidden window that is shown to you
   when the check needs your interaction or does not finish on its own.
@@ -63,7 +64,9 @@ themselves: a new version of the installer or package brings the new web part.
    list is kept for the next start.
 3. Find a manga and select it, optionally filter its chapters by language.
 4. Select the chapters and download them. The _Downloads_ page shows the queue and its progress,
-   _Bookmarks_ keeps your favorites.
+   _Bookmarks_ keeps your favorites. A download that waits or runs can be canceled: click the icon of its chapter,
+   or use the cancel button of its row in the download list or on the _Downloads_ page, where _Cancel all_
+   (after a question) stops every one of them.
 
 Websites that do not provide a manga list (the message says so) work with a link: copy the link of the manga or
 chapter and paste it with the clipboard connector. The folder connector shows files that are already on your disk.

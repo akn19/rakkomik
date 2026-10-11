@@ -9,7 +9,8 @@ import {
     deleteChaptermark,
     isChapterMarked,
     showChapterFolder,
-    subscribeChapterStatus
+    subscribeChapterStatus,
+    cancelChapterDownload
 } from './engine.js';
 import { fetchChapterList, addChapterDownloads } from './queries.js';
 import { useSelection } from './selection.jsx';
@@ -44,14 +45,13 @@ const STATUS = {
         icon: 'cloudDownload',
         color: 'text-(--chapter-button-queued-color)',
         text: 'text-(--status-queued-color)',
-        // the download manager has no way to take a chapter out of its queue: there is nothing to click for
-        tooltip: 'QUEUED'
+        tooltip: 'QUEUED\nClick to cancel the download'
     },
     downloading: {
         icon: 'cloudDownload',
         color: 'text-(--chapter-button-downloading-color)',
         text: 'text-(--status-downloading-color)',
-        tooltip: 'DOWNLOADING'
+        tooltip: 'DOWNLOADING\nClick to cancel the download'
     },
     completed: {
         icon: 'folder',
@@ -187,6 +187,18 @@ export default function ChaptersPanel({ readerEnabled }) {
         }
     };
 
+    const cancelChapter = chapter => {
+        try {
+            if (cancelChapterDownload(chapter)) {
+                notify(`Canceled "${chapter.title}".`, 'success');
+            } else {
+                notify('The download cannot be canceled any more.', 'info');
+            }
+        } catch (error) {
+            notify(`Cancel failed: ${error.message}`, 'error');
+        }
+    };
+
     const processChapter = chapter => {
         switch (chapter.status) {
             case 'available':
@@ -195,6 +207,10 @@ export default function ChaptersPanel({ readerEnabled }) {
                 break;
             case 'completed':
                 setConfirm(chapter);
+                break;
+            case 'queued':
+            case 'downloading':
+                cancelChapter(chapter);
                 break;
             default:
                 notify('No action available!', 'info');

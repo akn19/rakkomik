@@ -155,3 +155,167 @@ describe('downloads view', () => {
         expect(removeEventListener).toHaveBeenCalledExactlyOnceWith('updated', expect.any(Function));
     });
 });
+
+describe('canceling downloads in the view', () => {
+    const cancelButtons = () => screen.queryAllByTitle('Cancel this download');
+    const cancelAllButton = () => screen.getByTitle('Cancel all downloads');
+    const toast = text => screen.getByText(text).closest('.pointer-events-auto');
+    // the question that is asked before all the downloads are stopped
+    const cancelQuestion = () => within(screen.getByText('Cancel all downloads?').closest('.fixed'));
+
+    it('should offer to cancel the jobs that wait or run, and no others', () => {
+        queued(
+            job('Chapter 1', { status: 'downloading' }),
+            job('Chapter 2', { status: 'queued' }),
+            job('Chapter 3', { status: 'failed' }),
+            job('Chapter 4', { status: 'completed' }),
+            job('Chapter 5', { status: 'paused' })
+        );
+        renderWithProviders(<DownloadsView />, { selection: false });
+        expect(cancelButtons()).toHaveLength(2);
+        // each one sits in the card of its own job
+        const owners = cancelButtons().map(button => button.parentElement.closest('[title]').getAttribute('title'));
+        expect(owners).toEqual(['Site\nBerserk\nChapter 1', 'Site\nBerserk\nChapter 2']);
+    });
+
+    it('should cancel the job of its card, and only that one', () => {
+        const [first, second] = queued(job('Chapter 1', { status: 'downloading' }), job('Chapter 2', { status: 'queued' }));
+        renderWithProviders(<DownloadsView />, { selection: false });
+        fireEvent.click(cancelButtons()[1]);
+        expect(engine.DownloadManager.cancel).toHaveBeenCalledExactlyOnceWith(second);
+        expect(toast('Canceled "Chapter 2".').className).toMatch(/green/);
+        expect(first.status).toBe('downloading');
+        expect(screen.getByText('1 Download(s)')).toBeTruthy();
+        expect(screen.queryByText('Chapter 2 — Site')).toBeNull();
+        expect(screen.getByText('Chapter 1 — Site')).toBeTruthy();
+    });
+
+    it('should not ask anything before a single download is canceled', () => {
+        queued(job('Chapter 1', { status: 'queued' }));
+        renderWithProviders(<DownloadsView />, { selection: false });
+        fireEvent.click(cancelButtons()[0]);
+        expect(screen.queryByText('Cancel all downloads?')).toBeNull();
+        expect(engine.DownloadManager.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('should say so when the download cannot be stopped any more, and keep it in the list', () => {
+        const [writing] = queued(job('Chapter 1', { status: 'downloading' }));
+        engine.DownloadManager.cancel.mockReturnValueOnce(false);
+        renderWithProviders(<DownloadsView />, { selection: false });
+        fireEvent.click(cancelButtons()[0]);
+        expect(toast('"Chapter 1" cannot be canceled any more.').className).not.toMatch(/red|green/);
+        expect(writing.status).toBe('downloading');
+        expect(screen.getByText('1 Download(s)')).toBeTruthy();
+    });
+
+    it('should report a download that could not be canceled', () => {
+        queued(job('Chapter 1', { status: 'queued' }));
+        engine.DownloadManager.cancel.mockImplementationOnce(() => {
+            throw new Error('no manager');
+        });
+        renderWithProviders(<DownloadsView />, { selection: false });
+        fireEvent.click(cancelButtons()[0]);
+        expect(toast('Cancel failed: no manager').className).toMatch(/red/);
+        expect(screen.getByText('1 Download(s)')).toBeTruthy();
+    });
+
+    it.each([
+        ['there are no downloads', []],
+        ['only downloads that are over are left', [{ status: 'failed' }, { status: 'completed' }]]
+    ])('should not offer to cancel all when %s', (_, fields) => {
+        queued(...fields.map((entry, index) => job(`Chapter ${index + 1}`, entry)));
+        renderWithProviders(<DownloadsView />, { selection: false });
+        expect(cancelAllButton().disabled).toBe(true);
+        fireEvent.click(cancelAllButton());
+        expect(screen.queryByText('Cancel all downloads?')).toBeNull();
+    });
+
+    it('should ask before it cancels all, and count only the downloads that it will stop', () => {
+        queued(
+            job('Chapter 1', { status: 'downloading' }),
+            job('Chapter 2', { status: 'queued' }),
+            job('Chapter 3', { status: 'failed' })
+        );
+        renderWithProviders(<DownloadsView />, { selection: false });
+        expect(cancelAllButton().disabled).toBe(false);
+        fireEvent.click(cancelAllButton());
+        expect(screen.getByText('2 download(s) that wait or run will be stopped.')).toBeTruthy();
+        expect(engine.DownloadManager.cancelAll).not.toHaveBeenCalled();
+    });
+
+    it('should cancel all the downloads that wait or run when that is confirmed, and leave the ones that are over', () => {
+        const [running, waiting, failed] = queued(
+            job('Chapter 1', { status: 'downloading' }),
+            job('Chapter 2', { status: 'queued' }),
+            job('Chapter 3', { status: 'failed' })
+        );
+        renderWithProviders(<DownloadsView />, { selection: false });
+        fireEvent.click(cancelAllButton());
+        fireEvent.click(cancelQuestion().getByRole('button', { name: 'Cancel downloads' }));
+        expect(engine.DownloadManager.cancelAll).toHaveBeenCalledTimes(1);
+        expect(toast('Canceled 2 download(s).').className).toMatch(/green/);
+        expect(screen.queryByText('Cancel all downloads?')).toBeNull();
+        expect([running.status, waiting.status, failed.status]).toEqual(['canceled', 'canceled', 'failed']);
+        // only the failed job is left, and there is nothing more to cancel
+        expect(screen.getByText('1 Download(s)')).toBeTruthy();
+        expect(screen.getByText('Chapter 3 — Site')).toBeTruthy();
+        expect(cancelAllButton().disabled).toBe(true);
+    });
+
+    it('should keep every download when the question is declined', () => {
+        const jobs = queued(job('Chapter 1', { status: 'downloading' }), job('Chapter 2', { status: 'queued' }));
+        renderWithProviders(<DownloadsView />, { selection: false });
+        fireEvent.click(cancelAllButton());
+        fireEvent.click(cancelQuestion().getByRole('button', { name: 'Keep them' }));
+        expect(screen.queryByText('Cancel all downloads?')).toBeNull();
+        expect(engine.DownloadManager.cancelAll).not.toHaveBeenCalled();
+        expect(jobs.map(entry => entry.status)).toEqual(['downloading', 'queued']);
+        expect(screen.getByText('2 Download(s)')).toBeTruthy();
+    });
+
+    it('should say so when the downloads were over before they could be canceled', () => {
+        queued(job('Chapter 1', { status: 'downloading' }));
+        engine.DownloadManager.cancelAll.mockReturnValueOnce(0);
+        renderWithProviders(<DownloadsView />, { selection: false });
+        fireEvent.click(cancelAllButton());
+        fireEvent.click(cancelQuestion().getByRole('button', { name: 'Cancel downloads' }));
+        expect(toast('No download was left to cancel.').className).not.toMatch(/red|green/);
+    });
+
+    it('should report that the downloads could not be canceled', () => {
+        queued(job('Chapter 1', { status: 'downloading' }));
+        engine.DownloadManager.cancelAll.mockImplementationOnce(() => {
+            throw new Error('no manager');
+        });
+        renderWithProviders(<DownloadsView />, { selection: false });
+        fireEvent.click(cancelAllButton());
+        fireEvent.click(cancelQuestion().getByRole('button', { name: 'Cancel downloads' }));
+        expect(toast('Cancel failed: no manager').className).toMatch(/red/);
+        expect(screen.queryByText('Cancel all downloads?')).toBeNull();
+    });
+
+    it('should drop a download as soon as the engine cancels it, whoever asked for it, and follow the buttons with it', () => {
+        const [running, waiting] = queued(job('Chapter 1', { status: 'downloading' }), job('Chapter 2', { status: 'queued' }));
+        renderWithProviders(<DownloadsView />, { selection: false });
+        waiting.status = 'canceled';
+        act(() => engine.DownloadManager.emit('updated', waiting));
+        expect(screen.getByText('1 Download(s)')).toBeTruthy();
+        expect(cancelButtons()).toHaveLength(1);
+        expect(cancelAllButton().disabled).toBe(false);
+        running.status = 'completed';
+        act(() => engine.DownloadManager.emit('updated', running));
+        expect(screen.getByText('0 Download(s)')).toBeTruthy();
+        expect(screen.getByText(/The queue is empty/)).toBeTruthy();
+        expect(cancelAllButton().disabled).toBe(true);
+    });
+
+    it('should stop offering to cancel a job that failed in the meantime', () => {
+        const [running] = queued(job('Chapter 1', { status: 'downloading' }));
+        renderWithProviders(<DownloadsView />, { selection: false });
+        expect(cancelButtons()).toHaveLength(1);
+        running.status = 'failed';
+        act(() => engine.DownloadManager.emit('updated', running));
+        expect(cancelButtons()).toHaveLength(0);
+        expect(cancelAllButton().disabled).toBe(true);
+    });
+});

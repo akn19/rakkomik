@@ -1,6 +1,6 @@
 import React from 'react';
 import { restartChapterDownload } from '../engine.js';
-import { useDownloadJobs } from '../downloads.js';
+import { useDownloadJobs, useCancelDownloads, isCancelable } from '../downloads.js';
 import { useToast } from '../notify.jsx';
 import { ConfirmDialog } from '../dialog.jsx';
 
@@ -24,7 +24,10 @@ function errorText(job) {
 export default function DownloadsView() {
     const { notify } = useToast();
     const jobs = useDownloadJobs();
+    const { cancel, cancelAll } = useCancelDownloads();
     const [confirmRestart, setConfirmRestart] = React.useState(null);
+    const [confirmAll, setConfirmAll] = React.useState(false);
+    const active = jobs.filter(isCancelable);
 
     const restart = job => {
         try {
@@ -39,7 +42,18 @@ export default function DownloadsView() {
 
     return (
         <div className="mx-auto max-w-4xl pb-8">
-            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">{jobs.length} Download(s)</p>
+            <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">{jobs.length} Download(s)</p>
+                <button
+                    type="button"
+                    title="Cancel all downloads"
+                    disabled={active.length === 0}
+                    onClick={() => setConfirmAll(true)}
+                    className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-red-800 dark:hover:text-red-400"
+                >
+                    Cancel all
+                </button>
+            </div>
             {!jobs.length && (
                 <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -83,6 +97,16 @@ export default function DownloadsView() {
                                 </p>
                             </div>
                             <span className="shrink-0 text-xs text-zinc-500">{Math.round(job.progress || 0)}%</span>
+                            {isCancelable(job) && (
+                                <button
+                                    type="button"
+                                    title="Cancel this download"
+                                    onClick={() => cancel(job)}
+                                    className="shrink-0 rounded border border-zinc-300 px-2 py-0.5 text-xs text-zinc-600 hover:border-red-300 hover:text-red-600 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-red-800 dark:hover:text-red-400"
+                                >
+                                    Cancel
+                                </button>
+                            )}
                         </div>
                         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
                             <div
@@ -96,6 +120,18 @@ export default function DownloadsView() {
                     </div>
                 ))}
             </div>
+            <ConfirmDialog
+                open={confirmAll}
+                title="Cancel all downloads?"
+                message={`${active.length} download(s) that wait or run will be stopped.`}
+                confirmLabel="Cancel downloads"
+                cancelLabel="Keep them"
+                onConfirm={() => {
+                    setConfirmAll(false);
+                    cancelAll();
+                }}
+                onCancel={() => setConfirmAll(false)}
+            />
             <ConfirmDialog
                 open={confirmRestart !== null}
                 title="Download again?"

@@ -149,6 +149,30 @@ function createDownloadManager() {
             const job = createDownloadJob(chapter);
             queue[id].push(job);
             manager.emit('updated', job);
+        }),
+        // what the real manager does with a job that waits or runs: it is taken out of its queue and announced as canceled,
+        // one that is over is left alone. The fake has no worker, so a job that is not in the queue is one that runs (a test
+        // that wants a job that cannot be stopped makes the call answer false)
+        cancel: vi.fn(job => {
+            if (job.status !== 'queued' && job.status !== 'downloading') {
+                return false;
+            }
+            for (const jobs of Object.values(queue)) {
+                if (Array.isArray(jobs) && jobs.includes(job)) {
+                    jobs.splice(jobs.indexOf(job), 1);
+                }
+            }
+            job.status = 'canceled';
+            manager.emit('updated', job);
+            return true;
+        }),
+        cancelChapter: vi.fn(chapter => {
+            const job = Object.values(queue).filter(Array.isArray).flat().find(entry => entry.chapter === chapter);
+            return job ? manager.cancel(job) : false;
+        }),
+        cancelAll: vi.fn(() => {
+            const jobs = Object.values(queue).filter(Array.isArray).flat();
+            return jobs.filter(job => manager.cancel(job)).length;
         })
     });
     return manager;

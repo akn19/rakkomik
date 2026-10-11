@@ -1,7 +1,8 @@
 import React from 'react';
 import { restartChapterDownload } from './engine.js';
-import { useDownloadJobs } from './downloads.js';
+import { useDownloadJobs, useCancelDownloads, isCancelable } from './downloads.js';
 import { useToast } from './notify.jsx';
+import { ConfirmDialog } from './dialog.jsx';
 import Icon from './icon.jsx';
 
 // Classic jobs.html getStatusClass parity (icon + token color per status).
@@ -24,7 +25,10 @@ function errorTitle(job) {
 export default function JobsBar() {
     const { notify } = useToast();
     const jobs = useDownloadJobs();
+    const { cancel, cancelAll } = useCancelDownloads();
     const [open, setOpen] = React.useState(false);
+    const [confirmAll, setConfirmAll] = React.useState(false);
+    const active = jobs.filter(isCancelable);
 
     const restart = job => {
         if (job.status !== 'failed' && job.status !== 'completed') {
@@ -72,6 +76,18 @@ export default function JobsBar() {
                                                 background: `linear-gradient(90deg, var(--job-list-progress-color) ${job.progress || 0}%, var(--job-list-progress-background-color) 0%)`
                                             }}
                                         />
+                                        <td className="w-[1.5em] cursor-default text-center [border-bottom:var(--job-list-row-border)]">
+                                            {isCancelable(job) && (
+                                                <button
+                                                    type="button"
+                                                    title="Cancel this download"
+                                                    onClick={() => cancel(job)}
+                                                    className="rk-icon cursor-pointer align-middle"
+                                                >
+                                                    <Icon name="close" size={13} />
+                                                </button>
+                                            )}
+                                        </td>
                                     </tr>
                                 );
                             })}
@@ -90,8 +106,31 @@ export default function JobsBar() {
                         <Icon name={open ? 'closeBox' : 'chart'} size={16} />
                     </button>
                 </div>
+                <div className="p-[0.25em]">
+                    <button
+                        type="button"
+                        title="Cancel all downloads"
+                        disabled={active.length === 0}
+                        onClick={() => setConfirmAll(true)}
+                        className="rk-button disabled:cursor-not-allowed disabled:opacity-25"
+                    >
+                        <Icon name="ban" size={16} />
+                    </button>
+                </div>
                 <div className="flex-1 p-[0.25em] text-right">{jobs.length} Download(s)</div>
             </div>
+            <ConfirmDialog
+                open={confirmAll}
+                title="Cancel all downloads?"
+                message={`${active.length} download(s) that wait or run will be stopped.`}
+                confirmLabel="Cancel downloads"
+                cancelLabel="Keep them"
+                onConfirm={() => {
+                    setConfirmAll(false);
+                    cancelAll();
+                }}
+                onCancel={() => setConfirmAll(false)}
+            />
         </div>
     );
 }

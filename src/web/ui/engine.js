@@ -302,14 +302,15 @@ export function announceManga(manga) {
 
 /**
  * Merge one manager event into the view list (classic jobs.html parity):
- * update a tracked job in place, drop it when completed, replace a failed
+ * update a tracked job in place, drop it when completed or canceled, replace a failed
  * twin, and track new queued/downloading jobs.
  */
 export function mergeDownloadJobs(jobList, job) {
     const list = jobList.slice();
     const index = list.indexOf(job);
     if (index > -1) {
-        if (job.status === 'completed') {
+        // a job that is over, or that was canceled, is not a download any more
+        if (job.status === 'completed' || job.status === 'canceled') {
             list.splice(index, 1);
         }
         return list;
@@ -326,6 +327,30 @@ export function mergeDownloadJobs(jobList, job) {
 
 export function restartChapterDownload(chapter) {
     getEngine().DownloadManager.addDownload(chapter);
+}
+
+/**
+ * Stop a download that waits or runs.
+ * @returns {boolean} whether it was stopped (not when it is over, or when its pages are being written)
+ */
+export function cancelDownload(job) {
+    return getEngine().DownloadManager.cancel(job);
+}
+
+/**
+ * Stop the download of a chapter, wherever it is in the process.
+ * @returns {boolean} whether a download was stopped
+ */
+export function cancelChapterDownload(chapter) {
+    return getEngine().DownloadManager.cancelChapter(chapter);
+}
+
+/**
+ * Stop every download that waits or runs.
+ * @returns {number} how many were stopped
+ */
+export function cancelAllDownloads() {
+    return getEngine().DownloadManager.cancelAll();
 }
 
 export function hasActiveDownloads() {

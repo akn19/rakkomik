@@ -676,8 +676,8 @@ describe('chapters panel', () => {
             ['unavailable', 'Chapter is not available'],
             ['offline', 'OFFLINE\nThe chapter is only accessable from the manga directory'],
             ['available', 'AVAILABLE\nClick to download chapter'],
-            ['queued', 'QUEUED'],
-            ['downloading', 'DOWNLOADING'],
+            ['queued', 'QUEUED\nClick to cancel the download'],
+            ['downloading', 'DOWNLOADING\nClick to cancel the download'],
             ['completed', 'DOWNLOADED\nClick to delete and re-download chapter'],
             ['failed', 'DOWNLOAD FAILED\nCheck the exclamation mark in the joblist for details\nClick to delete and re-download the chapter'],
             ['not known', 'No tooltip available!'],
@@ -708,13 +708,69 @@ describe('chapters panel', () => {
             expect(screen.queryByRole('heading')).toBeNull();
         });
 
-        it.each(['unavailable', 'offline', 'queued', 'downloading', 'something else', undefined])('should say that there is nothing to do for a chapter that is %s', async status => {
+        it.each(['unavailable', 'offline', 'something else', undefined])('should say that there is nothing to do for a chapter that is %s', async status => {
             await showManga(mangaWith([{ title: 'Chapter 1', status }]));
             fireEvent.click(statusButtonOf('Chapter 1'));
             expect(screen.getByText('No action available!')).toBeTruthy();
             expect(toastOf('No action available!').className).not.toMatch(/red|green/);
             expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
             expect(screen.queryByRole('heading')).toBeNull();
+        });
+
+        describe('canceling a download', () => {
+            // the chapter is on its way: the engine changes its status in place and announces it, like the manager does
+            async function showQueued(status) {
+                const manga = mangaWith([{ title: 'Chapter 1', status }, { title: 'Chapter 2', status: 'available' }]);
+                await showManga(manga);
+                return manga;
+            }
+
+            it.each(['queued', 'downloading'])('should cancel the download of a chapter that is %s, and tell so', async status => {
+                const manga = await showQueued(status);
+                engine.DownloadManager.cancelChapter.mockImplementationOnce(chapter => {
+                    chapter.status = 'available';
+                    document.dispatchEvent(new CustomEvent(STATUS_CHANGED, { detail: chapter }));
+                    return true;
+                });
+                fireEvent.click(statusButtonOf('Chapter 1'));
+                expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledExactlyOnceWith(manga.chapters[0]);
+                expect(toastOf('Canceled "Chapter 1".').className).toMatch(/green/);
+                // the chapter can be downloaded again, and the other chapters were left alone
+                expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^AVAILABLE/);
+                expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledTimes(1);
+                expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
+                expect(screen.queryByRole('heading')).toBeNull();
+            });
+
+            it('should say that it is too late when the engine cannot stop the download any more', async () => {
+                await showQueued('downloading');
+                engine.DownloadManager.cancelChapter.mockReturnValueOnce(false);
+                fireEvent.click(statusButtonOf('Chapter 1'));
+                expect(toastOf('The download cannot be canceled any more.').className).not.toMatch(/red|green/);
+                expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^DOWNLOADING/);
+            });
+
+            it('should report a failure to cancel, and leave the chapter as it was', async () => {
+                await showQueued('queued');
+                engine.DownloadManager.cancelChapter.mockImplementationOnce(() => {
+                    throw new Error('no manager');
+                });
+                fireEvent.click(statusButtonOf('Chapter 1'));
+                expect(toastOf('Cancel failed: no manager').className).toMatch(/red/);
+                expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^QUEUED/);
+            });
+
+            it('should not cancel anything for the chapters that are not on their way', async () => {
+                await showManga(mangaWith([
+                    { title: 'Chapter 1', status: 'available' },
+                    { title: 'Chapter 2', status: 'failed' },
+                    { title: 'Chapter 3', status: 'unavailable' }
+                ]));
+                for (const title of ['Chapter 1', 'Chapter 2', 'Chapter 3']) {
+                    fireEvent.click(statusButtonOf(title));
+                }
+                expect(engine.DownloadManager.cancelChapter).not.toHaveBeenCalled();
+            });
         });
 
         it('should ask before it downloads a chapter again that is on the device, and then queue it', async () => {
@@ -752,21 +808,22 @@ describe('chapters panel', () => {
             expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^AVAILABLE/);
             manga.chapters[0].status = 'downloading';
             announceStatus(manga.chapters[0]);
-            expect(statusButtonOf('Chapter 1').getAttribute('title')).toBe('DOWNLOADING');
+            expect(statusButtonOf('Chapter 1').getAttribute('title')).toBe('DOWNLOADING\nClick to cancel the download');
             expect(statusButtonOf('Chapter 2').getAttribute('title')).toMatch(/^AVAILABLE/);
             manga.chapters[0].status = 'completed';
             announceStatus(manga.chapters[0]);
             expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^DOWNLOADED/);
         });
 
-        it('should show a chapter as queued as soon as the engine queues it, and then offer nothing to do with it', async () => {
+        it('should show a chapter as queued as soon as the engine queues it, and then offer to cancel it, not to queue it again', async () => {
             engine.DownloadManager.addDownload.mockImplementation(queueLikeTheEngine);
-            await showManga(mangaWith([{ title: 'Chapter 1', status: 'available' }]));
+            const manga = mangaWith([{ title: 'Chapter 1', status: 'available' }]);
+            await showManga(manga);
             fireEvent.click(statusButtonOf('Chapter 1'));
-            expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^QUEUED/);
+            expect(statusButtonOf('Chapter 1').getAttribute('title')).toBe('QUEUED\nClick to cancel the download');
             fireEvent.click(statusButtonOf('Chapter 1'));
             expect(engine.DownloadManager.addDownload).toHaveBeenCalledTimes(1);
-            expect(screen.getByText('No action available!')).toBeTruthy();
+            expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledExactlyOnceWith(manga.chapters[0]);
         });
 
         it('should listen on the document once, and stop listening when it goes away', async () => {
