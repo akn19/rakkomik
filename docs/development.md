@@ -122,7 +122,9 @@ change. Neither platform has a certificate, so Windows SmartScreen and macOS Gat
 
 `pnpm run build:arch` builds `build/rakkomik-<version>-1-any.pkg.tar.zst`. Install it with
 `sudo pacman -U build/rakkomik-*.pkg.tar.zst` and remove it with `sudo pacman -R rakkomik`. It needs `makepkg`
-(`base-devel`), `git`, `node` and `pnpm` on the `PATH`; the last two do not have to be pacman packages.
+(`base-devel`), `git`, `node` and `npm` on the `PATH`; the last two do not have to be pacman packages. The `PKGBUILD`
+installs pnpm 12 from npm itself, because the package of Arch has reported an older version than the one it ships,
+which the project (`engines`) refuses.
 
 `scripts/build-arch.sh` copies the working tree, uncommitted changes included, into a throwaway git checkout and runs
 the `PKGBUILD` of the AUR package (`packaging/aur`) on it, with `RAKKOMIK_SOURCE` in place of the release tag. So the

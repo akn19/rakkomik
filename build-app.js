@@ -120,11 +120,15 @@ class ElectronPackager {
      * @param {*} file
      * @param {*} data
      * @param {*} gzip
+     * @param {number} [mode] permissions of the file (not those of the umask)
      */
-    _saveFile(file, data, gzip) {
+    _saveFile(file, data, gzip, mode) {
         fs.mkdirSync(path.dirname(file), { recursive: true });
         let content = gzip ? zlib.gzipSync(data, { level: 9 }) : data;
         fs.writeFileSync(file, content, typeof content === 'string' ? { encoding: 'utf8' } : undefined);
+        if(mode !== undefined) {
+            fs.chmodSync(file, mode);
+        }
     }
 
     /**
@@ -217,11 +221,14 @@ class ElectronPackagerLinux extends ElectronPackager {
         this.architectures = {
             '64': {
                 name: 'amd64',
+                // the architecture of the RPM (the name that rpm uses, not the one of Debian)
+                rpm: 'x86_64',
                 suffix: 'linux_amd64',
                 platform: 'linux-x64'
             },
             'ARM64': {
                 name: 'arm64',
+                rpm: 'aarch64',
                 suffix: 'linux_arm64',
                 platform: 'linux-arm64'
             }
@@ -295,7 +302,8 @@ class ElectronPackagerLinux extends ElectronPackager {
 
         let rpm = this._dirBuildRoot + '.rpm';
         await fs.promises.rm(rpm, { recursive: true, force: true });
-        await this._executeCommand(`rpmbuild -bb --noclean --define "_topdir $(pwd)/${this._dirBuildRoot}" --define "buildroot %{_topdir}" "${specs}"`);
+        // the target names the architecture of the package: without it the RPM of ARM64 is built for the host
+        await this._executeCommand(`rpmbuild -bb --noclean --target ${this._architecture.rpm} --define "_topdir $(pwd)/${this._dirBuildRoot}" --define "buildroot %{_topdir}" "${specs}"`);
         await this._executeCommand(`mv -f ${this._dirBuildRoot}/RPMS/*/*.rpm ${rpm}`);
         await fs.promises.rm(specs, { recursive: true, force: true });
     }
@@ -428,7 +436,8 @@ class ElectronPackagerLinux extends ElectronPackager {
         if(name === 'postrm') {
             content.push(`if [ -f ${symbolic} ] ; then rm -f ${symbolic} ; fi`);
         }
-        this._saveFile(file, content.join(eol), false);
+        // dpkg-deb refuses a maintainer script that is not executable
+        this._saveFile(file, content.join(eol), false, 0o755);
     }
 
     /**
@@ -623,6 +632,9 @@ class ElectronPackagerWindows extends ElectronPackager {
     _createScriptIS(is64) {
         console.log('Creating InnoSetup Script ...');
         let file = path.join('build', 'setup.iss');
+        // x64compatible also matches Windows 11 on Arm, which runs x64 programs (the older x64 does not, and is deprecated);
+        // the installer of ARM64 only runs, and installs in 64-bit mode, on Arm64 Windows
+        let architecture = this._architecture.platform.endsWith('arm64') ? 'arm64' : 'x64compatible';
         let content = [
             '[Setup]',
             'AppName=' + this._configuration.name.product,
@@ -631,7 +643,8 @@ class ElectronPackagerWindows extends ElectronPackager {
             'VersionInfoVersion=' + this._configuration.version,
             'AppPublisher=' + this._configuration.author,
             'AppPublisherURL=' + this._configuration.url,
-            (is64 ? '' : ';') + 'ArchitecturesInstallIn64BitMode=x64',
+            (is64 ? '' : ';') + 'ArchitecturesAllowed=' + architecture,
+            (is64 ? '' : ';') + 'ArchitecturesInstallIn64BitMode=' + architecture,
             'DisableWelcomePage=yes',
             'DefaultDirName=' + path.join('{pf}', this._configuration.name.product),
             'DisableProgramGroupPage=yes',
@@ -890,6 +903,10 @@ async function main(targets) {
     }
 }
 
-// exit application as soon as any uncaught exception is thrown
-process.on('unhandledRejection', error => { throw error; });
-main(process.argv.length > 2 ? process.argv.slice(2) : Object.keys(hosts).filter(target => hosts[target] === process.platform));
+module.exports = { ElectronPackagerLinux, ElectronPackagerWindows, ElectronPackagerDarwin };
+
+if(require.main === module) {
+    // exit application as soon as any uncaught exception is thrown
+    process.on('unhandledRejection', error => { throw error; });
+    main(process.argv.length > 2 ? process.argv.slice(2) : Object.keys(hosts).filter(target => hosts[target] === process.platform));
+}

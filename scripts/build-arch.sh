@@ -5,14 +5,15 @@
 #   sudo pacman -U build/rakkomik-*.pkg.tar.zst   ->  installs it
 #
 # It runs the PKGBUILD of the AUR package (packaging/aur) on a snapshot of the working tree instead of the release
-# tag, so the package built here is the package the AUR delivers. node and pnpm come from the PATH (they need not be
-# pacman packages) and the pnpm store of the project is reused, so only the first build downloads the dependencies.
+# tag, so the package built here is the package the AUR delivers. node and npm come from the PATH (they need not be
+# pacman packages), the PKGBUILD installs pnpm from npm itself, and the pnpm store of the project is reused when pnpm
+# is on the PATH, so only the first build downloads the dependencies.
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 
-for tool in makepkg git node pnpm; do
+for tool in makepkg git node npm; do
     if ! command -v "$tool" > /dev/null; then
         echo "build-arch: '$tool' is needed and was not found on the PATH." >&2
         exit 1
@@ -52,12 +53,14 @@ mkdir "$package"
 cp packaging/aur/PKGBUILD packaging/aur/rakkomik.sh packaging/aur/rakkomik.desktop "$package/"
 sed -i "s/^pkgver=.*/pkgver=$version/" "$package/PKGBUILD"
 
-# --nodeps: the makedepends (git, nodejs and pnpm) are checked above as commands, not as pacman packages
+# --nodeps: the makedepends (git, nodejs and npm) are checked above as commands, not as pacman packages
 echo "build-arch: running makepkg"
 export RAKKOMIK_SOURCE="git+file://$work/source#commit=$commit"
-RAKKOMIK_BRANCH=$(git branch --show-current)
+# the About dialog names the branch, or the tag of a detached checkout (CI builds a release from its tag)
+RAKKOMIK_BRANCH=${RAKKOMIK_BRANCH:-$(git branch --show-current)}
+RAKKOMIK_BRANCH=${RAKKOMIK_BRANCH:-$(git describe --tags --exact-match 2> /dev/null || true)}
 export RAKKOMIK_BRANCH="${RAKKOMIK_BRANCH:-HEAD}"
-RAKKOMIK_PNPM_STORE=$(pnpm store path 2> /dev/null || true)
+RAKKOMIK_PNPM_STORE=$(command -v pnpm > /dev/null && pnpm store path 2> /dev/null || true)
 export RAKKOMIK_PNPM_STORE
 export PKGDEST="$root/build" BUILDDIR="$work/build" SRCDEST="$work/sources"
 cd "$package"

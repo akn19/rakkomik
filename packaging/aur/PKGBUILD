@@ -20,7 +20,7 @@ arch=('any')
 url='https://github.com/akn19/rakkomik'
 license=('Unlicense')
 depends=('bash' 'electron' 'hicolor-icon-theme')
-makedepends=('git' 'nodejs' 'pnpm')
+makedepends=('git' 'nodejs' 'npm')
 source=("$pkgname::${RAKKOMIK_SOURCE:-git+$url.git#tag=v$pkgver}"
         "$pkgname.sh"
         "$pkgname.desktop")
@@ -31,6 +31,11 @@ sha256sums=('SKIP'
 build() {
     cd "$pkgname"
     local store="${RAKKOMIK_PNPM_STORE:-$srcdir/pnpm-store}"
+
+    # pnpm comes from npm and not from the distribution: the project asks for pnpm 12 or later (`engines`), and the
+    # package of Arch has reported an older version than the one it ships, which pnpm then refuses.
+    npm install --prefix "$srcdir/pnpm-cli" --no-audit --no-fund pnpm@12
+    export PATH="$srcdir/pnpm-cli/node_modules/.bin:$PATH"
 
     # The web part. The root project is installed without its scripts: they would download the Electron binary
     # (the system Electron is used) and install src/app, which is done below. The browser builds of fflate and
