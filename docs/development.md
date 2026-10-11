@@ -108,10 +108,13 @@ of that workspace, it has its own `pnpm-workspace.yaml`.
 
 ## Icons
 
-`assets/icon.svg` (a stack of books) is the only source. `pnpm run icons` renders it with Electron and writes the
-hicolor PNGs of the deb and rpm skeletons, `redist/iss` (`app.ico`, wizard bitmaps), `redist/macos` (`icon.icns`,
-DMG background), the logos of the user interface and the tray icons. Commit the generated files: the packagers use
-them as they are.
+`assets/icon.svg` (a bookcase with manga and light novels) is the only source. `pnpm run icons` renders it with
+Electron and writes the hicolor PNGs of the deb and rpm skeletons, `redist/iss` (`app.ico`, wizard bitmaps),
+`redist/macos` (`icon.icns`, DMG background), the logos of the user interface and the tray icons. Commit the generated
+files: the packagers use them as they are.
+
+The characters on the spines (マンガ, ラノベ and the kanji 本) are outlines of Noto Sans CJK JP Bold (SIL Open Font
+License 1.1), not text: the icon looks the same on every machine, and neither the generator nor a viewer needs a font.
 
 ## Building the installers
 

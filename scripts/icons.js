@@ -1,6 +1,6 @@
 /**
  * Regenerates every icon and image that is derived from the application logo
- * (`assets/icon.svg`, a stack of books):
+ * (`assets/icon.svg`, a bookcase with manga and light novels):
  * - Linux:   hicolor PNGs of the deb and rpm skeletons (`redist/{deb,rpm}/usr/share/icons`)
  * - Windows: installer icon + wizard bitmaps (`redist/iss`)
  * - macOS:   `.icns` + DMG background (`redist/macos`)

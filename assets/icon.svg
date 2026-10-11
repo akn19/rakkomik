@@ -1,40 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RakKomik: a stack of books">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RakKomik: a bookcase with manga and light novels">
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#34497f"/>
       <stop offset="1" stop-color="#16213f"/>
     </linearGradient>
+    <!-- the characters of the spines (マ ン ガ ラ ノ ベ 本): outlines of Noto Sans CJK JP Bold (SIL Open Font License 1.1), each centred on its own origin, so the icon needs no font -->
+    <path id="ma" d="M -9.6 17.3 C -3.1 23.9 5.3 33.3 9.4 38.9 L 21.1 29.6 C 17.3 24.9 11.4 18.4 5.6 12.6 C 19.8 1.3 32.6 -14.7 39.8 -26.4 C 40.6 -27.7 41.8 -29.1 43.1 -30.6 L 33.1 -38.9 C 31.1 -38.1 27.6 -37.7 23.9 -37.7 C 13.1 -37.7 -25.4 -37.7 -31.6 -37.7 C -35.1 -37.7 -40.6 -38.2 -43.1 -38.6 L -43.1 -24.6 C -41.1 -24.9 -35.6 -25.4 -31.6 -25.4 C -24.1 -25.4 12.4 -25.4 21.3 -25.4 C 16.6 -17.1 7.1 -5.6 -4.1 3.4 C -10.4 -2.1 -17.1 -7.4 -21.1 -10.4 L -31.6 -1.9 C -25.6 2.4 -15.4 11.4 -9.6 17.3 Z"/>
+    <path id="n" d="M -28.8 -39.9 L -38.1 -29.9 C -30.8 -24.8 -18.3 -13.9 -13.1 -8.3 L -2.9 -18.7 C -8.8 -24.8 -21.8 -35.2 -28.8 -39.9 ZM -41.2 26.7 L -32.8 39.9 C -18.8 37.5 -5.8 31.9 4.2 25.8 C 20.4 16.1 33.7 2.3 41.2 -11.2 L 33.5 -25.3 C 27.2 -11.8 14.2 3.5 -2.9 13.6 C -12.6 19.4 -25.6 24.5 -41.2 26.7 Z"/>
+    <path id="ga" d="M 25.4 -40.5 L 17.5 -37.2 C 20.2 -33.4 23.2 -27.5 25.2 -23.4 L 33.2 -26.9 C 31.4 -30.5 27.9 -36.9 25.4 -40.5 ZM 37.2 -45 L 29.2 -41.8 C 32 -38 35.2 -32.2 37.2 -28 L 45.2 -31.5 C 43.5 -35 39.8 -41.2 37.2 -45 ZM 33.7 -18.2 L 25 -22.5 C 22.5 -22 20 -21.8 17.5 -21.8 L -1.3 -21.8 L -1 -30.7 C -0.8 -33 -0.6 -37.2 -0.3 -39.7 L -15 -39.7 C -14.6 -37.2 -14.3 -32.7 -14.3 -30.5 L -14.5 -21.8 L -28.8 -21.8 C -32.6 -21.8 -37.8 -22 -42 -22.5 L -42 -9.2 C -37.8 -9.7 -32.2 -9.8 -28.8 -9.8 L -15.6 -9.8 C -17.8 5.5 -22.8 16.8 -32.1 26 C -36.1 30 -41.1 33.3 -45.2 35.6 L -33.6 45 C -15.8 32.3 -6.2 16.8 -2.5 -9.8 L 20 -9.8 C 20 1 18.7 21 15.8 27.3 C 14.7 29.8 13.2 30.8 10 30.8 C 6.2 30.8 1 30.3 -4 29.5 L -2.3 42.8 C 2.5 43.2 8.5 43.8 14.2 43.8 C 21 43.8 24.9 41 27 36 C 31.4 25.8 32.5 -2.2 33 -13 C 33 -14 33.4 -16.5 33.7 -18.2 Z"/>
+    <path id="ra" d="M -29.5 -41.2 L -29.5 -28.3 C -26.5 -28.5 -22.2 -28.6 -19 -28.6 C -13 -28.6 13.7 -28.6 19.2 -28.6 C 22.8 -28.6 27.5 -28.5 30.2 -28.3 L 30.2 -41.2 C 27.5 -40.8 22.5 -40.8 19.5 -40.8 C 13.7 -40.8 -12.8 -40.8 -19 -40.8 C -22.5 -40.8 -26.7 -40.8 -29.5 -41.2 ZM 38.7 -12.2 L 29.8 -17.8 C 28.3 -17.1 25.7 -16.8 22.5 -16.8 C 15.5 -16.8 -20.2 -16.8 -27 -16.8 C -30.2 -16.8 -34.5 -17 -38.7 -17.3 L -38.7 -4.3 C -34.5 -4.8 -29.5 -4.8 -27 -4.8 C -18 -4.8 16.2 -4.8 21.2 -4.8 C 19.5 0.8 16.3 7 11 12.5 C 3.3 20.2 -8.7 26.9 -23.7 30 L -13.8 41.2 C -1 37.7 11.8 30.9 22 19.7 C 29.5 11.4 33.8 1.7 36.8 -8 C 37.2 -9.1 38 -11 38.7 -12.2 Z"/>
+    <path id="no" d="M 36.2 -36.5 L 20.6 -40.5 C 17.9 -26.2 11.3 -8.8 1.8 2.8 C -7.2 13.5 -20.7 23.5 -36.2 28.8 L -24.9 40.5 C -9.5 34.2 4.5 22 13 11.5 C 21.1 1.3 27.6 -13.8 31.8 -25.2 C 33 -28.5 34.4 -32.8 36.2 -36.5 Z"/>
+    <path id="be" d="M 21.4 -31.6 L 12.7 -28.1 C 16.4 -22.9 18.9 -18.1 21.8 -11.8 L 30.8 -15.6 C 28.5 -20.3 24.2 -27.6 21.4 -31.6 ZM 34.8 -37.1 L 26.2 -33.3 C 29.9 -28.3 32.5 -23.6 35.8 -17.4 L 44.5 -21.6 C 42.2 -26.1 37.7 -33.1 34.8 -37.1 ZM -46 9.1 L -34 21.6 C -32.2 18.9 -29.8 15.4 -27.5 12.2 C -23.5 6.9 -16.5 -3.1 -12.5 -8.1 C -9.6 -11.6 -7.5 -11.9 -4.3 -8.6 C -0.8 -4.9 8.2 4.7 14 11.6 C 19.9 18.6 28.4 28.9 35 37.1 L 46 25.4 C 38.4 17.1 28.2 6.1 21.5 -1.1 C 15.5 -7.6 7.8 -15.6 1 -21.9 C -6.8 -29.1 -12.6 -28.1 -18.5 -21.1 C -25.5 -12.9 -33.2 -3.1 -37.8 1.6 C -40.8 4.6 -43 6.7 -46 9.1 Z"/>
+    <path id="hon" d="M -6.7 -47 L -6.7 -27.5 L -44.3 -27.5 L -44.3 -15.3 L -13.8 -15.3 C -21.5 0.2 -34.2 14.5 -48.3 22.2 C -45.5 24.7 -41.7 29.2 -39.5 32.2 C -34 28.8 -28.8 24.4 -23.8 19.4 L -23.8 30 L -6.7 30 L -6.7 47 L 6 47 L 6 30 L 22.7 30 L 22.7 18.5 C 27.7 23.8 33.2 28.2 39 31.9 C 41.2 28.5 45.3 23.5 48.3 21 C 34 13.5 21.2 -0.3 13.2 -15.3 L 44 -15.3 L 44 -27.5 L 6 -27.5 L 6 -47 ZM -6.7 17.8 L -22.3 17.8 C -16.5 11.4 -11.2 4 -6.7 -4.1 ZM 6 17.8 L 6 -4.3 C 10.5 3.9 16 11.2 22 17.8 Z"/>
   </defs>
   <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#tile)"/>
-  <ellipse cx="256" cy="384" rx="176" ry="13" fill="#0a1124" opacity=".5"/>
 
-  <!-- bookmark ribbon peeking out of the top book -->
-  <path d="M322 112h26v50l-13-11-13 11z" fill="#ff6b6b"/>
+  <!-- everything is 5 % larger than it is drawn, so that the bookcase keeps its shape at 16 pixels -->
+  <g transform="translate(256 256) scale(1.05) translate(-256 -256)">
 
-  <!-- top book (teal) -->
-  <g>
-    <rect x="92" y="136" width="272" height="74" rx="14" fill="#21a99a"/>
-    <rect x="128" y="147" width="226" height="52" rx="6" fill="#fff3d6"/>
-    <path d="M140 167h200M140 178h200" stroke="#e6d3a3" stroke-width="3" stroke-linecap="round"/>
-    <rect x="104" y="136" width="6" height="74" fill="#0f6f65" opacity=".45"/>
-    <rect x="114" y="136" width="6" height="74" fill="#0f6f65" opacity=".45"/>
-  </g>
+    <!-- the bookcase: a back, two sides, a top and a base -->
+    <rect x="96" y="92" width="320" height="328" fill="#0b1226" fill-opacity=".35"/>
+    <g fill="#fff3d6">
+      <rect x="72" y="72" width="368" height="20" rx="7"/>
+      <rect x="72" y="420" width="368" height="20" rx="7"/>
+      <rect x="80" y="84" width="16" height="344"/>
+      <rect x="416" y="84" width="16" height="344"/>
+    </g>
 
-  <!-- middle book (amber) -->
-  <g>
-    <rect x="116" y="216" width="316" height="74" rx="14" fill="#f7b32b"/>
-    <rect x="154" y="227" width="268" height="52" rx="6" fill="#fff3d6"/>
-    <path d="M166 247h244M166 258h244" stroke="#e6d3a3" stroke-width="3" stroke-linecap="round"/>
-    <rect x="128" y="216" width="6" height="74" fill="#a86f00" opacity=".4"/>
-    <rect x="138" y="216" width="6" height="74" fill="#a86f00" opacity=".4"/>
-  </g>
-
-  <!-- bottom book (vermilion) -->
-  <g>
-    <rect x="76" y="296" width="360" height="74" rx="14" fill="#ef5b3f"/>
-    <rect x="116" y="307" width="308" height="52" rx="6" fill="#fff3d6"/>
-    <path d="M128 327h284M128 338h284" stroke="#e6d3a3" stroke-width="3" stroke-linecap="round"/>
-    <rect x="88" y="296" width="6" height="74" fill="#8f2410" opacity=".4"/>
-    <rect x="98" y="296" width="6" height="74" fill="#8f2410" opacity=".4"/>
+    <!-- the books -->
+    <g>
+      <rect x="108" y="150" width="58" height="270" rx="6" fill="#ef5b3f"/>
+      <path d="M108 168h58M108 402h58" stroke="#fff3d6" stroke-opacity=".45" stroke-width="4" fill="none"/>
+      <use href="#ma" transform="translate(137 238) scale(0.42)" fill="#fff3d6"/>
+      <use href="#n" transform="translate(137 285) scale(0.42)" fill="#fff3d6"/>
+      <use href="#ga" transform="translate(137 332) scale(0.42)" fill="#fff3d6"/>
+    </g>
+    <g>
+      <rect x="170" y="188" width="52" height="232" rx="6" fill="#1f9f91"/>
+      <path d="M170 206h52M170 402h52" stroke="#fff3d6" stroke-opacity=".45" stroke-width="4" fill="none"/>
+      <use href="#hon" transform="translate(196 304) scale(0.42)" fill="#fff3d6"/>
+    </g>
+    <g>
+      <rect x="226" y="128" width="64" height="292" rx="6" fill="#f7b32b"/>
+      <path d="M226 146h64M226 402h64" stroke="#16213f" stroke-opacity=".45" stroke-width="4" fill="none"/>
+      <use href="#ra" transform="translate(258 222.5) scale(0.46)" fill="#16213f"/>
+      <use href="#no" transform="translate(258 274) scale(0.46)" fill="#16213f"/>
+      <use href="#be" transform="translate(258 325.5) scale(0.46)" fill="#16213f"/>
+    </g>
+    <g>
+      <rect x="294" y="208" width="34" height="212" rx="6" fill="#8ea3ee"/>
+      <path d="M294 226h34M294 402h34" stroke="#fff3d6" stroke-opacity=".45" stroke-width="4" fill="none"/>
+    </g>
+    <g transform="rotate(11 372.9 420)">
+      <rect x="328.9" y="194" width="44" height="226" rx="6" fill="#ef5b3f"/>
+      <path d="M328.9 212h44M328.9 402h44" stroke="#fff3d6" stroke-opacity=".45" stroke-width="4" fill="none"/>
+    </g>
   </g>
 </svg>
