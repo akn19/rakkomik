@@ -75,7 +75,13 @@ async function readTree(directory) {
  * @returns {Promise<string[]>} paths of the archive and the meta file
  */
 async function pack(directory, archive, meta) {
-    const data = zipSync(await readTree(directory), { level: 6 });
+    const files = await readTree(directory);
+    // an earlier run in this folder left its archive (the one its meta file names) and its meta file behind: they are not part of the bundle
+    if(files[meta]) {
+        delete files[new TextDecoder().decode(files[meta]).split('?')[0]];
+        delete files[meta];
+    }
+    const data = zipSync(files, { level: 6 });
     const signature = crypto.sign('sha256', data, {
         key: process.env.RAKKOMIK_PRIVATE_KEY,
         passphrase: process.env.RAKKOMIK_PASSPHRASE

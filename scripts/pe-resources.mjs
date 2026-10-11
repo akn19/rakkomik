@@ -26,6 +26,9 @@ export async function setExecutableResources(executable, { icon, version, string
 
     if (icon) {
         const iconFile = ResEdit.Data.IconFile.from(await fs.readFile(icon));
+        if (iconFile.icons.length === 0) {
+            throw new Error(`"${icon}" holds no icon!`);
+        }
         const [ group ] = ResEdit.Resource.IconGroupEntry.fromEntries(resource.entries);
         if (!group) {
             throw new Error(`"${executable}" has no icon group to replace!`);

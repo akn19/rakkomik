@@ -35,6 +35,13 @@ function checkoutName() {
 }
 
 /**
+ * The text as it is written between single quotes: a quote or a backslash in it cannot end the string.
+ */
+function literal(text) {
+    return JSON.stringify(text).slice(1, -1).replace(/'/g, "\\'");
+}
+
+/**
  * Write `mjs/VersionInfo.mjs` (branch and revision of the checkout).
  */
 async function createVersionInfo(file) {
@@ -43,8 +50,8 @@ async function createVersionInfo(file) {
     const content = [
         'export default {',
         '    branch: {',
-        `        label: '${branch}',`,
-        `        link: 'https://github.com/akn19/rakkomik/commits/${branch}',`,
+        `        label: '${literal(branch)}',`,
+        `        link: 'https://github.com/akn19/rakkomik/commits/${literal(branch)}',`,
         '    },',
         '    revision: {',
         `        label: '${revision.slice(0, 6)}',`,

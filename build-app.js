@@ -120,15 +120,13 @@ class ElectronPackager {
      * @param {*} file
      * @param {*} data
      * @param {*} gzip
-     * @param {number} [mode] permissions of the file (not those of the umask)
+     * @param {number} [mode] permissions of the file (not those of the umask): readable by everybody unless it is given
      */
-    _saveFile(file, data, gzip, mode) {
+    _saveFile(file, data, gzip, mode = 0o644) {
         fs.mkdirSync(path.dirname(file), { recursive: true });
         let content = gzip ? zlib.gzipSync(data, { level: 9 }) : data;
         fs.writeFileSync(file, content, typeof content === 'string' ? { encoding: 'utf8' } : undefined);
-        if(mode !== undefined) {
-            fs.chmodSync(file, mode);
-        }
+        fs.chmodSync(file, mode);
     }
 
     /**
@@ -143,7 +141,15 @@ class ElectronPackager {
         }
         console.log('Downloading:', file);
         await fs.promises.mkdir(path.dirname(file), { recursive: true });
-        await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(file));
+        // saved under another name until it is complete: `_downloadElectron` takes any file of the right name for a finished download
+        const partial = file + '.part';
+        try {
+            await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(partial));
+            await fs.promises.rename(partial, file);
+        } catch(error) {
+            await fs.promises.rm(partial, { force: true });
+            throw error;
+        }
     }
 
     /**
@@ -414,6 +420,8 @@ class ElectronPackagerLinux extends ElectronPackager {
             ''
         ];
         this._saveFile(file, content.join(eol), false);
+        // dpkg-deb accepts a DEBIAN folder of 0755 to 0775 only, and the umask decides how a folder is made
+        fs.chmodSync(path.dirname(file), 0o755);
     }
 
     /**
@@ -811,7 +819,9 @@ class ElectronPackagerDarwin extends ElectronPackager {
             if(!entry.test(content)) {
                 throw new Error(`The Info.plist of Electron has no key "${key}"!`);
             }
-            content = content.replace(entry, (match, open, close) => open + value + close);
+            // the value becomes the text of an XML element
+            const text = String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            content = content.replace(entry, (match, open, close) => open + text + close);
         }
         await fs.promises.writeFile(file, content);
         return file;
@@ -867,7 +877,7 @@ const hosts = { windows: 'win32', linux: 'linux', macos: 'darwin' };
  */
 async function main(targets) {
     for(const target of targets) {
-        if(!(target in hosts)) {
+        if(!Object.hasOwn(hosts, target)) {
             throw new Error(`Unknown target "${target}", use one of: ${Object.keys(hosts).join(', ')}`);
         }
         if(target !== 'windows' && process.platform !== hosts[target]) {
