@@ -438,10 +438,15 @@ test.describe('menu and settings', () => {
         expect(await isDark()).toBe(initial);
     });
 
-    test('should not warn about a directory that does not exist yet, but about a file', async ({ page }) => {
+    test('should not warn about a directory that does not exist yet, but about a file', async ({ app, page }) => {
         await reload(page);
         await connectorsReady(page);
-        const warnings = await page.evaluate(async () => {
+        // paths of the profile, which exist (or not) on every system: a file like /etc/hostname is there on Linux only
+        const paths = {
+            missing: path.join(app.userDirectory, 'not-made-yet', 'mangas'),
+            file: path.join(app.userDirectory, 'hakuneko.settings')
+        };
+        const warnings = await page.evaluate(async ({ missing, file }) => {
             const captured = [];
             const original = window.alert;
             window.alert = message => { captured.push(message); };
@@ -451,11 +456,11 @@ test.describe('menu and settings', () => {
                 await new Promise(resolve => setTimeout(resolve, 400));
                 return captured.slice();
             };
-            const missing = await probe('/nonexistent/rakkomik-dir');
-            const notDirectory = await probe('/etc/hostname');
+            const forMissing = await probe(missing);
+            const notDirectory = await probe(file);
             window.alert = original;
-            return { missing, notDirectory };
-        });
+            return { missing: forMissing, notDirectory };
+        }, paths);
         expect(warnings.missing).toEqual([]);
         expect(warnings.notDirectory).toHaveLength(1);
     });
