@@ -76,12 +76,12 @@ describe('theme', () => {
 
     it('should still switch when the choice cannot be stored, and when a stored choice cannot be read', async () => {
         vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true });
-        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        // a storage of its own and not a spy on Storage.prototype: the storage of happy-dom binds a method to itself the
+        // first time it is read, so the blocked methods would stay in the storage of every later test of this file
+        const blocked = () => {
             throw new Error('storage is blocked');
-        });
-        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-            throw new Error('storage is blocked');
-        });
+        };
+        vi.spyOn(window, 'localStorage', 'get').mockReturnValue({ getItem: blocked, setItem: blocked });
         await renderShell();
         expect(frame().classList.contains('dark')).toBe(true);
         fireEvent.click(screen.getByTitle('Toggle theme'));

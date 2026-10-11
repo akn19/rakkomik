@@ -18,7 +18,8 @@ function fakeEngine(overrides) {
 }
 
 afterEach(() => {
-    delete globalThis.window.Engine;
+    // only fakeEngine makes a window: a test without an engine can be the first of a run (the order is shuffled)
+    delete globalThis.window?.Engine;
 });
 
 describe('ui engine bridge', () => {

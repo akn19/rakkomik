@@ -46,7 +46,8 @@ function fakeEngine(extra) {
 }
 
 afterEach(() => {
-    delete globalThis.window.Engine;
+    // only fakeEngine makes a window: a test without an engine can be the first of a run (the order is shuffled)
+    delete globalThis.window?.Engine;
     queries.queryClient.clear();
 });
 
