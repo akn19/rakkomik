@@ -1,14 +1,16 @@
-# https://help.github.com/en/articles/workflow-syntax-for-github-actions
+# https://docs.github.com/actions/writing-workflows/workflow-syntax-for-github-actions
 #
 # A release is a tag `vX.Y.Z` (no suffix: it becomes the AUR `pkgver`) whose number equals the
-# `version` of package.json and src/app/package.json. Pushing the tag
+# `version` of package.json and src/app/package.json. This is the only workflow that builds installers. Pushing the tag
 #   1. writes the release notes with git-cliff (cliff.toml) from the conventional commit messages,
 #   2. creates (or updates) the GitHub release with them,
-#   3. publishes packaging/aur to the AUR as the package `rakkomik`,
-#   4. builds the installers of Windows, Linux and macOS (build-app.yml) and attaches them to the release.
+#   3. builds the installers of Windows, Linux and macOS (build-app.yml) and attaches them to the release,
+#   4. publishes packaging/aur to the AUR as the package `rakkomik`, when that is switched on (see below).
+# The code is not checked again here: ci.yml checked the commit when it was pushed, so tag a commit whose run is green.
 # Run the workflow by hand with the tag as input to publish an existing tag again.
 #
-# Required repository secret for step 3:
+# Publishing to the AUR is switched off. To switch it on, set the repository variable PUBLISH_AUR to `true`
+# (Settings, Secrets and variables, Actions, Variables) and the repository secret
 #   AUR_SSH_PRIVATE_KEY   private half of an SSH key whose public half is added to the AUR account
 #                         (the first push creates the AUR package when the name is still free)
 
@@ -80,35 +82,6 @@ jobs:
             gh release create "$TAG" --verify-tag --title "$TAG" --notes-file RELEASE_NOTES.md --latest
           fi
 
-  aur:
-    name: AUR package
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout ${{ github.repository }} @ ${{ env.TAG }}
-        uses: actions/checkout@v7
-        with:
-          ref: refs/tags/${{ env.TAG }}
-      - name: Set the package version
-        run: sed -i "s/^pkgver=.*/pkgver=${TAG#v}/; s/^pkgrel=.*/pkgrel=1/" packaging/aur/PKGBUILD
-      # This action receives the AUR key; its major version floats on purpose (no pinned versions in this project).
-      - name: Publish to the AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v4
-        with:
-          pkgname: rakkomik
-          pkgbuild: packaging/aur/PKGBUILD
-          assets: |
-            packaging/aur/rakkomik.sh
-            packaging/aur/rakkomik.desktop
-          commit_username: ${{ github.repository_owner }}
-          commit_email: ${{ github.repository_owner }}@users.noreply.github.com
-          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: Update to ${{ env.TAG }}
-          updpkgsums: true
-          # build the package once before it is published (installs its dependencies in the action's container)
-          test: true
-          test_flags: --clean --cleanbuild --syncdeps --noconfirm
-
   installers:
     name: Installers
     needs: release
@@ -124,7 +97,7 @@ jobs:
       contents: write
     steps:
       - name: Download the installers
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: installers-*
           merge-multiple: true
@@ -134,3 +107,34 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: gh release upload "$TAG" installers/* --clobber
+
+  aur:
+    name: AUR package
+    # switched off until the repository variable PUBLISH_AUR is `true` (see the top of this file)
+    if: ${{ vars.PUBLISH_AUR == 'true' }}
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ env.TAG }}
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - name: Set the package version
+        run: sed -i "s/^pkgver=.*/pkgver=${TAG#v}/; s/^pkgrel=.*/pkgrel=1/" packaging/aur/PKGBUILD
+      # This action receives the AUR key, so it is pinned to the commit of v4.2.0 (it has no tag for its major version).
+      - name: Publish to the AUR
+        uses: KSXGitHub/github-actions-deploy-aur@084b0d9b15415bf9cdb65d44dad1efe37a354050
+        with:
+          pkgname: rakkomik
+          pkgbuild: packaging/aur/PKGBUILD
+          assets: |
+            packaging/aur/rakkomik.sh
+            packaging/aur/rakkomik.desktop
+          commit_username: ${{ github.repository_owner }}
+          commit_email: ${{ github.repository_owner }}@users.noreply.github.com
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update to ${{ env.TAG }}
+          updpkgsums: true
+          # build the package once before it is published (installs its dependencies in the action's container)
+          test: true
+          test_flags: --clean --cleanbuild --syncdeps --noconfirm

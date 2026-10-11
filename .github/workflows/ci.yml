@@ -1,0 +1,137 @@
+# https://docs.github.com/actions/writing-workflows/workflow-syntax-for-github-actions
+#
+# What runs for every change. No installer is built here (release.yml does that, for tags only) and nothing runs
+# twice: the checks that do not depend on the operating system run once, the unit tests run on all three systems
+# (the tests of the configuration of a platform run on that platform only), and the web part is built once and handed
+# to the job that publishes it.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - '*.*.*'
+    paths-ignore:
+      - '**/*.md'
+      - docs/**
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - docs/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # a newer push makes the run of an older one of a pull request pointless, a run that publishes has to finish
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ github.ref }}
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12
+      - name: Install NodeJS
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install packages
+        run: pnpm install
+      # the same on every system, so once is enough
+      - name: Lint
+        if: runner.os == 'Linux'
+        run: pnpm run lint
+      - name: Check deprecated dependencies
+        if: runner.os == 'Linux'
+        run: pnpm run check:deprecated
+      - name: Build (web)
+        if: runner.os == 'Linux'
+        run: pnpm run build:web
+      - name: Unit tests
+        run: pnpm run test
+      - name: Keep the web part for the job that publishes it
+        if: runner.os == 'Linux' && github.event_name == 'push'
+        uses: actions/upload-artifact@v7
+        with:
+          name: web
+          path: build/web
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-web:
+    name: Publish the web part
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ github.ref }}
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12
+      - name: Install NodeJS
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      # publishing only needs fflate: no download of Electron, no install of src/app
+      - name: Install packages
+        run: pnpm install --ignore-scripts
+      - name: Download the web part
+        uses: actions/download-artifact@v8
+        with:
+          name: web
+          path: build/web
+      - name: Publish the web part
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PEM signing key and its passphrase, both as repository secrets (docs/releasing.md). GITHUB_REF,
+          # GITHUB_REPOSITORY and GITHUB_SHA come from the runner and select the rolling release of the channel.
+          RAKKOMIK_PRIVATE_KEY: ${{ secrets.RAKKOMIK_PRIVATE_KEY }}
+          RAKKOMIK_PASSPHRASE: ${{ secrets.RAKKOMIK_PASSPHRASE }}
+        run: node deploy-web.js
+
+  changelog:
+    name: Changelog preview
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ github.ref }}
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Generate the unreleased changes (git-cliff)
+        id: cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --verbose --unreleased --strip header
+      - name: Show them in the job summary
+        env:
+          CONTENT: ${{ steps.cliff.outputs.content }}
+        run: |
+          {
+            echo '## Changes since the last release'
+            echo
+            printf '%s\n' "$CONTENT"
+          } >> "$GITHUB_STEP_SUMMARY"

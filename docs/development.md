@@ -39,8 +39,9 @@
 | `pnpm run icons` | regenerate every icon from `assets/icon.svg` |
 
 Run a subset with `pnpm exec vitest run <file name part>` or
-`pnpm exec playwright test --project=ui -g "<test title>"`. Pull request CI runs the lint, the deprecated gate, the
-web build and the unit tests; the end-to-end tests are run locally.
+`pnpm exec playwright test --project=ui -g "<test title>"`. CI ([releasing](releasing.md#workflows)) runs the lint, the
+deprecated gate, the web build and the unit tests (on Linux, Windows and macOS) for every push and pull request; the
+end-to-end tests are run locally.
 
 ## Running safely
 
@@ -97,13 +98,14 @@ them as they are.
 `pnpm run build:app` builds the web part and then the installers of the platform it runs on, from the Electron version
 that is installed. `pnpm run build:win` and `pnpm run build:mac` name the platform instead, and
 `node build-app.js <windows|linux|macos>` does the same without building the web part. Every output is x86-64 and
-ARM64, named with the version of `package.json`:
+ARM64 (the Arch package is one for both), named with the version of `package.json`:
 
 | Platform | Output | Needs | Built on |
 |---|---|---|---|
 | Linux | `.deb`, `.rpm` | `fakeroot`, `dpkg`, `lintian`, `rpm`, `unzip` | Linux |
 | Windows | Inno Setup installer, portable `.zip` | `innosetup-compiler` (installer), `bsdtar` or `tar` (zip) | the installer on Windows, the zip on any host with `bsdtar` |
 | macOS | `.dmg` | `hdiutil`, `codesign` | macOS |
+| Arch Linux | `.pkg.tar.zst` | `makepkg`, `git`, `node`, `npm` (`pnpm run build:arch`, see [below](#building-the-arch-package)) | Arch Linux, or its official container image |
 
 The portable `.zip` of Windows is the one package that can be built from another platform: on Linux install `bsdtar`
 (libarchive), because GNU tar cannot write a ZIP, and `unzip`. Everything else needs the tools of its own platform;
@@ -128,7 +130,7 @@ which the project (`engines`) refuses.
 
 `scripts/build-arch.sh` copies the working tree, uncommitted changes included, into a throwaway git checkout and runs
 the `PKGBUILD` of the AUR package (`packaging/aur`) on it, with `RAKKOMIK_SOURCE` in place of the release tag. So the
-package built here is the package the AUR delivers. It reuses the pnpm store of the project, which makes a build take
+package built here is the package the AUR gets once publishing is switched on. It reuses the pnpm store of the project, which makes a build take
 about half a minute once the dependencies have been downloaded. The package holds the Electron shell and the web part
 and runs on the system `electron`, see [releasing](releasing.md#aur-package).
 

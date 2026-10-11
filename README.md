@@ -35,10 +35,12 @@ It is not meant to be a mass downloader to stock up thousands of chapters that w
 
 ## Installation
 
-**Arch Linux:** every tagged release is published to the [AUR](https://aur.archlinux.org) as `rakkomik`
-(`yay -S rakkomik`, or any other AUR helper). The package runs on the system `electron` package and contains the
-web part, so a new version of the package is what updates it. `pnpm run build:arch` builds the package of a checkout,
-see [Building the Arch package](docs/development.md#building-the-arch-package).
+**Arch Linux:** every tagged release has the package attached on the
+[releases page](https://github.com/akn19/rakkomik/releases): download `rakkomik-<version>-1-any.pkg.tar.zst` and
+install it with `sudo pacman -U` (pacman installs the `electron` package it needs). It is one package for every
+architecture and contains the web part, so a new version of the package is what updates it. The package for the
+[AUR](https://aur.archlinux.org) (`rakkomik`) is not published yet. `pnpm run build:arch` builds the package of a
+checkout, see [Building the Arch package](docs/development.md#building-the-arch-package).
 
 **Windows, macOS and other Linux distributions:** every tagged release has its installers attached on the
 [releases page](https://github.com/akn19/rakkomik/releases), each for x86-64 and ARM64: an installer and a portable

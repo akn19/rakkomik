@@ -1,0 +1,88 @@
+# https://docs.github.com/actions/writing-workflows/workflow-syntax-for-github-actions
+#
+# Static analysis of the code (CodeQL: the JavaScript of the application and the workflows themselves) and a scan of
+# the dependencies and of the files for known vulnerabilities and committed secrets (Trivy). Both report to the
+# Security tab of the repository (code scanning). A weekly run finds the advisories that were published after the
+# last change.
+
+name: Security
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - docs/**
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - docs/**
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ github.ref }}
+        uses: actions/checkout@v7
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          # interpreted languages: there is nothing to build
+          build-mode: none
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+
+  trivy:
+    name: Trivy
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ github.ref }}
+        uses: actions/checkout@v7
+      # Scans the lock files (the dependencies the application ships with) and every file for secrets. Only
+      # vulnerabilities with a fix are reported, to the Security tab: a new advisory must not break a build that has
+      # nothing to do with it. The version is exact on purpose, this action has no tag for a major version (its
+      # releases are immutable).
+      - name: Scan the repository
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-results.sarif
+          limit-severities-for-sarif: true
+          exit-code: '0'
+      - name: Report to the Security tab
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy

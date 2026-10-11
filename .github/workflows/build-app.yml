@@ -1,13 +1,13 @@
-# https://help.github.com/en/articles/workflow-syntax-for-github-actions
-# https://help.github.com/en/articles/contexts-and-expression-syntax-for-github-actions
+# https://docs.github.com/actions/writing-workflows/workflow-syntax-for-github-actions
+#
+# Builds the installers of Windows, macOS and Linux (deb and rpm) and the package of Arch Linux, and keeps them as
+# artifacts. A push starts nothing here: release.yml calls this workflow for a tag, and it can be started by hand from
+# the Actions tab to try the packagers without a release. The code is not checked again (lint, unit tests): ci.yml
+# did that when the commit was pushed.
 
 name: Build Desktop Installers
 
 on:
-  push:
-    branches:
-      - main
-      - '*.*.*'
   workflow_dispatch:
   # the release workflow builds the installers of a tag with it
   workflow_call:
@@ -17,42 +17,43 @@ on:
         type: string
         default: ''
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
+      # the installers of the other systems are worth having when one packager fails
+      fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macOS-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout ${{ github.repository }} @ ${{ inputs.ref || github.ref }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 1
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 12
       - name: Install NodeJS
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
       - name: Install packages
         run: pnpm install
       - name: Install packaging tools (Linux)
-        if: startsWith(matrix.os, 'ubuntu')
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y fakeroot lintian rpm unzip
-      - name: Lint
-        run: pnpm run lint
-      - name: Check deprecated dependencies
-        run: pnpm run check:deprecated
       # builds the web part first, which every installer carries, then the installers of this platform
       - name: Build (app)
         run: pnpm run build:app
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: installers-${{ matrix.os }}
           path: |
@@ -61,4 +62,32 @@ jobs:
             build/*.exe
             build/*.zip
             build/*.dmg
+          if-no-files-found: error
+
+  # Arch Linux: makepkg only runs there, so the package is built in the official Arch image. It is the same package
+  # for every architecture (`any`): it runs on the electron package of the system.
+  arch:
+    name: archlinux
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      # git comes first: the checkout then makes a repository, which scripts/build-arch.sh clones
+      - name: Install the build tools
+        run: pacman -Syu --noconfirm --needed git nodejs npm
+      - name: Checkout ${{ github.repository }} @ ${{ inputs.ref || github.ref }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      # makepkg refuses to run as root: a user of its own builds the package
+      - name: Build (Arch package)
+        run: |
+          useradd --create-home builder
+          chown -R builder "$GITHUB_WORKSPACE"
+          runuser -u builder -- env HOME=/home/builder bash scripts/build-arch.sh
+      - name: Upload the package
+        uses: actions/upload-artifact@v7
+        with:
+          name: installers-arch
+          path: build/*.pkg.tar.zst
           if-no-files-found: error
