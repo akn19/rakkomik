@@ -14,6 +14,7 @@ src/web/ui/dist/
 /redist/*.zip
 /test/*.log
 junit.xml
+coverage/
 .idea/
 junit-e2e.xml
 test-results/

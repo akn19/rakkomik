@@ -2,6 +2,7 @@
     "$schema": "https://unpkg.com/knip@6/schema.json",
     "entry": [
         "scripts/*.{js,mjs}",
+        "src/app/preload.js",
         "src/web/mjs/HakuNeko.mjs",
         "src/web/ui/main.jsx"
     ],
@@ -12,7 +13,6 @@
         "src/**/*.{js,mjs,jsx}"
     ],
     "ignore": [
-        "src/app/preload.js",
         "src/web/mjs/connectors/**",
         "src/web/mjs/engine/HistoryWorker.mjs"
     ],

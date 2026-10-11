@@ -26,7 +26,8 @@
 | `pnpm run start:build` | build the web part and run the application against `build/web` |
 | `pnpm run build:arch` | build the Arch Linux package of the working tree into `build/`, see [below](#building-the-arch-package) |
 | `pnpm run lint` | oxlint over the application, the engine, the user interface, the scripts and the end-to-end tests |
-| `pnpm run test` | unit tests (Vitest: the projects `app` and `web`) |
+| `pnpm run test` | unit tests (Vitest: the projects `app`, `web` and `ui`) |
+| `pnpm run test:coverage` | the unit tests with a coverage report: a summary in the terminal, the details in `coverage/index.html` |
 | `pnpm run test:e2e` | build the web part and run the tests of the real application (Playwright, project `ui`) |
 | `pnpm run test:e2e:sites` | connectors against their real websites, see [adding a website](connectors.md#testing) |
 | `pnpm run knip` | unused files, exports and dependencies |
@@ -55,9 +56,28 @@ pnpm exec electron . --update-url=DISABLED --cache-directory=./build/web --user-
 
 ## Tests
 
-- **Unit tests** are in `__tests__` folders next to the code. The `app` project tests the main process; Electron is
-  replaced with `mockModule('electron', factory)` (`src/app/__tests__/support/mockRequire.js`). The `web` project
-  imports engine modules as ES modules with a fake `window.hakuneko` bridge.
+- **Unit tests** are in `__tests__` folders next to the code, in three Vitest projects (`vitest.config.mjs`):
+  - `app`: the main process (`src/app`) and the scripts that build, sign and publish (`build-app.js`, `deploy-web.js`,
+    `scripts/`). Electron is replaced with `mockModule('electron', factory)`
+    (`src/app/__tests__/support/mockRequire.js`).
+  - `web`: the engine, which is loaded as ES modules in plain Node with fake globals (`window.Engine`, the
+    `window.hakuneko` bridge). A file that needs a DOM starts with `// @vitest-environment happy-dom`.
+  - `ui`: the React components (`src/web/ui/__tests__/*.test.jsx`), in happy-dom with React Testing Library.
+    `support/fakeEngine.js` stands in for the engine (`window.Engine`, `window.hakuneko`), `support/render.jsx` renders
+    with the providers of the application or inside a real in-memory router, and `support/layout.js` gives the elements
+    a size, which a virtual list needs.
+
+  The connectors of the websites have no unit tests, they are run against the sites (see below); the built-in sources in
+  `src/web/mjs/connectors/system` are tested like the rest of the engine. `pnpm run test:coverage` shows what the unit
+  tests do not reach.
+- **`it.fails` marks a known bug.** The test says what is right and the `// BUG:` comment above it says what is wrong and
+  where. It passes while the bug is there and starts to fail when somebody fixes it: then change `it.fails` to `it`.
+  `rg "it\.fails" src` lists them.
+- **The unit tests run on Linux, Windows and macOS** in CI, so a test must not depend on the platform. What has gone
+  wrong before: `process.env.HOME` does not exist on Windows (use `os.homedir()`); `path.resolve('/opt/x')` gets a drive
+  letter there, so compare with `path.resolve`, not with `path.join`; Windows has no file modes (skip those assertions
+  with `it.skipIf(process.platform === 'win32')`); `os.EOL` is `\r\n` there; the temporary directory of macOS is a
+  symlink; a test server that is reused must answer with `Connection: close`.
 - **End-to-end tests** (`src/__tests__/App.e2e.mjs`) start the real application with Playwright's `_electron` in an
   isolated profile that is seeded with the manga list of one connector. `src/__tests__/support/electronApp.mjs` holds
   the fixture (one application per worker; `E2E_WEB` selects another web directory than `build/web`) and fails a test
