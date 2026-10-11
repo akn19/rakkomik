@@ -72,7 +72,8 @@ export async function resolveChapter(connectorId, mangaId, chapterId) {
         chapters = await fetchChapterList(manga);
         queryClient.setQueryData(['chapters', connectorId, mangaId], chapters);
     }
-    const index = chapters.findIndex(entry => entry.id === chapterId);
+    // some connectors hand over numbers as ids, the address only holds text
+    const index = chapters.findIndex(entry => String(entry.id) === String(chapterId));
     if (index < 0) {
         throw new Error(`Chapter "${chapterId}" not found!`);
     }
@@ -105,7 +106,7 @@ export async function resolveManga(connectorId, mangaId) {
         mangas = await fetchMangaList(connector);
         queryClient.setQueryData(['mangas', connectorId], mangas);
     }
-    const manga = mangas.find(entry => entry.id === mangaId);
+    const manga = mangas.find(entry => String(entry.id) === String(mangaId));
     if (!manga) {
         throw new Error(`Manga "${mangaId}" not found for connector "${connector.label}"!`);
     }

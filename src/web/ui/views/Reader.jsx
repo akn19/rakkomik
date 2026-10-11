@@ -12,11 +12,14 @@ const readerRoute = getRouteApi('/reader');
 
 function PageImage({ src, index, width, padding }) {
     const retry = React.useRef(0);
+    const timer = React.useRef(null);
+    // a picture that is not shown any more is not asked for again
+    React.useEffect(() => () => window.clearTimeout(timer.current), []);
     const onError = event => {
         // Classic imgError parity: retry 3x with a cache-busting query.
         if (retry.current < 3) {
             retry.current += 1;
-            window.setTimeout(() => {
+            timer.current = window.setTimeout(() => {
                 event.target.src = src + (src.includes('?') ? '&' : '?') + Date.now();
             }, 1000);
         }
@@ -126,6 +129,12 @@ export default function ReaderView() {
     const [imageWidth, setImageWidth] = React.useState(75);
     const [imagePadding, setImagePadding] = React.useState(2);
     const autoNext = React.useRef(false);
+    const autoNextTimer = React.useRef(null);
+    // "press Space again" is asked and answered in one chapter: the question does not go on to the next one
+    React.useEffect(() => () => {
+        window.clearTimeout(autoNextTimer.current);
+        autoNext.current = false;
+    }, [chapterId]);
     const containerRef = React.useRef(null);
     const keepRatio = React.useRef(null);
 
@@ -134,13 +143,18 @@ export default function ReaderView() {
         queryFn: () => resolveChapter(connectorId, mangaId, chapterId)
     });
     const resolved = resolvedQuery.data;
-    const { selectManga, chapterOrder } = useSelection();
-    // Keep the panels coherent: resolving a deep link selects its manga.
+    const { connectorId: selectedConnectorId, selectConnector, selectManga, chapterOrder } = useSelection();
+    // Keep the panels coherent: resolving a deep link selects its connector and its manga (the links of the panels are
+    // made from the connector of the selection, so a manga under the wrong one would lead to chapters that are not found).
     React.useEffect(() => {
         if (resolved) {
+            if (selectedConnectorId !== connectorId) {
+                // forgets the manga: the one of the link is selected right after
+                selectConnector(connectorId);
+            }
             selectManga(resolved.manga);
         }
-    }, [resolved, selectManga]);
+    }, [resolved, connectorId, selectedConnectorId, selectConnector, selectManga]);
     const chapter = resolved ? resolved.chapters[resolved.index] : null;
 
     const pagesQuery = useQuery({
@@ -152,14 +166,14 @@ export default function ReaderView() {
 
     // Order of the panel's (filtered, sorted) list; the raw list before the panel published it.
     const order = React.useMemo(() => {
-        if (chapterOrder.some(entry => entry.id === chapterId)) {
+        if (chapterOrder.some(entry => String(entry.id) === chapterId)) {
             return chapterOrder;
         }
         return resolved ? resolved.chapters : [];
     }, [chapterOrder, chapterId, resolved]);
 
     const openChapter = React.useCallback(offset => {
-        const index = order.findIndex(entry => entry.id === chapterId);
+        const index = order.findIndex(entry => String(entry.id) === chapterId);
         const target = order[index + offset];
         if (index < 0 || !target) {
             return;
@@ -171,7 +185,7 @@ export default function ReaderView() {
         }
         navigate({
             to: '/reader',
-            search: { connector: connectorId, manga: mangaId, chapter: target.id }
+            search: { connector: connectorId, manga: mangaId, chapter: String(target.id) }
         });
     }, [order, chapterId, connectorId, mangaId, navigate]);
     // chapterUp = the entry above in the list, chapterDown = the entry below.
@@ -236,7 +250,7 @@ export default function ReaderView() {
             }
             autoNext.current = true;
             notify('Press Space again for the next chapter.', 'info');
-            window.setTimeout(() => {
+            autoNextTimer.current = window.setTimeout(() => {
                 autoNext.current = false;
             }, 4000);
             return;
@@ -245,7 +259,8 @@ export default function ReaderView() {
             const rect = image.getBoundingClientRect();
             return rect.top <= window.innerHeight && rect.bottom > 1;
         });
-        const target = inView[inView.length - 1] || images[0];
+        // with no page in view (the window shows the gap between two pages) it goes on with the first page below the window
+        const target = inView[inView.length - 1] || images.find(image => image.getBoundingClientRect().top > window.innerHeight) || images[0];
         if (target.getBoundingClientRect().top > 1) {
             target.scrollIntoView({ behavior: 'smooth' });
         } else if (window.innerHeight + 1 < target.getBoundingClientRect().bottom) {

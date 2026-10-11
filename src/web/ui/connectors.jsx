@@ -4,7 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { openExternalLink, findConnectorsByManga } from './engine.js';
 import { useConnectors } from './connectorsState.js';
 import { updateMangaList } from './queries.js';
-import { useUpdateProgress, updateMessage } from './updateProgress.js';
+import { useUpdateProgress, updateMessage, countTitles } from './updateProgress.js';
 import { useToast } from './notify.jsx';
 import Icon from './icon.jsx';
 
@@ -51,7 +51,8 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
             title={`Click to show mangas from this website\n\nLabel: ${connector.label}\nID: ${connector.id}\nURL: ${connector.url}`}
             onClick={onSelect}
             onKeyDown={event => {
-                if (event.key === 'Enter') {
+                // Enter on one of the buttons of the card is for that button
+                if (event.key === 'Enter' && event.target === event.currentTarget) {
                     onSelect();
                 }
             }}
@@ -137,7 +138,8 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
     const visible = React.useMemo(() => {
         const needle = pattern.toLowerCase();
         return connectors.filter(connector => {
-            const patternMatch = !needle || (connector.id + connector.label + connector.url).toLowerCase().includes(needle);
+            // not every connector has a url (bookmarks, clipboard, folder): it must not be matched as the word "undefined"
+            const patternMatch = !needle || (connector.id + connector.label + (connector.url || '')).toLowerCase().includes(needle);
             const tagsMatch = selectedTags.every(tag => (connector.tags || []).includes(tag));
             const mangaMatch = !mangaMatches || mangaMatches.includes(connector.id);
             return patternMatch && tagsMatch && mangaMatch;
@@ -153,6 +155,13 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
         overscan: 4
     });
 
+    // The parent makes a new function on every render of its own: the effect below must not follow it, or every render of the
+    // panel (the progress of an update, a connector that registers) would select the name field again and take the focus.
+    const onCloseRef = React.useRef(onClose);
+    React.useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
+
     React.useEffect(() => {
         if (!open) {
             return undefined;
@@ -163,12 +172,12 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
         }
         const onKeyDown = event => {
             if (event.key === 'Escape') {
-                onClose();
+                onCloseRef.current();
             }
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [open, onClose]);
+    }, [open]);
 
     React.useLayoutEffect(() => {
         const element = listRef.current;
@@ -185,7 +194,12 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
         setSelectedTags(current => current.includes(tag) ? current.filter(entry => entry !== tag) : [...current, tag]);
     };
 
+    // a search that still runs when the filters are reset must not apply its result afterwards
+    const searchRef = React.useRef(0);
+
     const clearFilters = () => {
+        searchRef.current++;
+        setSearching(false);
         setPattern('');
         setMangaPattern('');
         setMangaMatches(null);
@@ -193,17 +207,25 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
     };
 
     const searchByManga = async () => {
+        const search = ++searchRef.current;
         if (!mangaPattern.trim()) {
             setMangaMatches(null);
             return;
         }
         setSearching(true);
         try {
-            setMangaMatches(await findConnectorsByManga(mangaPattern));
+            const matches = await findConnectorsByManga(mangaPattern);
+            if (search === searchRef.current) {
+                setMangaMatches(matches);
+            }
         } catch (error) {
-            notify(`Manga search failed: ${error.message}`, 'error');
+            if (search === searchRef.current) {
+                notify(`Manga search failed: ${error.message}`, 'error');
+            }
         } finally {
-            setSearching(false);
+            if (search === searchRef.current) {
+                setSearching(false);
+            }
         }
     };
 
@@ -215,7 +237,7 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
         try {
             const mangas = await updateMangaList(connector);
             queryClient.setQueryData(['mangas', connector.id], mangas);
-            notify(`Updated ${connector.label} (${mangas.length} titles).`, 'success');
+            notify(`Updated ${connector.label} (${countTitles(mangas.length)}).`, 'success');
         } catch (error) {
             notify(`Failed to update manga list for ${connector.label}\n${error.message}`, 'error');
         } finally {

@@ -145,3 +145,122 @@ describe('ui queries', () => {
         bridge.toggleChaptermark({ id: 'c' }, { chapterID: 'c' });
     });
 });
+
+describe('ui queries: what is said when the engine says nothing', () => {
+    it('should name what failed when the engine gives neither an error nor a result', async () => {
+        fakeEngine();
+        const conn = queries.getConnector('c1');
+        conn.getMangas.mockImplementationOnce(callback => callback(null, undefined));
+        await expect(queries.fetchMangaList(conn)).rejects.toThrow('Failed to load manga list for "Label c1"!');
+        conn.updateMangas.mockImplementationOnce(callback => callback(null, undefined));
+        await expect(queries.updateMangaList(conn)).rejects.toThrow('Failed to update manga list for "Label c1"!');
+        const noChapters = { title: 'Title m1', getChapters: callback => callback(null, undefined) };
+        await expect(queries.fetchChapterList(noChapters)).rejects.toThrow('Failed to load chapters for "Title m1"!');
+        const noPages = { title: 'Ch 1', getPages: callback => callback(null, undefined) };
+        await expect(queries.fetchPages(noPages)).rejects.toThrow('Failed to load pages for "Ch 1"!');
+    });
+
+    it('should prefer the error of the engine to the generic message', async () => {
+        fakeEngine();
+        const conn = queries.getConnector('c1');
+        const failure = new Error('HTTP 503');
+        conn.updateMangas.mockImplementationOnce(callback => callback(failure, [{ id: 'ignored' }]));
+        await expect(queries.updateMangaList(conn)).rejects.toBe(failure);
+    });
+
+    it('should accept an empty list as a list: a site with nothing is not a failure', async () => {
+        fakeEngine();
+        const conn = queries.getConnector('c1');
+        conn.getMangas.mockImplementationOnce(callback => callback(null, []));
+        await expect(queries.fetchMangaList(conn)).resolves.toEqual([]);
+        const noChapters = { title: 'Title', getChapters: callback => callback(null, []) };
+        await expect(queries.fetchChapterList(noChapters)).resolves.toEqual([]);
+    });
+
+    it('should name the connector in the error for an unknown one', () => {
+        fakeEngine();
+        expect(() => queries.getConnector('nope')).toThrow('Unknown connector "nope"!');
+    });
+
+    it('should name the manga and the connector when a manga is not found', async () => {
+        fakeEngine();
+        await expect(queries.resolveManga('c1', 'ghost')).rejects.toThrow('Manga "ghost" not found for connector "Label c1"!');
+    });
+
+    it('should name the chapter when it is not found', async () => {
+        fakeEngine();
+        await expect(queries.resolveChapter('c1', 'm1', 'ghost')).rejects.toThrow('Chapter "ghost" not found!');
+    });
+});
+
+describe('ui queries: the cache', () => {
+    it('should keep what it reads until it is told otherwise: the sites are only asked on an explicit update', () => {
+        expect(queries.queryClient.getDefaultOptions().queries).toEqual({
+            staleTime: Infinity,
+            gcTime: Infinity,
+            retry: false,
+            refetchOnWindowFocus: false
+        });
+    });
+
+    it('should keep the manga list of each connector apart', async () => {
+        fakeEngine();
+        const first = await queries.resolveManga('c1', 'm1');
+        const second = await queries.resolveManga('c2', 'm1');
+        expect(second).not.toBe(first);
+        expect(first.connector.id).toBe('c1');
+        expect(second.connector.id).toBe('c2');
+        await expect(queries.resolveManga('c2', 'other')).rejects.toThrow('Manga "other" not found for connector "Label c2"!');
+    });
+
+    it('should read the chapters of a manga once, and keep them for the next lookup', async () => {
+        fakeEngine();
+        const resolved = await queries.resolveChapter('c1', 'm1', 'm1-c1');
+        const again = await queries.resolveChapter('c1', 'm1', 'm1-c1');
+        expect(again.chapters).toBe(resolved.chapters);
+        expect(resolved.manga.getChapters).toHaveBeenCalledTimes(1);
+        expect(queries.queryClient.getQueryData(['chapters', 'c1', 'm1'])).toBe(resolved.chapters);
+    });
+
+    it('should use the chapters that a view has already cached', async () => {
+        fakeEngine();
+        const cached = [{ id: 'x1' }, { id: 'x2' }];
+        queries.queryClient.setQueryData(['mangas', 'c1'], [{ id: 'm1', title: 'T', getChapters: vi.fn() }]);
+        queries.queryClient.setQueryData(['chapters', 'c1', 'm1'], cached);
+        const resolved = await queries.resolveChapter('c1', 'm1', 'x2');
+        expect(resolved.index).toBe(1);
+        expect(resolved.manga.getChapters).not.toHaveBeenCalled();
+    });
+
+    it('should wait for the connectors to register before it looks one up, as a link to the reader is read at once', async () => {
+        const connectors = [];
+        let release = null;
+        fakeEngine({
+            Connectors: connectors,
+            ConnectorsReady: new Promise(resolve => {
+                release = resolve;
+            })
+        });
+        let result = 'pending';
+        const resolving = queries.resolveManga('late', 'm1').then(
+            value => {
+                result = value;
+            },
+            error => {
+                result = error;
+            }
+        );
+        await Promise.resolve();
+        expect(result).toBe('pending');
+        connectors.push(connector('late'));
+        release(connectors);
+        await resolving;
+        expect(result).toMatchObject({ id: 'm1' });
+    });
+
+    it('should count the downloads that it queued, none for an empty list', () => {
+        fakeEngine();
+        expect(queries.addChapterDownloads([])).toBe(0);
+        expect(globalThis.window.Engine.DownloadManager.addDownload).not.toHaveBeenCalled();
+    });
+});

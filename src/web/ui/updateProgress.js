@@ -49,3 +49,10 @@ export function updateMessage(progress) {
     const text = describeUpdateProgress(progress);
     return text ? `Updating… ${text}` : 'Updating…';
 }
+
+/**
+ * `1 title`, `2 titles`: the size of a manga list in the messages that say it was updated.
+ */
+export function countTitles(count) {
+    return `${count} ${count === 1 ? 'title' : 'titles'}`;
+}

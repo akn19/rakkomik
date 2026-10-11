@@ -49,11 +49,41 @@ describe('ui engine bridge', () => {
         });
         const notify = vi.fn();
         const unsubscribe = bridge.subscribeBookmarks(notify);
-        expect(bridge.getBookmarks()).toBe(bookmarks);
+        expect(bridge.getBookmarks()).toEqual(bookmarks);
         listeners.added();
         expect(notify).toHaveBeenCalledTimes(1);
         expect(bridge.deleteBookmark(bookmarks[0])).toBe(true);
         unsubscribe();
+    });
+
+    it('should hand out a new bookmark snapshot only when the list that the manager changes in place has changed', () => {
+        const first = { key: { manga: 'a', connector: 'c' }, title: { manga: 'A', connector: 'C' } };
+        const second = { key: { manga: 'b', connector: 'c' }, title: { manga: 'B', connector: 'C' } };
+        const bookmarks = [first];
+        fakeEngine({ BookmarkManager: { bookmarks } });
+        const snapshot = bridge.getBookmarks();
+        // React compares snapshots by identity: an unchanged list must give the very same array
+        expect(bridge.getBookmarks()).toBe(snapshot);
+        bookmarks.push(second);
+        const added = bridge.getBookmarks();
+        expect(added).not.toBe(snapshot);
+        expect(added).toEqual([first, second]);
+        // a change that keeps the length: the same bookmarks in another order
+        bookmarks.reverse();
+        const sorted = bridge.getBookmarks();
+        expect(sorted).not.toBe(added);
+        expect(sorted).toEqual([second, first]);
+        bookmarks.splice(0, 2);
+        expect(bridge.getBookmarks()).toEqual([]);
+        // the snapshot is a copy: changing it does not change the manager
+        expect(bridge.getBookmarks()).not.toBe(bookmarks);
+    });
+
+    it('should give the same empty bookmark snapshot every time while there is no engine, or no bookmark', () => {
+        expect(bridge.getBookmarks()).toBe(bridge.getBookmarks());
+        fakeEngine({ BookmarkManager: { bookmarks: [] } });
+        expect(bridge.getBookmarks()).toBe(bridge.getBookmarks());
+        expect(bridge.getBookmarks()).toEqual([]);
     });
 
     it('should roundtrip a settings draft through save with numeric clamping', async () => {

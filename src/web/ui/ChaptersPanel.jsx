@@ -44,7 +44,8 @@ const STATUS = {
         icon: 'cloudDownload',
         color: 'text-(--chapter-button-queued-color)',
         text: 'text-(--status-queued-color)',
-        tooltip: 'QUEUED\nClick to remove chapter from download manager'
+        // the download manager has no way to take a chapter out of its queue: there is nothing to click for
+        tooltip: 'QUEUED'
     },
     downloading: {
         icon: 'cloudDownload',
@@ -91,7 +92,7 @@ function matchTitle(title, pattern) {
  */
 export default function ChaptersPanel({ readerEnabled }) {
     const navigate = useNavigate();
-    const { chapter: openChapterId } = useSearch({ strict: false });
+    const { connector: openConnectorId, manga: openMangaId, chapter: openChapterId } = useSearch({ strict: false });
     const { connectorId, manga, setChapterOrder } = useSelection();
     const [pattern, setPattern] = React.useState('');
     const [language, setLanguage] = React.useState('');
@@ -102,11 +103,18 @@ export default function ChaptersPanel({ readerEnabled }) {
     const { notify } = useToast();
 
     const chaptersQuery = useQuery({
-        queryKey: ['chapters', connectorId, manga && manga.id],
+        // the key of the reader is made from the address, which holds text: ids that are numbers must make the same key
+        queryKey: ['chapters', connectorId, manga && String(manga.id)],
         queryFn: () => fetchChapterList(manga),
         enabled: !!manga
     });
     const chapters = React.useMemo(() => chaptersQuery.data || [], [chaptersQuery.data]);
+    // a list that cannot be loaded would only look empty
+    React.useEffect(() => {
+        if (chaptersQuery.error) {
+            notify(`Failed to load the chapter list: ${chaptersQuery.error.message}`, 'error');
+        }
+    }, [chaptersQuery.error, notify]);
 
     // A download changes the status of its chapter in place (queued, downloading, completed), which React cannot see:
     // a query that re-reads the list returns the same objects and keeps its old data. So redraw the rows on the event.
@@ -158,7 +166,8 @@ export default function ChaptersPanel({ readerEnabled }) {
     const openReader = chapter => {
         navigate({
             to: '/reader',
-            search: { connector: connectorId, manga: manga.id, chapter: chapter.id }
+            // some connectors hand over numbers as ids: the route of the reader only takes text
+            search: { connector: connectorId, manga: String(manga.id), chapter: String(chapter.id) }
         });
     };
 
@@ -269,7 +278,8 @@ export default function ChaptersPanel({ readerEnabled }) {
                         }
                         const status = STATUS[chapter.status] || { icon: 'warning', color: '', text: '', tooltip: 'No tooltip available!' };
                         const marked = isChapterMarked(chapter, markedChapter);
-                        const open = openChapterId === chapter.id;
+                        // the chapter that is open in the reader: the id of a chapter of another manga can be the same
+                        const open = openChapterId === String(chapter.id) && openMangaId === String(manga.id) && openConnectorId === connectorId;
                         return (
                             <div
                                 key={chapter.id}

@@ -14,6 +14,9 @@ import BookmarksView from './views/BookmarksView.jsx';
 // so path history is unusable.
 const rootRoute = createRootRoute({ component: Shell });
 
+// An id is text, whatever it looks like: the router reads a bare 12345 of an address as a number.
+const text = value => (typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '');
+
 const startRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: StartView });
 const downloadsRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -26,9 +29,9 @@ const readerRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/reader',
     validateSearch: search => ({
-        connector: typeof search.connector === 'string' ? search.connector : '',
-        manga: typeof search.manga === 'string' ? search.manga : '',
-        chapter: typeof search.chapter === 'string' ? search.chapter : ''
+        connector: text(search.connector),
+        manga: text(search.manga),
+        chapter: text(search.chapter)
     }),
     component: ReaderView
 });
@@ -39,7 +42,8 @@ const routeTree = rootRoute.addChildren([
     bookmarksRoute
 ]);
 
-const router = createRouter({ routeTree, history: createHashHistory() });
+// An address that nothing serves keeps the panels and says so where the view would be (the router warns when it has no text of its own).
+const router = createRouter({ routeTree, history: createHashHistory(), defaultNotFoundComponent: () => <p>Page not found.</p> });
 
 export default function AppRouter() {
     return <RouterProvider router={router} />;

@@ -51,3 +51,12 @@ describe('getUpdateProgress', () => {
         expect(bridge.getUpdateProgress(undefined)).toBeUndefined();
     });
 });
+
+describe('countTitles', () => {
+    it('should say "title" for one and "titles" for any other number', () => {
+        expect(progress.countTitles(1)).toBe('1 title');
+        expect(progress.countTitles(0)).toBe('0 titles');
+        expect(progress.countTitles(2)).toBe('2 titles');
+        expect(progress.countTitles(1200)).toBe('1200 titles');
+    });
+});

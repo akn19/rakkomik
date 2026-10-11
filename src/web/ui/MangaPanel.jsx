@@ -1,10 +1,10 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { toggleBookmark, isMangaBookmarked, subscribeBookmarks } from './engine.js';
+import { toggleBookmark, isMangaBookmarked, subscribeBookmarks, getUpdateProgress, announceConnector, announceManga } from './engine.js';
 import { useConnectors } from './connectorsState.js';
 import { fetchMangaList, updateMangaList } from './queries.js';
-import { useUpdateProgress, describeUpdateProgress, updateMessage } from './updateProgress.js';
+import { useUpdateProgress, describeUpdateProgress, updateMessage, countTitles } from './updateProgress.js';
 import { useToast } from './notify.jsx';
 import { useSelection } from './selection.jsx';
 import ConnectorDialog from './connectors.jsx';
@@ -35,16 +35,35 @@ export default function MangaPanel({ readerEnabled }) {
     const queryClient = useQueryClient();
     const { connectors, ready } = useConnectors();
     const [pattern, setPattern] = React.useState('');
-    const [updating, setUpdating] = React.useState(false);
+    // the connectors that this panel is updating, by id: the busy state belongs to a connector, not to the panel
+    const [updating, setUpdating] = React.useState({});
     const [pickerOpen, setPickerOpen] = React.useState(false);
     const scrollRef = React.useRef(null);
 
     // the default (first) connector is only known once the list is complete and sorted
     const effectiveId = connectorId || (ready && connectors[0] ? connectors[0].id : '');
     const connector = connectors.find(entry => entry.id === effectiveId);
+    // The chapter list and the reader read the connector from the selection, so the default one has to be put there:
+    // without it the link of the reader is made with an empty connector and the chapter is "not found".
+    React.useEffect(() => {
+        if (!connectorId && effectiveId) {
+            selectConnector(effectiveId);
+        }
+    }, [connectorId, effectiveId, selectConnector]);
+    // the Discord presence shows what is browsed
+    React.useEffect(() => {
+        if (connector) {
+            announceConnector(connector);
+        }
+    }, [connector]);
+    React.useEffect(() => {
+        if (selectedManga) {
+            announceManga(selectedManga);
+        }
+    }, [selectedManga]);
     const progress = useUpdateProgress(connector);
     // the engine knows about updates that were started elsewhere as well (the connector dialog)
-    const refreshing = updating || !!progress;
+    const refreshing = !!updating[effectiveId] || !!progress;
     const bookmarked = React.useSyncExternalStore(
         subscribeBookmarks,
         () => (selectedManga ? isMangaBookmarked(selectedManga) : false)
@@ -63,15 +82,11 @@ export default function MangaPanel({ readerEnabled }) {
         }
     }, [ready, queryClient]);
 
-    // The bookmark connector mirrors the bookmark list: reload it on change.
-    React.useEffect(() => {
-        if (effectiveId !== BOOKMARK_CONNECTOR_ID) {
-            return undefined;
-        }
-        return subscribeBookmarks(() => {
-            queryClient.invalidateQueries({ queryKey: ['mangas', BOOKMARK_CONNECTOR_ID] });
-        });
-    }, [effectiveId, queryClient]);
+    // The bookmark connector mirrors the bookmark list: reload it on change, also while another connector is shown (the
+    // list is kept for good, so it would be out of date when it is shown again).
+    React.useEffect(() => subscribeBookmarks(() => {
+        queryClient.invalidateQueries({ queryKey: ['mangas', BOOKMARK_CONNECTOR_ID] });
+    }), [queryClient]);
 
     const total = mangaQuery.data ? mangaQuery.data.length : 0;
     const mangas = React.useMemo(
@@ -87,18 +102,19 @@ export default function MangaPanel({ readerEnabled }) {
     });
 
     const update = async target => {
-        if (!target || updating) {
+        // an update that runs elsewhere (the connector dialog) is not started a second time: the engine would not answer
+        if (!target || updating[target.id] || getUpdateProgress(target)) {
             return;
         }
-        setUpdating(true);
+        setUpdating(current => ({ ...current, [target.id]: true }));
         try {
             const updated = await updateMangaList(target);
             queryClient.setQueryData(['mangas', target.id], updated);
-            notify(`Manga list updated (${updated.length} titles).`, 'success');
+            notify(`Manga list updated (${countTitles(updated.length)}).`, 'success');
         } catch (error) {
             notify(`Failed to update manga list for ${target.label}\n${error.message}`, 'error');
         } finally {
-            setUpdating(false);
+            setUpdating(current => ({ ...current, [target.id]: false }));
         }
     };
 
@@ -247,10 +263,11 @@ export default function MangaPanel({ readerEnabled }) {
                         if (!manga) {
                             return null;
                         }
-                        const selected = selectedManga && selectedManga.id === manga.id;
+                        // the lists of the bookmarks and of the clipboard hold mangas of several websites: the id is not enough
+                        const selected = selectedManga && selectedManga.id === manga.id && selectedManga.connector.id === manga.connector.id;
                         return (
                             <div
-                                key={manga.id}
+                                key={`${manga.connector.id}/${manga.id}`}
                                 role="option"
                                 aria-selected={!!selected}
                                 title={`${manga.title}\n${manga.connector.label}`}
@@ -272,7 +289,7 @@ export default function MangaPanel({ readerEnabled }) {
             )}
             <StatusLine
                 message={refreshing ? updateMessage(progress) : `Mangas: ${mangas.length} / ${total}`}
-                busy={refreshing || mangaQuery.isPending || !ready}
+                busy={refreshing || mangaQuery.isLoading || !ready}
                 busyTitle={
                     !ready
                         ? `Loading connectors (${connectors.length})`

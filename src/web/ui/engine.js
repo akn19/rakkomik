@@ -138,12 +138,25 @@ export function subscribeSettings(listener) {
     return () => settings.removeEventListener('saved', handler);
 }
 
+const NO_BOOKMARKS = [];
+let bookmarksCache = NO_BOOKMARKS;
+
+/**
+ * Snapshot of the bookmarks for `useSyncExternalStore`. The manager changes its list in place (add, remove, sort,
+ * import) and announces it with an event, but React compares snapshots by identity: the list itself would never redraw
+ * anything. So this hands out a copy that is replaced only when the list differs from the copy given out last.
+ */
 export function getBookmarks() {
+    let list = NO_BOOKMARKS;
     try {
-        return getEngine().BookmarkManager.bookmarks;
+        list = getEngine().BookmarkManager.bookmarks;
     } catch {
-        return [];
+        return NO_BOOKMARKS;
     }
+    if (list.length !== bookmarksCache.length || list.some((bookmark, index) => bookmark !== bookmarksCache[index])) {
+        bookmarksCache = list.slice();
+    }
+    return bookmarksCache;
 }
 
 export function subscribeBookmarks(notify) {
@@ -218,12 +231,33 @@ export function isChapterMarked(chapter, markedChapter) {
     }
 }
 
+// The manager takes a job out of its queue when the job starts, so the queue only holds what still waits: a job that
+// downloads, or one that failed, is known from the events of the manager alone. They are followed from the first call
+// on (the application subscribes when it starts, before anything can be downloaded), the way the list of the jobs bar is.
+const jobTrackers = new WeakMap();
+
+function trackJobs(manager) {
+    let tracker = jobTrackers.get(manager);
+    if (!tracker) {
+        tracker = {
+            jobs: Object.values(manager.queue || {})
+                .filter(entry => Array.isArray(entry))
+                .flat()
+        };
+        manager.addEventListener('updated', event => {
+            tracker.jobs = mergeDownloadJobs(tracker.jobs, event.detail);
+        });
+        jobTrackers.set(manager, tracker);
+    }
+    return tracker;
+}
+
+/**
+ * The jobs that wait, download or failed. The list is replaced when it changes, never changed in place.
+ */
 export function getDownloadJobs() {
     try {
-        const queue = getEngine().DownloadManager.queue || {};
-        return Object.values(queue)
-            .filter(entry => Array.isArray(entry))
-            .flat();
+        return trackJobs(getEngine().DownloadManager).jobs;
     } catch {
         return [];
     }
@@ -233,6 +267,8 @@ export function subscribeDownloads(listener) {
     let manager = null;
     try {
         manager = getEngine().DownloadManager;
+        // before the listener: the list of jobs is up to date when a listener is told about an event
+        trackJobs(manager);
     } catch {
         return () => undefined;
     }
@@ -249,6 +285,19 @@ export function subscribeChapterStatus(listener) {
     // the engine announces it on the document, under the name Enums.EventListener.onChapterStatusChanged
     document.addEventListener('onChapterStatusChanged', listener);
     return () => document.removeEventListener('onChapterStatusChanged', listener);
+}
+
+/**
+ * Tell the engine what the user selected, which the Discord presence shows: it listens for these events on the document,
+ * where the pages of the classic interface announced them (the chapter is announced by the engine itself, when its pages
+ * are asked for). The names are Enums.EventListener.onSelectConnector and .onSelectManga.
+ */
+export function announceConnector(connector) {
+    document.dispatchEvent(new CustomEvent('onSelectConnector', { detail: connector }));
+}
+
+export function announceManga(manga) {
+    document.dispatchEvent(new CustomEvent('onSelectManga', { detail: manga }));
 }
 
 /**

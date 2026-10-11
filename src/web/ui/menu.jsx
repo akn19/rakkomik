@@ -48,7 +48,19 @@ function ExternalLink({ href, title, children }) {
 }
 
 function SettingControl({ item, onChange }) {
+    const { notify } = useToast();
     const ref = item.ref;
+    // the dialog is the main process's: when it fails the user is told, and the choice stays as it was
+    const browse = async choose => {
+        try {
+            const path = await choose();
+            if (path) {
+                onChange(path);
+            }
+        } catch (error) {
+            notify(`Failed to choose a path: ${error.message}`, 'error');
+        }
+    };
     switch (ref.input) {
         case 'password':
             return <PasswordField value={item.value} title={ref.description} onChange={onChange} />;
@@ -63,12 +75,7 @@ function SettingControl({ item, onChange }) {
                 <PathField
                     value={item.value}
                     browseTitle="Choose file …"
-                    onBrowse={async () => {
-                        const path = await browseFile();
-                        if (path) {
-                            onChange(path);
-                        }
-                    }}
+                    onBrowse={() => browse(browseFile)}
                 />
             );
         case 'directory':
@@ -76,12 +83,7 @@ function SettingControl({ item, onChange }) {
                 <PathField
                     value={item.value}
                     browseTitle="Browse …"
-                    onBrowse={async () => {
-                        const path = await browseDirectory(item.value);
-                        if (path) {
-                            onChange(path);
-                        }
-                    }}
+                    onBrowse={() => browse(() => browseDirectory(item.value))}
                 />
             );
         case 'disabled':
