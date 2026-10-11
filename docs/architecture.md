@@ -86,6 +86,21 @@ React user interface. The website connectors load in the background afterwards, 
 
 Writes are atomic: a file is written next to its target and renamed over it.
 
+## Downloads
+
+`DownloadManager` keeps a queue per website and runs one job at a time for each of them (a worker looks at the queues
+every 250 ms). A job leaves its queue when it starts, so the manager keeps the jobs that run as well (`jobs` lists both),
+and the interface follows all of them through the `updated` events of the manager.
+
+A download can be canceled: `cancel(job)` for one, `cancelChapter(chapter)` for the chapter that the user sees and
+`cancelAll()` for every one (the jobs that wait go first, so that none of them starts when a job that runs gives its
+place back). A job that waits is taken out of its queue; a job that runs stops the requests of its pages, which share
+one `AbortSignal`, and gives its place back. The job gets the status `canceled`, which belongs to the job only: its
+chapter goes back to what it was before (`available`, or `completed` when the files are already there), and the
+interface drops the job from its lists. A job that is writing its pages cannot be canceled any more (`cancel` answers
+`false`): the write cannot be stopped, and the chapter would show up on the disk although the job says that it was
+canceled.
+
 ## Novels
 
 A novel is text, so a chapter is never an image. A connector takes the text of a chapter from its page with

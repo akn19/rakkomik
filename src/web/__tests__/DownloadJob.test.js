@@ -42,7 +42,8 @@ function createChapter({ pages = PAGES, connector = {}, title = 'Chapter 1' } = 
         manga: {
             title: 'One Piece',
             connector: { id: 'site', label: 'Site', requestOptions: { method: 'GET', headers: new Headers({ referer: 'https://site.test' }) }, ...connector },
-            updateStatus: vi.fn()
+            updateStatus: vi.fn(),
+            isChapterFileExisting: vi.fn(() => false)
         },
         setStatus: vi.fn(status => {
             chapter.status = status;
@@ -628,5 +629,193 @@ describe('the pages of a chapter that already failed', () => {
         const callback = await run(job);
         expect(callback).toHaveBeenCalledTimes(1);
         expect(job.errors).toHaveLength(1);
+    });
+});
+
+describe('canceling a job', () => {
+    // a request that is answered when the test says so, and ends with the error of an abort when its signal is aborted
+    function controlledFetch() {
+        const requests = [];
+        const fetch = vi.fn((url, options) => new Promise((resolve, reject) => {
+            options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+            requests.push({ url, signal: options.signal, answer: () => resolve(answer()) });
+        }));
+        vi.stubGlobal('fetch', fetch);
+        return { fetch, requests };
+    }
+
+    function queued(chapter = createChapter()) {
+        const job = new DownloadJob(chapter);
+        job.setStatus('queued');
+        return job;
+    }
+
+    it('should stop a job that waits: it is canceled, nobody asks for its pages, and the chapter is available again', () => {
+        const chapter = createChapter();
+        const job = queued(chapter);
+        expect(chapter.status).toBe('queued');
+        const events = watch(job);
+        expect(job.cancel()).toBe(true);
+        expect(job.status).toBe('canceled');
+        expect(chapter.status).toBe('available');
+        expect(chapter.manga.updateStatus).toHaveBeenCalled();
+        expect(events.map(event => event.status)).toEqual(['canceled']);
+        expect(chapter.getPages).not.toHaveBeenCalled();
+    });
+
+    it('should give back a chapter whose file is on the device (a download that was asked for again) as downloaded', () => {
+        const chapter = createChapter();
+        chapter.manga.isChapterFileExisting.mockReturnValue(true);
+        const job = queued(chapter);
+        job.cancel();
+        expect(chapter.manga.isChapterFileExisting).toHaveBeenCalledWith(chapter);
+        expect(chapter.status).toBe('completed');
+    });
+
+    it.each(MODES)('should stop a job that loads its pages %s: the other pages are not asked for, nothing is written, and it is no failure', async (name, sequential) => {
+        mode(sequential);
+        const { fetch, requests } = controlledFetch();
+        const job = new DownloadJob(createChapter());
+        const events = watch(job);
+        const callback = vi.fn();
+        job.downloadPages('', callback);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(job.status).toBe('downloading');
+
+        expect(job.cancel()).toBe(true);
+        expect(requests[0].signal.aborted).toBe(true);
+        const count = events.length;
+        await vi.advanceTimersByTimeAsync(10000);
+
+        expect(job.status).toBe('canceled');
+        expect(job.errors).toEqual([]);
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(Engine.Storage.saveChapterPages).not.toHaveBeenCalled();
+        // nobody is told anything after the cancellation, the progress included
+        expect(events).toHaveLength(count);
+        expect(events[events.length - 1].status).toBe('canceled');
+        expect(job.chapter.status).toBe('available');
+        // the manager has its place back, once
+        expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should stop requests that are on their way, the ones that were answered already included', async () => {
+        const { fetch, requests } = controlledFetch();
+        const job = new DownloadJob(createChapter());
+        const callback = vi.fn();
+        job.downloadPages('', callback);
+        await vi.advanceTimersByTimeAsync(100);
+        expect(fetch).toHaveBeenCalledTimes(3);
+        requests[0].answer();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(job.progress).toBeGreaterThan(0);
+        const progress = job.progress;
+        job.cancel();
+        expect(requests.map(request => request.signal.aborted)).toEqual([true, true, true]);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(job.progress).toBe(progress);
+        expect(job.errors).toEqual([]);
+    });
+
+    it('should stop a job while the connector still collects the pages: the pages that arrive later are not downloaded', async () => {
+        const chapter = createChapter();
+        let answerLater = null;
+        chapter.getPages = vi.fn(callback => {
+            answerLater = callback;
+        });
+        const fetch = stubFetch();
+        const job = new DownloadJob(chapter);
+        const callback = vi.fn();
+        job.downloadPages('', callback);
+        expect(job.cancel()).toBe(true);
+        expect(callback).toHaveBeenCalledTimes(1);
+
+        answerLater(null, PAGES);
+        await vi.runAllTimersAsync();
+
+        expect(fetch).not.toHaveBeenCalled();
+        expect(job.status).toBe('canceled');
+        expect(job.errors).toEqual([]);
+        expect(Engine.Storage.saveChapterPages).not.toHaveBeenCalled();
+        expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should stop a job whose connector fails after the cancellation without calling it a failure', async () => {
+        const chapter = createChapter();
+        let answerLater = null;
+        chapter.getPages = vi.fn(callback => {
+            answerLater = callback;
+        });
+        const job = new DownloadJob(chapter);
+        const callback = vi.fn();
+        job.downloadPages('', callback);
+        job.cancel();
+        answerLater(new Error('site is down'), undefined);
+        await vi.runAllTimersAsync();
+        expect(job.status).toBe('canceled');
+        expect(job.errors).toEqual([]);
+        expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should write nothing when it is canceled while the last page arrives', async () => {
+        const job = new DownloadJob(createChapter({ pages: [PAGES[0]] }));
+        stubFetch(() => {
+            const response = answer();
+            response.blob = vi.fn(async () => {
+                job.cancel();
+                return new Blob(['page']);
+            });
+            return response;
+        });
+        const callback = vi.fn();
+        job.downloadPages('', callback);
+        await vi.runAllTimersAsync();
+        expect(job.status).toBe('canceled');
+        expect(Engine.Storage.saveChapterPages).not.toHaveBeenCalled();
+        expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should be too late once the pages are written: the job goes on and completes', async () => {
+        let finishSaving = null;
+        Engine.Storage.saveChapterPages = vi.fn(() => new Promise(resolve => {
+            finishSaving = resolve;
+        }));
+        stubFetch();
+        const job = new DownloadJob(createChapter({ pages: [PAGES[0]] }));
+        const callback = vi.fn();
+        job.downloadPages('', callback);
+        await vi.advanceTimersByTimeAsync(100);
+        expect(Engine.Storage.saveChapterPages).toHaveBeenCalledTimes(1);
+
+        expect(job.cancel()).toBe(false);
+        expect(job.status).toBe('downloading');
+        finishSaving();
+        await vi.runAllTimersAsync();
+        expect(job.status).toBe('completed');
+        expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should leave a job alone that is over: completed or failed', async () => {
+        vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        stubFetch();
+        const completed = new DownloadJob(createChapter());
+        await run(completed);
+        expect(completed.cancel()).toBe(false);
+        expect(completed.status).toBe('completed');
+        stubFetch(() => answer(500));
+        const failed = new DownloadJob(createChapter());
+        await run(failed);
+        expect(failed.cancel()).toBe(false);
+        expect(failed.status).toBe('failed');
+    });
+
+    it('should have nothing to stop in a job that was never queued or started, or that was stopped already', () => {
+        const fresh = new DownloadJob(createChapter());
+        expect(fresh.cancel()).toBe(false);
+        expect(fresh.status).toBeUndefined();
+        const job = queued();
+        expect(job.cancel()).toBe(true);
+        expect(job.cancel()).toBe(false);
     });
 });

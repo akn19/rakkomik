@@ -9,7 +9,8 @@ const statusDefinitions = {
     queued: 'queued', // chapter/manga that is queued for download to the users device
     downloading: 'downloading', // chapter/manga that is currently downloaded to the users device
     completed: 'completed', // chapter/manga that already exist on the users device
-    failed: 'failed' // chapter/manga that failed to be downloaded
+    failed: 'failed', // chapter/manga that failed to be downloaded
+    canceled: 'canceled' // download that was stopped by the user (only a status of the job: the chapter is what it was before)
 };
 
 export default class DownloadJob extends EventTarget {
@@ -30,6 +31,11 @@ export default class DownloadJob extends EventTarget {
         this.status = undefined;
         this.progress = 0;
         this.errors = [];
+        // the signal of the requests of the pages, and the way to tell the manager that the job is over (see downloadPages)
+        this._abort = undefined;
+        this._over = undefined;
+        // true while the pages are written: the chapter is on the device in a moment, it is too late to stop the job
+        this._saving = false;
     }
 
     /**
@@ -64,15 +70,51 @@ export default class DownloadJob extends EventTarget {
     }
 
     /**
+     * Stop the job. A job that waits is simply not downloaded, one that runs stops asking for its pages and gives its place
+     * back to the manager. It is too late once the pages are written. The chapter is what it was before the job: on the
+     * device when its file is there, available otherwise.
+     * @returns {boolean} whether the job was stopped
+     */
+    cancel() {
+        if( ( this.status !== statusDefinitions.queued && this.status !== statusDefinitions.downloading ) || this._saving ) {
+            return false;
+        }
+        this.status = statusDefinitions.canceled;
+        this.chapter.setStatus( this.chapter.manga.isChapterFileExisting( this.chapter ) ? statusDefinitions.completed : statusDefinitions.available );
+        this.chapter.manga.updateStatus();
+        if( this._abort ) {
+            this._abort.abort();
+        }
+        this.dispatchEvent( new CustomEvent( events.updated, { detail: this } ) );
+        if( this._over ) {
+            this._over();
+        }
+        return true;
+    }
+
+    /**
      *
      */
     downloadPages( directory, callback ) {
+        // the manager gets the place of the job back when the job is over, once: when it ends, fails or is canceled
+        let over = false;
+        this._over = () => {
+            if( !over ) {
+                over = true;
+                callback();
+            }
+        };
+        this._abort = new AbortController();
         this.setStatus( statusDefinitions.downloading );
         this.chapter.getPages( ( error, data ) => {
+            // canceled while the connector collected the pages: nothing is downloaded, the place was given back already
+            if( this.status === statusDefinitions.canceled ) {
+                return;
+            }
             if( !error && data ) {
                 // manga pages (a chapter without any is no chapter: it fails below, like a missing list)
                 if( data instanceof Array && data.length > 0 ) {
-                    this._downloadPages( data, directory, callback );
+                    this._downloadPages( data, directory, this._over );
                     return;
                 }
             }
@@ -84,7 +126,7 @@ export default class DownloadJob extends EventTarget {
             }
             this.setStatus( statusDefinitions.failed );
             this.setProgress( 100 );
-            callback();
+            this._over();
         } );
     }
 
@@ -93,16 +135,25 @@ export default class DownloadJob extends EventTarget {
     }
 
     async _downloadPages(pages, directory, callback) {
-        // the requests of the pages share one signal: when a page fails the others are stopped
-        const abort = new AbortController();
+        // the requests of the pages share one signal: when a page fails, or the job is canceled, the others are stopped
+        const abort = this._abort || new AbortController();
         try {
-            const content = Engine.Settings.useSequentialMediaDownloads.value ? await this._downloadPagesSequential(pages) : await this._downloadPagesConcurrent(pages, abort.signal);
+            const content = Engine.Settings.useSequentialMediaDownloads.value ? await this._downloadPagesSequential(pages, abort.signal) : await this._downloadPagesConcurrent(pages, abort.signal);
+            // canceled while the last pages were on their way: nothing is written
+            if(this.status === statusDefinitions.canceled) {
+                return;
+            }
+            this._saving = true;
             await Engine.Storage.saveChapterPages(this.chapter, content);
             this.setProgress(100);
             this.setStatus(statusDefinitions.completed);
             callback();
         } catch(error) {
             abort.abort();
+            // a job that was canceled has not failed: the requests that were stopped end with an error of their own
+            if(this.status === statusDefinitions.canceled) {
+                return;
+            }
             this.errors.push(error);
             console.error(error, pages);
             this.setProgress(100);
@@ -111,17 +162,20 @@ export default class DownloadJob extends EventTarget {
         }
     }
 
-    async _downloadPagesSequential(pages) {
+    async _downloadPagesSequential(pages, signal = new AbortController().signal) {
         const result = [];
         for(let page of pages) {
             await this._wait(this.throttle);
+            // the job was canceled: the pages that are left are not requested
+            signal.throwIfAborted();
             // NOTE: bounded per-page timeout — a stalled connection must fail
             // the job instead of leaking activeCount and starving the queue.
-            const response = await fetch(page, { ...this.requestOptions, signal: AbortSignal.timeout(120000) });
+            const response = await fetch(page, { ...this.requestOptions, signal: AbortSignal.any([signal, AbortSignal.timeout(120000)]) });
             if(response.status !== 200 && !Engine.Settings.ignoreErrorOnDownload.value) {
                 throw new Error(`Page "${page}" returned status: ${response.status} - ${response.statusText}`);
             }
             result.push(await response.blob());
+            signal.throwIfAborted();
             this.setProgress(this.progress + (pages.length ? 100/pages.length : 0));
         }
         return result;

@@ -63,7 +63,7 @@ function createChapter(connector, title, mangaTitle = `Manga of ${connector.id}`
         title,
         status: 'available',
         statuses: [],
-        manga: { title: mangaTitle, connector, updateStatus: vi.fn() },
+        manga: { title: mangaTitle, connector, updateStatus: vi.fn(), isChapterFileExisting: vi.fn(() => false) },
         setStatus: vi.fn(status => {
             chapter.status = status;
             chapter.statuses.push(status);
@@ -624,5 +624,138 @@ describe('the user interface', () => {
         await tick(WORKER);
         await fail(broken);
         expect(bridge.getDownloadJobs().map(job => job.labels.chapter).sort()).toEqual(['Broken', 'Running']);
+    });
+});
+
+describe('canceling downloads', () => {
+    // two chapters of one site: the first one runs (its pages are asked for), the second one waits behind it
+    async function oneRunsOneWaits(manager, connector = createConnector('site')) {
+        const running = createChapter(connector, 'Running');
+        const waiting = createChapter(connector, 'Waiting');
+        manager.addDownload(running);
+        manager.addDownload(waiting);
+        await tick(WORKER);
+        return { running, waiting, runningJob: [...manager.running][0], waitingJob: manager.queue[connector.id][0] };
+    }
+
+    it('should know the jobs that run, which have left their queue, and the jobs that wait', async () => {
+        const manager = createManager();
+        const { runningJob, waitingJob } = await oneRunsOneWaits(manager);
+        expect(manager.running.size).toBe(1);
+        expect(manager.jobs).toEqual([waitingJob, runningJob]);
+        await succeed(runningJob.chapter);
+        await tick(10);
+        expect(manager.running.has(runningJob)).toBe(false);
+    });
+
+    it('should take a job that waits out of its queue, and never start it', async () => {
+        const manager = createManager();
+        const events = watch(manager);
+        const { running, waiting, waitingJob } = await oneRunsOneWaits(manager);
+        expect(manager.cancel(waitingJob)).toBe(true);
+        expect(manager.queue.site).toHaveLength(0);
+        expect(waitingJob.status).toBe('canceled');
+        expect(waiting.status).toBe('available');
+        expect(events.filter(event => event.job === waitingJob).map(event => event.status)).toEqual(['queued', 'canceled']);
+        await succeed(running);
+        await tick(10 * WORKER);
+        expect(waiting.getPages).not.toHaveBeenCalled();
+        expect(manager.queue.site.activeCount).toBe(0);
+    });
+
+    it('should stop a job that runs, give its place back, and let the next job of the site start', async () => {
+        const manager = createManager();
+        const { running, waiting, runningJob } = await oneRunsOneWaits(manager);
+        expect(waiting.getPages).not.toHaveBeenCalled();
+        expect(manager.cancel(runningJob)).toBe(true);
+        expect(runningJob.status).toBe('canceled');
+        expect(running.status).toBe('available');
+        expect(manager.running.size).toBe(0);
+        expect(manager.queue.site.activeCount).toBe(0);
+        await tick(WORKER);
+        expect(waiting.getPages).toHaveBeenCalledTimes(1);
+        // what the connector answers later is not the business of the job any more
+        await succeed(running);
+        await tick(10 * WORKER);
+        expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('Running'), expect.anything());
+        expect(runningJob.status).toBe('canceled');
+    });
+
+    it('should say that it has nothing to stop for a job that it does not know, or that is over', async () => {
+        vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        const manager = createManager();
+        const stranger = createManager();
+        const connector = createConnector('site');
+        stranger.addDownload(createChapter(connector, 'Stranger'));
+        expect(manager.cancel(stranger.queue.site[0])).toBe(false);
+        expect(stranger.queue.site).toHaveLength(1);
+        const chapter = createChapter(connector, 'Done');
+        manager.addDownload(chapter);
+        const job = manager.queue.site[0];
+        await tick(WORKER);
+        await succeed(chapter);
+        await tick(100);
+        expect(job.status).toBe('completed');
+        expect(manager.cancel(job)).toBe(false);
+    });
+
+    it('should stop the download of a chapter wherever it is, and say so when there is none', async () => {
+        const manager = createManager();
+        const { running, waiting } = await oneRunsOneWaits(manager);
+        expect(manager.cancelChapter(waiting)).toBe(true);
+        expect(manager.cancelChapter(waiting)).toBe(false);
+        expect(manager.cancelChapter(running)).toBe(true);
+        expect(manager.cancelChapter(createChapter(createConnector('site'), 'Nobody asked'))).toBe(false);
+        expect(manager.jobs).toEqual([]);
+    });
+
+    it('should stop every download of every site, those that wait first, and start nothing afterwards', async () => {
+        const manager = createManager();
+        const events = watch(manager);
+        const a = await oneRunsOneWaits(manager, createConnector('site-a'));
+        const b = await oneRunsOneWaits(manager, createConnector('site-b'));
+        expect(manager.cancelAll()).toBe(4);
+        for (const job of [a.runningJob, a.waitingJob, b.runningJob, b.waitingJob]) {
+            expect(job.status).toBe('canceled');
+        }
+        for (const chapter of [a.running, a.waiting, b.running, b.waiting]) {
+            expect(chapter.status).toBe('available');
+        }
+        expect(manager.jobs).toEqual([]);
+        expect(manager.queue['site-a'].activeCount).toBe(0);
+        expect(manager.queue['site-b'].activeCount).toBe(0);
+        // the waiting jobs were stopped before the running ones gave their places back: none of them got to start
+        await tick(10 * WORKER);
+        expect(a.waiting.getPages).not.toHaveBeenCalled();
+        expect(b.waiting.getPages).not.toHaveBeenCalled();
+        expect(events.filter(event => event.status === 'canceled')).toHaveLength(4);
+    });
+
+    it('should have nothing to stop when nothing is downloaded', async () => {
+        const manager = createManager();
+        expect(manager.cancelAll()).toBe(0);
+        const { runningJob } = await oneRunsOneWaits(manager);
+        await succeed(runningJob.chapter);
+        manager.queue.site.splice(0);
+        await tick(100);
+        expect(manager.cancelAll()).toBe(0);
+    });
+
+    it('should download a chapter again that was canceled, as a new job', async () => {
+        const manager = createManager();
+        const connector = createConnector('site');
+        const chapter = createChapter(connector, 'Chapter 1');
+        manager.addDownload(chapter);
+        const first = manager.queue.site[0];
+        manager.cancel(first);
+        manager.addDownload(chapter);
+        const second = manager.queue.site[0];
+        expect(second).not.toBe(first);
+        expect(second.status).toBe('queued');
+        await tick(WORKER);
+        await succeed(chapter);
+        await tick(100);
+        expect(second.status).toBe('completed');
+        expect(first.status).toBe('canceled');
     });
 });
