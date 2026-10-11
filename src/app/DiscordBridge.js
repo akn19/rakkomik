@@ -17,6 +17,7 @@ module.exports = class DiscordBridge {
     constructor(logger) {
         this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
         this._client = null;
+        this._starting = null;
     }
 
     register() {
@@ -35,6 +36,16 @@ module.exports = class DiscordBridge {
         if (this._client) {
             return true;
         }
+        // the renderer asks on every selection event: a call during a pending login shares its outcome
+        if (!this._starting) {
+            this._starting = this._start().finally(() => {
+                this._starting = null;
+            });
+        }
+        return this._starting;
+    }
+
+    async _start() {
         try {
             // loaded on first use: the RPC client and its HTTP stack must not delay the application start
             const { Client } = require('@xhayper/discord-rpc');
@@ -73,6 +84,10 @@ module.exports = class DiscordBridge {
             if (this._client.user) {
                 await this._client.user.clearActivity();
             }
+        } catch (error) {
+            this._logger.warn('DiscordPresence - clearActivity failed (' + (error && error.message) + ')');
+        }
+        try {
             await this._client.destroy();
         } catch (error) {
             this._logger.warn('DiscordPresence - destroy failed (' + (error && error.message) + ')');

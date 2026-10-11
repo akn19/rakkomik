@@ -27,6 +27,8 @@ module.exports = class FetchWindowManager {
 
     constructor(logger) {
         this._logger = logger;
+        // the jobs that run: their windows share the session of the application, which has one listener for the blacklist
+        this._jobs = 0;
     }
 
     register() {
@@ -41,28 +43,31 @@ module.exports = class FetchWindowManager {
      */
     async _run(job) {
         let preloadFile;
-        if (job.preloadScript) {
-            preloadFile = path.join(os.tmpdir(), `rakkomik-fetch-${crypto.randomUUID()}.js`);
-            await fs.promises.writeFile(preloadFile, job.preloadScript);
-        }
-        let preferences = job.preferences || {};
-        let win = new electron.BrowserWindow({
-            show: false,
-            webPreferences: {
-                preload: preloadFile,
-                nodeIntegration: preferences.nodeIntegration || false,
-                webSecurity: preferences.webSecurity || false,
-                images: preferences.images || false
-            }
-        });
-
-        if (job.blacklist && job.blacklist.length) {
-            win.webContents.session.webRequest.onBeforeRequest({ urls: job.blacklist }, (_, callback) => callback({ cancel: true }));
-        }
-
+        let win;
+        this._jobs++;
         try {
+            if (job.preloadScript) {
+                preloadFile = path.join(os.tmpdir(), `rakkomik-fetch-${crypto.randomUUID()}.js`);
+                await fs.promises.writeFile(preloadFile, job.preloadScript);
+            }
+            let preferences = job.preferences || {};
+            win = new electron.BrowserWindow({
+                show: false,
+                webPreferences: {
+                    preload: preloadFile,
+                    nodeIntegration: preferences.nodeIntegration || false,
+                    webSecurity: preferences.webSecurity || false,
+                    images: preferences.images || false
+                }
+            });
+
+            if (job.blacklist && job.blacklist.length) {
+                win.webContents.session.webRequest.onBeforeRequest({ urls: job.blacklist }, (_, callback) => callback({ cancel: true }));
+            }
+
             return await this._load(win, job);
         } finally {
+            this._jobs--;
             this._cleanup(win);
             if (preloadFile) {
                 await fs.promises.unlink(preloadFile).catch(() => undefined);
@@ -188,13 +193,15 @@ module.exports = class FetchWindowManager {
     }
 
     /**
-     * Close window and unsubscribe session events
+     * Close window and unsubscribe session events, unless a job that still runs needs them
      */
     _cleanup(browserWindow) {
         if (browserWindow && !browserWindow.isDestroyed()) {
             try {
                 // unsubscribe events from session
-                browserWindow.webContents.session.webRequest.onBeforeRequest(null);
+                if (!this._jobs) {
+                    browserWindow.webContents.session.webRequest.onBeforeRequest(null);
+                }
             } catch (error) {
                 this._log('warn', error);
             }

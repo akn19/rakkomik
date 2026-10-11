@@ -1,8 +1,9 @@
 const http = require('node:http');
 const net = require('node:net');
 const assert = require('node:assert');
-const { FileLogger } = require('../Logger');
+const { FileLogger, ConsoleLogger } = require('../Logger');
 const UpdateServerManager = require('../UpdateServerManager');
+const UpdatePackageInfo = require('../UpdatePackageInfo');
 var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
 logger.clear();
 
@@ -61,6 +62,9 @@ class TestFixture {
      * @param {Response} response
      */
     _listener(request, response) {
+        // No keep-alive: every test binds the same port, so a connection of the previous server that is still in the
+        // client's pool would be reused and fail with ECONNRESET (seen on Windows).
+        response.setHeader('Connection', 'close');
         if(request.url === '/latest') {
             response.setHeader('Content-Type', 'text/plain');
             response.statusCode = 200;
@@ -271,6 +275,303 @@ describe('UpdateServerManager', function () {
             } catch(error) {
                 assert.equal(error.message, 'Invalid request for connection to the update server!');
             }
+        });
+    });
+});
+
+/**
+ * The same, without a network: `fetch` is a double, and a local server answers where redirects have to be followed.
+ */
+describe('UpdateServerManager with doubles', function () {
+
+    const UPDATE_URL = 'https://updates.example.org/channel/latest';
+    let own = null;
+
+    function answer(status, body = '') {
+        // a response without content has no body
+        return new Response([ 204, 205, 304 ].includes(status) ? null : body, { status });
+    }
+
+    function managerAnswering(response) {
+        let fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => response);
+        return { fetch, manager: new UpdateServerManager(UPDATE_URL, own) };
+    }
+
+    beforeEach(() => {
+        own = { warn: vi.fn() };
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    describe('constructor()', function () {
+
+        it('should log through a console logger of its own when it is given none', function () {
+            assert.ok(new UpdateServerManager('DISABLED')._logger instanceof ConsoleLogger);
+        });
+
+        it.each([
+            [ 'a secure URL', 'https://updates.example.org/latest' ],
+            [ 'a plain one', 'http://127.0.0.1:8080/latest' ],
+            [ 'a URL with a query', 'https://updates.example.org/latest?channel=beta' ]
+        ])('should be enabled by %s, without a warning', function (_, url) {
+            let manager = new UpdateServerManager(url, own);
+            expect(manager.isDisabled).toBe(false);
+            expect(own.warn).not.toHaveBeenCalled();
+        });
+
+        it('should be switched off on purpose by DISABLED, and be quiet about it', function () {
+            expect(new UpdateServerManager('DISABLED', own).isDisabled).toBe(true);
+            expect(own.warn).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [ 'a text that is no URL', 'null' ],
+            [ 'a relative URL', '/channel/latest' ],
+            [ 'an empty text', '' ],
+            [ 'a lower case disabled', 'disabled' ],
+            [ 'undefined', undefined ],
+            [ 'a number', 123 ],
+            [ 'an object', {} ]
+        ])('should be disabled, with a warning that names the URL, by %s', function (_, url) {
+            let manager = new UpdateServerManager(url, own);
+            expect(manager.isDisabled).toBe(true);
+            expect(own.warn).toHaveBeenCalledTimes(1);
+            expect(own.warn.mock.calls[0][0]).toBe('Initialization of "UpdateServerManager" failed!');
+            expect(own.warn.mock.calls[0][1].message).toBe(`Invalid update URL: ${url}`);
+        });
+
+        it('should not ask a server that is disabled', async function () {
+            let fetch = vi.spyOn(globalThis, 'fetch');
+            let manager = new UpdateServerManager('DISABLED', own);
+            await expect(manager.getUpdateInfo()).rejects.toThrow('Invalid request for connection to the update server!');
+            expect(fetch).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('_request()', function () {
+
+        it('should ask for the URL, follow redirects and not wait for ever', async function () {
+            let timeout = vi.spyOn(AbortSignal, 'timeout');
+            let { fetch, manager } = managerAnswering(answer(200, 'x'));
+            await manager._request('https://updates.example.org/other');
+            expect(fetch).toHaveBeenCalledTimes(1);
+            let [ url, options ] = fetch.mock.calls[0];
+            expect(url).toBe('https://updates.example.org/other');
+            expect(options.redirect).toBe('follow');
+            expect(options.signal).toBeInstanceOf(AbortSignal);
+            expect(options.signal.aborted).toBe(false);
+            // a stalled update check must not block the start of the application: one minute
+            expect(timeout).toHaveBeenCalledWith(60000);
+        });
+
+        it('should answer the bytes of the body', async function () {
+            let { manager } = managerAnswering(answer(200, new Uint8Array([ 0, 1, 254, 255 ])));
+            let bytes = await manager._request(UPDATE_URL);
+            expect(bytes).toBeInstanceOf(Uint8Array);
+            expect([ ...bytes ]).toEqual([ 0, 1, 254, 255 ]);
+        });
+
+        it('should answer an empty body as no bytes', async function () {
+            let { manager } = managerAnswering(answer(200, ''));
+            expect((await manager._request(UPDATE_URL)).length).toBe(0);
+        });
+
+        it.each([ 201, 204, 206, 301, 304, 400, 401, 403, 404, 410, 429, 500, 502, 503 ])('should refuse the status %i, as only 200 is an answer', async function (status) {
+            let { manager } = managerAnswering(answer(status, 'the body of an error'));
+            await expect(manager._request(UPDATE_URL)).rejects.toThrow(`Status: ${status}`);
+        });
+
+        it.each([
+            [ undefined ],
+            [ null ],
+            [ '' ]
+        ])('should refuse to ask for %p', async function (uri) {
+            let fetch = vi.spyOn(globalThis, 'fetch');
+            await expect(new UpdateServerManager(UPDATE_URL, own)._request(uri)).rejects.toThrow('Invalid request for connection to the update server!');
+            expect(fetch).not.toHaveBeenCalled();
+        });
+
+        it('should fail with the cause of a failed request, which is what says why', async function () {
+            let cause = Object.assign(new Error('getaddrinfo ENOTFOUND updates.example.org'), { code: 'ENOTFOUND' });
+            vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed', { cause }));
+            await expect(new UpdateServerManager(UPDATE_URL, own)._request(UPDATE_URL)).rejects.toBe(cause);
+        });
+
+        it.each([
+            [ 'an error without a cause', new TypeError('Invalid URL') ],
+            [ 'an error with a cause that is no error', new TypeError('fetch failed', { cause: 'a text' }) ],
+            [ 'a timeout', new DOMException('The operation was aborted due to timeout', 'TimeoutError') ]
+        ])('should fail with the failure itself for %s', async function (_, failure) {
+            vi.spyOn(globalThis, 'fetch').mockRejectedValue(failure);
+            await expect(new UpdateServerManager(UPDATE_URL, own)._request(UPDATE_URL)).rejects.toBe(failure);
+        });
+
+        it('should fail when the body breaks off', async function () {
+            let broken = new Response(new ReadableStream({
+                start(controller) {
+                    controller.enqueue(new Uint8Array([ 1 ]));
+                    controller.error(new Error('socket hang up'));
+                }
+            }), { status: 200 });
+            let { manager } = managerAnswering(broken);
+            await expect(manager._request(UPDATE_URL)).rejects.toThrow('socket hang up');
+        });
+    });
+
+    describe('getUpdateInfo()', function () {
+
+        it('should read the name of the package and its signature from the answer, and make the link absolute', async function () {
+            let { manager } = managerAnswering(answer(200, 'K3F9A2.zip?signature=00ff12ab'));
+            let info = await manager.getUpdateInfo();
+            expect(info).toBeInstanceOf(UpdatePackageInfo);
+            expect(info.version).toBe('K3F9A2');
+            expect(info.signature).toBe('00ff12ab');
+            expect(info.link).toBe('https://updates.example.org/channel/K3F9A2.zip?signature=00ff12ab');
+        });
+
+        it.each([
+            [ 'a line feed', 'ABC.zip?signature=aa\n' ],
+            [ 'a line feed and a carriage return', 'ABC.zip?signature=aa\r\n' ],
+            [ 'spaces around it', '  ABC.zip?signature=aa  ' ],
+            [ 'a tab and several blank lines', '\tABC.zip?signature=aa\n\n\n' ]
+        ])('should leave out %s', async function (_, body) {
+            let { manager } = managerAnswering(answer(200, body));
+            let info = await manager.getUpdateInfo();
+            expect(info.version).toBe('ABC');
+            expect(info.signature).toBe('aa');
+            expect(info.link).toBe('https://updates.example.org/channel/ABC.zip?signature=aa');
+        });
+
+        it('should take the link as it is when it is absolute', async function () {
+            let { manager } = managerAnswering(answer(200, 'https://cdn.example.org/assets/ABC.zip?signature=aa'));
+            let info = await manager.getUpdateInfo();
+            expect(info.link).toBe('https://cdn.example.org/assets/ABC.zip?signature=aa');
+            expect(info.signature).toBe('aa');
+        });
+
+        it('should find a package in a directory next to the answer', async function () {
+            let { manager } = managerAnswering(answer(200, 'packages/ABC.zip?signature=aa'));
+            expect((await manager.getUpdateInfo()).link).toBe('https://updates.example.org/channel/packages/ABC.zip?signature=aa');
+        });
+
+        it('should have no signature when the link has none, which makes the verification refuse the package', async function () {
+            let { manager } = managerAnswering(answer(200, 'ABC.zip'));
+            let info = await manager.getUpdateInfo();
+            expect(info.signature).toBeNull();
+            await expect(info.validate(new Uint8Array([ 1 ]), 'not a key')).rejects.toThrow();
+        });
+
+        it('should take the first signature of several', async function () {
+            let { manager } = managerAnswering(answer(200, 'ABC.zip?signature=aa&signature=bb'));
+            expect((await manager.getUpdateInfo()).signature).toBe('aa');
+        });
+
+        it('should decode the signature, as the verification wants hex', async function () {
+            let { manager } = managerAnswering(answer(200, 'ABC.zip?signature=%61%62&other=1'));
+            expect((await manager.getUpdateInfo()).signature).toBe('ab');
+        });
+
+        it('should fail when the server does not answer with a 200', async function () {
+            let { manager } = managerAnswering(answer(404));
+            await expect(manager.getUpdateInfo()).rejects.toThrow('Status: 404');
+        });
+
+        // NOTE: an empty answer is taken for a package named "" that is the answer itself, which the later steps refuse:
+        // there is no signature to verify. Characterisation of what the next steps are given.
+        it('should hand an empty answer on as a package without name and signature, that points back at the update URL', async function () {
+            let { manager } = managerAnswering(answer(200, ''));
+            let info = await manager.getUpdateInfo();
+            expect(info.version).toBe('');
+            expect(info.signature).toBeNull();
+            expect(info.link).toBe(UPDATE_URL);
+        });
+    });
+
+    describe('getUpdateArchive()', function () {
+
+        it('should download the link of the update information', async function () {
+            let { fetch, manager } = managerAnswering(answer(200, new Uint8Array([ 80, 75, 3, 4 ])));
+            let bytes = await manager.getUpdateArchive({ link: 'https://updates.example.org/channel/ABC.zip?signature=aa' });
+            expect(fetch.mock.calls[0][0]).toBe('https://updates.example.org/channel/ABC.zip?signature=aa');
+            expect([ ...bytes ]).toEqual([ 80, 75, 3, 4 ]);
+        });
+
+        it.each([
+            [ 'no information', undefined ],
+            [ 'null', null ],
+            [ 'information without a link', {} ],
+            [ 'an empty link', { link: '' } ]
+        ])('should refuse %s', async function (_, info) {
+            let fetch = vi.spyOn(globalThis, 'fetch');
+            await expect(new UpdateServerManager(UPDATE_URL, own).getUpdateArchive(info)).rejects.toThrow('Invalid request for connection to the update server!');
+            expect(fetch).not.toHaveBeenCalled();
+        });
+
+        it('should fail when the archive is not there', async function () {
+            let { manager } = managerAnswering(answer(404));
+            await expect(manager.getUpdateArchive({ link: 'https://updates.example.org/channel/ABC.zip' })).rejects.toThrow('Status: 404');
+        });
+    });
+
+    describe('when the server redirects', function () {
+
+        let server = null;
+        let base = null;
+
+        beforeEach(async () => {
+            vi.restoreAllMocks();
+            server = http.createServer((request, response) => {
+                // no keep-alive: the sockets of one test must not be reused by the next
+                response.setHeader('Connection', 'close');
+                if(request.url === '/channel/latest') {
+                    response.writeHead(302, { Location: '/storage/object-4711/latest' });
+                    return response.end();
+                }
+                if(request.url === '/storage/object-4711/latest') {
+                    return response.end('ABC.zip?signature=aa');
+                }
+                if(request.url === '/channel/ABC.zip?signature=aa') {
+                    response.writeHead(301, { Location: '/storage/object-4711/ABC.zip' });
+                    return response.end();
+                }
+                if(request.url === '/storage/object-4711/ABC.zip') {
+                    return response.end(new Uint8Array([ 80, 75 ]));
+                }
+                if(request.url === '/loop') {
+                    response.writeHead(302, { Location: '/loop' });
+                    return response.end();
+                }
+                response.writeHead(404);
+                return response.end();
+            });
+            await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+            base = `http://127.0.0.1:${server.address().port}`;
+        });
+
+        afterEach(async () => {
+            server.closeAllConnections();
+            await new Promise(resolve => server.close(resolve));
+        });
+
+        it('should follow the redirect of the update URL and of the archive', async function () {
+            let manager = new UpdateServerManager(`${base}/channel/latest`, own);
+            let info = await manager.getUpdateInfo();
+            expect(info.version).toBe('ABC');
+            let archive = await manager.getUpdateArchive(info);
+            expect([ ...archive ]).toEqual([ 80, 75 ]);
+        });
+
+        it('should make the link absolute against the update URL, not against where the redirect led', async function () {
+            let manager = new UpdateServerManager(`${base}/channel/latest`, own);
+            let info = await manager.getUpdateInfo();
+            expect(info.link).toBe(`${base}/channel/ABC.zip?signature=aa`);
+        });
+
+        it('should fail instead of redirecting for ever', async function () {
+            let manager = new UpdateServerManager(`${base}/channel/latest`, own);
+            await expect(manager._request(`${base}/loop`)).rejects.toThrow();
         });
     });
 });

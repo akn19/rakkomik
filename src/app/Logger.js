@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const util = require('node:util');
 const pino = require('pino');
 
 // Numeric levels compatible with the retired private logger package API.
@@ -39,6 +40,21 @@ function toPinoLevel(level) {
     }
     return 'silent';
 }
+
+// pino only uses the arguments after the message to fill the placeholders of the message and drops the others, but
+// the application logs `info('Remote Version:', version)` and `error('Update Failed!', error)` like the retired logger,
+// which printed all arguments: an Error becomes the error of the entry, the other values follow the message
+const hooks = {
+    logMethod(args, method) {
+        const [message, ...values] = args;
+        if (typeof message !== 'string' || values.length === 0 || /%[sdifjoO%]/.test(message)) {
+            return method.apply(this, args);
+        }
+        const error = values.find(value => value instanceof Error);
+        const text = util.format(message, ...values.filter(value => value !== error));
+        return error ? method.call(this, { err: error }, text) : method.call(this, text);
+    }
+};
 
 class BaseLogger {
 
@@ -82,14 +98,14 @@ class BaseLogger {
 class ConsoleLogger extends BaseLogger {
 
     constructor(level) {
-        super(pino({ level: toPinoLevel(level || LEVEL.Info) }));
+        super(pino({ level: toPinoLevel(level || LEVEL.Info), hooks }));
     }
 }
 
 class FileLogger extends BaseLogger {
 
     constructor(file, level) {
-        super(pino({ level: toPinoLevel(level || LEVEL.Info) }, pino.destination(file)));
+        super(pino({ level: toPinoLevel(level || LEVEL.Info), hooks }, pino.destination(file)));
         this._file = file;
     }
 

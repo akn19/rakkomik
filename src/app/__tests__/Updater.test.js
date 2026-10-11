@@ -1,9 +1,10 @@
 const http = require('node:http');
 const net = require('node:net');
+const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 const assert = require('node:assert');
-const { FileLogger } = require('../Logger');
+const { FileLogger, ConsoleLogger } = require('../Logger');
 const UpdateServerManager = require('../UpdateServerManager');
 const CacheDirectoryManager = require('../CacheDirectoryManager');
 const Updater = require('../Updater');
@@ -38,10 +39,11 @@ class TestFixture {
         this._archive = undefined;
         this._server = http.createServer(this._listener.bind(this));
         this.port = undefined; // assigned per run, see freePort()
+        this.root = undefined; // a directory of its own, so that the tests do not depend on the working directory
     }
 
     get applicationCacheDirectory() {
-        return path.join('test', 'cache');
+        return path.join(this.root, 'cache');
     }
 
     get applicationUpdateURL() {
@@ -115,6 +117,9 @@ class TestFixture {
      * @param {Response} response
      */
     _listener(request, response) {
+        // No keep-alive: every test binds the same port, so a connection of the previous server that is still in the
+        // client's pool would be reused and fail with ECONNRESET (seen on Windows, and with the tests in any other order).
+        response.setHeader('Connection', 'close');
         if(request.url === '/latest') {
             response.setHeader('Content-Type', 'text/plain');
             response.statusCode = 200;
@@ -163,6 +168,11 @@ describe('Updater', function () {
 
     beforeAll(async () => {
         fixture.port = await freePort();
+        fixture.root = fs.mkdtempSync(path.join(os.tmpdir(), 'rk-updater-'));
+    });
+
+    afterAll(() => {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
     });
 
     describe('updateCache()', function () {
@@ -285,5 +295,153 @@ describe('Updater', function () {
             assert.equal(fs.existsSync(fixture.dummy.file), false);
             fixture.deleteMockDirectory();
         });
+    });
+});
+
+/**
+ * The flow of an update, step by step, with the server and the cache replaced by doubles that record what happens.
+ */
+describe('Updater with doubles', function () {
+
+    const PUBLIC_KEY = 'the public key';
+    let steps = null;
+    let own = null;
+
+    function update(overrides = {}) {
+        let info = {
+            version: 'NEW',
+            validate: vi.fn(async (archive, key) => {
+                steps.push([ 'validate', archive, key ]);
+                return archive;
+            }),
+            ...overrides.info
+        };
+        let archive = new Uint8Array([ 1, 2, 3 ]);
+        let serverManager = {
+            isDisabled: false,
+            getUpdateInfo: vi.fn(async () => {
+                steps.push([ 'getUpdateInfo' ]);
+                return info;
+            }),
+            getUpdateArchive: vi.fn(async given => {
+                steps.push([ 'getUpdateArchive', given ]);
+                return archive;
+            }),
+            ...overrides.server
+        };
+        let cacheManager = {
+            getCurrentVersion: vi.fn(async () => {
+                steps.push([ 'getCurrentVersion' ]);
+                return 'OLD';
+            }),
+            applyUpdateArchive: vi.fn(async (version, data) => {
+                steps.push([ 'applyUpdateArchive', version, data ]);
+            }),
+            ...overrides.cache
+        };
+        return { info, archive, serverManager, cacheManager, testee: new Updater(serverManager, cacheManager, own) };
+    }
+
+    beforeEach(() => {
+        steps = [];
+        own = { info: vi.fn(), error: vi.fn(), warn: vi.fn() };
+    });
+
+    it('should log through a console logger of its own when it is given none', function () {
+        assert.ok(new Updater({}, {})._logger instanceof ConsoleLogger);
+    });
+
+    it('should leave the server and the cache alone when the update is switched off', async function () {
+        let { testee, serverManager, cacheManager } = update({ server: { isDisabled: true } });
+        await testee.updateCache(PUBLIC_KEY);
+        expect(serverManager.getUpdateInfo).not.toHaveBeenCalled();
+        expect(cacheManager.getCurrentVersion).not.toHaveBeenCalled();
+        expect(cacheManager.applyUpdateArchive).not.toHaveBeenCalled();
+        expect(own.info).toHaveBeenCalledWith('Update is disabled');
+    });
+
+    it('should check, download, verify and apply, in this order, with the key it is given', async function () {
+        let { testee, info, archive } = update();
+        await testee.updateCache(PUBLIC_KEY);
+        expect(steps).toEqual([
+            [ 'getUpdateInfo' ],
+            [ 'getCurrentVersion' ],
+            [ 'getUpdateArchive', info ],
+            [ 'validate', archive, PUBLIC_KEY ],
+            [ 'applyUpdateArchive', 'NEW', archive ]
+        ]);
+        expect(own.error).not.toHaveBeenCalled();
+        expect(own.info).toHaveBeenLastCalledWith('Update Complete');
+    });
+
+    it('should not download anything when the cache has the version of the server', async function () {
+        let { testee } = update({ info: { version: 'OLD' } });
+        await testee.updateCache(PUBLIC_KEY);
+        expect(steps.map(([ step ]) => step)).toEqual([ 'getUpdateInfo', 'getCurrentVersion' ]);
+        expect(own.info).toHaveBeenLastCalledWith('Update Check Complete');
+    });
+
+    it('should update a cache that has no version', async function () {
+        let { testee } = update({ cache: { getCurrentVersion: vi.fn(async () => undefined) } });
+        await testee.updateCache(PUBLIC_KEY);
+        expect(steps.map(([ step ]) => step)).toContain('applyUpdateArchive');
+    });
+
+    it.each([
+        ['an older version', 'OLD0'],
+        ['a version that only differs in case', 'old'],
+        ['a version with a space', 'OLD ']
+    ])('should take %s for another version and update', async function (_, remote) {
+        let { testee } = update({ info: { version: remote } });
+        await testee.updateCache(PUBLIC_KEY);
+        expect(steps.map(([ step ]) => step)).toContain('applyUpdateArchive');
+    });
+
+    it('should never apply an archive that does not pass the verification', async function () {
+        let failure = new Error('Integrity check of update failed! The signature does not match the update package.');
+        let { testee, cacheManager } = update({ info: { validate: vi.fn(async () => { throw failure; }) } });
+        await expect(testee.updateCache(PUBLIC_KEY)).resolves.toBeUndefined();
+        expect(cacheManager.applyUpdateArchive).not.toHaveBeenCalled();
+        expect(own.error).toHaveBeenCalledWith('Update Failed!', failure);
+        expect(own.info).not.toHaveBeenCalledWith('Update Complete');
+    });
+
+    it.each([
+        ['the update information cannot be got', { server: { getUpdateInfo: vi.fn(async () => { throw new Error('Status: 404'); }) } }, 'Status: 404'],
+        ['the version of the cache cannot be read', { cache: { getCurrentVersion: vi.fn(async () => { throw new Error('EIO'); }) } }, 'EIO'],
+        ['the archive cannot be downloaded', { server: { getUpdateArchive: vi.fn(async () => { throw new Error('connect ECONNREFUSED'); }) } }, 'connect ECONNREFUSED'],
+        ['the archive cannot be applied', { cache: { applyUpdateArchive: vi.fn(async () => { throw new Error('ENOSPC'); }) } }, 'ENOSPC']
+    ])('should log the failure and go on without an update when %s', async function (_, overrides, message) {
+        let { testee } = update(overrides);
+        await expect(testee.updateCache(PUBLIC_KEY)).resolves.toBeUndefined();
+        expect(own.error).toHaveBeenCalledTimes(1);
+        expect(own.error.mock.calls[0][0]).toBe('Update Failed!');
+        expect(own.error.mock.calls[0][1].message).toBe(message);
+    });
+
+    it('should not fail when a part throws instead of rejecting', async function () {
+        let { testee } = update({ server: { getUpdateInfo: vi.fn(() => { throw new TypeError('not a promise'); }) } });
+        await expect(testee.updateCache(PUBLIC_KEY)).resolves.toBeUndefined();
+        expect(own.error).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not download when the cache cannot be read, because it could not tell whether to', async function () {
+        let { testee, serverManager } = update({ cache: { getCurrentVersion: vi.fn(async () => { throw new Error('EIO'); }) } });
+        await testee.updateCache(PUBLIC_KEY);
+        expect(serverManager.getUpdateArchive).not.toHaveBeenCalled();
+    });
+
+    it('should apply the version of the update information, not another one', async function () {
+        let { testee, cacheManager } = update({ info: { version: 'FROM-THE-SERVER' } });
+        await testee.updateCache(PUBLIC_KEY);
+        expect(cacheManager.applyUpdateArchive.mock.calls[0][0]).toBe('FROM-THE-SERVER');
+    });
+
+    it('should apply the very archive it downloaded and verified', async function () {
+        let { testee, serverManager, info, cacheManager } = update();
+        await testee.updateCache(PUBLIC_KEY);
+        let downloaded = await serverManager.getUpdateArchive.mock.results[0].value;
+        expect(info.validate.mock.calls[0][0]).toBe(downloaded);
+        expect(cacheManager.applyUpdateArchive.mock.calls[0][1]).toBe(downloaded);
     });
 });

@@ -35,9 +35,14 @@ const Configuration = require('../Configuration');
 const ConfigurationLinux = require('../ConfigurationLinux');
 const ConfigurationDarwin = require('../ConfigurationDarwin');
 const ConfigurationWindows = require('../ConfigurationWindows');
-const { FileLogger } = require('../Logger');
+const { FileLogger, ConsoleLogger } = require('../Logger');
 var logger = new FileLogger(__filename + '.log', FileLogger.LEVEL.All);
 logger.clear();
+
+// a logger that says nothing and can be asked what it was told
+function quiet() {
+    return { error: vi.fn(), warn: vi.fn(), info: vi.fn(), verbose: vi.fn() };
+}
 
 describe('App', function() {
 
@@ -90,9 +95,10 @@ describe('App', function() {
                 process.argv = argv;
             });
 
+            // the cache directory is absolute: on Windows that includes the drive of the working directory
             it('should use it as the cache directory and leave the update off', () => {
                 let testee = new App(logger);
-                expect(testee._configuration.applicationCacheDirectory).toEqual(path.join(resources, 'web'));
+                expect(testee._configuration.applicationCacheDirectory).toEqual(path.resolve(resources, 'web'));
                 expect(testee._configuration.applicationUpdateURL).toEqual('DISABLED');
             });
             it('should leave the cache directory and the update URL to the command line', () => {
@@ -104,9 +110,233 @@ describe('App', function() {
             it('should decide on each of the two by itself', () => {
                 process.argv = [ ...argv, '--update-url=https://example.org/latest' ];
                 let testee = new App(logger);
-                expect(testee._configuration.applicationCacheDirectory).toEqual(path.join(resources, 'web'));
+                expect(testee._configuration.applicationCacheDirectory).toEqual(path.resolve(resources, 'web'));
                 expect(testee._configuration.applicationUpdateURL).toEqual('https://example.org/latest');
             });
+        });
+    });
+
+    describe('with the platform it runs on', () => {
+        const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+
+        function onPlatform(value) {
+            Object.defineProperty(process, 'platform', { ...platform, value });
+        }
+
+        afterEach(() => {
+            Object.defineProperty(process, 'platform', platform);
+        });
+
+        it.each([
+            [ 'linux', ConfigurationLinux ],
+            [ 'darwin', ConfigurationDarwin ],
+            [ 'win32', ConfigurationWindows ]
+        ])('should configure %s for itself', (name, Expected) => {
+            onPlatform(name);
+            let testee = new App(quiet());
+            expect(testee._configuration.constructor).toBe(Expected);
+        });
+
+        it.each([ 'linux', 'darwin', 'win32' ])('should leave the platform out of it in the portable mode (%s)', name => {
+            onPlatform(name);
+            fs.existsSync.mockReturnValueOnce(true);
+            let testee = new App(quiet());
+            expect(testee._configuration.constructor).toBe(Configuration);
+        });
+
+        // NOTE: Electron does not run on other systems, so there is nothing to configure and nothing to start.
+        it('should not start on a system without a configuration', () => {
+            onPlatform('freebsd');
+            expect(() => new App(quiet())).toThrow(TypeError);
+        });
+    });
+
+    describe('constructor', () => {
+
+        it('should register every channel of the preload bridge once, as Electron does not take a second handler', () => {
+            new App(quiet());
+            let channels = electron.ipcMain.handle.mock.calls.map(([ channel ]) => channel);
+            expect(new Set(channels).size).toBe(channels.length);
+            expect(channels).toHaveLength(28);
+            // one of each part of the main process
+            expect(channels).toEqual(expect.arrayContaining([
+                'rakkomik:fs:readFile', 'rakkomik:exec', 'rakkomik:fetch', 'rakkomik:presence:ensureStarted', 'rakkomik:sqlite:query', 'rakkomik:pdf:render'
+            ]));
+        });
+
+        it('should log through a console logger of its own when it is given none', () => {
+            expect(new App()._logger).toBeInstanceOf(ConsoleLogger);
+        });
+
+        it('should hand its logger to the parts that report', () => {
+            let own = quiet();
+            let testee = new App(own);
+            expect(testee._logger).toBe(own);
+            expect(testee._updater._logger).toBe(own);
+            expect(testee._electron._logger).toBe(own);
+        });
+    });
+
+    describe('printInfo()', () => {
+        const versions = Object.getOwnPropertyDescriptor(process, 'versions');
+
+        afterEach(() => {
+            Object.defineProperty(process, 'versions', versions);
+        });
+
+        it('should print the versions of Electron, Chromium and Node.js', () => {
+            let log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+            let testee = new App(quiet());
+            Object.defineProperty(process, 'versions', { ...versions, value: { ...process.versions, electron: '44.7.0', chrome: '152.0.7977.130' } });
+            testee.printInfo();
+            let lines = log.mock.calls.map(args => args.join(' '));
+            expect(lines).toContain('Framework Info');
+            expect(lines).toContain('Electron : 44.7.0');
+            expect(lines).toContain('Chrome   : 152.0.7977.130');
+            expect(lines).toContain(`Node     : ${process.versions.node}`);
+        });
+    });
+
+    describe('run()', () => {
+        const portable = process.env.RAKKOMIK_PORTABLE;
+        let calls = null;
+        let own = null;
+        let testee = null;
+
+        // what the process does with the web part, in the order it happens
+        function fakeElectron(application) {
+            application._electron = {
+                launch: vi.fn(async () => {
+                    calls.push([ 'launch', process.env.RAKKOMIK_PORTABLE ]);
+                }),
+                loadHTML: vi.fn(async html => {
+                    calls.push([ 'loadHTML', html ]);
+                }),
+                loadURL: vi.fn(async url => {
+                    calls.push([ 'loadURL', url ]);
+                })
+            };
+        }
+
+        function fakeUpdater(application) {
+            application._updater = {
+                updateCache: vi.fn(async key => {
+                    calls.push([ 'updateCache', key ]);
+                })
+            };
+        }
+
+        function fakeParts(application) {
+            fakeElectron(application);
+            fakeUpdater(application);
+        }
+
+        beforeEach(() => {
+            calls = [];
+            // `run()` prints the usage, the framework and the configuration
+            vi.spyOn(console, 'log').mockImplementation(() => undefined);
+            own = quiet();
+            testee = new App(own);
+            fakeParts(testee);
+        });
+
+        afterEach(() => {
+            if(portable === undefined) {
+                delete process.env.RAKKOMIK_PORTABLE;
+            } else {
+                process.env.RAKKOMIK_PORTABLE = portable;
+            }
+        });
+
+        it('should show the loading page while the web part is updated, then start the application', async () => {
+            await testee.run();
+            expect(calls.map(([ step ]) => step)).toEqual([ 'launch', 'loadHTML', 'updateCache', 'loadURL' ]);
+            expect(own.error).not.toHaveBeenCalled();
+        });
+
+        it('should show a loading page that says what is going on', async () => {
+            await testee.run();
+            let html = calls.find(([ step ]) => step === 'loadHTML')[1];
+            expect(html).toContain('Checking for Update');
+            expect(html).toContain('<progress>');
+        });
+
+        it('should check the update against the public key of the configuration and start the startup URL', async () => {
+            process.argv = [ ...process.argv, '--startup-url=hakuneko://cache/start.html' ];
+            try {
+                testee = new App(own);
+                fakeParts(testee);
+                await testee.run();
+            } finally {
+                process.argv = process.argv.slice(0, -1);
+            }
+            expect(calls.find(([ step ]) => step === 'updateCache')[1]).toBe(testee._configuration.publicKey);
+            expect(calls.find(([ step ]) => step === 'loadURL')[1]).toBe('hakuneko://cache/start.html');
+        });
+
+        it('should print the usage, the framework and the configuration before it launches', async () => {
+            vi.spyOn(testee._extractor, 'printInfo').mockImplementation(() => calls.push([ 'usage' ]));
+            vi.spyOn(testee, 'printInfo').mockImplementation(() => calls.push([ 'framework' ]));
+            vi.spyOn(testee._configuration, 'printInfo').mockImplementation(() => calls.push([ 'configuration' ]));
+            await testee.run();
+            expect(calls.map(([ step ]) => step).slice(0, 4)).toEqual([ 'usage', 'framework', 'configuration', 'launch' ]);
+        });
+
+        it('should tell the renderer about the portable mode before the window is created', async () => {
+            fs.existsSync.mockReturnValue(true);
+            await testee.run();
+            expect(calls.find(([ step ]) => step === 'launch')[1]).toBe('TRUE');
+        });
+
+        it('should take the portable mode away when the application is not portable (any left-over of the environment)', async () => {
+            process.env.RAKKOMIK_PORTABLE = 'TRUE';
+            fs.existsSync.mockReturnValue(false);
+            await testee.run();
+            expect(calls.find(([ step ]) => step === 'launch')[1]).toBeUndefined();
+            expect('RAKKOMIK_PORTABLE' in process.env).toBe(false);
+        });
+
+        it('should log the failure and do nothing more when the application cannot be launched', async () => {
+            let failure = new Error('no display');
+            testee._electron.launch.mockRejectedValue(failure);
+            await expect(testee.run()).resolves.toBeUndefined();
+            expect(own.error).toHaveBeenCalledWith('Failed to start application!', failure);
+            expect(testee._electron.loadHTML).not.toHaveBeenCalled();
+            expect(testee._updater.updateCache).not.toHaveBeenCalled();
+            expect(testee._electron.loadURL).not.toHaveBeenCalled();
+        });
+
+        it('should log the failure when the update cannot even be attempted', async () => {
+            let failure = new Error('unexpected');
+            testee._updater.updateCache.mockRejectedValue(failure);
+            await expect(testee.run()).resolves.toBeUndefined();
+            expect(own.error).toHaveBeenCalledWith('Failed to start application!', failure);
+        });
+
+        it('should not look for an update when the web part ships with the application', async () => {
+            let fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('the network must stay unused'));
+            electron.app.getAppPath.mockImplementation(() => path.join('/opt', 'rakkomik', 'resources', 'app.asar'));
+            fs.existsSync.mockImplementation(file => file === path.join('/opt', 'rakkomik', 'resources', 'web', 'index.html'));
+            try {
+                // the real updater, which has to find the update switched off
+                testee = new App(own);
+                fakeElectron(testee);
+                await testee.run();
+            } finally {
+                electron.app.getAppPath.mockImplementation(() => '/usr/bin');
+            }
+            expect(fetch).not.toHaveBeenCalled();
+            expect(own.info).toHaveBeenCalledWith('Update is disabled');
+            expect(calls.map(([ step ]) => step)).toEqual([ 'launch', 'loadHTML', 'loadURL' ]);
+        });
+
+        // NOTE: the startup page is not awaited: `run()` is done when the page is requested, not when it has loaded (Electron
+        // keeps the rejection of a failed load from becoming an unhandled one). So a page that cannot be loaded is
+        // not logged here. Characterisation.
+        it('should be done when the startup page is requested, not when it has loaded', async () => {
+            testee._electron.loadURL.mockReturnValue(new Promise(() => undefined));
+            await expect(testee.run()).resolves.toBeUndefined();
+            expect(testee._electron.loadURL).toHaveBeenCalledTimes(1);
         });
     });
 });

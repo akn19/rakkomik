@@ -13,7 +13,7 @@ module.exports = class CommandlineArgumentExtractor {
         }
 
         if(option) {
-            let value = option.split('=')[1];
+            let value = option.slice(key.length + 1);
             return !value ? undefined : value;
         }
 

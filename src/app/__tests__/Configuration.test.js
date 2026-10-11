@@ -177,6 +177,93 @@ describe('Configuration', function() {
         });
     });
 
+    describe('options', function() {
+        it.each([
+            ['no options', undefined],
+            ['null', null],
+            ['an empty object', {}],
+            ['empty values', { applicationUpdateURL: '', applicationStartupURL: '', applicationCacheDirectory: '', applicationUserDataDirectory: '' }],
+            ['values that are not set', { applicationUpdateURL: undefined, applicationStartupURL: null }]
+        ])('should use the defaults for %s', (_, options) => {
+            let testee = new Configuration(options);
+            expect(testee.applicationUpdateURL).toEqual('https://github.com/akn19/rakkomik/releases/download/web-main/latest');
+            expect(testee.applicationStartupURL).toEqual('hakuneko://cache/index.html');
+            expect(testee.applicationCacheDirectory).toEqual(path.resolve('/usr/bin/cache'));
+            expect(testee.applicationUserDataDirectory).toEqual(path.resolve('/usr/bin/userdata'));
+        });
+
+        it('should not change the options it is given', () => {
+            let options = { ...expected };
+            new Configuration(options);
+            expect(options).toEqual(expected);
+        });
+
+        it('should keep the directories next to the executable of a portable application', () => {
+            electron.app.getPath.mockReturnValueOnce(path.join(path.resolve('/portable app'), 'RakKomik.exe'));
+            let testee = new Configuration(undefined);
+            expect(testee.applicationCacheDirectory).toEqual(path.resolve('/portable app', 'cache'));
+            expect(testee.applicationUserDataDirectory).toEqual(path.resolve('/portable app', 'userdata'));
+            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve('/portable app', 'userdata', 'rakkomik.plugins'));
+        });
+
+        it.each([
+            ['a trailing separator', '/data/cache/'],
+            ['dot segments', '/data/./x/../cache'],
+            ['a doubled separator', '/data//cache']
+        ])('should tidy up %s of a directory', (_, directory) => {
+            let testee = new Configuration({ applicationCacheDirectory: directory, applicationUserDataDirectory: directory });
+            expect(testee.applicationCacheDirectory).toEqual(path.resolve('/data/cache'));
+            expect(testee.applicationUserDataDirectory).toEqual(path.resolve('/data/cache'));
+        });
+
+        it('should resolve a relative directory against the application, not against the working directory', () => {
+            let testee = new Configuration({ applicationCacheDirectory: 'web' });
+            expect(testee.applicationCacheDirectory).toEqual(path.resolve('/usr/bin', 'web'));
+            expect(testee.applicationCacheDirectory).not.toEqual(path.resolve('web'));
+        });
+    });
+
+    describe('applicationProtocol of unusual startup URLs', function() {
+        it.each([
+            ['hakuneko://cache/index.html', 'hakuneko'],
+            ['custom-scheme://app/', 'custom-scheme'],
+            ['HAKUNEKO://cache/index.html', 'hakuneko'],
+            ['http://localhost:8080/index.html?debug=1', 'http'],
+            ['file:///opt/app/index.html', 'file']
+        ])('should be the scheme of %s', (url, protocol) => {
+            expect(new Configuration({ applicationStartupURL: url }).applicationProtocol).toEqual(protocol);
+        });
+
+        // NOTE: a startup URL without a scheme is accepted by the constructor and refused only when the protocol is asked for,
+        // which is when the application starts. Characterisation of the current failure, not a promise.
+        it.each([
+            'index.html',
+            './web/index.html',
+            '/opt/app/index.html'
+        ])('should throw when the startup URL has no scheme (%s)', url => {
+            let testee = new Configuration({ applicationStartupURL: url });
+            expect(testee.applicationStartupURL).toEqual(url);
+            expect(() => testee.applicationProtocol).toThrow(TypeError);
+        });
+    });
+
+    describe('printInfo', function() {
+        it('should print every setting with its name', () => {
+            let log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+            let testee = new Configuration({ ...expected, applicationStartupURL: 'custom://app/index.html' });
+            testee.printInfo();
+            let lines = log.mock.calls.map(args => args.join(' '));
+            let value = label => lines.find(line => new RegExp(`^${label}\\s*: `).test(line)).replace(new RegExp(`^${label}\\s*: `), '');
+            expect(lines).toContain('Configuration');
+            expect(value('Update URL')).toEqual(expected.applicationUpdateURL);
+            expect(value('Connector Protocol')).toEqual('connector');
+            expect(value('Application Protocol')).toEqual('custom');
+            expect(value('Startup URL')).toEqual('custom://app/index.html');
+            expect(value('AppCache Directory')).toEqual(expected.applicationCacheDirectory);
+            expect(value('UserData Directory')).toEqual(expected.applicationUserDataDirectory);
+        });
+    });
+
     describe('applicationUserPluginsDirectory', function() {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);

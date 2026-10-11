@@ -5,6 +5,8 @@ const electron = require('electron');
 const HeaderSurgery = require('./HeaderSurgery');
 const { ConsoleLogger } = require('./Logger');
 const urlFilterAll = { urls: ['http://*/*', 'https://*/*'] };
+// the permissions a page of a website may use: show a video in full screen and copy a text to the clipboard
+const permissionsGranted = ['fullscreen', 'clipboard-sanitized-write'];
 const trayTooltipMinimize = 'RakKomik\nClick to hide window';
 const trayTooltipRestore = 'RakKomik\nClick to show window';
 
@@ -92,6 +94,7 @@ module.exports = class ElectronBootstrap {
         this._appIcon = electron.nativeImage.createFromPath(path.join(this._configuration.applicationCacheDirectory, 'img', 'tray', process.platform === 'win32' ? 'logo.ico' : 'logo.png'));
         this._registerCacheProtocol();
         this._registerConnectorProtocol();
+        this._registerPermissionHandler();
         this._createWindow();
     }
 
@@ -150,7 +153,15 @@ module.exports = class ElectronBootstrap {
         electron.protocol.handle(this._configuration.applicationProtocol, async request => {
             try {
                 let uri = new URL(request.url);
-                let endpoint = path.join(this._directoryMap[uri.hostname], path.normalize(uri.pathname));
+                // the file is named by the decoded path (a space is `%20` in the URL). It is decoded before it is normalized,
+                // which keeps it inside of its directory: `%2e%2e%2f` is a `../` once decoded
+                let pathname;
+                try {
+                    pathname = decodeURIComponent(uri.pathname);
+                } catch {
+                    return new Response('Bad Request', { status: 400 });
+                }
+                let endpoint = path.join(this._directoryMap[uri.hostname], path.normalize(pathname));
                 // NOTE: cross-scheme consumers (connector:// images, fetch windows)
                 // require explicit CORS headers on modern Chromium.
                 let cors = { 'Access-Control-Allow-Origin': '*' };
@@ -191,6 +202,17 @@ module.exports = class ElectronBootstrap {
                 this._logger.warn(error);
                 return new Response('Not Found', { status: 404 });
             }
+        });
+    }
+
+    /**
+     * The pages of the websites (the hidden fetch windows, the windows a link opens) share the session of the application.
+     * Whatever asks for a permission (camera, microphone, notifications, ...) is denied, but a video in full screen and
+     * a text copied to the clipboard
+     */
+    _registerPermissionHandler() {
+        electron.session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+            callback(permissionsGranted.includes(permission));
         });
     }
 
@@ -382,6 +404,7 @@ module.exports = class ElectronBootstrap {
         this._setupTray(this._showTray);
         this._window.setMenuBarVisibility(false);
         this._window.once('ready-to-show', () => this._window.show());
+        this._window.webContents.on('will-navigate', this._mainWindowNavigateHandler.bind(this));
         this._window.on('close', this._mainWindowCloseHandler.bind(this));
         this._window.on('closed', this._mainWindowClosedHandler.bind(this));
         this._window.on('restore', this._mainWindowRestoreHandler.bind(this));
@@ -410,6 +433,18 @@ module.exports = class ElectronBootstrap {
     }
 
     /**
+     * The main window shows the application and nothing else: a page that takes it to another origin (a link, a script)
+     * would get the whole preload bridge there. Navigation that the application starts itself (`loadURL`) and navigation
+     * inside of the document (a hash) do not raise this event.
+     * @param {*} evt
+     */
+    _mainWindowNavigateHandler(evt) {
+        if(!evt.url.startsWith(this._configuration.applicationProtocol + ':')) {
+            evt.preventDefault();
+        }
+    }
+
+    /**
      *
      * @param {*} evt
      */
@@ -422,6 +457,10 @@ module.exports = class ElectronBootstrap {
      * Exit the application forcefully without raising the close event handler
      */
     _mainWindowQuitHandler() {
+        // a second quit (the renderer sends it twice) finds the window gone
+        if(!this._window) {
+            return;
+        }
         this._tray && this._tray.destroy();
         /*
          * NOTE: removing a certain event handler seems not to work...

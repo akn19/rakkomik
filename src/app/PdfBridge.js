@@ -1,6 +1,7 @@
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const { fileURLToPath } = require('node:url');
 const electron = require('electron');
 
 const PRINT_TIMEOUT = 120000;
@@ -53,8 +54,18 @@ module.exports = class PdfBridge {
                     webSecurity: true
                 }
             });
+            // the page is the only file that may be read: it is known by its path, as Chromium writes the URL of a file
+            // with another escaping than Node.js does (`[`, `]` and `~` are not escaped), and paths are compared the way
+            // the platform does it (the case of a path on Windows does not matter)
+            const isPage = url => {
+                try {
+                    return path.relative(file, fileURLToPath(url)) === '';
+                } catch {
+                    return false;
+                }
+            };
             win.webContents.session.webRequest.onBeforeRequest((details, callback) => {
-                callback({ cancel: !/^(file|data):/.test(details.url) });
+                callback({ cancel: !details.url.startsWith('data:') && !isPage(details.url) });
             });
             win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
             win.webContents.on('will-navigate', event => event.preventDefault());
@@ -79,7 +90,8 @@ module.exports = class PdfBridge {
             if (win && !win.isDestroyed()) {
                 win.destroy();
             }
-            await fs.rm(directory, { recursive: true, force: true });
+            // a directory that stays is no reason to throw the document away
+            await fs.rm(directory, { recursive: true, force: true }).catch(() => undefined);
         }
     }
 };

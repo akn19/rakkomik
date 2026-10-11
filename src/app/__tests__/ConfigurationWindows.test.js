@@ -1,8 +1,10 @@
 const { mockModule } = require('./support/mockRequire');
+const os = require('node:os');
 const path = require('node:path');
 
 const fs = require('node:fs');
 
+// Windows has no HOME: the home directory comes from the profile
 mockModule('electron', () => {
     let path = require('node:path');
     return {
@@ -11,9 +13,9 @@ mockModule('electron', () => {
             getPath: vi.fn(type => {
                 switch(type) {
                     case 'exe': return '/usr/bin/rakkomik';
-                    case 'appData': return path.resolve(process.env.HOME, 'AppData', 'Roaming');
-                    case 'userData': return path.resolve(process.env.HOME, 'AppData', 'Roaming', 'RakKomik');
-                    case 'userCache': return path.resolve(process.env.HOME, 'AppData', 'Local', 'RakKomik', 'cache');
+                    case 'appData': return path.resolve(os.homedir(), 'AppData', 'Roaming');
+                    case 'userData': return path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik');
+                    case 'userCache': return path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache');
                     default: return undefined;
                 }
             }),
@@ -124,7 +126,7 @@ var suite = function() {
     describe('applicationCacheDirectory', function() {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
-            expect(testee.applicationCacheDirectory).toEqual(path.resolve(process.env.HOME, 'AppData', 'Local', 'RakKomik', 'cache'));
+            expect(testee.applicationCacheDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache'));
             expect(electron.app.getPath).toHaveBeenCalledTimes(3);
             expect(electron.app.getPath).toHaveBeenCalledWith('exe');
             expect(electron.app.getPath).toHaveBeenCalledWith('appData');
@@ -143,7 +145,7 @@ var suite = function() {
     describe('applicationUserDataDirectory', function() {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
-            expect(testee.applicationUserDataDirectory).toEqual(path.resolve(process.env.HOME, 'AppData', 'Roaming', 'RakKomik'));
+            expect(testee.applicationUserDataDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik'));
             expect(electron.app.getPath).toHaveBeenCalledTimes(3);
             expect(electron.app.getPath).toHaveBeenCalledWith('exe');
             expect(electron.app.getPath).toHaveBeenCalledWith('appData');
@@ -162,7 +164,7 @@ var suite = function() {
     describe('applicationUserPluginsDirectory', function() {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
-            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve(process.env.HOME, 'AppData', 'Roaming', 'RakKomik', 'rakkomik.plugins'));
+            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik', 'rakkomik.plugins'));
             expect(electron.app.getPath).toHaveBeenCalledTimes(3);
             expect(electron.app.getPath).toHaveBeenCalledWith('exe');
             expect(electron.app.getPath).toHaveBeenCalledWith('appData');
@@ -177,10 +179,45 @@ var suite = function() {
             expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve('/usr/data/rakkomik.plugins'));
         });
     });
+
+    describe('options', function() {
+        it.each([ undefined, null, '' ])('should take the directories of Electron when the options are %p', option => {
+            let testee = new Configuration({ applicationCacheDirectory: option, applicationUserDataDirectory: option });
+            expect(testee.applicationCacheDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache'));
+            expect(testee.applicationUserDataDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik'));
+        });
+        it('should decide on each of the two directories by itself', () => {
+            let cache = new Configuration({ applicationCacheDirectory: expected.applicationCacheDirectory });
+            expect(cache.applicationCacheDirectory).toEqual(expected.applicationCacheDirectory);
+            expect(cache.applicationUserDataDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik'));
+            let data = new Configuration({ applicationUserDataDirectory: expected.applicationUserDataDirectory });
+            expect(data.applicationCacheDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache'));
+            expect(data.applicationUserDataDirectory).toEqual(expected.applicationUserDataDirectory);
+        });
+        it('should keep the cache in the Local folder next to the Roaming folder of the application data, named after the application', () => {
+            let original = electron.app.getPath.getMockImplementation();
+            electron.app.getPath.mockImplementation(type => (type === 'appData' ? path.resolve('/profile/user/Roaming') : original(type)));
+            try {
+                let testee = new Configuration({ applicationUserDataDirectory: expected.applicationUserDataDirectory });
+                expect(testee.applicationCacheDirectory).toEqual(path.resolve('/profile/user/Local/RakKomik/cache'));
+            } finally {
+                electron.app.getPath.mockImplementation(original);
+            }
+        });
+        it('should name the folder of the cache after the application', () => {
+            let name = electron.app.name;
+            electron.app.name = 'Another Name';
+            try {
+                let testee = new Configuration({ applicationUserDataDirectory: expected.applicationUserDataDirectory });
+                expect(path.basename(path.dirname(testee.applicationCacheDirectory))).toEqual('Another Name');
+                expect(path.basename(testee.applicationCacheDirectory)).toEqual('cache');
+            } finally {
+                electron.app.name = name;
+            }
+        });
+    });
 };
 
-if(process.platform === 'win32') {
-    describe('ConfigurationWindows', suite);
-} else {
-    describe.skip(`ConfigurationWindows @ ${process.platform}`, suite);
-}
+// What the classes make of the paths Electron reports does not depend on the system the test runs on, so the suite of every
+// platform runs everywhere (the paths of the double are built from the home directory of the user running the test)
+describe('ConfigurationWindows', suite);

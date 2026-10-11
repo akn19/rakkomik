@@ -41,9 +41,15 @@ class CookieJar {
     }
 
     static applyCrossSiteCookies(headers) {
+        // the header comes in any case: HTTP/2 answers use lower case, the cookie of Webtoons is added as Set-Cookie
+        Object.keys(headers)
+            .filter(key => key.toLowerCase() === 'set-cookie')
+            .forEach(key => CookieJar.applyCrossSiteCookiesOf(headers, key));
+    }
+
+    static applyCrossSiteCookiesOf(headers, key) {
         // NOTE: hardened vs the old renderer port — string values are
         // written back (the old code only mutated a throwaway copy).
-        const key = headers['set-cookie'] ? 'set-cookie' : 'Set-Cookie';
         let cookies = headers[key];
         if (!cookies) {
             return;
@@ -53,7 +59,12 @@ class CookieJar {
             cookies = [cookies];
         }
         for (let index in cookies) {
-            cookies[index] = [...cookies[index].split(';').map(part => part.trim()).filter(part => !/^SameSite=/i.test(part)), 'SameSite=None'].join('; ');
+            const parts = cookies[index].split(';').map(part => part.trim()).filter(part => !/^SameSite=/i.test(part));
+            // Chromium keeps a SameSite=None cookie only when it is Secure as well
+            if (!parts.some(part => /^Secure$/i.test(part))) {
+                parts.push('Secure');
+            }
+            cookies[index] = [...parts, 'SameSite=None'].join('; ');
         }
         if (single) {
             headers[key] = cookies[0];
@@ -189,9 +200,7 @@ module.exports = class HeaderSurgery {
             delete responseHeaders['content-security-policy'];
         }
 
-        if (responseHeaders['set-cookie'] || responseHeaders['Set-Cookie']) {
-            CookieJar.applyCrossSiteCookies(responseHeaders);
-        }
+        CookieJar.applyCrossSiteCookies(responseHeaders);
 
         return responseHeaders;
     }

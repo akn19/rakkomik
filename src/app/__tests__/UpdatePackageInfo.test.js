@@ -1,4 +1,5 @@
 const assert = require('node:assert');
+const crypto = require('node:crypto');
 const UpdatePackageInfo = require('../UpdatePackageInfo');
 const publicKey =
 `-----BEGIN PUBLIC KEY-----
@@ -56,6 +57,136 @@ describe('UpdatePackageInfo', function () {
             } catch(error) {
                 assert.equal('Integrity check of update failed! The signature does not match the update package.', error.message);
             }
+        });
+    });
+    describe('validate() with keys of its own', function () {
+
+        let signer = null;
+        let stranger = null;
+
+        function keyPair() {
+            return crypto.generateKeyPairSync('rsa', {
+                modulusLength: 2048,
+                publicKeyEncoding: { type: 'spki', format: 'pem' },
+                privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+            });
+        }
+
+        // RSA PKCS#1 v1.5 over SHA-256, hex encoded: what deploy-web.js writes into the meta file
+        function sign(data, privateKey = signer.privateKey) {
+            return crypto.sign('sha256', data, privateKey).toString('hex');
+        }
+
+        const DATA = Buffer.from('PK\u0003\u0004 the bytes of an update package');
+
+        beforeAll(() => {
+            signer = keyPair();
+            stranger = keyPair();
+        });
+
+        it('should answer the very data it was given when the signature is right', async function () {
+            const testee = new UpdatePackageInfo('ABC', sign(DATA), 'https://x.test/ABC.zip');
+            await expect(testee.validate(DATA, signer.publicKey)).resolves.toBe(DATA);
+        });
+
+        it.each([
+            ['a Uint8Array', () => new Uint8Array(DATA)],
+            ['a Buffer', () => Buffer.from(DATA)],
+            ['a DataView', () => new DataView(new Uint8Array(DATA).buffer)]
+        ])('should take %s as the data', async function (_, make) {
+            const data = make();
+            await expect(new UpdatePackageInfo('v', sign(DATA), '').validate(data, signer.publicKey)).resolves.toBe(data);
+        });
+
+        it('should take a signature in capital letters', async function () {
+            await expect(new UpdatePackageInfo('v', sign(DATA).toUpperCase(), '').validate(DATA, signer.publicKey)).resolves.toBe(DATA);
+        });
+
+        it('should take an empty package when it is signed', async function () {
+            const empty = new Uint8Array(0);
+            await expect(new UpdatePackageInfo('v', sign(empty), '').validate(empty, signer.publicKey)).resolves.toBe(empty);
+        });
+
+        it.each([
+            ['one byte changed', data => Buffer.from(data).fill(0x58, 10, 11)],
+            ['one byte appended', data => Buffer.concat([data, Buffer.from([0])])],
+            ['one byte missing', data => data.subarray(0, data.length - 1)],
+            ['the first byte missing', data => data.subarray(1)],
+            ['nothing left', () => Buffer.alloc(0)],
+            ['the bytes in another order', data => Buffer.from(data).reverse()]
+        ])('should refuse the package with %s', async function (_, change) {
+            const testee = new UpdatePackageInfo('v', sign(DATA), '');
+            await expect(testee.validate(change(DATA), signer.publicKey)).rejects.toThrow('Integrity check of update failed! The signature does not match the update package.');
+        });
+
+        it('should refuse a signature of another key', async function () {
+            const testee = new UpdatePackageInfo('v', sign(DATA, stranger.privateKey), '');
+            await expect(testee.validate(DATA, signer.publicKey)).rejects.toThrow('Integrity check of update failed!');
+        });
+
+        it('should refuse a signature of the data with another hash or another padding', async function () {
+            const sha1 = crypto.sign('sha1', DATA, signer.privateKey).toString('hex');
+            const pss = crypto.sign('sha256', DATA, { key: signer.privateKey, padding: crypto.constants.RSA_PKCS1_PSS_PADDING }).toString('hex');
+            for (const signature of [sha1, pss]) {
+                await expect(new UpdatePackageInfo('v', signature, '').validate(DATA, signer.publicKey)).rejects.toThrow('Integrity check of update failed!');
+            }
+        });
+
+        it.each([
+            ['empty', ''],
+            ['no hex', 'zz'],
+            ['text', 'the signature'],
+            ['half of the right one', () => sign(DATA).slice(0, 256)],
+            ['the right one with a byte more', () => sign(DATA) + '00'],
+            ['the right one with a flipped digit', () => {
+                const signature = sign(DATA);
+                return (signature[0] === 'a' ? 'b' : 'a') + signature.slice(1);
+            }]
+        ])('should refuse a signature that is %s', async function (_, value) {
+            const signature = typeof value === 'function' ? value() : value;
+            await expect(new UpdatePackageInfo('v', signature, '').validate(DATA, signer.publicKey)).rejects.toThrow();
+        });
+
+        it.each([
+            ['missing, as in a link without ?signature=', undefined],
+            ['null, as the query of a link answers it', null],
+            ['a number', 12]
+        ])('should never accept a signature that is %s', async function (_, signature) {
+            await expect(new UpdatePackageInfo('v', signature, '').validate(DATA, signer.publicKey)).rejects.toThrow();
+        });
+
+        it.each([
+            ['no key', undefined],
+            ['an empty key', ''],
+            ['a key that is no PEM', 'not a key'],
+            ['a private key where the public one belongs', () => signer.privateKey.replace('PRIVATE', 'PUBLIC')]
+        ])('should never accept a package for %s', async function (_, value) {
+            const key = typeof value === 'function' ? value() : value;
+            await expect(new UpdatePackageInfo('v', sign(DATA), '').validate(DATA, key)).rejects.toThrow();
+        });
+
+        it.each([
+            ['a text', 'the package'],
+            ['nothing', undefined],
+            ['a list of numbers', [1, 2, 3]]
+        ])('should refuse %s as the package', async function (_, data) {
+            await expect(new UpdatePackageInfo('v', sign(DATA), '').validate(data, signer.publicKey)).rejects.toThrow();
+        });
+
+        it('should answer a promise, also for a package it refuses', async function () {
+            const result = new UpdatePackageInfo('v', 'zz', '').validate(DATA, signer.publicKey);
+            expect(result).toBeInstanceOf(Promise);
+            await expect(result).rejects.toThrow();
+        });
+    });
+
+    describe('constructor', function () {
+
+        it('should keep the version, the signature and the link it is given', function () {
+            const testee = new UpdatePackageInfo('ABC123', 'ffee', 'https://x.test/ABC123.zip?signature=ffee');
+            assert.equal(testee.version, 'ABC123');
+            assert.equal(testee.signature, 'ffee');
+            assert.equal(testee.link, 'https://x.test/ABC123.zip?signature=ffee');
         });
     });
 });

@@ -40,7 +40,8 @@ module.exports = class SqliteBridge {
                 database.close();
             }
         } finally {
-            await fs.rm(directory, { recursive: true, force: true });
+            // a directory that stays is no reason to throw the rows away
+            await fs.rm(directory, { recursive: true, force: true }).catch(() => undefined);
         }
     }
 };

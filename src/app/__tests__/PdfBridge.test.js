@@ -4,6 +4,7 @@ const { mockModule } = require('./support/mockRequire');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
 const electron = mockModule('electron', () => ({
     ipcMain: {
@@ -123,7 +124,7 @@ describe('PdfBridge', () => {
             filter({ url }, callback);
             return callback.mock.calls[0][0].cancel;
         };
-        expect(cancelled('file:///tmp/rakkomik-pdf-x/page.html')).toBe(false);
+        expect(cancelled(pathToFileURL(win.loadFile.mock.calls[0][0]).href)).toBe(false);
         expect(cancelled('data:image/png;base64,AAAA')).toBe(false);
         expect(cancelled('https://tracker.example/pixel.gif')).toBe(true);
         expect(cancelled('http://127.0.0.1:8080/')).toBe(true);
@@ -208,5 +209,164 @@ describe('PdfBridge', () => {
         const large = PAGE.replace('<p>Text</p>', `<p><img src="data:image/png;base64,${'A'.repeat(5 * 1024 * 1024)}"/></p>`);
         await PdfBridge.render(large);
         expect(win.loaded).toBe(large);
+    });
+    it('should give the printing two minutes by default', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const win = fakeWindow({ print: () => new Promise(() => undefined) });
+        const result = PdfBridge.render(PAGE);
+        const state = { value: 'pending' };
+        result.then(() => {
+            state.value = 'resolved';
+        }, error => {
+            state.value = error.message;
+        });
+        // the page is written to the disk first: let the real file system answer
+        while (win.webContents.printToPDF.mock.calls.length === 0) {
+            await new Promise(resolve => setImmediate(resolve));
+        }
+        await vi.advanceTimersByTimeAsync(119999);
+        expect(state.value).toBe('pending');
+        await vi.advanceTimersByTimeAsync(1);
+        await expect(result).rejects.toThrow('Printing the page took longer than 120 seconds!');
+        expect(win.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should give up, and clean up, when the page never finishes loading', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const before = leftoverTempDirectories();
+        const win = fakeWindow({ load: () => new Promise(() => undefined) });
+        const result = expect(PdfBridge.render(PAGE, 3000)).rejects.toThrow('Printing the page took longer than 3 seconds!');
+        while (win.loadFile.mock.calls.length === 0) {
+            await new Promise(resolve => setImmediate(resolve));
+        }
+        await vi.advanceTimersByTimeAsync(3000);
+        await result;
+        expect(win.webContents.printToPDF).not.toHaveBeenCalled();
+        expect(win.destroy).toHaveBeenCalledTimes(1);
+        expect(leftoverTempDirectories()).toEqual(before);
+    });
+
+    it('should not keep the timer of a printing that is done', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        fakeWindow();
+        await PdfBridge.render(PAGE, 60000);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('should print pages at the same time, each in a window and a directory of its own', async () => {
+        const before = leftoverTempDirectories();
+        const first = fakeWindow({ print: async () => Buffer.from('pdf of the first window') });
+        const second = fakeWindow({ print: async () => Buffer.from('pdf of the second window') });
+        electron.BrowserWindow.mockReset();
+        electron.BrowserWindow.mockImplementationOnce(function() {
+            return first;
+        }).mockImplementationOnce(function() {
+            return second;
+        });
+        const pages = [PAGE, PAGE.replace('Text', 'Other text')];
+        const documents = await Promise.all(pages.map(page => PdfBridge.render(page)));
+        expect(documents.map(document => Buffer.from(document).toString()).sort()).toEqual(['pdf of the first window', 'pdf of the second window']);
+        expect([first.loaded, second.loaded].sort()).toEqual([...pages].sort());
+        expect(path.dirname(first.loadFile.mock.calls[0][0])).not.toBe(path.dirname(second.loadFile.mock.calls[0][0]));
+        expect(first.destroy).toHaveBeenCalledTimes(1);
+        expect(second.destroy).toHaveBeenCalledTimes(1);
+        expect(leftoverTempDirectories()).toEqual(before);
+    });
+
+    it('should open no window when the page cannot be written, and leave nothing behind', async () => {
+        const before = leftoverTempDirectories();
+        fakeWindow();
+        vi.spyOn(fs.promises, 'writeFile').mockRejectedValueOnce(Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' }));
+        await expect(PdfBridge.render(PAGE)).rejects.toThrow('ENOSPC');
+        expect(electron.BrowserWindow).not.toHaveBeenCalled();
+        expect(leftoverTempDirectories()).toEqual(before);
+    });
+
+    it('should fail when there is no place for the page, and open no window', async () => {
+        fakeWindow();
+        vi.spyOn(fs.promises, 'mkdtemp').mockRejectedValueOnce(Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' }));
+        await expect(PdfBridge.render(PAGE)).rejects.toThrow('EACCES');
+        expect(electron.BrowserWindow).not.toHaveBeenCalled();
+    });
+
+    it('should clean up when the window cannot be made', async () => {
+        const before = leftoverTempDirectories();
+        electron.BrowserWindow.mockImplementation(function() {
+            throw new Error('GPU process crashed');
+        });
+        await expect(PdfBridge.render(PAGE)).rejects.toThrow('GPU process crashed');
+        expect(leftoverTempDirectories()).toEqual(before);
+    });
+
+    it('should give back the document even when the page cannot be removed afterwards', async () => {
+        const before = leftoverTempDirectories();
+        fakeWindow();
+        vi.spyOn(fs.promises, 'rm').mockRejectedValueOnce(Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' }));
+        try {
+            const pdf = await PdfBridge.render(PAGE);
+            expect(Buffer.from(pdf).toString()).toBe('%PDF-1.7 fake');
+        } finally {
+            // the removal that failed in the test is made here
+            for (const name of leftoverTempDirectories().filter(entry => !before.includes(entry))) {
+                fs.rmSync(path.join(os.tmpdir(), name), { recursive: true, force: true });
+            }
+        }
+    });
+
+    describe('the requests of the window', () => {
+        async function filterOf() {
+            const win = fakeWindow();
+            await PdfBridge.render(PAGE);
+            const [filter] = win.webContents.session.webRequest.onBeforeRequest.mock.calls[0];
+            const cancelled = url => {
+                const callback = vi.fn();
+                filter({ url }, callback);
+                return callback.mock.calls[0][0].cancel;
+            };
+            return { win, cancelled };
+        }
+
+        it.each([
+            'https://tracker.example/pixel.gif',
+            'http://127.0.0.1:8080/',
+            'ftp://x.example/y',
+            'ws://127.0.0.1:9229/',
+            'blob:https://x.example/uuid',
+            'hakuneko://cache/index.html',
+            'connector://mangadex?payload=x',
+            'chrome://gpu/',
+            'about:blank#x'
+        ])('should block %s', async url => {
+            const { cancelled } = await filterOf();
+            expect(cancelled(url)).toBe(true);
+        });
+
+        it('should let the page and the pictures that are part of it through', async () => {
+            const { win, cancelled } = await filterOf();
+            expect(cancelled(pathToFileURL(win.loadFile.mock.calls[0][0]).href)).toBe(false);
+            expect(cancelled('data:image/svg+xml;utf8,%3Csvg%2F%3E')).toBe(false);
+        });
+
+        it('should block the files that are not the page', async () => {
+            const { win, cancelled } = await filterOf();
+            expect(cancelled(pathToFileURL(win.loadFile.mock.calls[0][0]).href)).toBe(false);
+            expect(cancelled(pathToFileURL(path.join(os.homedir(), '.ssh', 'id_rsa')).href)).toBe(true);
+            expect(cancelled(pathToFileURL(path.join(path.dirname(win.loadFile.mock.calls[0][0]), '..', 'other.html')).href)).toBe(true);
+        });
+
+        // Chromium escapes a path differently than Node.js does (`~`, `[` and `]` for one), so the page is known by its path
+        it('should know the page by its path, not by the way the URL of its file is written', async () => {
+            const { win, cancelled } = await filterOf();
+            const page = pathToFileURL(win.loadFile.mock.calls[0][0]).href;
+            expect(cancelled(page.replace('page.html', 'page%2Ehtml'))).toBe(false);
+        });
+
+        it.each([
+            'file://remote-host/share/page.html',
+            'file:///%'
+        ])('should block the file %s without failing', async url => {
+            const { cancelled } = await filterOf();
+            expect(cancelled(url)).toBe(true);
+        });
     });
 });
