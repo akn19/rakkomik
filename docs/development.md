@@ -30,6 +30,7 @@
 | `pnpm run test:coverage` | the unit tests with a coverage report: a summary in the terminal, the details in `coverage/index.html` |
 | `pnpm run test:e2e` | build the web part and run the tests of the real application (Playwright, project `ui`) |
 | `pnpm run test:e2e:sites` | connectors against their real websites, see [adding a website](connectors.md#testing) |
+| `pnpm run test:package` | the tests of the real application on a package that `build:app` made, see [building the installers](#building-the-installers) |
 | `pnpm run knip` | unused files, exports and dependencies |
 | `pnpm run check:deprecated` | fails when a dependency (at its installed version) is deprecated; needs network |
 | `pnpm run build:web` | the web part in `build/web` |
@@ -80,8 +81,9 @@ pnpm exec electron . --update-url=DISABLED --cache-directory=./build/web --user-
   symlink; a test server that is reused must answer with `Connection: close`.
 - **End-to-end tests** (`src/__tests__/App.e2e.mjs`) start the real application with Playwright's `_electron` in an
   isolated profile that is seeded with the manga list of one connector. `src/__tests__/support/electronApp.mjs` holds
-  the fixture (one application per worker; `E2E_WEB` selects another web directory than `build/web`) and fails a test
-  when the page contacts an external host. The interstitial tests use a local HTTP server that behaves like a gate
+  the fixture (one application per worker; `E2E_WEB` selects another web directory than `build/web`, `E2E_ELECTRON`
+  the executable of a packaged application instead of the Electron of `node_modules`) and fails a test when the page
+  contacts an external host. The interstitial tests use a local HTTP server that behaves like a gate
   (a check that completes on its own, one that needs a click, one that never completes). A test that changes files
   under a running window uses the `isolatedApp` fixture: an application of its own on its own copy of the web
   directory (see the test _replaced web part_).
@@ -142,6 +144,34 @@ On Linux and Windows the Electron binary is hardened with fuses before it is pac
 macOS the application is signed ad hoc, because Apple Silicon refuses code whose signature does not match its files
 after the bundle was renamed; the Info.plist of Electron keeps its keys and only the keys that name the application
 change. Neither platform has a certificate, so Windows SmartScreen and macOS Gatekeeper warn the user once.
+
+### What the packages leave out
+
+The packages hold what the application loads, and are as small as that allows:
+
+- `app.asar` is packed by `scripts/pack-app.js` (the Arch package uses it too): the sources of `src/app` without the
+  unit tests and their logs, `package.json`, and the runtime dependencies as a real `node_modules` tree without the
+  files of pnpm and without what the packages ship for their developers (typings, source maps, TypeScript sources,
+  documentation, tests, examples, tool configuration). The licence files of the packages stay. The archive is a third
+  of the size that packing `src/app` as it is would give.
+- Of the Electron archive, the licence texts and its `version` file are dropped on every platform, and so are the
+  parts that the application never loads: `chrome_crashpad_handler` on Linux (the application does not start the
+  crash reporter, so the handler process is never spawned) and `dxcompiler.dll` with `dxil.dll` on Windows (the
+  DirectX shader compiler of WebGPU, 27 MB; neither the interface nor a connector uses WebGPU, and a page that asks
+  for it gets the compiler of the system instead). The table `NOT_SHIPPED` in `build-app.js` lists them. What stays
+  on purpose: `ffmpeg` (Chromium links it), SwiftShader and Vulkan (the WebGL of a machine without a usable GPU, which
+  the anti-bot checks of websites look at), `d3dcompiler_47.dll` (ANGLE compiles its shaders with it), and the locale
+  files (`locales/*.pak`): without the file of the system language, Chromium falls back to `en-US` for its own strings,
+  for `navigator.language` and for the `Accept-Language` header that every request carries, which some websites
+  answer differently.
+- The compression of the packages is the strongest their tools unpack everywhere: the DEB uses xz at its highest
+  level, the RPM xz instead of the gzip that `rpmbuild` falls back to, and the Inno Setup installer one solid LZMA2
+  stream at the highest level (the thousand connectors and icons compress together).
+
+`pnpm run test:package` runs the end-to-end tests of the interface on the package of the platform and the architecture
+of the machine (`scripts/test-package.js`): a copy of the package gets the inspector fuse back, which Playwright needs
+to drive the application, and the tests start its executable, which loads its own `app.asar` and the web part next to
+it. The _Build Desktop Installers_ workflow does the same on every runner before it keeps the packages.
 
 ## Building the Arch package
 

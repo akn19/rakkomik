@@ -3,7 +3,8 @@
 # Builds the installers of Windows, macOS and Linux (deb and rpm) and the package of Arch Linux, and keeps them as
 # artifacts. A push starts nothing here: release.yml calls this workflow for a tag, and it can be started by hand from
 # the Actions tab to try the packagers without a release. The code is not checked again (lint, unit tests): ci.yml
-# did that when the commit was pushed.
+# did that when the commit was pushed. The packages are tried before they are kept: the end-to-end tests of the
+# interface run on the package of the runner's architecture (scripts/test-package.js).
 
 name: Build Desktop Installers
 
@@ -48,10 +49,17 @@ jobs:
         run: pnpm install
       - name: Install packaging tools (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y fakeroot lintian rpm unzip
+        run: sudo apt-get update && sudo apt-get install -y fakeroot lintian rpm unzip xvfb
       # builds the web part first, which every installer carries, then the installers of this platform
       - name: Build (app)
         run: pnpm run build:app
+      # Ubuntu 24.04 keeps unprivileged processes from making user namespaces, which the sandbox of Chromium needs
+      # (the setuid helper of the package is not owned by root here)
+      - name: Let Chromium make its sandbox (Linux)
+        if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - name: Test the packaged application
+        run: pnpm run test:package
       - name: Upload installers
         uses: actions/upload-artifact@v7
         with:

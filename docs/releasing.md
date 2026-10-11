@@ -7,7 +7,7 @@
 | `ci.yml` | pushes to `main` and `*.*.*` branches, pull requests | lint, deprecated dependency check and web build once (on Linux) and the unit tests on Linux, Windows and macOS. A push then [publishes the web part](#web-part); a pull request gets a [git-cliff](https://git-cliff.org) preview of the changes since the last release in its job summary |
 | `security.yml` | pushes to `main`, pull requests, every Monday | CodeQL for the JavaScript and for the workflows, and a Trivy scan of the dependencies and of the files for secrets. The results are in the Security tab |
 | `release.yml` | tags `vX.Y.Z`, by hand | release notes, GitHub release, installers attached to it; the AUR package when that is switched on |
-| `build-app.yml` | `release.yml`, by hand | builds the installers of Windows, macOS and Linux and the package of Arch Linux, and uploads them as artifacts (only the `.deb`, `.rpm`, `.exe`, `.zip`, `.dmg` and `.pkg.tar.zst` files) |
+| `build-app.yml` | `release.yml`, by hand | builds the installers of Windows, macOS and Linux and the package of Arch Linux, runs the end-to-end tests on the package of each runner (`pnpm run test:package`), and uploads the packages as artifacts (only the `.deb`, `.rpm`, `.exe`, `.zip`, `.dmg` and `.pkg.tar.zst` files) |
 
 A push builds the web part and nothing else: **installers are built for tags only** (or by hand from the Actions tab,
 to try the packagers). Nothing runs twice. The checks that are the same on every system run once, and the web part is
@@ -92,8 +92,9 @@ set. The package is kept up to date and can be built locally, and every release 
 `packaging/aur` holds the package of the [AUR](https://aur.archlinux.org):
 
 - `PKGBUILD` builds from the git tag (`git+https://github.com/akn19/rakkomik.git#tag=v$pkgver`) and the package is
-  self-contained: `app.asar` (the shell `src/app`) and the web part (`build/web`, built from the same tag) are
-  installed in `/usr/lib/rakkomik`, next to the icons and the desktop entry. The build needs network access (pnpm).
+  self-contained: `app.asar` (the shell `src/app`, packed by `scripts/pack-app.js` like the installers pack it) and the
+  web part (`build/web`, built from the same tag) are installed in `/usr/lib/rakkomik`, next to the icons and the
+  desktop entry. The build needs network access (pnpm).
 - `rakkomik.sh` is the launcher (`/usr/bin/rakkomik`); it starts the system Electron with `app.asar`. The application
   finds the `web` folder next to it, uses it as its cache directory and does not update it (see
   [architecture](architecture.md#delivery-and-updates-of-the-web-part)), so a new version of the package is what

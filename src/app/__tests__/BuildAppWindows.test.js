@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const asar = require('@electron/asar');
 const config = require('../../../build-app.config');
-const { REPOSITORY, loadBuildApp, readFuseWire, write, writeElectronArchive, writeSources } = require('./support/buildAppHarness');
+const { REPOSITORY, PACKED, NOT_PACKED, loadBuildApp, readFuseWire, write, writeElectronArchive, writeSources } = require('./support/buildAppHarness');
 const { createExecutable, readResources } = require('./support/peFixture');
 const { useTemporaryWorkingDirectory } = require('./support/toolScripts');
 
@@ -55,6 +55,12 @@ describe('the Inno Setup script that a Windows host writes', () => {
 
     it('should hold the sections of the installer, in the order that Inno Setup is used to', () => {
         expect(script('64').lines.filter(line => line.startsWith('['))).toEqual([ '[Setup]', '[Tasks]', '[Files]', '[UninstallDelete]', '[Icons]' ]);
+    });
+
+    it('should compress all the files as one LZMA2 stream at the highest level', () => {
+        const { lines } = script('64');
+        expect(lines.indexOf('Compression=lzma2/ultra64')).toBeGreaterThan(lines.indexOf('[Setup]'));
+        expect(lines.indexOf('SolidCompression=yes')).toBeLessThan(lines.indexOf('[Tasks]'));
     });
 
     it('should name the application, its version and its publisher', () => {
@@ -161,12 +167,14 @@ describe('a build of the Windows packages', () => {
             expect(fs.existsSync(path.join(root, 'electron.exe'))).toBe(false);
             expect(fs.existsSync(path.join(root, 'resources', 'default_app.asar'))).toBe(false);
             expect(fs.existsSync(path.join(root, 'ffmpeg.dll'))).toBe(true);
+            expect(fs.existsSync(path.join(root, 'd3dcompiler_47.dll'))).toBe(true);
+            expect(fs.existsSync(path.join(root, 'locales', 'en-US.pak'))).toBe(true);
             expect(fs.readFileSync(path.join(root, 'resources', 'web', 'index.html'), 'utf8')).toBe('<html>web part</html>');
             const packed = (await asar.listPackage(path.join(root, 'resources', 'app.asar'), { isPack: false })).map(entry => entry.split(path.sep).join('/'));
-            expect(packed).toEqual(expect.arrayContaining([ '/main.js', '/package.json' ]));
+            expect(packed).toEqual(expect.arrayContaining(PACKED));
+            expect(packed).not.toEqual(expect.arrayContaining(NOT_PACKED));
             expect(runner.commands).toEqual([
                 'tar --version',
-                'asar --version',
                 `tar -a -c -f "${root}.zip" -C "build" "${path.basename(root)}"`
             ]);
             expect(fs.existsSync(`${root}.zip`)).toBe(false);
@@ -217,7 +225,6 @@ describe('a build of the Windows packages', () => {
             expect(downloads).toEqual([ { version: config.electron, platform: electron, folder: root } ]);
             expect(runner.commands).toEqual([
                 'tar --version',
-                'asar --version',
                 'where innosetup-compiler',
                 `innosetup-compiler "${path.join('build', 'setup.iss')}"`
             ]);
@@ -239,7 +246,7 @@ describe('a build of the Windows packages', () => {
         const { packager, runner } = windowsApp({ platform });
         await packager.buildZIP('64');
         expect(runner.commands[0]).toBe(`${tool} --version`);
-        expect(runner.commands[2]).toMatch(new RegExp(`^${tool} -a -c -f `));
+        expect(runner.commands[1]).toMatch(new RegExp(`^${tool} -a -c -f `));
     });
 
     it('should not build anything when a tool of the platform is missing', async () => {
@@ -265,7 +272,7 @@ describe('a build of the Windows packages', () => {
             const { packager, runner } = windowsApp();
             fs.rmSync(path.join('build', 'web'), { recursive: true, force: true });
             await expect(packager.buildZIP('64')).rejects.toThrow(`The web part is missing in "${path.join('build', 'web')}", run 'pnpm run build:web' first!`);
-            expect(runner.commands).toEqual([ 'tar --version', 'asar --version' ]);
+            expect(runner.commands).toEqual([ 'tar --version' ]);
         });
     });
 });

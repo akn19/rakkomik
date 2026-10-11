@@ -5,7 +5,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const asar = require('@electron/asar');
 const config = require('../../../build-app.config');
-const { INFO_PLIST, loadBuildApp, write, writeElectronArchive, writeSources } = require('./support/buildAppHarness');
+const { INFO_PLIST, PACKED, NOT_PACKED, loadBuildApp, write, writeElectronArchive, writeSources } = require('./support/buildAppHarness');
 const { useTemporaryWorkingDirectory } = require('./support/toolScripts');
 
 const name = config.name.package;
@@ -165,7 +165,8 @@ describe('the disk image of macOS', () => {
             expect(fs.existsSync(path.join(contents, 'Info.plist'))).toBe(true);
             expect(fs.existsSync(path.join(contents, 'Resources', 'default_app.asar'))).toBe(false);
             const packed = (await asar.listPackage(path.join(contents, 'Resources', 'app.asar'), { isPack: false })).map(entry => entry.split(path.sep).join('/'));
-            expect(packed).toEqual(expect.arrayContaining([ '/main.js', '/package.json' ]));
+            expect(packed).toEqual(expect.arrayContaining(PACKED));
+            expect(packed).not.toEqual(expect.arrayContaining(NOT_PACKED));
             expect(fs.readFileSync(path.join(contents, 'Resources', 'web', 'index.html'), 'utf8')).toBe('<html>web part</html>');
         });
 

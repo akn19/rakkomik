@@ -9,6 +9,9 @@ import electronPath from 'electron';
 
 const root = path.resolve(import.meta.dirname, '..', '..', '..');
 const webDirectory = process.env.E2E_WEB || path.join(root, 'build', 'web');
+// the executable of a packaged application instead of the Electron of node_modules (`pnpm run test:package`): it
+// loads its own app.asar, so it is not given the directory of the sources
+const packagedExecutable = process.env.E2E_ELECTRON || '';
 
 export const SEED_CONNECTOR = 'westmanga';
 export const SEED_TITLES = 10389;
@@ -34,9 +37,9 @@ async function startApplication(web) {
     const userDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'rakkomik-e2e-'));
     seedProfile(userDirectory);
     const electronApp = await electron.launch({
-        executablePath: electronPath,
+        executablePath: packagedExecutable || electronPath,
         args: [
-            '.',
+            ...(packagedExecutable ? [] : [ '.' ]),
             '--update-url=DISABLED',
             `--cache-directory=${web}`,
             `--user-directory=${userDirectory}`

@@ -68,6 +68,7 @@
     "test:web": "vitest run --project web",
     "test:e2e": "pnpm run build:web && playwright test --project=ui",
     "test:e2e:sites": "pnpm run build:web && playwright test --project=sites",
+        "test:package": "node scripts/test-package.js",
     "knip": "knip",
     "check:deprecated": "node scripts/check-deprecated.js",
     "vendor": "node scripts/vendor.js",

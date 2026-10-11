@@ -49,12 +49,8 @@ build() {
     # src/app/pnpm-workspace.yaml): an asar cannot follow the symlinks of pnpm's default layout.
     pnpm --dir src/app install --frozen-lockfile --no-optional --store-dir "$store"
 
-    # pack the shell without its tests and the package manager files
-    mkdir "$srcdir/app"
-    tar -C src/app --exclude=__tests__ --exclude='*.log' --exclude=pnpm-lock.yaml --exclude=pnpm-workspace.yaml \
-        --exclude=node_modules/.bin --exclude=node_modules/.pnpm --exclude=node_modules/.modules.yaml \
-        --exclude=node_modules/.pnpm-workspace-state-v1.json -cf - . | tar -C "$srcdir/app" -xf -
-    pnpm exec asar pack "$srcdir/app" "$srcdir/app.asar"
+    # pack the shell with the files that the application loads, the way the installers do
+    node scripts/pack-app.js src/app "$srcdir/app.asar"
 }
 
 package() {

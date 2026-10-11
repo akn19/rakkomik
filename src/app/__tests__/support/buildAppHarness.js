@@ -145,6 +145,8 @@ function writeElectronArchive(directory, platform, executable = electronExecutab
         win32: {
             'electron.exe': executable,
             'ffmpeg.dll': 'library',
+            'd3dcompiler_47.dll': 'shader compiler',
+            'locales/en-US.pak': 'locale',
             'resources/default_app.asar': 'default app'
         },
         darwin: {
@@ -165,10 +167,19 @@ function writeElectronArchive(directory, platform, executable = electronExecutab
  */
 function writeSources() {
     write(path.join('src', 'app', 'main.js'), 'process.exit(0);');
-    write(path.join('src', 'app', 'package.json'), '{ "name": "app", "main": "main.js" }');
+    write(path.join('src', 'app', 'package.json'), '{ "name": "app", "main": "main.js", "dependencies": { "dep": "1.0.0" } }');
+    // a dependency with a file for its developers, and a unit test of the shell: neither is part of a package
+    write(path.join('src', 'app', 'node_modules', 'dep', 'package.json'), '{ "name": "dep", "main": "index.js" }');
+    write(path.join('src', 'app', 'node_modules', 'dep', 'index.js'), 'module.exports = {};');
+    write(path.join('src', 'app', 'node_modules', 'dep', 'index.d.ts'), 'export {};');
+    write(path.join('src', 'app', '__tests__', 'main.test.js'), 'test();');
     write(path.join('build', 'web', 'index.html'), '<html>web part</html>');
     write(path.join('build', 'web', 'mjs', 'engine', 'Engine.mjs'), 'export default {};');
 }
+
+// the entries of an app.asar that every package holds, and the ones that none holds (see writeSources)
+const PACKED = [ '/main.js', '/package.json', '/node_modules/dep/package.json', '/node_modules/dep/index.js' ];
+const NOT_PACKED = [ '/node_modules/dep/index.d.ts', '/__tests__/main.test.js' ];
 
 module.exports = {
     REPOSITORY,
@@ -180,5 +191,7 @@ module.exports = {
     readFuseWire,
     writeElectronArchive,
     writeSources,
+    PACKED,
+    NOT_PACKED,
     write
 };

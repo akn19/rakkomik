@@ -5,9 +5,22 @@ const { EOL: eol } = require('node:os');
 const { exec } = require('node:child_process');
 const { pipeline } = require('node:stream/promises');
 const { Readable } = require('node:stream');
-const asar = require('@electron/asar');
 const { flipFuses, getCurrentFuseWire, FuseVersion, FuseV1Options, FuseState } = require('@electron/fuses');
+const { packApp } = require('./scripts/pack-app');
 const config = require('./build-app.config');
+
+// The files of the Electron archive that the packages do not ship: the licence texts and the version of the archive on
+// every platform, and the parts of Electron that the application never loads (docs/development.md, "What the packages
+// leave out"). What a package does load stays, the fallbacks of the GPU included (SwiftShader, Vulkan, the locales).
+const NOT_SHIPPED = {
+    all: [ 'version', 'LICENSE', 'LICENSES.chromium.html' ],
+    // the crash reporter is never started (`crashReporter.start`), so the handler process has nothing to do
+    linux: [ 'chrome_crashpad_handler' ],
+    // the DirectX shader compiler is loaded for WebGPU only, which neither the interface nor a connector uses; a page
+    // that asks for WebGPU gets the compiler of the system instead (d3dcompiler_47.dll, which stays)
+    win32: [ 'dxcompiler.dll', 'dxil.dll' ],
+    darwin: []
+};
 
 // Electron fuses (build-time hardening of the shipped binary): the application cannot be
 // turned into a Node runtime (ELECTRON_RUN_AS_NODE, NODE_OPTIONS, --inspect) and only loads
@@ -167,9 +180,9 @@ class ElectronPackager {
         }
         await fs.promises.mkdir(directory, { recursive: true });
         await this._extractArchive(file, directory);
-        await fs.promises.rm(path.join(directory, 'version'), { recursive: true, force: true });
-        await fs.promises.rm(path.join(directory, 'LICENSE'), { recursive: true, force: true });
-        await fs.promises.rm(path.join(directory, 'LICENSES.chromium.html'), { recursive: true, force: true });
+        for(const name of [ ...NOT_SHIPPED.all, ...NOT_SHIPPED[platform.split('-')[0]] ]) {
+            await fs.promises.rm(path.join(directory, name), { recursive: true, force: true });
+        }
     }
 
     /**
@@ -271,7 +284,7 @@ class ElectronPackagerLinux extends ElectronPackager {
     async buildDEB(architecture) {
         this._architecture = this.architectures[architecture];
 
-        await this._validateCommands('unzip --help', 'asar --version', 'fakeroot --version', 'dpkg --version', 'lintian --version');
+        await this._validateCommands('unzip --help', 'fakeroot --version', 'dpkg --version', 'lintian --version');
 
         await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._copySkeletonDEB();
@@ -286,7 +299,9 @@ class ElectronPackagerLinux extends ElectronPackager {
 
         let deb = this._dirBuildRoot + '.deb';
         await fs.promises.rm(deb, { recursive: true, force: true });
-        await this._executeCommand(`fakeroot dpkg-deb -v -b "${this._dirBuildRoot}" "${deb}"`);
+        // xz at its highest level: the package is a few percent smaller than at the default level, and dpkg of any
+        // release unpacks it (the level only sets the size of the dictionary, 64 MiB)
+        await this._executeCommand(`fakeroot dpkg-deb -v -Zxz -z9 -b "${this._dirBuildRoot}" "${deb}"`);
         await this._executeCommand(`lintian --profile debian "${deb}" || true`);
     }
 
@@ -296,7 +311,7 @@ class ElectronPackagerLinux extends ElectronPackager {
     async buildRPM(architecture) {
         this._architecture = this.architectures[architecture];
 
-        await this._validateCommands('unzip --help', 'asar --version', 'fakeroot --version', 'rpm --version');
+        await this._validateCommands('unzip --help', 'fakeroot --version', 'rpm --version');
 
         await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._copySkeletonRPM();
@@ -308,8 +323,10 @@ class ElectronPackagerLinux extends ElectronPackager {
 
         let rpm = this._dirBuildRoot + '.rpm';
         await fs.promises.rm(rpm, { recursive: true, force: true });
-        // the target names the architecture of the package: without it the RPM of ARM64 is built for the host
-        await this._executeCommand(`rpmbuild -bb --noclean --target ${this._architecture.rpm} --define "_topdir $(pwd)/${this._dirBuildRoot}" --define "buildroot %{_topdir}" "${specs}"`);
+        // the target names the architecture of the package: without it the RPM of ARM64 is built for the host. The
+        // payload is compressed with xz instead of the gzip that rpmbuild falls back to (a quarter smaller); every rpm
+        // since 4.7 (2009) reads it
+        await this._executeCommand(`rpmbuild -bb --noclean --target ${this._architecture.rpm} --define "_topdir $(pwd)/${this._dirBuildRoot}" --define "buildroot %{_topdir}" --define "_binary_payload w9.xzdio" "${specs}"`);
         await this._executeCommand(`mv -f ${this._dirBuildRoot}/RPMS/*/*.rpm ${rpm}`);
         await fs.promises.rm(specs, { recursive: true, force: true });
     }
@@ -322,7 +339,7 @@ class ElectronPackagerLinux extends ElectronPackager {
         let folder = this._stagingExecutableDirectory;
         await this._downloadElectron(this._configuration.electron, this._architecture.platform, folder);
         await fs.promises.rm(path.join(folder, 'resources', 'default_app.asar'), { recursive: true, force: true });
-        await asar.createPackage(config.src, path.join(folder, 'resources', 'app.asar'));
+        await packApp(config.src, path.join(folder, 'resources', 'app.asar'));
         await this._bundleWebPart(path.join(folder, 'resources'));
         await fs.promises.rename(path.join(folder, 'electron'), path.join(folder, this._configuration.binary.linux));
         await this._applyFuses(path.join(folder, this._configuration.binary.linux));
@@ -565,7 +582,7 @@ class ElectronPackagerWindows extends ElectronPackager {
         this._architecture = this.architectures[architecture].is;
 
         // NOTE: `innosetup-compiler /?` exits non-zero by design, so probe presence instead.
-        await this._validateCommands('tar --version', 'asar --version', 'where innosetup-compiler');
+        await this._validateCommands('tar --version', 'where innosetup-compiler');
 
         await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(false);
@@ -584,7 +601,7 @@ class ElectronPackagerWindows extends ElectronPackager {
     async buildZIP(architecture) {
         this._architecture = this.architectures[architecture].zip;
 
-        await this._validateCommands(`${this._zipTool} --version`, 'asar --version');
+        await this._validateCommands(`${this._zipTool} --version`);
 
         await fs.promises.rm(this._dirBuildRoot, { recursive: true, force: true });
         await this._bundleElectron(true);
@@ -607,7 +624,7 @@ class ElectronPackagerWindows extends ElectronPackager {
         if(portable) {
             this._saveFile(path.join(folder, this._configuration.binary.windows + '.portable'), 'Delete this File to disable Portable Mode');
         }
-        await asar.createPackage(config.src, path.join(folder, 'resources', 'app.asar'));
+        await packApp(config.src, path.join(folder, 'resources', 'app.asar'));
         await this._bundleWebPart(path.join(folder, 'resources'));
         await fs.promises.rename(path.join(folder, 'electron.exe'), path.join(folder, this._configuration.binary.windows));
         await this._applyFuses(path.join(folder, this._configuration.binary.windows));
@@ -666,6 +683,9 @@ class ElectronPackagerWindows extends ElectronPackager {
             'OutputDir=.',
             'OutputBaseFilename=' + path.basename(this._dirBuildRoot),
             'ChangesEnvironment=yes',
+            // one LZMA2 stream at the highest level over all files: the thousand connectors and icons compress together
+            'Compression=lzma2/ultra64',
+            'SolidCompression=yes',
             '',
             '[Tasks]',
             'Name: shortcuts; Description: "All"; GroupDescription: "Create Shortcuts:";',
@@ -787,7 +807,7 @@ class ElectronPackagerDarwin extends ElectronPackager {
         let folder = path.join(this._dirBuildRoot, 'Electron.app', 'Contents');
         await this._downloadElectron(this._configuration.electron, this._architecture.platform, this._dirBuildRoot);
         await fs.promises.rm(path.join(folder, 'Resources', 'default_app.asar'), { recursive: true, force: true });
-        await asar.createPackage(config.src, path.join(folder, 'Resources', 'app.asar'));
+        await packApp(config.src, path.join(folder, 'Resources', 'app.asar'));
         await this._bundleWebPart(path.join(folder, 'Resources'));
         await fs.promises.rename(path.join(folder, 'MacOS', 'Electron'), path.join(folder, 'MacOS', this._configuration.binary.darwin));
         await fs.promises.rm(path.join(folder, 'Resources', 'electron.icns'), { recursive: true, force: true });

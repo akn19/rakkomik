@@ -10,7 +10,7 @@ const asar = require('@electron/asar');
 const { FuseState, FuseV1Options, FuseVersion } = require('@electron/fuses');
 const { ElectronPackagerLinux, ElectronPackagerWindows } = require('../../../build-app.js');
 const config = require('../../../build-app.config');
-const { REPOSITORY, STOCK_FUSES, electronExecutable, loadBuildApp, readFuseWire, write, writeElectronArchive, writeSources } = require('./support/buildAppHarness');
+const { REPOSITORY, STOCK_FUSES, PACKED, NOT_PACKED, electronExecutable, loadBuildApp, readFuseWire, write, writeElectronArchive, writeSources } = require('./support/buildAppHarness');
 const { useTemporaryWorkingDirectory } = require('./support/toolScripts');
 
 let directory = null;
@@ -118,7 +118,7 @@ describe('the RPM', () => {
         await packager.buildRPM(architecture);
         const build = commands.find(command => command.startsWith('rpmbuild'));
         expect(build).toContain(` --target ${target} `);
-        expect(build).toMatch(/^rpmbuild -bb --noclean --target \S+ --define "_topdir .+[\\/]package" --define "buildroot %\{_topdir\}" ".+specfile\.spec"$/);
+        expect(build).toMatch(/^rpmbuild -bb --noclean --target \S+ --define "_topdir .+[\\/]package" --define "buildroot %\{_topdir\}" --define "_binary_payload w9\.xzdio" ".+specfile\.spec"$/);
         // the package is moved from the directory of its architecture, whichever that is
         expect(commands.find(command => command.startsWith('mv'))).toContain('/RPMS/*/*.rpm');
     });
@@ -369,12 +369,13 @@ describe('the steps that every packager shares', () => {
         const archive = path.join('redist', 'electron-v44.7.0-linux-x64.zip');
         const target = path.join('build', 'staging');
 
-        // the archive of Electron holds these three files next to the application; the packagers do not ship them
+        // the archive of Electron holds the licence texts and its version next to the application, and on Linux the
+        // handler of the crash reporter; the packagers ship none of them
         function extractor(packager) {
             const extracted = [];
             packager._extractArchive = async (zip, directory) => {
                 extracted.push([ zip, directory ]);
-                for (const name of [ 'electron', 'version', 'LICENSE', 'LICENSES.chromium.html' ]) {
+                for (const name of [ 'electron', 'libffmpeg.so', 'version', 'LICENSE', 'LICENSES.chromium.html', 'chrome_crashpad_handler' ]) {
                     fs.writeFileSync(path.join(directory, name), name);
                 }
             };
@@ -402,12 +403,38 @@ describe('the steps that every packager shares', () => {
             expect(extracted).toEqual([ [ archive, target ] ]);
         });
 
-        it('should drop the files of the archive that are not part of the package', async () => {
+        it('should drop the files of the archive that are not part of the package, the crash handler of Linux included', async () => {
             write(archive, 'cached bytes');
             const { packager } = shared();
             extractor(packager);
             await packager._downloadElectron('44.7.0', 'linux-x64', target);
-            expect(fs.readdirSync(target)).toEqual([ 'electron' ]);
+            expect(fs.readdirSync(target).sort()).toEqual([ 'electron', 'libffmpeg.so' ]);
+        });
+
+        it('should drop the shader compiler of WebGPU from the archive of Windows, and nothing that the application loads', async () => {
+            write(path.join('redist', 'electron-v44.7.0-win32-x64.zip'), 'cached bytes');
+            const { packager } = shared();
+            packager._extractArchive = async (zip, directory) => {
+                for (const name of [ 'electron.exe', 'ffmpeg.dll', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'vk_swiftshader.dll', 'vulkan-1.dll', 'version', 'LICENSE', 'chrome_crashpad_handler' ]) {
+                    fs.writeFileSync(path.join(directory, name), name);
+                }
+            };
+            await packager._downloadElectron('44.7.0', 'win32-x64', target);
+            // the crash handler is only dropped on Linux: on Windows it is part of the executable, the file here is made up
+            expect(fs.readdirSync(target).sort()).toEqual([ 'chrome_crashpad_handler', 'd3dcompiler_47.dll', 'electron.exe', 'ffmpeg.dll', 'vk_swiftshader.dll', 'vulkan-1.dll' ]);
+        });
+
+        it('should drop only the licence texts and the version from the archive of macOS', async () => {
+            write(path.join('redist', 'electron-v44.7.0-darwin-arm64.zip'), 'cached bytes');
+            const { packager } = shared();
+            packager._extractArchive = async (zip, directory) => {
+                fs.mkdirSync(path.join(directory, 'Electron.app'));
+                for (const name of [ 'version', 'LICENSE', 'LICENSES.chromium.html' ]) {
+                    fs.writeFileSync(path.join(directory, name), name);
+                }
+            };
+            await packager._downloadElectron('44.7.0', 'darwin-arm64', target);
+            expect(fs.readdirSync(target)).toEqual([ 'Electron.app' ]);
         });
 
         it('should not extract anything when the download fails', async () => {
@@ -448,11 +475,11 @@ describe('the steps that every packager shares', () => {
     // runs through pnpm (`node build-app.js` in a shell without node_modules/.bin fails here). Unsure whether the check is meant to show
     // that the dependencies are installed (the script cannot even be loaded without them)
     it.each([
-        [ 'the DEB', 'ElectronPackagerLinux', 'buildDEB' ],
-        [ 'the RPM', 'ElectronPackagerLinux', 'buildRPM' ],
-        [ 'the installer of Windows', 'ElectronPackagerWindows', 'buildIS' ],
-        [ 'the archive of Windows', 'ElectronPackagerWindows', 'buildZIP' ]
-    ])('should check that the command asar exists before it builds %s', async (description, Packager, method) => {
+        [ 'the DEB', 'ElectronPackagerLinux', 'buildDEB', [ 'unzip --help', 'fakeroot --version', 'dpkg --version', 'lintian --version' ] ],
+        [ 'the RPM', 'ElectronPackagerLinux', 'buildRPM', [ 'unzip --help', 'fakeroot --version', 'rpm --version' ] ],
+        [ 'the installer of Windows', 'ElectronPackagerWindows', 'buildIS', [ 'tar --version', 'where innosetup-compiler' ] ],
+        [ 'the archive of Windows', 'ElectronPackagerWindows', 'buildZIP', [ 'bsdtar --version' ] ]
+    ])('should check that the tools of %s exist before it builds it, and no others (asar is a library, not a command)', async (description, Packager, method, tools) => {
         const app = loadBuildApp({ platform: 'linux' });
         const packager = new app[Packager](config);
         let checked = null;
@@ -461,7 +488,7 @@ describe('the steps that every packager shares', () => {
             throw new Error('stop after the check');
         };
         await expect(packager[method]('64')).rejects.toThrow('stop after the check');
-        expect(checked).toContain('asar --version');
+        expect(checked).toEqual(tools);
     });
 
     describe('_applyFuses', () => {
@@ -804,10 +831,10 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
 
                 expect(downloads).toEqual([ { version: config.electron, platform: electron, folder } ]);
                 expect(runner.commands).toEqual([
-                    'unzip --help', 'asar --version', 'fakeroot --version', 'dpkg --version', 'lintian --version',
+                    'unzip --help', 'fakeroot --version', 'dpkg --version', 'lintian --version',
                     `find "${folder}" -type f -iname "*.so" -exec chmod -x {} \\;`,
                     `cd "${root}" && find usr -type f -print0 | xargs -0 md5sum > "DEBIAN/md5sums"`,
-                    `fakeroot dpkg-deb -v -b "${root}" "${root}.deb"`,
+                    `fakeroot dpkg-deb -v -Zxz -z9 -b "${root}" "${root}.deb"`,
                     `lintian --profile debian "${root}.deb" || true`
                 ]);
                 // the checksums are made when everything that they cover, and the control files, are in place
@@ -829,7 +856,8 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
                 const folder = packager._stagingExecutableDirectory;
                 expect(readFuseWire(path.join(folder, name))).toBe('000001011');
                 const packed = (await asar.listPackage(path.join(folder, 'resources', 'app.asar'), { isPack: false })).map(entry => entry.split(path.sep).join('/'));
-                expect(packed).toEqual(expect.arrayContaining([ '/main.js', '/package.json' ]));
+                expect(packed).toEqual(expect.arrayContaining(PACKED));
+                expect(packed).not.toEqual(expect.arrayContaining(NOT_PACKED));
                 // https://github.com/electron/electron/issues/17972
                 expect(fs.statSync(path.join(folder, 'chrome-sandbox')).mode & 0o7777).toBe(0o4755);
             });
@@ -855,10 +883,10 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
 
                 expect(downloads).toEqual([ { version: config.electron, platform: electron, folder } ]);
                 expect(runner.commands).toEqual([
-                    'unzip --help', 'asar --version', 'fakeroot --version', 'rpm --version',
+                    'unzip --help', 'fakeroot --version', 'rpm --version',
                     `find "${folder}" -type f -iname "*.so" -exec chmod -x {} \\;`,
                     `cd "${root}" && find usr -type f -exec echo /{} \\;`,
-                    `rpmbuild -bb --noclean --target ${target} --define "_topdir $(pwd)/${root}" --define "buildroot %{_topdir}" "${path.join('build', 'specfile.spec')}"`,
+                    `rpmbuild -bb --noclean --target ${target} --define "_topdir $(pwd)/${root}" --define "buildroot %{_topdir}" --define "_binary_payload w9.xzdio" "${path.join('build', 'specfile.spec')}"`,
                     `mv -f ${root}/RPMS/*/*.rpm ${root}.rpm`
                 ]);
                 expect(specificationWhileBuilding).toContain(`Name: ${name}`);
