@@ -69,7 +69,12 @@ and publishes it from a checkout):
   is written (`<archive>?signature=<signature>`);
 - both files are uploaded to the rolling GitHub release `web-<channel>` (created on first use), so
   `https://github.com/<owner>/<repo>/releases/download/web-<channel>/latest` always names the newest archive. That
-  URL is the default update URL of the application (`main` channel).
+  URL is the default update URL of the application (`main` channel);
+- then the archives of the earlier deployments are deleted from the release, so that only the newest one is left next
+  to `latest`. The meta file decides what stays: it is read after the upload, and when it cannot be read, or names an
+  archive that is not in the release, nothing is deleted. A failed clean-up is a warning in the log of the job, not a
+  failure: the next deployment removes what is left. An application that read `latest` just before a deployment and
+  asks for the archive just after it finds none, and updates at its next start.
 
 The private key must belong to the public key in `src/app/Configuration.js`; an archive that does not verify is
 rejected by the application.

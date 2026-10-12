@@ -282,15 +282,37 @@ describe('a deployment', () => {
 
     const argumentsOf = calls => calls.map(call => call.args);
 
+    /**
+     * What `gh` answers for the rolling release as GitHub has it once the deployment has uploaded to it: `assets` are the
+     * names of its files, `latest` is the archive that its meta file names. `fail` throws for the commands it lists
+     * (`view` is the check that the release exists, `list` the listing of its assets).
+     */
+    function release({ exists = true, assets = [ 'latest', ARCHIVE ], latest = ARCHIVE, fail = {} } = {}) {
+        return (file, args) => {
+            const command = args[1] === 'view' && args.includes('--json') ? 'list' : args[1];
+            if (fail[command]) {
+                throw new Error(fail[command]);
+            }
+            switch (command) {
+                case 'view':
+                    if (!exists) {
+                        throw new Error('release not found');
+                    }
+                    return '';
+                case 'list':
+                    return JSON.stringify({ assets: assets.map(name => ({ name })) });
+                case 'download':
+                    return `${latest}?signature=0123abcd`;
+                default:
+                    return `done: ${command}`;
+            }
+        };
+    }
+
     it('should sign the bundle and upload it to the rolling release of the channel, which is created when it does not exist', async () => {
         const { main, calls, output } = loadDeploy({
             env: workflowEnvironment(),
-            answer: (file, args) => {
-                if (args[1] === 'view') {
-                    throw new Error('release not found');
-                }
-                return `done: ${args[1]}`;
-            }
+            answer: release({ exists: false })
         });
 
         await main();
@@ -300,7 +322,9 @@ describe('a deployment', () => {
         expect(argumentsOf(calls)).toEqual([
             [ 'release', 'view', 'web-main', '--repo', 'owner/repo' ],
             [ 'release', 'create', 'web-main', '--repo', 'owner/repo', '--title', 'Web cache (web-main)', '--notes', expect.stringContaining('Rolling web-application cache'), '--target', 'abc123def' ],
-            [ 'release', 'upload', 'web-main', path.join(build, ARCHIVE), path.join(build, 'latest'), '--repo', 'owner/repo', '--clobber' ]
+            [ 'release', 'upload', 'web-main', path.join(build, ARCHIVE), path.join(build, 'latest'), '--repo', 'owner/repo', '--clobber' ],
+            [ 'release', 'download', 'web-main', '--repo', 'owner/repo', '--pattern', 'latest', '--output', '-' ],
+            [ 'release', 'view', 'web-main', '--repo', 'owner/repo', '--json', 'assets' ]
         ]);
         // the check of the release is silent, the rest is reported with the output of gh
         expect(output.lines()).toEqual([
@@ -314,10 +338,10 @@ describe('a deployment', () => {
         expect(crypto.verify('sha256', fs.readFileSync(path.join(build, ARCHIVE)), keys.publicKey, Buffer.from(signature, 'hex'))).toBe(true);
     });
 
-    it('should only upload to a release that exists, and replace the assets of it', async () => {
-        const { main, calls } = loadDeploy({ env: workflowEnvironment() });
+    it('should only upload to a release that exists, and replace the meta file of it', async () => {
+        const { main, calls } = loadDeploy({ env: workflowEnvironment(), answer: release() });
         await main();
-        expect(argumentsOf(calls).map(args => args[1])).toEqual([ 'view', 'upload' ]);
+        expect(argumentsOf(calls).map(args => args[1])).toEqual([ 'view', 'upload', 'download', 'view' ]);
         expect(calls[1].args).toContain('--clobber');
     });
 
@@ -376,6 +400,102 @@ describe('a deployment', () => {
             }
         });
         await expect(main()).rejects.toThrow('HTTP 502');
+    });
+
+    it('should not touch the archives of the release when the upload failed: the meta file still names one of them', async () => {
+        const { main, calls } = loadDeploy({ env: workflowEnvironment(), answer: release({ fail: { upload: 'HTTP 502' } }) });
+        await expect(main()).rejects.toThrow('HTTP 502');
+        expect(argumentsOf(calls).map(args => args[1])).toEqual([ 'view', 'upload' ]);
+    });
+
+    describe('and the archives of the earlier ones', () => {
+        const deleted = calls => calls.filter(call => call.args[1] === 'delete-asset').map(call => call.args[3]);
+
+        it('should delete them, and keep the archive that the meta file names, the meta file and whatever else is in the release', async () => {
+            const { main, calls } = loadDeploy({
+                env: workflowEnvironment(),
+                answer: release({ assets: [ 'latest', '1GXXXXXX.zip', ARCHIVE, 'NOTES.txt', '1HYYYYYY.zip' ] })
+            });
+            await main();
+            expect(deleted(calls)).toEqual([ '1GXXXXXX.zip', '1HYYYYYY.zip' ]);
+            expect(argumentsOf(calls).filter(args => args[1] === 'delete-asset')[0]).toEqual([ 'release', 'delete-asset', 'web-main', '1GXXXXXX.zip', '--repo', 'owner/repo', '--yes' ]);
+        });
+
+        it('should delete them after the new archive and the meta file are uploaded, and when it is known what stays', async () => {
+            const { main, calls } = loadDeploy({ env: workflowEnvironment(), answer: release({ assets: [ 'latest', 'OLD.zip', ARCHIVE ] }) });
+            await main();
+            expect(argumentsOf(calls).map(args => args[1])).toEqual([ 'view', 'upload', 'download', 'view', 'delete-asset' ]);
+        });
+
+        it('should delete nothing when the release holds the archive of this deployment only', async () => {
+            const { main, calls } = loadDeploy({ env: workflowEnvironment(), answer: release({ assets: [ 'latest', ARCHIVE ] }) });
+            await main();
+            expect(deleted(calls)).toEqual([]);
+        });
+
+        it('should keep the archive that the meta file names, also when it is not the one that this deployment uploaded', async () => {
+            // a deployment that overlaps this one has replaced the meta file since
+            const { main, calls } = loadDeploy({ env: workflowEnvironment(), answer: release({ assets: [ 'latest', 'OLD.zip', ARCHIVE, '1ZLATER0.zip' ], latest: '1ZLATER0.zip' }) });
+            await main();
+            expect(deleted(calls)).toEqual([ 'OLD.zip', ARCHIVE ]);
+        });
+
+        it('should read the meta file of the configuration', async () => {
+            const { main, calls } = loadDeploy({ env: workflowEnvironment(), config: { meta: 'newest' }, answer: release({ assets: [ 'newest', 'OLD.zip', ARCHIVE ] }) });
+            await main();
+            expect(calls.find(call => call.args[1] === 'download').args).toEqual(expect.arrayContaining([ '--pattern', 'newest' ]));
+            expect(deleted(calls)).toEqual([ 'OLD.zip' ]);
+        });
+
+        it('should delete only archives, whatever the name of the other assets is', async () => {
+            const { main, calls } = loadDeploy({ env: workflowEnvironment(), answer: release({ assets: [ 'latest', 'zip', 'OLD.zip.sig', 'OLD.tar.gz', 'OLD.zip', ARCHIVE ] }) });
+            await main();
+            expect(deleted(calls)).toEqual([ 'OLD.zip' ]);
+        });
+
+        it('should say what it deletes, and keep quiet about reading the release', async () => {
+            const { main, output } = loadDeploy({ env: workflowEnvironment(), answer: release({ assets: [ 'latest', 'OLD.zip', ARCHIVE ] }) });
+            await main();
+            expect(output.lines().filter(line => line.startsWith('> gh'))).toEqual([
+                expect.stringMatching(/^> gh release upload /),
+                '> gh release delete-asset web-main OLD.zip --repo owner/repo --yes'
+            ]);
+            expect(output.lines('warn')).toEqual([]);
+        });
+
+        it.each([
+            [ 'the meta file cannot be read', { fail: { download: 'HTTP 404' } }, 'HTTP 404' ],
+            [ 'the assets cannot be listed', { fail: { list: 'HTTP 500' } }, 'HTTP 500' ],
+            [ 'the meta file names no archive', { latest: '' }, 'The meta file "latest" names "", which is not an asset of the release "web-main"' ],
+            [ 'the meta file names an archive that is not in the release', { latest: 'GONE.zip' }, 'The meta file "latest" names "GONE.zip", which is not an asset of the release "web-main"' ]
+        ])('should delete nothing, and only report it, when %s: the archive that stays is not known', async (name, options, message) => {
+            const { main, calls, output } = loadDeploy({ env: workflowEnvironment(), answer: release({ assets: [ 'latest', 'OLD.zip', ARCHIVE ], ...options }) });
+            await expect(main()).resolves.toBeUndefined();
+            expect(deleted(calls)).toEqual([]);
+            expect(output.lines('warn')).toEqual([ `Could not remove the old archives of "web-main": ${message}` ]);
+        });
+
+        it('should report an archive that cannot be deleted, and not fail the deployment that was published', async () => {
+            const { main, calls, output } = loadDeploy({
+                env: workflowEnvironment(),
+                answer: release({ assets: [ 'latest', 'OLD1.zip', 'OLD2.zip', ARCHIVE ], fail: { 'delete-asset': 'HTTP 403' } })
+            });
+            await expect(main()).resolves.toBeUndefined();
+            // the next deployment tries them all again: the first failure ends this attempt
+            expect(deleted(calls)).toEqual([ 'OLD1.zip' ]);
+            expect(output.lines('warn')).toEqual([ 'Could not remove the old archives of "web-main": HTTP 403' ]);
+        });
+
+        it('should clean up the release of the channel of the run, and that one only', async () => {
+            const { main, calls } = loadDeploy({
+                env: workflowEnvironment({ GITHUB_REF: 'refs/heads/release/6.1' }),
+                config: { tagPrefix: 'cache-' },
+                answer: release({ assets: [ 'latest', 'OLD.zip', ARCHIVE ] })
+            });
+            await main();
+            expect(calls.every(call => call.args[2] === 'cache-release-6.1')).toBe(true);
+            expect(deleted(calls)).toEqual([ 'OLD.zip' ]);
+        });
     });
 
     describe('with an incomplete environment', () => {

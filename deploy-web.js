@@ -93,8 +93,9 @@ async function pack(directory, archive, meta) {
 
 /**
  * Publish the archive + meta file as assets of the rolling channel release
- * (created on first deploy). `--clobber` overwrites the previous assets, so
- * the static `.../releases/download/<tag>/latest` URL keeps working.
+ * (created on first deploy). `--clobber` overwrites the previous meta file, so
+ * the static `.../releases/download/<tag>/latest` URL keeps working. Every
+ * archive has a name of its own: the earlier ones are removed afterwards.
  */
 async function publishRelease(tag, files) {
     const repo = process.env.GITHUB_REPOSITORY;
@@ -108,6 +109,30 @@ async function publishRelease(tag, files) {
     await gh([ 'release', 'upload', tag, ...files, '--repo', repo, '--clobber' ]);
 }
 
+/**
+ * Delete the archives of the earlier deployments from the rolling release. The application only reads the meta file and
+ * the archive that it names, every other archive is megabytes that nobody asks for. What stays is decided by the meta
+ * file as it is now, not by the archive that this run uploaded: a deployment that overlaps this one may have replaced
+ * it already, and its archive must survive. When the meta file cannot be read, or names no archive of the release,
+ * nothing is deleted. Cleaning up is not part of publishing: a failure is reported, the next deployment tries again.
+ */
+async function removeOldArchives(tag, meta) {
+    const repo = process.env.GITHUB_REPOSITORY;
+    try {
+        const current = (await gh([ 'release', 'download', tag, '--repo', repo, '--pattern', meta, '--output', '-' ], true)).split('?')[0].trim();
+        const { assets } = JSON.parse(await gh([ 'release', 'view', tag, '--repo', repo, '--json', 'assets' ], true));
+        const names = assets.map(asset => asset.name);
+        if(!current || !names.includes(current)) {
+            throw new Error(`The meta file "${meta}" names "${current}", which is not an asset of the release "${tag}"`);
+        }
+        for(const name of names.filter(name => name.endsWith('.zip') && name !== current)) {
+            await gh([ 'release', 'delete-asset', tag, name, '--repo', repo, '--yes' ]);
+        }
+    } catch(error) {
+        console.warn(`Could not remove the old archives of "${tag}": ${error.message}`);
+    }
+}
+
 async function main() {
     validateEnvironment();
     const channel = resolveChannel();
@@ -115,6 +140,7 @@ async function main() {
     const archive = Date.now().toString(36).toUpperCase() + '.zip';
     const files = await pack(path.resolve(config.build), archive, config.meta);
     await publishRelease(tag, files);
+    await removeOldArchives(tag, config.meta);
 }
 
 module.exports = { pack, readTree, resolveChannel };
