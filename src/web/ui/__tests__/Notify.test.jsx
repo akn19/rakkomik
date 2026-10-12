@@ -115,3 +115,31 @@ describe('toasts', () => {
         error.mockRestore();
     });
 });
+
+describe('toasts for the screen reader', () => {
+    it('should announce an error at once, and the other messages when it is quiet', () => {
+        const api = mountToasts();
+        act(() => {
+            api.notify('bad', 'error');
+            api.notify('good', 'success');
+            api.notify('plain');
+        });
+        expect(toastOf('bad').getAttribute('role')).toBe('alert');
+        expect(toastOf('good').getAttribute('role')).toBe('status');
+        expect(toastOf('plain').getAttribute('role')).toBe('status');
+    });
+
+    it('should keep an error until it is dismissed, so that it can be read', () => {
+        vi.useFakeTimers();
+        const api = mountToasts();
+        act(() => {
+            api.notify('Failed to update manga list', 'error');
+        });
+        act(() => {
+            vi.advanceTimersByTime(60000);
+        });
+        expect(screen.getByText('Failed to update manga list')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Dismiss this message' }));
+        expect(screen.queryByText('Failed to update manga list')).toBeNull();
+    });
+});

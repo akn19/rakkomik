@@ -594,15 +594,17 @@ describe('reading a chapter without pages', () => {
 });
 
 describe('the keys of the reader', () => {
+    // Control + and - are also the zoom of the window (the menu of the application): the reader takes them over while it
+    // reads, so that the window does not zoom along
     it.each([
-        ['*', FIT_WIDTH, '100%', '2em auto'],
-        ['+', ZOOM_IN, '90%', '2em auto'],
-        ['-', ZOOM_OUT, '60%', '2em auto'],
-        ['Ctrl +', { ...ZOOM_IN, ctrlKey: true }, '75%', '3em auto'],
-        ['Ctrl -', { ...ZOOM_OUT, ctrlKey: true }, '75%', '1em auto']
-    ])('should change the size or the spacing of the pages with %s', async (name, key, width, margin) => {
+        ['*', FIT_WIDTH, '100%', '2em auto', true],
+        ['+', ZOOM_IN, '90%', '2em auto', true],
+        ['-', ZOOM_OUT, '60%', '2em auto', true],
+        ['Ctrl +', { ...ZOOM_IN, ctrlKey: true }, '75%', '3em auto', false],
+        ['Ctrl -', { ...ZOOM_OUT, ctrlKey: true }, '75%', '1em auto', false]
+    ])('should change the size or the spacing of the pages with %s', async (name, key, width, margin, left) => {
         await openReading();
-        expect(press(key)).toBe(true);
+        expect(press(key)).toBe(left);
         expect(widthOf()).toBe(width);
         expect(shownWidth()).toBe(`Image Width: ${width}`);
         expect(marginOf()).toBe(margin);
@@ -1614,5 +1616,51 @@ describe('the reader in the application', () => {
         await user.click((await screen.findAllByTitle("Show preview of chapter's pages"))[0]);
         await waitFor(() => expect(screen.queryByTitle('Page 1') ?? screen.queryByText(NOT_FOUND)).not.toBeNull());
         expect(screen.queryByText(NOT_FOUND)).toBeNull();
+    });
+});
+
+describe('the reader for the keyboard and the screen reader', () => {
+    it('should give the reading frame the focus when reading starts, so that the keys work at once', async () => {
+        await openReading();
+        expect(document.activeElement).toBe(document.querySelector('[data-reading]'));
+    });
+
+    it('should leave the keys that are single characters alone while a control outside of the reader has the focus', async () => {
+        const extra = <button type="button">Outside</button>;
+        await openReading(DEFAULT_URL, { extra });
+        const outside = screen.getByRole('button', { name: 'Outside' });
+        act(() => outside.focus());
+        for (const key of [ZOOM_IN, ZOOM_OUT, FIT_WIDTH, DEFAULT_WIDTH]) {
+            expect(press(key, {}, outside)).toBe(true);
+        }
+        expect(widthOf()).toBe('75%');
+        // the other keys of the reader still work there
+        expect(press(ARROW_DOWN, {}, outside)).toBe(false);
+        // and the characters work again inside of the reader
+        press(ZOOM_IN, {}, screen.getByTitle('Zoom In (+)'));
+        expect(widthOf()).toBe('90%');
+    });
+
+    it('should announce the width of the pages and the states of the chapter', async () => {
+        await openReading();
+        expect(screen.getByRole('status').textContent).toBe('Image Width: 75%');
+    });
+
+    it('should say that a chapter was not found as an alert', async () => {
+        await renderReader('/reader?connector=site&manga=m1&chapter=nope');
+        expect((await screen.findByRole('alert')).textContent).toContain('Chapter not found.');
+    });
+
+    it('should name the thumbnails of the pages', async () => {
+        await openThumbnails();
+        expect(screen.getAllByRole('button', { name: /^Page \d$/ })).toHaveLength(3);
+    });
+
+    it('should head the view with the title of the chapter, while reading as well', async () => {
+        const { user } = await openThumbnails();
+        expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Chapter 2');
+        await user.click(screen.getByTitle('Page 1'));
+        expect(isReading()).toBe(true);
+        expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Chapter 2');
     });
 });

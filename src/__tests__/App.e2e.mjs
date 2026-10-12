@@ -11,10 +11,10 @@ import { test, expect, reload, connectorsReady, SEED_CONNECTOR, SEED_TITLES } fr
 const FATHER = 'The Father and the Daughter';
 
 async function pickConnector(page, id) {
-    await page.locator('input[aria-label="Website"]').click();
-    await page.getByRole('listbox', { name: 'Connectors' }).waitFor();
+    await page.getByRole('button', { name: /^Website:/ }).click();
+    await page.getByRole('list', { name: 'Connectors' }).waitFor();
     await page.getByTitle('Show only websites with a name that matches the entered pattern (case-insensitive)').fill(id);
-    await page.locator(`[role=option][title*="ID: ${id}"]`).first().click();
+    await page.locator(`[role=listitem][title*="ID: ${id}"]`).first().click();
 }
 
 // Chapters/pages come from the (offline) fixture instead of a website.
@@ -77,8 +77,8 @@ test.describe('startup', () => {
     test('should wait for the connector list before choosing a default connector', async ({ page }) => {
         await reload(page);
         await connectorsReady(page);
-        await expect(page.locator('input[aria-label="Website"]')).not.toHaveValue(/Loading connectors/);
-        await expect(page.locator('input[aria-label="Website"]')).not.toHaveValue('');
+        await expect(page.getByRole('button', { name: /^Website:/ })).not.toHaveText(/Loading connectors/);
+        await expect(page.getByRole('button', { name: /^Website:/ })).not.toHaveText(/^Website:\s*$/);
     });
 });
 
@@ -86,16 +86,16 @@ test.describe('connector picker', () => {
     test('should filter, select and close with Escape', async ({ page }) => {
         await reload(page);
         await connectorsReady(page);
-        await page.locator('input[aria-label="Website"]').click();
-        const listbox = page.getByRole('listbox', { name: 'Connectors' });
+        await page.getByRole('button', { name: /^Website:/ }).click();
+        const listbox = page.getByRole('list', { name: 'Connectors' });
         await expect(page.getByText(/\d+ \/ \d+ websites/)).toContainText(/(\d+) \/ \1 websites/);
         // virtualized: far fewer cards than connectors in the DOM
-        expect(await listbox.getByRole('option').count()).toBeLessThan(80);
+        expect(await listbox.getByRole('listitem').count()).toBeLessThan(80);
         await page.keyboard.type(SEED_CONNECTOR);
         await expect(page.getByText(/^1 \/ \d+ websites/)).toBeVisible();
-        await listbox.getByRole('option').first().click();
-        await expect(page.locator('input[aria-label="Website"]')).toHaveValue('WestManga');
-        await page.locator('input[aria-label="Website"]').click();
+        await listbox.getByRole('listitem').first().click();
+        await expect(page.getByRole('button', { name: /^Website:/ })).toHaveText('Website: WestManga');
+        await page.getByRole('button', { name: /^Website:/ }).click();
         await expect(listbox).toBeVisible();
         await page.keyboard.press('Escape');
         await expect(listbox).toBeHidden();
@@ -104,7 +104,7 @@ test.describe('connector picker', () => {
     test('should narrow the list with tags and reset the filters', async ({ page }) => {
         await reload(page);
         await connectorsReady(page);
-        await page.locator('input[aria-label="Website"]').click();
+        await page.getByRole('button', { name: /^Website:/ }).click();
         const counter = page.getByText(/\d+ \/ \d+ websites/);
         const total = Number((await counter.textContent()).match(/(\d+) \/ (\d+)/)[2]);
         await page.getByRole('button', { name: 'indonesian' }).click();
@@ -140,7 +140,7 @@ test.describe('chapters and reader', () => {
     test('should show status, filter by regex and language, and sort', async ({ page }) => {
         await reload(page);
         await openSeededManga(page);
-        const rows = page.locator('[role=list] > div > div');
+        const rows = page.locator('[role=grid] > div > div');
         await expect(rows.first().getByRole('button').first()).toHaveAttribute('title', /^AVAILABLE/);
 
         const filter = page.getByTitle(/^Enter a pattern \(regex/);
@@ -178,7 +178,7 @@ test.describe('chapters and reader', () => {
                 window.finishPages = () => callback(null, [ 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/>') ]);
             };
         });
-        const status = page.locator('[role=list] > div > div').first().getByRole('button').first();
+        const status = page.locator('[role=grid] > div > div').first().getByRole('button').first();
         const icon = status.locator('svg');
         const iconIs = name => new RegExp(`(^|\\s)lucide-${name}(\\s|$)`);
 
@@ -201,7 +201,7 @@ test.describe('chapters and reader', () => {
         const { page } = isolatedApp;
         await openSeededManga(page);
         await holdPages(page);
-        const status = page.locator('[role=list] > div > div').first().getByRole('button').first();
+        const status = page.locator('[role=grid] > div > div').first().getByRole('button').first();
         const icon = status.locator('svg');
         const iconIs = name => new RegExp(`(^|\\s)lucide-${name}(\\s|$)`);
 
@@ -235,7 +235,7 @@ test.describe('chapters and reader', () => {
         const { page } = isolatedApp;
         await openSeededManga(page);
         await holdPages(page);
-        const statusOf = index => page.locator('[role=list] > div > div').nth(index).getByRole('button').first();
+        const statusOf = index => page.locator('[role=grid] > div > div').nth(index).getByRole('button').first();
         for (const index of [0, 1, 2]) {
             await statusOf(index).click();
         }
@@ -276,7 +276,7 @@ test.describe('chapters and reader', () => {
         const { page } = isolatedApp;
         await openSeededManga(page);
         await holdPages(page);
-        const statusOf = index => page.locator('[role=list] > div > div').nth(index).getByRole('button').first();
+        const statusOf = index => page.locator('[role=grid] > div > div').nth(index).getByRole('button').first();
         await statusOf(0).click();
         await statusOf(1).click();
         await expect(statusOf(0)).toHaveAttribute('title', /^DOWNLOADING/);
@@ -304,10 +304,10 @@ test.describe('chapters and reader', () => {
         await reload(page);
         await openSeededManga(page);
         // open "Chapter 80" (6th row)
-        await page.locator('[role=list] > div > div').nth(5).getByTitle(/^Show preview/).click();
+        await page.locator('[role=grid] > div > div').nth(5).getByTitle(/^Show preview/).click();
         const thumbnails = page.getByRole('button', { name: /^Page \d$/ });
         await expect(thumbnails).toHaveCount(6);
-        const panels = page.locator('input[aria-label="Website"]');
+        const panels = page.getByRole('button', { name: /^Website:/ });
         await expect(panels).toBeVisible();
         await thumbnails.nth(2).click();
         const images = page.locator('img.rk-page');
@@ -859,7 +859,7 @@ test.describe('novels', () => {
                 callback(null, [ createNovelPage('<h1>Chapter 85</h1>\n<p>Once upon a time</p>') ]);
             };
         }, NOVEL_MODULE);
-        const row = () => page.locator('[role=list] > div > div').first();
+        const row = () => page.locator('[role=grid] > div > div').first();
         await row().getByRole('button').first().click();
         await expect(row().getByRole('button').first()).toHaveAttribute('title', /^DOWNLOADED/, { timeout: 15000 });
 
@@ -884,7 +884,7 @@ test.describe('novels', () => {
         await page.getByRole('option', { name: new RegExp(`^${FATHER}`) }).click();
         await expect(page.getByText('Chapters: 2 / 2')).toBeVisible();
         await expect(row().getByRole('button').first()).toHaveAttribute('title', /^DOWNLOADED/);
-        await expect(page.locator('[role=list] > div > div').nth(1).getByRole('button').first()).toHaveAttribute('title', /^AVAILABLE/);
+        await expect(page.locator('[role=grid] > div > div').nth(1).getByRole('button').first()).toHaveAttribute('title', /^AVAILABLE/);
 
         // and the reader gets the text out of the file
         await row().getByTitle(/^Show preview/).click();
@@ -904,7 +904,7 @@ test.describe('novels', () => {
                 callback(null, [ createNovelPage('<h1>Chapter 80</h1>\n<p>First &amp; <em>foremost</em></p>\n<p>Second paragraph</p><script>window.pwned = true</script><p onclick="window.pwned = true">Third</p>') ]);
             };
         }, NOVEL_MODULE);
-        await page.locator('[role=list] > div > div').nth(5).getByTitle(/^Show preview/).click();
+        await page.locator('[role=grid] > div > div').nth(5).getByTitle(/^Show preview/).click();
         const thumbnail = page.getByRole('button', { name: 'Page 1', exact: true });
         await expect(thumbnail).toContainText('Chapter 80 First & foremost Second paragraph Third');
         await thumbnail.click();
@@ -976,7 +976,7 @@ test.describe('replaced web part', () => {
         };
 
         await openSeededManga(page);
-        await page.locator('[role=list] > div > div').nth(5).getByTitle(/^Show preview/).click();
+        await page.locator('[role=grid] > div > div').nth(5).getByTitle(/^Show preview/).click();
         await shown(page.getByRole('button', { name: 'Page 1', exact: true }));
         await openFromMenu('Downloads');
         await shown(page.getByText('The queue is empty.'));

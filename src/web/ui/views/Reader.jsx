@@ -10,6 +10,14 @@ import { useToast } from '../notify.jsx';
 
 const readerRoute = getRouteApi('/reader');
 
+// the keys that are single characters: they work while the reader (or nothing in particular) has the focus
+const CHARACTER_KEYS = ['*', '/', '+', '-'];
+
+// how the pages scroll: in one jump when the user asked the system for less motion
+function scrollBehavior() {
+    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
 function PageImage({ src, index, width, padding }) {
     const retry = React.useRef(0);
     const timer = React.useRef(null);
@@ -91,7 +99,14 @@ function Toolbar({ title, reading, imageWidth, actions }) {
                 (reading ? 'opacity-0' : 'opacity-70')
             }
         >
-            <span className={'mr-[0.5em] text-[1.25em] font-bold ' + (reading ? 'hidden group-has-[:focus-visible]:inline group-hover:inline' : '')}>{title}</span>
+            {/* the title is the heading of the view; while reading it is only shown with the buttons, a screen reader has it at all times */}
+            <span
+                role="heading"
+                aria-level={1}
+                className={'mr-[0.5em] text-[1.25em] font-bold ' + (reading ? 'sr-only group-has-[:focus-visible]:not-sr-only group-hover:not-sr-only' : '')}
+            >
+                {title}
+            </span>
             {reading && (
                 <>
                     <ToolbarButton icon="chevronLeft" title="Previous Chapter (ArrowLeft)" onClick={actions.previous} />
@@ -106,7 +121,7 @@ function Toolbar({ title, reading, imageWidth, actions }) {
                     <ToolbarButton icon="defaultWidth" title="Default Image Width (/)" onClick={actions.defaultWidth} />
                     <ToolbarButton icon="fitWidth" title="Zoom to Fit Window (*)" onClick={actions.fitWidth} />
                     &nbsp;
-                    <i className="align-middle">Image Width: {imageWidth}%</i>
+                    <span role="status" className="align-middle italic">Image Width: {imageWidth}%</span>
                     <ToolbarButton icon="scrollDown" title="Magic Scroll Down (SPACEBAR)" onClick={actions.scroll} />
                 </>
             )}
@@ -136,6 +151,7 @@ export default function ReaderView() {
         autoNext.current = false;
     }, [chapterId]);
     const containerRef = React.useRef(null);
+    const frameRef = React.useRef(null);
     const keepRatio = React.useRef(null);
 
     const resolvedQuery = useQuery({
@@ -204,7 +220,8 @@ export default function ReaderView() {
         }
     }, [mode, chapter, navigate]);
 
-    // Scroll to the opening page when entering read mode.
+    // Scroll to the opening page when entering read mode, and give the reader the focus: the thumbnail that was clicked
+    // is gone, and the keys of the reader work where the focus is.
     React.useEffect(() => {
         if (mode === 'read') {
             const page = document.getElementById(`rk-page-${startPage}`);
@@ -212,6 +229,9 @@ export default function ReaderView() {
                 page.scrollIntoView();
             } else if (containerRef.current) {
                 containerRef.current.scrollTop = 0;
+            }
+            if (frameRef.current && !frameRef.current.contains(document.activeElement)) {
+                frameRef.current.focus({ preventScroll: true });
             }
         }
     }, [mode, startPage, chapterId, media.length]);
@@ -262,15 +282,15 @@ export default function ReaderView() {
         // with no page in view (the window shows the gap between two pages) it goes on with the first page below the window
         const target = inView[inView.length - 1] || images.find(image => image.getBoundingClientRect().top > window.innerHeight) || images[0];
         if (target.getBoundingClientRect().top > 1) {
-            target.scrollIntoView({ behavior: 'smooth' });
+            target.scrollIntoView({ behavior: scrollBehavior() });
         } else if (window.innerHeight + 1 < target.getBoundingClientRect().bottom) {
             container.scrollBy({
                 top: Math.min(defaultDistance, target.getBoundingClientRect().bottom - window.innerHeight),
                 left: 0,
-                behavior: 'smooth'
+                behavior: scrollBehavior()
             });
         } else if (target.nextElementSibling) {
-            target.nextElementSibling.scrollIntoView({ behavior: 'smooth' });
+            target.nextElementSibling.scrollIntoView({ behavior: scrollBehavior() });
         }
     }, [notify, nextChapter]);
 
@@ -278,6 +298,10 @@ export default function ReaderView() {
         const container = containerRef.current;
         const smooth = distance => {
             if (!container) {
+                return;
+            }
+            if (scrollBehavior() === 'auto') {
+                container.scrollBy({ top: distance });
                 return;
             }
             let remaining = distance;
@@ -293,11 +317,18 @@ export default function ReaderView() {
             window.requestAnimationFrame(step);
         };
         const reading = mode === 'read';
+        // A shortcut that is one character (WCAG 2.1.4) only works while the reader has the focus, or nothing has: not
+        // while a button of the titlebar does.
+        const frame = frameRef.current;
+        const target = event.target;
+        const inReader = !(target instanceof HTMLElement) || target === document.body || (frame && frame.contains(target));
         switch (true) {
             case event.code === 'Escape' && !event.ctrlKey:
                 closeReader();
                 break;
             case !reading:
+                break;
+            case CHARACTER_KEYS.includes(event.key) && !inReader:
                 break;
             case event.code === 'ArrowUp' && !event.ctrlKey:
                 event.preventDefault();
@@ -309,12 +340,12 @@ export default function ReaderView() {
                 break;
             case event.code === 'PageUp' && !event.ctrlKey:
                 if (container) {
-                    container.scrollBy({ top: -window.innerHeight * 0.95, left: 0, behavior: 'smooth' });
+                    container.scrollBy({ top: -window.innerHeight * 0.95, left: 0, behavior: scrollBehavior() });
                 }
                 break;
             case event.code === 'PageDown' && !event.ctrlKey:
                 if (container) {
-                    container.scrollBy({ top: window.innerHeight * 0.95, left: 0, behavior: 'smooth' });
+                    container.scrollBy({ top: window.innerHeight * 0.95, left: 0, behavior: scrollBehavior() });
                 }
                 break;
             case event.code === 'ArrowRight' && !event.ctrlKey:
@@ -336,9 +367,11 @@ export default function ReaderView() {
                 zoom(imageWidth - 15);
                 break;
             case event.key === '+' && event.ctrlKey:
+                event.preventDefault();
                 padding(1);
                 break;
             case event.key === '-' && event.ctrlKey:
+                event.preventDefault();
                 padding(-1);
                 break;
             case event.code === 'Space' && !event.ctrlKey:
@@ -371,22 +404,28 @@ export default function ReaderView() {
     // content row of the shell is the containing block, and the shell hides its panels while a `data-reading`
     // element is in that row. Every state of reading gets this frame, otherwise the panels would show for a moment
     // while the next chapter resolves.
+    // The frame can take the focus (it does when reading starts), without a ring: it is the whole window.
     const frame = mode === 'read'
-        ? { className: 'absolute inset-0 z-20 bg-(--page-reader-background-color) text-zinc-300', 'data-reading': '' }
-        : { className: 'relative h-full' };
+        ? { ref: frameRef, tabIndex: -1, className: 'absolute inset-0 z-20 bg-(--page-reader-background-color) text-zinc-300 outline-none', 'data-reading': '' }
+        : { ref: frameRef, tabIndex: -1, className: 'relative h-full outline-none' };
 
     if (resolvedQuery.isPending) {
         return (
             <div {...frame}>
-                <p className="p-[1em]">Resolving chapter …</p>
+                <h1 className="sr-only">Reader</h1>
+                <p role="status" className="p-[1em]">Resolving chapter …</p>
             </div>
         );
     }
     if (resolvedQuery.isError || !chapter) {
         return (
             <div {...frame}>
+                <h1 className="sr-only">Reader</h1>
                 <div className="space-y-[0.5em] p-[1em]">
-                    <p className="text-(--chapter-button-failed-color)">Chapter not found.</p>
+                    <p role="alert" className="flex items-center gap-[0.5em] font-bold">
+                        <Icon name="warning" size={16} />
+                        Chapter not found.
+                    </p>
                     <button type="button" onClick={() => navigate({ to: '/' })} className="rk-button">
                         Close
                     </button>
@@ -412,9 +451,10 @@ export default function ReaderView() {
     return (
         <div {...frame}>
             <Toolbar title={chapter.title} reading={mode === 'read'} imageWidth={imageWidth} actions={actions} />
-            {pagesQuery.isPending && <p className="p-[1em]">Loading pages …</p>}
+            {pagesQuery.isPending && <p role="status" className="p-[1em]">Loading pages …</p>}
             {pagesQuery.isError && (
-                <p className="p-[1em] text-(--chapter-button-failed-color)">
+                <p role="alert" className="flex items-center gap-[0.5em] p-[1em] font-bold">
+                    <Icon name="warning" size={16} className="shrink-0" />
                     Failed to load pages for this chapter{pagesQuery.error ? `: ${pagesQuery.error.message}` : '.'}
                 </p>
             )}
@@ -432,6 +472,7 @@ export default function ReaderView() {
                                 key={`${index}-${String(page).slice(-32)}`}
                                 type="button"
                                 title={`Page ${index + 1}`}
+                                aria-label={`Page ${index + 1}`}
                                 onClick={open}
                                 className="m-[0.5em] inline-block h-[16em] w-[16em] cursor-pointer rounded-[1em] bg-(--page-thumbnail-background-color) bg-contain bg-center bg-no-repeat [border:var(--page-thumbnail-border)] [box-shadow:var(--page-thumbnail-shadow)]"
                                 style={{ backgroundImage: `url('${String(page).replace(/'/g, "\\'")}')` }}
@@ -441,7 +482,12 @@ export default function ReaderView() {
                 </div>
             )}
             {mode === 'read' && media.length > 0 && (
-                <div ref={containerRef} className="h-full overflow-y-scroll bg-(--page-reader-background-color) select-none">
+                <div
+                    ref={containerRef}
+                    // the pages scroll: a stop for Tab, so that the keyboard can reach what scrolls (the arrows work here)
+                    tabIndex={0}
+                    className="h-full overflow-y-scroll bg-(--page-reader-background-color) select-none focus-visible:outline-offset-[-3px] focus-visible:[outline-color:#f0f0f0]"
+                >
                     {media.map((page, index) => isNovelPage(page) ? (
                         <NovelPage key={`${index}-${String(page).slice(-32)}`} page={page} index={index} width={imageWidth} padding={imagePadding} />
                     ) : (

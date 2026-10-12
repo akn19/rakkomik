@@ -79,7 +79,9 @@ const selectedRows = () => screen.queryAllByRole('option').filter(row => row.get
 // the titles that are drawn in the colour of the bookmarked mangas
 const GOLD = 'text-(--manga-list-bookmarked-color)';
 const goldRows = () => screen.queryAllByRole('option').filter(row => row.classList.contains(GOLD)).map(row => row.textContent);
-const websiteField = () => screen.getByLabelText('Website');
+// the field of the website is a button that opens the picker: its name says what it shows
+const websiteField = () => screen.getByRole('button', { name: /^Website:/ });
+const websiteText = () => websiteField().textContent.replace(/^Website: ?/, '');
 const filterField = () => screen.getByTitle(/to filter the manga list/);
 const pasteButton = () => screen.getByTitle('Click to paste manga links from the clipboard');
 const refreshButton = () => screen.getAllByTitle(/^Synchronize local manga list/)[0];
@@ -92,8 +94,10 @@ const footerSpinner = () => footer().querySelector('.animate-spin');
 const footerSpinnerTitle = () => footer().querySelector('[title]').getAttribute('title');
 const toastOf = text => screen.getByText(text).closest('.pointer-events-auto');
 // the cards of the connector dialog, found by the label in their tooltip
-const cardOf = label => within(screen.getByRole('listbox', { name: 'Connectors' })).getAllByRole('option')
+const cardOf = label => within(screen.getByRole('list', { name: 'Connectors' })).getAllByRole('listitem')
     .find(card => card.getAttribute('title').includes(`Label: ${label}\n`));
+// whether the card shows its website as the selected one
+const currentOf = label => within(cardOf(label)).getByTitle('Show the mangas of this website').getAttribute('aria-current');
 // no layout and no style sheet: the check of `pointer-events` has nothing to find, and the pauses between the keys only slow the tests
 const typist = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
 const tick = ms => act(() => {
@@ -132,14 +136,14 @@ describe('the connectors', () => {
     it('should say that the connectors are loading, count them while they register, and not offer a refresh', () => {
         engine = installEngine({ connectors: [site], ready: false });
         mount();
-        expect(websiteField().value).toBe('Loading connectors … (1)');
-        expect(screen.getByRole('button', { name: '' }).disabled).toBe(true);
+        expect(websiteText()).toBe('Loading connectors … (1)');
+        expect(screen.getByRole('button', { name: 'Update the manga list' }).disabled).toBe(true);
         expect(footerSpinnerTitle()).toBe('Loading connectors (1)');
         act(() => {
             engine.ConnectorRegistry.list.push(other);
             engine.ConnectorRegistry.emit('registered');
         });
-        expect(websiteField().value).toBe('Loading connectors … (2)');
+        expect(websiteText()).toBe('Loading connectors … (2)');
         expect(footerSpinnerTitle()).toBe('Loading connectors (2)');
         expect(rows()).toEqual([]);
     });
@@ -164,7 +168,7 @@ describe('the connectors', () => {
             engine.ConnectorRegistry.emit('ready');
         });
         expect(await screen.findByText('Zebra')).toBeTruthy();
-        expect(websiteField().value).toBe('Aardvark Scans');
+        expect(websiteText()).toBe('Aardvark Scans');
         expect(aardvark.getMangas).toHaveBeenCalledTimes(1);
         expect(site.getMangas).not.toHaveBeenCalled();
         expect(footerSpinner()).toBeNull();
@@ -188,8 +192,8 @@ describe('the connectors', () => {
     it('should show an empty field, and select and list nothing, when there is no connector at all', () => {
         engine = installEngine({ connectors: [] });
         mount();
-        expect(websiteField().value).toBe('');
-        expect(screen.getByRole('button', { name: '' }).disabled).toBe(true);
+        expect(websiteText()).toBe('');
+        expect(screen.getByRole('button', { name: 'Update the manga list' }).disabled).toBe(true);
         expect(selection.connectorId).toBe('');
         expect(rows()).toEqual([]);
         expect(screen.queryByText(/Manga list is loading or empty/)).toBeNull();
@@ -235,7 +239,7 @@ describe('listening to the engine', () => {
 describe('the manga list', () => {
     it('should list the mangas of the first connector, with the website in the tooltip of each', async () => {
         await mountLoaded();
-        expect(websiteField().value).toBe('Site');
+        expect(websiteText()).toBe('Site');
         expect(rows()).toEqual(['Akira', 'Berserk', 'Vagabond']);
         expect(screen.getByText('Berserk').getAttribute('title')).toBe('Berserk\nSite');
         expect(site.getMangas).toHaveBeenCalledTimes(1);
@@ -733,7 +737,7 @@ describe('the refresh button', () => {
             await user.click(within(cardOf('Site')).getByTitle('Synchronize local manga list with online list from <Site>'));
             expect(site.updateMangas).toHaveBeenCalledTimes(1);
             await user.keyboard('{Escape}');
-            expect(screen.queryByRole('listbox', { name: 'Connectors' })).toBeNull();
+            expect(screen.queryByRole('list', { name: 'Connectors' })).toBeNull();
             // the card did not select its connector: it was the one that was shown already, and the selection stays
             expect(selection.connectorId).toBe('site');
             tick(500);
@@ -773,7 +777,7 @@ describe('the paste button', () => {
         expect(clipboard.updateMangas).toHaveBeenCalledTimes(1);
         expect(selection.connectorId).toBe('clipboard');
         expect(selection.manga).toBeNull();
-        expect(websiteField().value).toBe(' 【Clipboard】');
+        expect(websiteText()).toBe(' 【Clipboard】');
         expect(await screen.findByText('Pasted Manga')).toBeTruthy();
         expect(rows()).toEqual(['Berserk', 'Pasted Manga']);
         expect(screen.getByText('Manga list updated (2 titles).')).toBeTruthy();
@@ -791,7 +795,7 @@ describe('the paste button', () => {
         await user.click(pasteButton());
         expect(await screen.findByText('Manga list updated (0 titles).')).toBeTruthy();
         expect(screen.getByText(/Manga list is loading or empty/)).toBeTruthy();
-        expect(websiteField().value).toBe(' 【Clipboard】');
+        expect(websiteText()).toBe(' 【Clipboard】');
     });
 
     it('should do nothing when there is no clipboard connector', async () => {
@@ -799,7 +803,7 @@ describe('the paste button', () => {
         await mountLoaded();
         await user.click(screen.getByText('Berserk'));
         await user.click(pasteButton());
-        expect(websiteField().value).toBe('Site');
+        expect(websiteText()).toBe('Site');
         expect(selection.connectorId).toBe('site');
         expect(selection.manga).toBe(site.mangas[1]);
         expect(site.updateMangas).not.toHaveBeenCalled();
@@ -817,7 +821,7 @@ describe('the paste button', () => {
         await user.click(pasteButton());
         const toast = await screen.findByText(/^Failed to update manga list for/);
         expect(toast.textContent).toBe('Failed to update manga list for  【Clipboard】\nclipboard is locked');
-        expect(websiteField().value).toBe(' 【Clipboard】');
+        expect(websiteText()).toBe(' 【Clipboard】');
         expect(footerText()).toBe('Mangas: 0 / 0');
     });
 
@@ -829,7 +833,7 @@ describe('the paste button', () => {
         await mountLoaded();
         await user.click(refreshButton());
         await user.click(pasteButton());
-        expect(websiteField().value).toBe(' 【Clipboard】');
+        expect(websiteText()).toBe(' 【Clipboard】');
         expect(clipboard.updateMangas).toHaveBeenCalledTimes(1);
         expect(await screen.findByText('Pasted Manga')).toBeTruthy();
     });
@@ -1117,7 +1121,7 @@ describe('the bookmarks connector', () => {
         engine.BookmarkManager.addBookmark(other.mangas[0]);
         mount();
         expect(await screen.findByText('Berserk')).toBeTruthy();
-        expect(websiteField().value).toBe(' 【Bookmarks】');
+        expect(websiteText()).toBe(' 【Bookmarks】');
         expect(rows()).toEqual(['Berserk', 'Monster']);
         expect(screen.getByText('Monster').getAttribute('title')).toBe('Monster\nOther Site');
         expect(footerText()).toBe('Mangas: 2 / 2');
@@ -1262,27 +1266,30 @@ describe('the connector picker', () => {
 
     it('should be closed to begin with', async () => {
         await mountLoaded();
-        expect(screen.queryByRole('listbox', { name: 'Connectors' })).toBeNull();
+        expect(screen.queryByRole('list', { name: 'Connectors' })).toBeNull();
     });
 
     it('should open with a click on the website field', async () => {
         const user = typist();
         await mountLoaded();
         await user.click(websiteField());
-        expect(screen.getByRole('listbox', { name: 'Connectors' })).toBeTruthy();
+        expect(screen.getByRole('list', { name: 'Connectors' })).toBeTruthy();
     });
 
-    it.each([['Enter'], [' ']])('should open with the key "%s" on the website field, which then does not type or scroll', async key => {
+    it.each([['Enter', '{Enter}'], ['Space', ' ']])('should open with %s on the website field, which is a button', async (name, key) => {
+        const user = typist();
         await mountLoaded();
-        const notPrevented = fireEvent.keyDown(websiteField(), { key });
-        expect(notPrevented).toBe(false);
-        expect(screen.getByRole('listbox', { name: 'Connectors' })).toBeTruthy();
+        websiteField().focus();
+        await user.keyboard(key);
+        expect(screen.getByRole('list', { name: 'Connectors' })).toBeTruthy();
     });
 
-    it.each([['a'], ['Tab'], ['Escape'], ['ArrowDown']])('should not open with the key "%s"', async key => {
+    it.each([['a'], ['{Tab}'], ['{Escape}'], ['{ArrowDown}']])('should not open with the key "%s"', async key => {
+        const user = typist();
         await mountLoaded();
-        fireEvent.keyDown(websiteField(), { key });
-        expect(screen.queryByRole('listbox', { name: 'Connectors' })).toBeNull();
+        websiteField().focus();
+        await user.keyboard(key);
+        expect(screen.queryByRole('list', { name: 'Connectors' })).toBeNull();
     });
 
     it('should have the name field ready for typing when it opens, and narrow the websites down with what is typed', async () => {
@@ -1293,7 +1300,7 @@ describe('the connector picker', () => {
         expect(document.activeElement).toBe(field);
         await user.keyboard('other');
         expect(field.value).toBe('other');
-        expect(within(screen.getByRole('listbox', { name: 'Connectors' })).getAllByRole('option')).toHaveLength(1);
+        expect(within(screen.getByRole('list', { name: 'Connectors' })).getAllByRole('listitem')).toHaveLength(1);
         expect(cardOf('Other Site')).toBeTruthy();
     });
 
@@ -1301,8 +1308,8 @@ describe('the connector picker', () => {
         const user = typist();
         await mountLoaded();
         await user.click(websiteField());
-        expect(cardOf('Site').getAttribute('aria-selected')).toBe('true');
-        expect(cardOf('Other Site').getAttribute('aria-selected')).toBe('false');
+        expect(currentOf('Site')).toBe('true');
+        expect(currentOf('Other Site')).toBeNull();
     });
 
     it('should show the list of the connector that is chosen, and close', async () => {
@@ -1311,8 +1318,8 @@ describe('the connector picker', () => {
         await user.click(screen.getByText('Berserk'));
         await user.click(websiteField());
         await user.click(cardOf('Other Site'));
-        expect(screen.queryByRole('listbox', { name: 'Connectors' })).toBeNull();
-        expect(websiteField().value).toBe('Other Site');
+        expect(screen.queryByRole('list', { name: 'Connectors' })).toBeNull();
+        expect(websiteText()).toBe('Other Site');
         expect(selection.connectorId).toBe('other');
         expect(selection.manga).toBeNull();
         expect(await screen.findByText('Monster')).toBeTruthy();
@@ -1325,11 +1332,11 @@ describe('the connector picker', () => {
         await mountLoaded();
         await user.click(websiteField());
         await user.keyboard('{Escape}');
-        expect(screen.queryByRole('listbox', { name: 'Connectors' })).toBeNull();
+        expect(screen.queryByRole('list', { name: 'Connectors' })).toBeNull();
         await user.click(websiteField());
         await user.click(screen.getByTitle('Click to cancel the website selection'));
-        expect(screen.queryByRole('listbox', { name: 'Connectors' })).toBeNull();
-        expect(websiteField().value).toBe('Site');
+        expect(screen.queryByRole('list', { name: 'Connectors' })).toBeNull();
+        expect(websiteText()).toBe('Site');
         expect(selection.connectorId).toBe('site');
         expect(rows()).toEqual(['Akira', 'Berserk', 'Vagabond']);
     });
@@ -1374,5 +1381,122 @@ describe('announcing the selection', () => {
         } finally {
             connectors.stop();
         }
+    });
+});
+
+describe('the list for the keyboard and the screen reader', () => {
+    const list = () => screen.getByRole('listbox', { name: 'Manga list' });
+    // the manga that the keys are on
+    const activeTitle = () => document.getElementById(list().getAttribute('aria-activedescendant')).textContent;
+
+    it('should take the focus itself, with the first manga as the one the keys are on, and count the mangas', async () => {
+        await mountLoaded();
+        expect(list().tabIndex).toBe(0);
+        act(() => list().focus());
+        expect(activeTitle()).toBe('Akira');
+        const options = screen.getAllByRole('option');
+        expect(options.map(option => option.getAttribute('aria-posinset'))).toEqual(['1', '2', '3']);
+        expect(options.map(option => option.getAttribute('aria-setsize'))).toEqual(['3', '3', '3']);
+        expect(options[0].classList.contains('rk-active')).toBe(true);
+    });
+
+    it('should move with the arrows, Home and End, and select with Enter or Space', async () => {
+        const user = typist();
+        await mountLoaded();
+        act(() => list().focus());
+        await user.keyboard('{ArrowDown}');
+        expect(activeTitle()).toBe('Berserk');
+        await user.keyboard('{ArrowDown}{ArrowDown}');
+        expect(activeTitle()).toBe('Vagabond');
+        await user.keyboard('{Home}');
+        expect(activeTitle()).toBe('Akira');
+        await user.keyboard('{ArrowUp}');
+        expect(activeTitle()).toBe('Akira');
+        await user.keyboard('{End}');
+        expect(activeTitle()).toBe('Vagabond');
+        await user.keyboard('{ArrowUp}');
+        expect(activeTitle()).toBe('Berserk');
+        expect(selection.manga).toBeNull();
+        await user.keyboard('{Enter}');
+        expect(selection.manga.title).toBe('Berserk');
+        expect(selectedRows()).toEqual(['Berserk']);
+        await user.keyboard('{ArrowUp} ');
+        expect(selection.manga.title).toBe('Akira');
+        expect(selectedRows()).toEqual(['Akira']);
+    });
+
+    it('should move by a screen with Page Down and Page Up', async () => {
+        const user = typist();
+        const big = createConnector({ id: 'big', label: 'Big Site' });
+        for (let number = 1; number <= 20; number++) {
+            addManga(big, { title: `Title ${String(number).padStart(3, '0')}` });
+        }
+        engine = installEngine({ connectors: [big] });
+        setLayout({ width: 900, height: 24 * 5 });
+        await mountLoaded('Title 001');
+        act(() => list().focus());
+        await user.keyboard('{PageDown}');
+        expect(activeTitle()).toBe('Title 005');
+        await user.keyboard('{PageDown}');
+        expect(activeTitle()).toBe('Title 009');
+        await user.keyboard('{PageUp}');
+        expect(activeTitle()).toBe('Title 005');
+    });
+
+    it('should go on from the manga that was clicked, which gives the list the focus', async () => {
+        const user = typist();
+        await mountLoaded();
+        await user.click(screen.getByText('Berserk'));
+        expect(document.activeElement).toBe(list());
+        expect(activeTitle()).toBe('Berserk');
+        await user.keyboard('{ArrowDown}');
+        expect(activeTitle()).toBe('Vagabond');
+    });
+
+    it('should put the keys on the manga that is selected when the list arrives', async () => {
+        await mountLoaded();
+        act(() => selection.selectManga(site.mangas[2]));
+        expect(activeTitle()).toBe('Vagabond');
+    });
+
+    it('should ignore the keys while the list is empty', async () => {
+        const user = typist();
+        engine = installEngine({ connectors: [] });
+        mount();
+        act(() => list().focus());
+        await user.keyboard('{ArrowDown}{Enter}');
+        expect(list().getAttribute('aria-activedescendant')).toBeNull();
+        expect(selection.manga).toBeNull();
+    });
+
+    it('should tell a screen reader which mangas are bookmarked, and show a star in front of their titles', async () => {
+        engine.BookmarkManager.addBookmark(site.mangas[1]);
+        await mountLoaded();
+        expect(screen.getByRole('option', { name: 'Berserk, bookmarked' })).toBeTruthy();
+        expect(screen.getByRole('option', { name: 'Akira' }).getAttribute('aria-label')).toBeNull();
+        expect(screen.getByText('Berserk').querySelector('svg.lucide-star')).not.toBeNull();
+        expect(screen.getByText('Akira').querySelector('svg')).toBeNull();
+    });
+
+    it('should name the buttons and the fields of the panel', async () => {
+        await mountLoaded();
+        expect(screen.getByRole('button', { name: 'Paste manga links from the clipboard' })).toBe(pasteButton());
+        expect(screen.getByRole('button', { name: 'Update the manga list of Site' })).toBe(refreshButton());
+        expect(screen.getByRole('textbox', { name: 'Filter the mangas by title' })).toBe(filterField());
+        expect(screen.getByRole('region', { name: 'Manga List' })).toBeTruthy();
+        const picker = websiteField();
+        expect(picker.getAttribute('aria-haspopup')).toBe('dialog');
+        expect(picker.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('should say on the star whether the selected manga is bookmarked, and disable it while none is selected', async () => {
+        const user = typist();
+        await mountLoaded();
+        expect(starButton().disabled).toBe(true);
+        await user.click(screen.getByText('Berserk'));
+        expect(starButton().disabled).toBe(false);
+        expect(starButton().getAttribute('aria-pressed')).toBe('false');
+        await user.click(starButton());
+        expect(starButton().getAttribute('aria-pressed')).toBe('true');
     });
 });

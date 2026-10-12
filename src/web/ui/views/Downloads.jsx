@@ -21,6 +21,11 @@ function errorText(job) {
     return job.errors.map(error => error.message || String(error)).join('\n');
 }
 
+// a job that is done, well or not, can be downloaded again
+function restartable(job) {
+    return job.status === 'failed' || job.status === 'completed';
+}
+
 export default function DownloadsView() {
     const { notify } = useToast();
     const jobs = useDownloadJobs();
@@ -42,8 +47,9 @@ export default function DownloadsView() {
 
     return (
         <div className="mx-auto max-w-4xl pb-8">
+            <h1 className="sr-only">Downloads</h1>
             <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">{jobs.length} Download(s)</p>
+                <p role="status" className="text-xs text-zinc-700 dark:text-zinc-400">{jobs.length} Download(s)</p>
                 <button
                     type="button"
                     title="Cancel all downloads"
@@ -61,65 +67,76 @@ export default function DownloadsView() {
                     </p>
                 </div>
             )}
-            <div className="space-y-2">
-                {jobs.map((job, index) => (
-                    <div
-                        key={`${job.labels.connector}/${job.labels.manga}/${job.labels.chapter}/${index}`}
-                        title={`${job.labels.connector}\n${job.labels.manga}\n${job.labels.chapter}`}
-                        className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900"
-                    >
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                title={(job.status === 'failed' || job.status === 'completed')
-                                    ? 'Click to download again'
-                                    : errorText(job)}
-                                onClick={() => {
-                                    if (job.status === 'failed' || job.status === 'completed') {
-                                        setConfirmRestart(job);
-                                    }
-                                }}
-                                className={
-                                    'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase ' +
-                                    (job.status === 'failed'
-                                        ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
-                                        : job.status === 'completed'
-                                            ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
-                                            : 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300')
-                                }
-                            >
-                                {STATUS_LABEL[job.status] || job.status}
-                            </button>
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium">{job.labels.manga}</p>
-                                <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-                                    {job.labels.chapter} — {job.labels.connector}
-                                </p>
-                            </div>
-                            <span className="shrink-0 text-xs text-zinc-500">{Math.round(job.progress || 0)}%</span>
-                            {isCancelable(job) && (
+            <ul className="space-y-2">
+                {jobs.map((job, index) => {
+                    const progress = Math.min(100, Math.max(0, job.progress || 0));
+                    return (
+                        <li
+                            key={`${job.labels.connector}/${job.labels.manga}/${job.labels.chapter}/${index}`}
+                            title={`${job.labels.connector}\n${job.labels.manga}\n${job.labels.chapter}`}
+                            className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900"
+                        >
+                            <div className="flex items-center gap-2">
+                                {/* the status; a button only while the job can be downloaded again */}
                                 <button
                                     type="button"
-                                    title="Cancel this download"
-                                    onClick={() => cancel(job)}
-                                    className="shrink-0 rounded border border-zinc-300 px-2 py-0.5 text-xs text-zinc-600 hover:border-red-300 hover:text-red-600 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-red-800 dark:hover:text-red-400"
+                                    title={restartable(job) ? 'Click to download again' : errorText(job)}
+                                    disabled={!restartable(job)}
+                                    onClick={() => {
+                                        if (restartable(job)) {
+                                            setConfirmRestart(job);
+                                        }
+                                    }}
+                                    className={
+                                        'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase disabled:cursor-default ' +
+                                        (job.status === 'failed'
+                                            ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+                                            : job.status === 'completed'
+                                                ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
+                                                : 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300')
+                                    }
                                 >
-                                    Cancel
+                                    {STATUS_LABEL[job.status] || job.status}
                                 </button>
-                            )}
-                        </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium">{job.labels.manga}</p>
+                                    <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                                        {job.labels.chapter} — {job.labels.connector}
+                                    </p>
+                                </div>
+                                <span aria-hidden="true" className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{Math.round(job.progress || 0)}%</span>
+                                {isCancelable(job) && (
+                                    <button
+                                        type="button"
+                                        title="Cancel this download"
+                                        aria-label={`Cancel the download of ${job.labels.chapter}`}
+                                        onClick={() => cancel(job)}
+                                        className="shrink-0 rounded border border-zinc-300 px-2 py-0.5 text-xs text-zinc-600 hover:border-red-300 hover:text-red-600 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-red-800 dark:hover:text-red-400"
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
+                            </div>
                             <div
-                                className="h-full rounded-full bg-sky-500"
-                                style={{ width: `${Math.min(100, Math.max(0, job.progress || 0))}%` }}
-                            />
-                        </div>
-                        {job.status === 'failed' && job.errors && job.errors.length > 0 && (
-                            <p className="mt-1 whitespace-pre-line text-xs text-red-600 dark:text-red-400">{errorText(job)}</p>
-                        )}
-                    </div>
-                ))}
-            </div>
+                                role="progressbar"
+                                aria-label={`Progress of ${job.labels.chapter}`}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-valuenow={Math.round(progress)}
+                                className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
+                            >
+                                <div
+                                    className="h-full rounded-full bg-sky-700 dark:bg-sky-400"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+                            {job.status === 'failed' && job.errors && job.errors.length > 0 && (
+                                <p className="mt-1 whitespace-pre-line text-xs text-red-600 dark:text-red-400">{errorText(job)}</p>
+                            )}
+                        </li>
+                    );
+                })}
+            </ul>
             <ConfirmDialog
                 open={confirmAll}
                 title="Cancel all downloads?"

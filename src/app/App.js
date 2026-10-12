@@ -15,11 +15,19 @@ const DiscordBridge = require('./DiscordBridge');
 const SqliteBridge = require('./SqliteBridge');
 const PdfBridge = require('./PdfBridge');
 
+// The page of the window while the update is checked: a document with a language and a title, text that a screen
+// reader announces and that has the contrast WCAG asks for on the background of the window.
 const loadingPage = `
-<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%); font-family: monospace; font-size: 1.25em; font-weight: bold; text-align: center; opacity: 0.33;">
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>RakKomik</title></head>
+<body style="margin: 0; background-color: #f8f8f8; color: #404040;">
+<div role="status" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%); font-family: monospace; font-size: 1.25em; font-weight: bold; text-align: center;">
     <div style="margin-bottom: 1.5em;">Checking for Update</div>
-    <progress></progress>
+    <progress aria-label="Checking for update"></progress>
 </div>
+</body>
+</html>
 `;
 
 module.exports = class App {

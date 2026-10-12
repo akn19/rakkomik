@@ -249,7 +249,13 @@ module.exports = class ElectronBootstrap {
                     {
                         role: 'toggleDevTools',
                         accelerator: 'F12'
-                    }
+                    },
+                    { type: 'separator' },
+                    // the size of the text (WCAG 1.4.4): Control + and - zoom the window, Control 0 resets it; the
+                    // reader takes the keys while it reads (it spaces its pages with them)
+                    { role: 'zoomIn' },
+                    { role: 'zoomOut' },
+                    { role: 'resetZoom' }
                 ]
             },
             {

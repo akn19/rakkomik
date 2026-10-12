@@ -45,6 +45,7 @@ function Titlebar({ dark, onToggleTheme }) {
                 <button
                     type="button"
                     title="Toggle theme"
+                    aria-label={dark ? 'Switch to the light theme' : 'Switch to the dark theme'}
                     onClick={onToggleTheme}
                     className={WINDOW_BUTTON}
                 >
@@ -53,6 +54,7 @@ function Titlebar({ dark, onToggleTheme }) {
                 <button
                     type="button"
                     title="Minimize window"
+                    aria-label="Minimize window"
                     onClick={act(h => h.window.minimize())}
                     className={WINDOW_BUTTON}
                 >
@@ -61,6 +63,7 @@ function Titlebar({ dark, onToggleTheme }) {
                 <button
                     type="button"
                     title="Maximize window"
+                    aria-label="Maximize or restore window"
                     onClick={act(async h => {
                         if (await h.window.isMaximized()) {
                             await h.window.unmaximize();
@@ -75,6 +78,7 @@ function Titlebar({ dark, onToggleTheme }) {
                 <button
                     type="button"
                     title="Close window"
+                    aria-label="Close window"
                     onClick={act(h => h.window.close())}
                     className="rk-icon rounded px-1.5 py-0.5 hover:bg-red-500 hover:text-white"
                 >
@@ -89,6 +93,7 @@ export default function Shell() {
     const [dark, setDark] = React.useState(initialDark);
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [confirmQuit, setConfirmQuit] = React.useState(false);
+    const menuId = React.useId();
     const readerEnabled = React.useSyncExternalStore(subscribeSettings, isReaderEnabled);
     // The page viewer fills the whole content pane; other views keep a gutter.
     const onReader = useLocation().pathname === '/reader';
@@ -125,23 +130,28 @@ export default function Shell() {
                             (readerEnabled ? 'w-[calc(40em+1px)] shrink-0' : 'flex-1')
                         }
                     >
-                        <div className="flex items-center bg-(--menu-control-background-color)">
+                        {/* the menu covers the column: what is under it is inert while it is open (it is modal) */}
+                        <nav aria-label="Application menu" inert={menuOpen || undefined} className="flex items-center bg-(--menu-control-background-color)">
                             <button
                                 type="button"
                                 title="Toggle menu"
+                                aria-label="Menu"
+                                aria-haspopup="dialog"
+                                aria-expanded={menuOpen}
+                                aria-controls={menuOpen ? menuId : undefined}
                                 onClick={() => setMenuOpen(open => !open)}
                                 className="rk-button m-[0.25em]"
                             >
                                 <Icon name="menu" size={28} />
                             </button>
                             <span className="text-[1.5em] font-bold text-(--menu-control-title-color)">RakKomik</span>
-                        </div>
-                        {menuOpen && <MenuPopup onClose={() => setMenuOpen(false)} />}
-                        <div className="flex min-h-0 flex-1 [border-top:var(--app-control-border)] [border-bottom:var(--app-control-border)]">
+                        </nav>
+                        {menuOpen && <MenuPopup id={menuId} onClose={() => setMenuOpen(false)} />}
+                        <div inert={menuOpen || undefined} className="flex min-h-0 flex-1 [border-top:var(--app-control-border)] [border-bottom:var(--app-control-border)]">
                             <MangaPanel readerEnabled={readerEnabled} />
                             <ChaptersPanel readerEnabled={readerEnabled} />
                         </div>
-                        <JobsBar />
+                        <JobsBar inert={menuOpen} />
                     </div>
                     {readerEnabled && (
                         <main className={'rk-content-bg min-w-0 flex-1 overflow-x-hidden overflow-y-auto ' + (onReader ? '' : 'p-4')}>

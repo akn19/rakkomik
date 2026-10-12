@@ -55,7 +55,7 @@ async function startApplication(web) {
     });
     await page.setViewportSize({ width: 1500, height: 960 });
     // the engine and the UI shell are ready when the connector picker is there
-    await page.locator('input[aria-label="Website"]').waitFor({ timeout: 30000 });
+    await page.getByRole('button', { name: /^Website:/ }).waitFor({ timeout: 30000 });
     return { electronApp, page, userDirectory, external };
 }
 
@@ -97,7 +97,7 @@ export const test = base.extend({
  */
 export async function reload(page) {
     await page.reload();
-    await page.locator('input[aria-label="Website"]').waitFor({ timeout: 30000 });
+    await page.getByRole('button', { name: /^Website:/ }).waitFor({ timeout: 30000 });
 }
 
 /**

@@ -45,3 +45,16 @@ describe('start view', () => {
         expect(quoteOf(container).textContent).toBe(before);
     });
 });
+
+describe('start view for the screen reader', () => {
+    it('should put the parts under second-level headings and hide the emoji', () => {
+        const { container } = render(<StartView />);
+        expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual([
+            'Find a site to get the content you want to view',
+            'Ready to go 🚀'
+        ]);
+        expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+        const hidden = [...container.querySelectorAll('[aria-hidden="true"]')].map(node => node.textContent).filter(Boolean);
+        expect(hidden).toEqual(['👉', '👉', '🚀', '📚']);
+    });
+});

@@ -1,5 +1,6 @@
 {
     "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["eslint", "unicorn", "oxc", "typescript", "jsx-a11y"],
     "env": {
         "es6": true,
         "node": true,
@@ -16,6 +17,15 @@
     },
     "rules": {
         "unicorn/prefer-node-protocol": "error",
-        "unicorn/no-new-buffer": "error"
+        "unicorn/no-new-buffer": "error",
+        "jsx-a11y/anchor-is-valid": ["error", { "aspects": ["noHref", "invalidHref"] }],
+        "jsx-a11y/click-events-have-key-events": "error",
+        "jsx-a11y/control-has-associated-label": "error",
+        "jsx-a11y/interactive-supports-focus": "error",
+        "jsx-a11y/label-has-associated-control": "error",
+        "jsx-a11y/no-noninteractive-element-interactions": "error",
+        "jsx-a11y/no-noninteractive-tabindex": "error",
+        "jsx-a11y/no-static-element-interactions": "error",
+        "jsx-a11y/prefer-tag-over-role": "off"
     }
 }

@@ -1055,6 +1055,13 @@ describe('ElectronBootstrap', () => {
             expect(view.submenu.some(entry => entry.role === 'togglefullscreen')).toBe(true);
         });
 
+        it('should offer the zoom of the window, so that the text can be made larger', async () => {
+            await launch();
+            const view = applicationMenu().find(entry => entry.role === 'viewMenu');
+            const roles = view.submenu.map(entry => entry.role).filter(Boolean);
+            expect(roles).toEqual(['togglefullscreen', 'toggleDevTools', 'zoomIn', 'zoomOut', 'resetZoom']);
+        });
+
         it('should offer the clipboard shortcuts and the two shortcuts for the URL of a window', async () => {
             await launch();
             const edit = applicationMenu().find(entry => entry.role === 'editMenu');

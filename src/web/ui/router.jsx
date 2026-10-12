@@ -43,7 +43,7 @@ const routeTree = rootRoute.addChildren([
 ]);
 
 // An address that nothing serves keeps the panels and says so where the view would be (the router warns when it has no text of its own).
-const router = createRouter({ routeTree, history: createHashHistory(), defaultNotFoundComponent: () => <p>Page not found.</p> });
+const router = createRouter({ routeTree, history: createHashHistory(), defaultNotFoundComponent: () => <p role="alert">Page not found.</p> });
 
 export default function AppRouter() {
     return <RouterProvider router={router} />;

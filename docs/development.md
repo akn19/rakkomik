@@ -25,10 +25,10 @@
 | `pnpm run watch:ui` | rebuild the React user interface into `src/web/ui/dist` when a file changes; an open window keeps the build it loaded, so restart the application to see the change |
 | `pnpm run start:build` | build the web part and run the application against `build/web` |
 | `pnpm run build:arch` | build the Arch Linux package of the working tree into `build/`, see [below](#building-the-arch-package) |
-| `pnpm run lint` | oxlint over the application, the engine, the user interface, the scripts and the end-to-end tests |
+| `pnpm run lint` | oxlint over the application, the engine, the user interface, the scripts and the end-to-end tests; the user interface also gets the `jsx-a11y` rules, see [accessibility](accessibility.md) |
 | `pnpm run test` | unit tests (Vitest: the projects `app`, `web` and `ui`) |
 | `pnpm run test:coverage` | the unit tests with a coverage report: a summary in the terminal, the details in `coverage/index.html` |
-| `pnpm run test:e2e` | build the web part and run the tests of the real application (Playwright, project `ui`) |
+| `pnpm run test:e2e` | build the web part and run the tests of the real application (Playwright, project `ui`), the accessibility checks of axe-core among them |
 | `pnpm run test:e2e:sites` | connectors against their real websites, see [adding a website](connectors.md#testing) |
 | `pnpm run test:package` | the tests of the real application on a package that `build:app` made, see [building the installers](#building-the-installers) |
 | `pnpm run knip` | unused files, exports and dependencies |
@@ -88,6 +88,8 @@ pnpm exec electron . --update-url=DISABLED --cache-directory=./build/web --user-
   under a running window uses the `isolatedApp` fixture: an application of its own on its own copy of the web
   directory (see the test _replaced web part_).
 - **Site tests** need network access and can fail when a website changes; they are not part of CI.
+- **Accessibility** has a unit test for the contrast of the colours and an end-to-end test that runs axe-core over the
+  application, see [accessibility](accessibility.md).
 
 ## Code style
 

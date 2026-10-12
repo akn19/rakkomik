@@ -6,26 +6,29 @@ import { useConnectors } from './connectorsState.js';
 import { updateMangaList } from './queries.js';
 import { useUpdateProgress, updateMessage, countTitles } from './updateProgress.js';
 import { useToast } from './notify.jsx';
+import { useDialog } from './dialog.jsx';
 import Icon from './icon.jsx';
 
 const CARD_MIN_WIDTH = 400;
 const ROW_HEIGHT = 96;
 
-function Separator({ icon, label, children }) {
+// the heading of a part of the dialog; with `htmlFor` it is the label of the field under it
+function Separator({ icon, label, htmlFor, id, children }) {
     return (
         <div className="rk-separator flex items-center gap-[0.25em] pt-[0.5em] pb-[0.25em] pl-[0.5em] font-bold uppercase text-(--connector-dialog-category-color)">
             {children}
             {icon && <Icon name={icon} size={14} />}
-            <label>{label}</label>
+            {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : <h2 id={id}>{label}</h2>}
         </div>
     );
 }
 
-function CardButton({ icon, title, enabled, busy, onClick }) {
+function CardButton({ icon, title, label, enabled, busy, onClick }) {
     return (
         <button
             type="button"
             title={title}
+            aria-label={label}
             disabled={!enabled}
             onClick={event => {
                 event.stopPropagation();
@@ -38,29 +41,30 @@ function CardButton({ icon, title, enabled, busy, onClick }) {
     );
 }
 
+/**
+ * A website. The whole card takes a click; the keyboard selects with the button that carries the name, the other
+ * buttons of the card open its pages and update its list.
+ */
 function Card({ connector, selected, updating, onSelect, onUpdate }) {
     const links = connector.links || {};
     const progress = useUpdateProgress(connector);
     // the engine knows about updates that were started from the main window as well
     const running = updating || !!progress;
+    const select = event => {
+        event.stopPropagation();
+        onSelect();
+    };
     return (
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events -- the keyboard selects with the button of the name
         <div
-            role="option"
-            aria-selected={selected}
-            tabIndex={0}
+            role="listitem"
             title={`Click to show mangas from this website\n\nLabel: ${connector.label}\nID: ${connector.id}\nURL: ${connector.url}`}
-            onClick={onSelect}
-            onKeyDown={event => {
-                // Enter on one of the buttons of the card is for that button
-                if (event.key === 'Enter' && event.target === event.currentTarget) {
-                    onSelect();
-                }
-            }}
+            onClick={select}
             className={
-                'flex h-full cursor-pointer gap-[0.5em] overflow-hidden p-[0.5em] [border:var(--connector-card-border)] [box-shadow:var(--connector-card-shadow)] ' +
+                'flex h-full cursor-pointer gap-[0.5em] overflow-hidden p-[0.5em] [border:var(--connector-card-border)] ' +
                 (selected
-                    ? 'bg-(--connector-card-selected)'
-                    : 'bg-(--connector-card-background-color) hover:bg-(--connector-card-highlighted)')
+                    ? 'bg-(--connector-card-selected) [box-shadow:inset_0_0_0_2px_var(--list-marker-color),var(--connector-card-shadow)]'
+                    : 'bg-(--connector-card-background-color) hover:bg-(--connector-card-highlighted) [box-shadow:var(--connector-card-shadow)]')
             }
         >
             <img
@@ -74,19 +78,29 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
             />
             <div className="flex min-w-0 flex-1 flex-col">
                 <div className="mb-[0.25em] flex items-center gap-[0.5em] [border-bottom:var(--connector-title-border)]">
-                    <div className="min-w-0 flex-1 truncate text-[1.25em] font-bold">{connector.label}</div>
+                    <button
+                        type="button"
+                        aria-current={selected ? 'true' : undefined}
+                        title="Show the mangas of this website"
+                        onClick={select}
+                        className="min-w-0 flex-1 cursor-pointer truncate text-left text-[1.25em] font-bold"
+                    >
+                        {connector.label}
+                    </button>
                     <div className="flex shrink-0 items-center gap-[0.25em]">
-                        <CardButton icon="login" title="Click to open the login page" enabled={!!links.login} onClick={() => openExternalLink(links.login)} />
-                        <CardButton icon="coffee" title="Click to open the donation page" enabled={!!links.donation} onClick={() => openExternalLink(links.donation)} />
+                        <CardButton icon="login" title="Click to open the login page" label={`Login page of ${connector.label}`} enabled={!!links.login} onClick={() => openExternalLink(links.login)} />
+                        <CardButton icon="coffee" title="Click to open the donation page" label={`Donation page of ${connector.label}`} enabled={!!links.donation} onClick={() => openExternalLink(links.donation)} />
                         <CardButton
                             icon="external"
                             title={'Click to open the website in a new window\nThis can be useful to check the status, bypass Cloudflare or unlock captchas'}
+                            label={`Open ${connector.label} in a new window`}
                             enabled={!!connector.url}
                             onClick={() => openExternalLink(connector.url)}
                         />
                         <CardButton
                             icon="refresh"
                             title={`Synchronize local manga list with online list from <${connector.label}>`}
+                            label={`Update the manga list of ${connector.label}`}
                             enabled={!running}
                             busy={running}
                             onClick={onUpdate}
@@ -94,7 +108,7 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
                     </div>
                 </div>
                 {running ? (
-                    <div className="truncate text-(--connector-tag-color)">{updateMessage(progress)}</div>
+                    <div role="status" className="truncate text-(--connector-tag-color)">{updateMessage(progress)}</div>
                 ) : (
                     <div className="flex flex-wrap gap-[0.25em] overflow-hidden">
                         {(connector.tags || []).map(tag => (
@@ -114,6 +128,9 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
  * filter, a manga filter (local lists, Enter), tag filters and connector
  * cards (virtualized grid). Clicking a card selects it; the refresh button
  * on a card synchronizes that connector's manga list without selecting it.
+ *
+ * As a dialog it takes the focus (the name field) when it opens, keeps it inside, closes with Escape and gives the
+ * focus back to the button that opened it.
  */
 export default function ConnectorDialog({ open, selectedId, onSelect, onClose }) {
     const { notify } = useToast();
@@ -128,6 +145,8 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
     const [width, setWidth] = React.useState(0);
     const patternRef = React.useRef(null);
     const listRef = React.useRef(null);
+    const id = React.useId();
+    const dialogRef = useDialog({ open, onClose, initialFocus: patternRef });
 
     const allTags = React.useMemo(() => {
         const tags = new Set();
@@ -155,28 +174,13 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
         overscan: 4
     });
 
-    // The parent makes a new function on every render of its own: the effect below must not follow it, or every render of the
-    // panel (the progress of an update, a connector that registers) would select the name field again and take the focus.
-    const onCloseRef = React.useRef(onClose);
+    // The dialog stays mounted while it is closed, so the name field keeps what was typed: when it opens again the
+    // text is selected, so that typing replaces it. (The parent renders again often, so this must only follow `open`.)
     React.useEffect(() => {
-        onCloseRef.current = onClose;
-    }, [onClose]);
-
-    React.useEffect(() => {
-        if (!open) {
-            return undefined;
-        }
-        if (patternRef.current) {
+        if (open && patternRef.current) {
             patternRef.current.select();
             patternRef.current.focus();
         }
-        const onKeyDown = event => {
-            if (event.key === 'Escape') {
-                onCloseRef.current();
-            }
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
     }, [open]);
 
     React.useLayoutEffect(() => {
@@ -250,25 +254,34 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
     }
 
     return (
-        <div className="fixed inset-[1em] z-40 flex flex-col bg-(--connector-dialog-background-color) [border:var(--connector-dialog-border)] [box-shadow:var(--connector-dialog-shadow)]">
+        <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Select a website"
+            tabIndex={-1}
+            className="fixed inset-[1em] z-40 flex flex-col bg-(--connector-dialog-background-color) [border:var(--connector-dialog-border)] [box-shadow:var(--connector-dialog-shadow)]"
+        >
             <div className="p-[0.5em] text-right">
-                <button type="button" title="Click to cancel the website selection" onClick={onClose} className="rk-button">
+                <button type="button" title="Click to cancel the website selection" aria-label="Close the website selection" onClick={onClose} className="rk-button">
                     <Icon name="closeCircle" size={28} />
                 </button>
             </div>
             <div className="flex min-h-0 flex-1 overflow-y-hidden">
                 <div className="m-[0.5em] flex max-h-full w-[18em] shrink-0 flex-col">
-                    <Separator icon="plug" label="Website" />
+                    <Separator icon="plug" label="Website" htmlFor={`${id}-name`} />
                     <input
                         ref={patternRef}
+                        id={`${id}-name`}
                         type="text"
                         value={pattern}
                         onChange={event => setPattern(event.target.value)}
                         title="Show only websites with a name that matches the entered pattern (case-insensitive)"
                         className="rk-field w-[calc(100%-0.5em)]"
                     />
-                    <Separator icon="book" label="Manga" />
+                    <Separator icon="book" label="Manga" htmlFor={`${id}-manga`} />
                     <input
+                        id={`${id}-manga`}
                         type="text"
                         value={mangaPattern}
                         disabled={searching}
@@ -281,16 +294,17 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
                         title="Show only websites with a manga that matches the entered pattern (case-insensitive). Searches the local manga lists. Press Enter to apply."
                         className="rk-field w-[calc(100%-0.5em)]"
                     />
-                    <Separator icon="tags" label="Tags" />
-                    <div className="min-h-0 flex-1 overflow-y-scroll bg-(--connector-tag-list-background-color) p-[0.5em] leading-[1.5em]">
+                    <Separator icon="tags" label="Tags" id={`${id}-tags`} />
+                    <div role="group" aria-labelledby={`${id}-tags`} className="flex min-h-0 flex-1 flex-wrap content-start gap-[0.25em] overflow-y-scroll bg-(--connector-tag-list-background-color) p-[0.5em]">
                         {allTags.map(tag => (
                             <button
                                 key={tag}
                                 type="button"
+                                aria-pressed={selectedTags.includes(tag)}
                                 onClick={() => toggleTag(tag)}
                                 className={
-                                    'mr-[0.25em] cursor-pointer rounded-[0.5em] px-[0.3em] whitespace-nowrap text-(--connector-tag-color) ' +
-                                    (selectedTags.includes(tag) ? 'bg-(--connector-tag-selected)' : 'bg-(--connector-tag-background-color)')
+                                    'cursor-pointer rounded-[0.5em] px-[0.3em] whitespace-nowrap text-(--connector-tag-color) ' +
+                                    (selectedTags.includes(tag) ? 'rk-selected-ring bg-(--connector-tag-selected)' : 'bg-(--connector-tag-background-color)')
                                 }
                             >
                                 {tag}
@@ -299,13 +313,13 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
                     </div>
                 </div>
                 <div className="m-[0.5em] flex max-h-full min-w-0 flex-1 flex-col">
-                    <Separator label="Connectors">
-                        <button type="button" title="Reset all filters" onClick={clearFilters} className="cursor-pointer text-(--connector-button-clear-color)">
+                    <Separator label="Connectors" id={`${id}-connectors`}>
+                        <button type="button" title="Reset all filters" aria-label="Reset all filters" onClick={clearFilters} className="cursor-pointer text-(--connector-button-clear-color)">
                             <Icon name="close" size={14} />
                         </button>
                     </Separator>
-                    <div className="py-[0.25em]">{visible.length} / {connectors.length} websites{ready ? '' : ' (still loading …)'}</div>
-                    <div ref={listRef} role="listbox" aria-label="Connectors" className="min-h-0 flex-1 overflow-y-scroll">
+                    <div role="status" className="py-[0.25em]">{visible.length} / {connectors.length} websites{ready ? '' : ' (still loading …)'}</div>
+                    <div ref={listRef} role="list" aria-label="Connectors" className="min-h-0 flex-1 overflow-y-scroll">
                         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
                             {virtualizer.getVirtualItems().map(virtual => (
                                 <div

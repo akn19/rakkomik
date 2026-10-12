@@ -95,7 +95,7 @@ function type(label, value) {
 
 // the headings of the categories and the labels of the settings, in the order they are drawn
 function outline() {
-    return [...document.querySelectorAll('td[colspan], label')].map(node => node.textContent);
+    return [...document.querySelectorAll('th[colspan], label')].map(node => node.textContent);
 }
 
 function toastOf(message) {
@@ -181,10 +181,11 @@ describe('menu popup', () => {
             it.each([
                 ['a file', 'Key file', '/keys/id', 'Choose file …'],
                 ['a directory', 'Manga Directory', '/mangas', 'Browse …']
-            ])('should show the path of %s as text that cannot be typed, with a button to browse', (name, label, value, browse) => {
+            ])('should show the path of %s as text that cannot be typed, but read, with a button to browse', (name, label, value, browse) => {
                 const input = controlOf(label);
                 expect(input.value).toBe(value);
-                expect(input.disabled).toBe(true);
+                expect(input.readOnly).toBe(true);
+                expect(input.disabled).toBe(false);
                 expect(within(rowOf(label)).getByTitle(browse)).toBeTruthy();
             });
 
@@ -715,7 +716,7 @@ describe('menu popup', () => {
                 const control = row.querySelector('input, select');
                 const drawn = DRAWN[ref.input];
                 expect(control.tagName === 'SELECT' ? 'select' : control.type, ref.label).toBe(drawn.field);
-                expect(control.disabled, ref.label).toBe(!drawn.typed);
+                expect(!!(control.disabled || control.readOnly), ref.label).toBe(!drawn.typed);
                 expect(row.querySelectorAll('button'), ref.label).toHaveLength(drawn.buttons);
                 expect(screen.getByText(ref.label).getAttribute('title'), ref.label).toBe(ref.description);
                 if (ref.input === 'numeric') {
@@ -735,7 +736,7 @@ describe('menu popup', () => {
         it('should draw the settings of the engine in the order of its categories: the general ones, then those of each website', async () => {
             realEngine();
             await renderRouted(<MenuPopup onClose={vi.fn()} />, { selection: false });
-            const headings = [...document.querySelectorAll('td[colspan]')].map(node => node.textContent);
+            const headings = [...document.querySelectorAll('th[colspan]')].map(node => node.textContent);
             expect(headings).toEqual(['General', 'West']);
         });
 
@@ -830,5 +831,73 @@ describe('menu popup', () => {
             expect(onClose).not.toHaveBeenCalled();
             expect(controlOf('Name').value).toBe('edited');
         });
+    });
+});
+
+describe('menu popup for the keyboard and the screen reader', () => {
+    it('should be a modal dialog named Menu, with the parts under headings and the views as navigation', async () => {
+        await openMenu({ groups: [group('General', setting({ label: 'Name' }))] });
+        const dialog = screen.getByRole('dialog', { name: 'Menu' });
+        expect(dialog.getAttribute('aria-modal')).toBe('true');
+        expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Views', 'About', 'Settings']);
+        expect(within(screen.getByRole('navigation', { name: 'Views' })).getAllByRole('button').map(button => button.textContent)).toEqual(['Start', 'Downloads', 'Bookmarks']);
+    });
+
+    it('should mark the view that is shown as the current one', async () => {
+        await openMenu({ url: '/downloads' });
+        expect(screen.getByRole('button', { name: 'Downloads' }).getAttribute('aria-current')).toBe('page');
+        expect(screen.getByRole('button', { name: 'Start' }).getAttribute('aria-current')).toBeNull();
+    });
+
+    it('should take the focus when it opens, keep Tab inside, and give the focus back to the button that opened it', async () => {
+        const user = userEvent.setup();
+        await openLikeTheShell([group('General', setting({ label: 'Name', value: 'x' }))]);
+        const dialog = screen.getByRole('dialog', { name: 'Menu' });
+        expect(document.activeElement).toBe(dialog);
+        await user.tab({ shift: true });
+        expect(document.activeElement).toBe(closeButton());
+        await user.tab();
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Start' }));
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+        // the shell gave the focus to nothing in particular before: it stays where it is
+        fireEvent.click(screen.getByRole('button', { name: 'Open the menu' }));
+        expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Menu' }));
+    });
+
+    it('should label every setting, and describe it with its tooltip', async () => {
+        await openMenu({ groups: typedGroups() });
+        for (const [label, description] of [['Text', 'A text'], ['Password', 'A secret'], ['Quality', 'A number'], ['Format', 'A choice'], ['Reader', 'A switch'], ['Key file', 'A file'], ['Manga Directory', 'A directory'], ['Bookmarks Directory', 'Cannot be changed']]) {
+            const control = screen.getByLabelText(label);
+            expect(control, label).toBe(controlOf(label));
+            expect(document.getElementById(control.getAttribute('aria-describedby')).textContent, label).toBe(description);
+        }
+        expect(screen.getByRole('button', { name: 'Choose a file for Key file' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Choose a folder for Manga Directory' })).toBeTruthy();
+    });
+
+    it('should head the table of the settings with the categories', async () => {
+        await openMenu({ groups: [group('General', setting({ label: 'Name' })), group('Site', setting({ label: 'Key' }))] });
+        expect([...document.querySelectorAll('th[scope="rowgroup"]')].map(heading => heading.textContent)).toEqual(['General', 'Site']);
+        // each category is a group of rows of its own
+        expect(screen.getByText('General').closest('table').querySelectorAll('tbody')).toHaveLength(2);
+    });
+
+    it('should make the links of the credits real links that the keyboard reaches, and still open them outside', async () => {
+        const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+        await openMenu();
+        const link = screen.getByRole('link', { name: 'Contributors' });
+        expect(link.getAttribute('href')).toBe('https://github.com/akn19/rakkomik/graphs/contributors');
+        const notPrevented = fireEvent.click(link);
+        expect(notPrevented).toBe(false);
+        expect(open).toHaveBeenCalledExactlyOnceWith('https://github.com/akn19/rakkomik/graphs/contributors', '_blank', 'nodeIntegration=no');
+    });
+
+    it('should name the buttons that import, save and close', async () => {
+        await openMenu();
+        expect(screen.getByRole('button', { name: 'Import bookmarks' })).toBe(importButton());
+        expect(screen.getByRole('button', { name: 'Save settings and close menu' })).toBe(saveButton());
+        expect(screen.getByRole('button', { name: 'Close menu without saving settings' })).toBe(closeButton());
+        expect(screen.getByRole('button', { name: 'Open a Ticket on GitHub' })).toBeTruthy();
     });
 });

@@ -140,3 +140,17 @@ describe('bookmarks view', () => {
         expect(screen.getAllByTitle(/^Remove /)).toHaveLength(2);
     });
 });
+
+describe('bookmarks view for the screen reader', () => {
+    it('should head the view, list the bookmarks and name the button of each after its manga', () => {
+        engine.BookmarkManager.bookmarks.push(
+            { key: { connector: 'site', manga: 'm1' }, title: { connector: 'Site', manga: 'Berserk' } },
+            { key: { connector: 'site', manga: 'm2' }, title: { connector: 'Site', manga: 'Akira' } }
+        );
+        renderWithProviders(<BookmarksView />, { selection: false });
+        expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Bookmarks');
+        expect(screen.getByRole('list').querySelectorAll('li')).toHaveLength(2);
+        expect(screen.getByRole('button', { name: 'Remove Berserk' }).textContent).toBe('Remove');
+        expect(screen.getByRole('button', { name: 'Remove Akira' })).toBeTruthy();
+    });
+});

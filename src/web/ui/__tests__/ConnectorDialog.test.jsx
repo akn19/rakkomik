@@ -81,13 +81,16 @@ function resizeTo(width) {
 
 // the list and its cards are asked for all the time, and the role queries of the testing library are slow on a DOM of this size
 const listbox = () => {
-    const list = document.querySelector('[role="listbox"][aria-label="Connectors"]');
+    const list = document.querySelector('[role="list"][aria-label="Connectors"]');
     if (!list) {
         throw new Error('The list of connectors is not on the page');
     }
     return list;
 };
-const cards = () => [...listbox().querySelectorAll('[role="option"]')];
+const cards = () => [...listbox().querySelectorAll('[role="listitem"]')];
+// the button of a card that carries the name of the website: the keyboard selects with it
+const nameButtonOf = card => within(card).getByTitle('Show the mangas of this website');
+const selectedCardIds = () => cards().filter(card => card.querySelector('[aria-current="true"]')).map(idOf);
 const idOf = card => /\nID: (.*)\n/.exec(card.getAttribute('title'))[1];
 const cardIds = () => cards().map(idOf);
 const cardOf = id => cards().find(card => idOf(card) === id);
@@ -101,8 +104,8 @@ const nameField = () => screen.getByTitle(/with a name that matches/);
 const mangaField = () => screen.getByTitle(/with a manga that matches/);
 const clearButton = () => screen.getByTitle('Reset all filters');
 const counter = () => screen.getByText(/ websites/).textContent;
-// the tags in the list of the filter: they are buttons without a title, the cards show theirs as plain text
-const tagButtons = () => screen.getAllByRole('button').filter(button => !button.title);
+// the tags in the list of the filter: the buttons of the group under the heading "Tags", the cards show theirs as plain text
+const tagButtons = () => within(screen.getByRole('group', { name: 'Tags' })).queryAllByRole('button');
 const tagNames = () => tagButtons().map(button => button.textContent);
 const tagButton = name => tagButtons().find(button => button.textContent === name);
 const refreshOf = id => within(cardOf(id)).getByTitle(/^Synchronize local manga list/);
@@ -140,7 +143,7 @@ afterEach(() => {
 describe('opening and closing', () => {
     it('should draw nothing while it is closed', () => {
         mountDialog({ open: false });
-        expect(screen.queryByRole('listbox')).toBeNull();
+        expect(screen.queryByRole('list')).toBeNull();
         expect(screen.queryByTitle('Click to cancel the website selection')).toBeNull();
         expect(screen.queryByTitle('Reset all filters')).toBeNull();
         expect(screen.queryByText(/ websites/)).toBeNull();
@@ -285,11 +288,11 @@ describe('the cards', () => {
 
     it('should mark the card of the selected website, and follow the selection', () => {
         const { rerender } = mountDialog({ selectedId: 'webtoons' });
-        expect(cards().filter(card => card.getAttribute('aria-selected') === 'true').map(idOf)).toEqual(['webtoons']);
+        expect(selectedCardIds()).toEqual(['webtoons']);
         rerender(dialog({ selectedId: 'toptoon' }));
-        expect(cards().filter(card => card.getAttribute('aria-selected') === 'true').map(idOf)).toEqual(['toptoon']);
+        expect(selectedCardIds()).toEqual(['toptoon']);
         rerender(dialog({ selectedId: 'unknown' }));
-        expect(cards().filter(card => card.getAttribute('aria-selected') === 'true')).toEqual([]);
+        expect(selectedCardIds()).toEqual([]);
     });
 
     it('should select the website of the card that is clicked', async () => {
@@ -300,21 +303,21 @@ describe('the cards', () => {
         expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('should select the website of the card on which Enter is pressed', async () => {
+    it.each([['Enter', '{Enter}'], ['Space', ' ']])('should select the website whose name has the focus when %s is pressed', async (name, key) => {
         const user = typist();
         mountDialog();
-        const card = cardOf('toptoon');
-        expect(card.tabIndex).toBe(0);
-        card.focus();
-        await user.keyboard('{Enter}');
+        const button = nameButtonOf(cardOf('toptoon'));
+        expect(button.textContent).toBe('TOPTOON (탑툰)');
+        button.focus();
+        await user.keyboard(key);
         expect(onSelect).toHaveBeenCalledExactlyOnceWith('toptoon');
     });
 
     it('should not select anything for the other keys', async () => {
         const user = typist();
         mountDialog();
-        cardOf('toptoon').focus();
-        await user.keyboard('a{Escape}{ArrowDown}');
+        nameButtonOf(cardOf('toptoon')).focus();
+        await user.keyboard('a{ArrowDown}');
         expect(onSelect).not.toHaveBeenCalled();
     });
 
@@ -961,5 +964,61 @@ describe('the refresh button of a card', () => {
         expect(vi.getTimerCount()).toBeGreaterThan(0);
         unmount();
         expect(vi.getTimerCount()).toBe(0);
+    });
+});
+
+describe('the dialog for the keyboard and the screen reader', () => {
+    it('should be a modal dialog with its filters labelled and its parts under headings', () => {
+        mountDialog();
+        const dialog = screen.getByRole('dialog', { name: 'Select a website' });
+        expect(dialog.getAttribute('aria-modal')).toBe('true');
+        expect(screen.getByLabelText('Website')).toBe(nameField());
+        expect(screen.getByLabelText('Manga')).toBe(mangaField());
+        expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Tags', 'Connectors']);
+        expect(screen.getByRole('group', { name: 'Tags' })).toBeTruthy();
+        expect(screen.getByRole('list', { name: 'Connectors' })).toBe(listbox());
+        expect(screen.getByRole('button', { name: 'Close the website selection' })).toBeTruthy();
+        expect(screen.getByRole('status').textContent).toBe('6 / 6 websites');
+    });
+
+    it('should say which tags are pressed', async () => {
+        const user = typist();
+        mountDialog();
+        expect(tagButton('korean').getAttribute('aria-pressed')).toBe('false');
+        await user.click(tagButton('korean'));
+        expect(tagButton('korean').getAttribute('aria-pressed')).toBe('true');
+        expect(tagButton('webtoon').getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('should name the buttons of a card after the website, and the card itself as a list item', () => {
+        mountDialog({ selectedId: 'mangadex' });
+        const card = within(cardOf('mangadex'));
+        expect(card.getByRole('button', { name: 'Login page of MangaDex' })).toBeTruthy();
+        expect(card.getByRole('button', { name: 'Donation page of MangaDex' })).toBeTruthy();
+        expect(card.getByRole('button', { name: 'Open MangaDex in a new window' })).toBeTruthy();
+        expect(card.getByRole('button', { name: 'Update the manga list of MangaDex' })).toBeTruthy();
+        expect(card.getByRole('button', { name: 'MangaDex' }).getAttribute('aria-current')).toBe('true');
+        expect(within(cardOf('webtoons')).getByRole('button', { name: 'Webtoons' }).getAttribute('aria-current')).toBeNull();
+    });
+
+    it('should keep Tab inside, and give the focus back to the element that opened it when it closes', async () => {
+        const user = typist();
+        const opener = document.createElement('button');
+        opener.textContent = 'Open';
+        document.body.appendChild(opener);
+        opener.focus();
+        const { rerender } = mountDialog();
+        expect(document.activeElement).toBe(nameField());
+        // the close button comes first in the dialog; from there Shift+Tab goes round to the last control, the refresh
+        // button of the last card, and Tab from that one comes back to the close button
+        await user.tab({ shift: true });
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close the website selection' }));
+        await user.tab({ shift: true });
+        expect(document.activeElement).toBe(within(cardOf('kakaopage')).getByTitle(/^Synchronize local manga list/));
+        await user.tab();
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close the website selection' }));
+        rerender(dialog({ open: false }));
+        expect(document.activeElement).toBe(opener);
+        opener.remove();
     });
 });

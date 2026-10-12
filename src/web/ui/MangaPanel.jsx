@@ -14,6 +14,9 @@ import Icon from './icon.jsx';
 const BOOKMARK_CONNECTOR_ID = 'bookmarks';
 const CLIPBOARD_CONNECTOR_ID = 'clipboard';
 
+// a row is as high as a pointer target (24 pixels)
+const ROW_HEIGHT = 24;
+
 /** Classic mangas.html filterMangas: 3 chars for latin patterns, 2 otherwise. */
 function filterMangas(list, pattern) {
     const threshold = /^[a-zA-Z0-9]+$/.test(pattern) ? 3 : 2;
@@ -24,10 +27,15 @@ function filterMangas(list, pattern) {
     return list.filter(manga => manga.title.toLowerCase().includes(needle) || manga.connector.label.toLowerCase().includes(needle));
 }
 
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
 /**
  * Manga list panel (classic mangas.html parity): paste links from the
  * clipboard, connector picker, refresh, title filter, bookmark button for
  * the selected manga, virtual list with the empty-list notification, footer.
+ *
+ * The list is a list box for the keyboard: the list has the focus, the arrows move between the mangas (Page Up and
+ * Down by a screen, Home and End to the ends), Enter or Space selects the one the keyboard is on.
  */
 export default function MangaPanel({ readerEnabled }) {
     const { notify } = useToast();
@@ -39,6 +47,8 @@ export default function MangaPanel({ readerEnabled }) {
     const [updating, setUpdating] = React.useState({});
     const [pickerOpen, setPickerOpen] = React.useState(false);
     const scrollRef = React.useRef(null);
+    const headingId = React.useId();
+    const listId = React.useId();
 
     // the default (first) connector is only known once the list is complete and sorted
     const effectiveId = connectorId || (ready && connectors[0] ? connectors[0].id : '');
@@ -101,12 +111,81 @@ export default function MangaPanel({ readerEnabled }) {
         [mangaQuery.data, pattern]
     );
 
+    // The manga that the keyboard is on (`aria-activedescendant`): the selected one when the list arrives, then where
+    // the arrows go. While the list has the focus its row stays drawn, wherever the list is scrolled to.
+    const [active, setActive] = React.useState(0);
+    const [focused, setFocused] = React.useState(false);
+    const activeIndex = clamp(active, 0, Math.max(0, mangas.length - 1));
+    const optionId = index => `${listId}-${index}`;
+    React.useEffect(() => {
+        if (selectedManga) {
+            const index = mangas.findIndex(manga => manga.id === selectedManga.id && manga.connector.id === selectedManga.connector.id);
+            if (index >= 0) {
+                setActive(index);
+            }
+        }
+    }, [mangas, selectedManga]);
+
+    const rangeExtractor = React.useCallback(range => {
+        const start = Math.max(range.startIndex - range.overscan, 0);
+        const end = Math.min(range.endIndex + range.overscan, range.count - 1);
+        const indexes = [];
+        for (let index = start; index <= end; index++) {
+            indexes.push(index);
+        }
+        if (focused && activeIndex < range.count && (activeIndex < start || activeIndex > end)) {
+            indexes.push(activeIndex);
+            indexes.sort((a, b) => a - b);
+        }
+        return indexes;
+    }, [focused, activeIndex]);
+
     const virtualizer = useVirtualizer({
         count: mangas.length,
         getScrollElement: () => scrollRef.current,
-        estimateSize: () => 22,
-        overscan: 20
+        estimateSize: () => ROW_HEIGHT,
+        overscan: 20,
+        rangeExtractor
     });
+
+    const onListKeyDown = event => {
+        if (mangas.length === 0) {
+            return;
+        }
+        const screen = Math.max(1, Math.floor((scrollRef.current ? scrollRef.current.clientHeight : 0) / ROW_HEIGHT) - 1);
+        let next = activeIndex;
+        switch (event.key) {
+            case 'ArrowDown':
+                next += 1;
+                break;
+            case 'ArrowUp':
+                next -= 1;
+                break;
+            case 'PageDown':
+                next += screen;
+                break;
+            case 'PageUp':
+                next -= screen;
+                break;
+            case 'Home':
+                next = 0;
+                break;
+            case 'End':
+                next = mangas.length - 1;
+                break;
+            case 'Enter':
+            case ' ':
+                event.preventDefault();
+                selectManga(mangas[activeIndex]);
+                return;
+            default:
+                return;
+        }
+        event.preventDefault();
+        next = clamp(next, 0, mangas.length - 1);
+        setActive(next);
+        virtualizer.scrollToIndex(next);
+    };
 
     const update = async target => {
         // an update that runs elsewhere (the connector dialog) is not started a second time: the engine would not answer
@@ -148,20 +227,24 @@ export default function MangaPanel({ readerEnabled }) {
     const showNotification = !!connector && connector.id !== BOOKMARK_CONNECTOR_ID && total < 1;
     const refreshClass = 'text-(--manga-refresh-button-color) [filter:drop-shadow(var(--manga-refresh-button-shadow))] cursor-pointer';
     const refreshTitle = connector ? `Synchronize local manga list with online list from <${connector.label}>` : '';
+    const refreshLabel = connector ? `Update the manga list of ${connector.label}` : 'Update the manga list';
+    const websiteText = connector ? connector.label : (ready ? '' : `Loading connectors … (${connectors.length})`);
 
     return (
         <section
+            aria-labelledby={headingId}
             className={
                 'box-border flex min-h-0 flex-col bg-(--control-background-color) p-[0.5em] ' +
                 (readerEnabled ? 'w-[20em] shrink-0' : 'max-w-1/2 flex-1')
             }
         >
             <div className="rk-separator flex items-center p-[0.25em] text-[1.25em] font-bold">
-                <span className="flex-1">Manga List</span>
+                <h2 id={headingId} className="flex-1">Manga List</h2>
                 <button
                     type="button"
                     onClick={onPaste}
                     title="Click to paste manga links from the clipboard"
+                    aria-label="Paste manga links from the clipboard"
                     className="rk-button"
                 >
                     <Icon name="paste" size={16} />
@@ -169,26 +252,24 @@ export default function MangaPanel({ readerEnabled }) {
             </div>
             <div className="rk-separator grid grid-cols-[auto_1fr_auto] items-center gap-x-[0.25em]">
                 <Icon name="plug" size={14} className="rk-icon -scale-x-100" />
-                <input
-                    type="text"
-                    readOnly
-                    value={connector ? connector.label : (ready ? '' : `Loading connectors … (${connectors.length})`)}
+                {/* looks like the field of a select, is a button: it opens the dialog that picks the website */}
+                <button
+                    type="button"
                     onClick={() => setPickerOpen(true)}
-                    onKeyDown={event => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            setPickerOpen(true);
-                        }
-                    }}
+                    aria-haspopup="dialog"
+                    aria-expanded={pickerOpen}
                     title="Select a website from which the manga list should be shown"
-                    aria-label="Website"
-                    className="rk-field rk-field-select w-[calc(100%-0.5em)] cursor-pointer"
-                />
+                    className="rk-field rk-field-select w-[calc(100%-0.5em)] min-w-0 cursor-pointer truncate text-left"
+                >
+                    <span className="sr-only">Website: </span>
+                    {websiteText}
+                </button>
                 <button
                     type="button"
                     onClick={() => update(connector)}
                     disabled={!connector}
                     title={refreshTitle}
+                    aria-label={refreshLabel}
                     className={refreshClass + (refreshing ? ' cursor-progress! text-(--manga-button-disabled-color)!' : '')}
                 >
                     <Icon name="refresh" size={14} spin={refreshing} />
@@ -199,11 +280,15 @@ export default function MangaPanel({ readerEnabled }) {
                     value={pattern}
                     onChange={event => setPattern(event.target.value)}
                     title="Enter a pattern (at least 3 characters) to filter the manga list by their titles"
+                    aria-label="Filter the mangas by title"
                     className="rk-field w-[calc(100%-0.5em)]"
                 />
                 <button
                     type="button"
                     onClick={onToggleBookmark}
+                    disabled={!selectedManga}
+                    aria-pressed={bookmarked}
+                    aria-label="Add or remove the bookmark of the selected manga"
                     title={
                         !selectedManga
                             ? 'Please select a manga to use the bookmark feature'
@@ -211,7 +296,7 @@ export default function MangaPanel({ readerEnabled }) {
                                 ? 'Click to remove the selected manga from the bookmark list'
                                 : 'Click to add the selected manga to the bookmark list'
                     }
-                    className="relative cursor-pointer text-(--bookmark-button-default-color) [filter:drop-shadow(var(--bookmark-button-shadow))]"
+                    className="relative cursor-pointer text-(--bookmark-button-default-color) [filter:drop-shadow(var(--bookmark-button-shadow))] disabled:cursor-default"
                 >
                     <Icon name="star" size={16} filled />
                     {selectedManga && (
@@ -232,6 +317,11 @@ export default function MangaPanel({ readerEnabled }) {
                 ref={scrollRef}
                 role="listbox"
                 aria-label="Manga list"
+                aria-activedescendant={mangas.length > 0 ? optionId(activeIndex) : undefined}
+                tabIndex={0}
+                onKeyDown={onListKeyDown}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
                 className="rk-list my-[0.5em] min-h-0 flex-1 overflow-x-hidden overflow-y-scroll bg-(--list-background-color) p-[0.25em] whitespace-nowrap"
             >
                 {showNotification && (
@@ -243,6 +333,7 @@ export default function MangaPanel({ readerEnabled }) {
                             type="button"
                             onClick={() => update(connector)}
                             title={refreshTitle}
+                            aria-label={refreshLabel}
                             className={'align-middle ' + refreshClass}
                         >
                             <Icon name="refresh" size={14} spin={refreshing} />
@@ -273,20 +364,37 @@ export default function MangaPanel({ readerEnabled }) {
                         // the lists of the bookmarks and of the clipboard hold mangas of several websites: the id is not enough
                         const selected = selectedManga && selectedManga.id === manga.id && selectedManga.connector.id === manga.connector.id;
                         const key = `${manga.connector.id}/${manga.id}`;
+                        const isBookmarked = bookmarkedKeys.has(key);
                         return (
+                            // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- the list box has the focus and the keys (aria-activedescendant)
                             <div
                                 key={key}
+                                id={optionId(virtual.index)}
                                 role="option"
                                 aria-selected={!!selected}
+                                aria-setsize={mangas.length}
+                                aria-posinset={virtual.index + 1}
+                                // the star says "bookmarked" to the eye, the name to a screen reader
+                                aria-label={isBookmarked ? `${manga.title}, bookmarked` : undefined}
                                 title={`${manga.title}\n${manga.connector.label}`}
-                                onClick={() => selectManga(manga)}
+                                onClick={() => {
+                                    setActive(virtual.index);
+                                    selectManga(manga);
+                                    // the keys go on from the manga that was clicked
+                                    if (scrollRef.current) {
+                                        scrollRef.current.focus();
+                                    }
+                                }}
+                                // the padding keeps the title, and the star, clear of the mark of the selected row
                                 className={
-                                    'absolute top-0 left-0 w-full cursor-pointer overflow-hidden text-ellipsis ' +
-                                    (selected ? 'bg-(--list-selected) ' : 'hover:bg-(--list-highlighted) ') +
-                                    (bookmarkedKeys.has(key) ? 'text-(--manga-list-bookmarked-color)' : '')
+                                    'absolute top-0 left-0 w-full cursor-pointer overflow-hidden pl-[0.5em] text-ellipsis leading-6 ' +
+                                    (selected ? 'rk-selected bg-(--list-selected) ' : 'hover:bg-(--list-highlighted) ') +
+                                    (virtual.index === activeIndex ? 'rk-active ' : '') +
+                                    (isBookmarked ? 'text-(--manga-list-bookmarked-color)' : '')
                                 }
                                 style={{ height: virtual.size, transform: `translateY(${virtual.start}px)` }}
                             >
+                                {isBookmarked && <Icon name="star" size={11} filled className="mr-[0.25em] inline shrink-0 align-[-1px]" />}
                                 {manga.title}
                             </div>
                         );

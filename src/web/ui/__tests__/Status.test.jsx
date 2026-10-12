@@ -22,3 +22,15 @@ describe('status line', () => {
         expect(screen.getByText('second')).toBeTruthy();
     });
 });
+
+describe('status line for the screen reader', () => {
+    it('should name the spinner after the running task', () => {
+        render(<StatusLine message="Updating…" busy busyTitle="Loading manga list (Site)" />);
+        expect(screen.getByRole('img', { name: 'Loading manga list (Site)' })).toBeTruthy();
+    });
+
+    it('should call the spinner busy when the task has no name', () => {
+        render(<StatusLine message="Updating…" busy />);
+        expect(screen.getByRole('img', { name: 'Busy' })).toBeTruthy();
+    });
+});

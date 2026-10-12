@@ -53,7 +53,7 @@ describe('downloads view', () => {
     it.each([[-20, '0%'], [150, '100%'], [undefined, '0%']])('should keep the bar of a progress of %s inside its track', (progress, width) => {
         queued(job('Chapter 1', { status: 'downloading', progress }));
         const { container } = renderWithProviders(<DownloadsView />, { selection: false });
-        expect(container.querySelector('.bg-sky-500').style.width).toBe(width);
+        expect(container.querySelector('.bg-sky-700').style.width).toBe(width);
     });
 
     it('should show a status that it does not know as it is', () => {
@@ -317,5 +317,32 @@ describe('canceling downloads in the view', () => {
         act(() => engine.DownloadManager.emit('updated', running));
         expect(cancelButtons()).toHaveLength(0);
         expect(cancelAllButton().disabled).toBe(true);
+    });
+});
+
+describe('downloads view for the keyboard and the screen reader', () => {
+    it('should show the progress of a job as a progress bar with its value', () => {
+        queued(job('Chapter 1', { status: 'downloading', progress: 42.4 }));
+        renderWithProviders(<DownloadsView />, { selection: false });
+        const bar = screen.getByRole('progressbar', { name: 'Progress of Chapter 1' });
+        expect(bar.getAttribute('aria-valuenow')).toBe('42');
+        expect(bar.getAttribute('aria-valuemin')).toBe('0');
+        expect(bar.getAttribute('aria-valuemax')).toBe('100');
+    });
+
+    it('should disable the status of a job that cannot be downloaded again, and keep it as the label', () => {
+        queued(job('Chapter 1', { status: 'downloading' }), job('Chapter 2', { status: 'failed' }));
+        renderWithProviders(<DownloadsView />, { selection: false });
+        expect(screen.getByRole('button', { name: 'Downloading' }).disabled).toBe(true);
+        expect(screen.getByRole('button', { name: 'Failed' }).disabled).toBe(false);
+    });
+
+    it('should name the cancel button after the chapter, head the view and count for the screen reader', () => {
+        queued(job('Chapter 1', { status: 'queued' }));
+        renderWithProviders(<DownloadsView />, { selection: false });
+        expect(screen.getByRole('button', { name: 'Cancel the download of Chapter 1' })).toBeTruthy();
+        expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Downloads');
+        expect(screen.getByRole('status').textContent).toBe('1 Download(s)');
+        expect(screen.getByRole('list').querySelectorAll('li')).toHaveLength(1);
     });
 });

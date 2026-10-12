@@ -129,12 +129,13 @@ describe('checkbox field', () => {
 });
 
 describe('path field', () => {
-    it('should show the path, which cannot be typed, with the browse button next to it', () => {
+    it('should show the path, which cannot be typed but can be read, with the browse button next to it', () => {
         const onBrowse = vi.fn();
         render(<PathField value="/home/me/manga" onBrowse={onBrowse} />);
         const input = screen.getByTitle('/home/me/manga');
         expect(input.value).toBe('/home/me/manga');
-        expect(input.disabled).toBe(true);
+        expect(input.readOnly).toBe(true);
+        expect(input.disabled).toBe(false);
         fireEvent.click(screen.getByTitle('Browse …'));
         expect(onBrowse).toHaveBeenCalledTimes(1);
     });
@@ -152,5 +153,31 @@ describe('path field', () => {
         expect(button.disabled).toBe(true);
         fireEvent.click(button);
         expect(onBrowse).not.toHaveBeenCalled();
+    });
+});
+
+describe('fields for the screen reader', () => {
+    it.each([
+        ['text', props => <TextField {...props} />],
+        ['password', props => <PasswordField {...props} />],
+        ['number', props => <NumberField {...props} />],
+        ['select', props => <SelectField options={[]} {...props} />],
+        ['checkbox', props => <CheckboxField {...props} />],
+        ['path', props => <PathField onBrowse={vi.fn()} {...props} />]
+    ])('should take the id of its label and the id of its description: %s field', (name, field) => {
+        const { container } = render(field({ value: '', onChange: vi.fn(), id: 'the-field', describedBy: 'the-description' }));
+        const control = container.querySelector('input, select');
+        expect(control.id).toBe('the-field');
+        expect(control.getAttribute('aria-describedby')).toBe('the-description');
+    });
+
+    it('should name the browse button of a path for the screen reader, apart from its tooltip', () => {
+        render(<PathField value="/mangas" onBrowse={vi.fn()} browseTitle="Browse …" browseLabel="Choose a folder for Manga Directory" />);
+        expect(screen.getByRole('button', { name: 'Choose a folder for Manga Directory' }).title).toBe('Browse …');
+    });
+
+    it('should name the browse button after its tooltip when it is given no name', () => {
+        render(<PathField value="/mangas" onBrowse={vi.fn()} browseTitle="Choose file …" />);
+        expect(screen.getByRole('button', { name: 'Choose file …' })).toBeTruthy();
     });
 });

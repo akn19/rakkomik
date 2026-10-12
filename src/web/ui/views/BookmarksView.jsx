@@ -28,6 +28,7 @@ export default function BookmarksView() {
     if (!bookmarks.length) {
         return (
             <div className="mx-auto max-w-3xl rounded-lg border border-zinc-200 bg-white p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
+                <h1 className="sr-only">Bookmarks</h1>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400">
                     No bookmarks yet. Bookmark manga from the library to find them here.
                 </p>
@@ -36,26 +37,30 @@ export default function BookmarksView() {
     }
 
     return (
-        <div className="mx-auto max-w-3xl space-y-2 pb-8">
-            {bookmarks.map(bookmark => (
-                <div
-                    key={`${bookmark.key.connector}/${bookmark.key.manga}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
-                >
-                    <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{bookmark.title.manga}</p>
-                        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{bookmark.title.connector}</p>
-                    </div>
-                    <button
-                        type="button"
-                        title={`Remove ${bookmark.title.manga}`}
-                        onClick={() => setPending(bookmark)}
-                        className="shrink-0 rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 hover:border-red-300 hover:text-red-600 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-red-800 dark:hover:text-red-400"
+        <div className="mx-auto max-w-3xl pb-8">
+            <h1 className="sr-only">Bookmarks</h1>
+            <ul className="space-y-2">
+                {bookmarks.map(bookmark => (
+                    <li
+                        key={`${bookmark.key.connector}/${bookmark.key.manga}`}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
                     >
-                        Remove
-                    </button>
-                </div>
-            ))}
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{bookmark.title.manga}</p>
+                            <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{bookmark.title.connector}</p>
+                        </div>
+                        <button
+                            type="button"
+                            title={`Remove ${bookmark.title.manga}`}
+                            aria-label={`Remove ${bookmark.title.manga}`}
+                            onClick={() => setPending(bookmark)}
+                            className="shrink-0 rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 hover:border-red-300 hover:text-red-600 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-red-800 dark:hover:text-red-400"
+                        >
+                            Remove
+                        </button>
+                    </li>
+                ))}
+            </ul>
             <ConfirmDialog
                 open={pending !== null}
                 title="Remove bookmark?"

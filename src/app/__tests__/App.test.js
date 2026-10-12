@@ -258,7 +258,9 @@ describe('App', function() {
             await testee.run();
             let html = calls.find(([ step ]) => step === 'loadHTML')[1];
             expect(html).toContain('Checking for Update');
-            expect(html).toContain('<progress>');
+            // a document of its own, in a language, with a progress bar that a screen reader can name
+            expect(html).toContain('<html lang="en">');
+            expect(html).toMatch(/<progress aria-label="[^"]+"><\/progress>/);
         });
 
         it('should check the update against the public key of the configuration and start the startup URL', async () => {

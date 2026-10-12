@@ -33,6 +33,8 @@ It is not meant to be a mass downloader to stock up thousands of chapters that w
 - Pages that sit behind an anti-bot check are loaded like in a browser: in a hidden window that is shown to you
   when the check needs your interaction or does not finish on its own.
 - Optional proxy, a command that runs after every downloaded chapter and Discord activity.
+- Accessible: the whole interface works with the keyboard and a screen reader, the colours of both themes have the
+  contrast that WCAG 2.2 AA asks for, and the window can be zoomed (Control + and -). See [accessibility](docs/accessibility.md).
 
 ## Installation
 
@@ -129,6 +131,7 @@ The technical documentation is in [`docs`](docs):
 - [Architecture](docs/architecture.md): main process, preload bridge, web part, updates, requests and interstitials
 - [Adding a website](docs/connectors.md): how a connector is written, tested and given an icon
 - [Development](docs/development.md): setup, commands, tests, dependencies, icons and building the installers
+- [Accessibility](docs/accessibility.md): what the interface does for the keyboard, screen readers and colour contrast, the keys of the lists, how it is checked
 - [Continuous integration and releases](docs/releasing.md): workflows, releases, the web part, the AUR package, secrets
 
 ## About this fork

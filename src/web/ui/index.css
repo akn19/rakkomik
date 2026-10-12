@@ -4,28 +4,34 @@
  * Default follows classic-light; dark is an opt-in superset. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Classic tokens, names and values verbatim from
- * the classic light theme (`:root`) and
- * the classic dark theme ("Ken's Daedal Dark", `.dark`).
+/* Classic tokens, names from the classic light theme (`:root`) and the classic dark theme ("Ken's Daedal Dark", `.dark`).
  * The React rewrite keeps the classic look; shell components read the
  * tokens (`bg-(--manga-list-background-color)`), never raw palette colors.
- * Separators/list borders merge the identical manga/chapter/menu tokens. */
+ * Separators/list borders merge the identical manga/chapter/menu tokens.
+ *
+ * The values meet WCAG 2.2 AA: text has a contrast of 4.5:1 against what it is drawn on, icons, the focus ring and the
+ * other parts of a control 3:1 (`__tests__/Contrast.test.jsx` checks the pairs). Where a classic value fell short it was
+ * darkened (light theme) or lightened (dark theme) and keeps its hue. */
 :root {
     --text-color: #404040;
-    --link-color: #2080e0;
-    --icon-color: #2080e0;
-    --button-color: #2080e0;
+    --link-color: #155aa8;
+    --icon-color: #155aa8;
+    --button-color: #155aa8;
+    /* the ring around the control that has the keyboard focus: 3:1 against every background of the theme */
+    --focus-ring-color: #155aa8;
+    /* the mark at the left of a selected row and around a selected card or tag (the background alone is colour only) */
+    --list-marker-color: #155aa8;
 
     --app-control-border: 1px solid #a0a0a0;
     --app-control-shadow: 0.25em 0em 1em 0em rgba(0, 0, 0, 0.25);
 
-    --menu-control-title-color: #a0a0a0;
-    --menu-control-category-color: #a0a0a0;
+    --menu-control-title-color: #5a5a5a;
+    --menu-control-category-color: #5a5a5a;
     --menu-control-background-color: #d6d6d6;
     --menu-control-border: 1px solid #808080;
     --menu-control-shadow: 0.25em 0.25em 2em 0.5em rgba(0, 0, 0, 0.5);
     --menu-credits-background-color: #f0f0f0;
-    --menu-credits-link-color: #2080e0;
+    --menu-credits-link-color: #155aa8;
     --menu-settings-background-color: #e4e4e4;
     --menu-settings-row-border: 1px solid rgba(128, 128, 128, 0.15);
 
@@ -37,42 +43,42 @@
     --list-highlighted: rgba(0, 128, 255, 0.15);
     --manga-list-notification-color: #fff8f0;
     --manga-list-notification-border: 1px solid #ffc0c0;
-    /* the title of a bookmarked manga in the list: gold, dark enough to read on the white of the list */
-    --manga-list-bookmarked-color: #996f00;
-    --manga-refresh-button-color: #00e000;
+    /* the title of a bookmarked manga in the list: gold, dark enough to read on the white of the list and on a selected row */
+    --manga-list-bookmarked-color: #765400;
+    --manga-refresh-button-color: #007a00;
     --manga-refresh-button-shadow: 0px 0px 2px rgba(0, 0, 0, 0.75);
     --manga-button-disabled-color: #808080;
 
-    --chapter-button-offline-color: #d6d6d6;
-    --chapter-button-available-color: #2080e0;
-    --chapter-button-queued-color: #2080e0;
-    --chapter-button-downloading-color: #2080e0;
-    --chapter-button-completed-color: #e0e000;
-    --chapter-button-failed-color: #e08080;
+    --chapter-button-offline-color: #5a5a5a;
+    --chapter-button-available-color: #155aa8;
+    --chapter-button-queued-color: #155aa8;
+    --chapter-button-downloading-color: #155aa8;
+    --chapter-button-completed-color: #996f00;
+    --chapter-button-failed-color: #b03030;
     --chapter-marker-active-color: #404040;
-    --chapter-marker-inactive-color: #2080e0;
-    --chapter-marker-removed-color: #e08080;
+    --chapter-marker-inactive-color: #155aa8;
+    --chapter-marker-removed-color: #b03030;
 
-    --bookmark-button-default-color: #e0e000;
+    --bookmark-button-default-color: #996f00;
     --bookmark-button-invalid-color: #000000;
-    --bookmark-button-delete-color: #e08080;
-    --bookmark-button-add-color: #00e000;
+    --bookmark-button-delete-color: #b03030;
+    --bookmark-button-add-color: #007a00;
     --bookmark-button-shadow: 0px 0px 2px rgba(0, 0, 0, 0.75);
 
     --job-control-background-color: #d6d6d6;
     --job-list-background-color: #ffffff;
     --job-list-row-border: 1px solid rgba(128, 128, 128, 0.15);
     --job-list-progress-background-color: rgba(128, 128, 128, 0.15);
-    --job-list-progress-color: rgba(0, 128, 255, 0.3);
-    --job-list-button-queued-color: #2080e0;
-    --job-list-button-downloading-color: #2080e0;
-    --job-list-button-completed-color: #e0e000;
-    --job-list-button-failed-color: #e08080;
+    --job-list-progress-color: #155aa8;
+    --job-list-button-queued-color: #155aa8;
+    --job-list-button-downloading-color: #155aa8;
+    --job-list-button-completed-color: #996f00;
+    --job-list-button-failed-color: #b03030;
 
-    --page-control-background-color: #a0a0a0;
+    --page-control-background-color: #c0c0c0;
     --start-card-background-color: #ffffff;
 
-    --connector-dialog-category-color: #a0a0a0;
+    --connector-dialog-category-color: #5a5a5a;
     --connector-dialog-background-color: #d6d6d6;
     --connector-dialog-border: 1px solid #808080;
     --connector-dialog-shadow: 0em 0em 2em 1em rgba(0, 0, 0, 0.5);
@@ -82,9 +88,9 @@
     --connector-card-selected: rgb(179, 217, 255);
     --connector-card-highlighted: rgb(217, 236, 255);
     --connector-title-border: 1px solid rgba(0, 0, 0, 0.1);
-    --connector-button-clear-color: #e08080;
+    --connector-button-clear-color: #b03030;
     --connector-tag-list-background-color: #ffffff;
-    --connector-tag-color: #808080;
+    --connector-tag-color: #5a5a5a;
     --connector-tag-background-color: #d6d6d6;
     --connector-tag-selected: rgb(179, 217, 255);
 
@@ -96,34 +102,39 @@
     --page-viewer-title-shadow: 0em 0em 1em rgba(0, 0, 0, 0.5);
     --page-chapter-title-color: #202020;
 
-    --status-unavailable-color: #808080;
+    --status-unavailable-color: #5a5a5a;
     --status-available-color: #404040;
-    --status-queued-color: #4080f0;
-    --status-downloading-color: #4080f0;
-    --status-completed-color: #4080f0;
+    --status-queued-color: #155aa8;
+    --status-downloading-color: #155aa8;
+    --status-completed-color: #155aa8;
 
     --input-color: #404040;
     --input-background-color: #ffffff;
-    --input-accent-color: #2080e0;
-    --input-disabled-color: #808080;
+    --input-accent-color: #155aa8;
+    --input-disabled-color: #5a5a5a;
     --input-disabled-background-color: #f0f0f0;
     --input-disabled-border-color: #a0a0a0;
 }
 
 .dark {
+    /* the native controls (the list of a select, the scrollbars) follow the theme */
+    color-scheme: dark;
+
     --text-color: #dcddde;
     --link-color: #0096cf;
     --icon-color: #aaabad;
     --button-color: #7289da;
+    --focus-ring-color: #f0f0f0;
+    --list-marker-color: #a9b8ee;
 
     --app-control-border: 1px solid #000000;
 
     --menu-control-title-color: #aaabad;
-    --menu-control-category-color: #72767d;
+    --menu-control-category-color: #aaabad;
     --menu-control-background-color: #202225;
     --menu-control-border: 1px solid #000000;
     --menu-credits-background-color: #292b2f;
-    --menu-credits-link-color: #7289da;
+    --menu-credits-link-color: #8fa3e6;
     --menu-settings-background-color: #2f3136;
     --menu-settings-row-border: 1px solid #40444b;
 
@@ -131,9 +142,9 @@
     --control-separator: 2px groove #4a4249;
     --list-background-color: #2f3136;
     --list-border: 0px solid rgba(0, 0, 0, 0.35);
-    --list-selected: #49443c;
+    --list-selected: #42403b;
     --list-highlighted: #292b2f;
-    --manga-list-notification-color: #f04747;
+    --manga-list-notification-color: #5c2b2b;
     --manga-list-notification-border: 1px solid #f69191;
     --manga-list-bookmarked-color: #f0b400;
     --manga-refresh-button-color: #43b581;
@@ -144,10 +155,10 @@
     --chapter-button-queued-color: #aaabad;
     --chapter-button-downloading-color: #aaabad;
     --chapter-button-completed-color: #faa61a;
-    --chapter-button-failed-color: #f04747;
+    --chapter-button-failed-color: #f58a8a;
     --chapter-marker-active-color: #7289da;
     --chapter-marker-inactive-color: #7289da;
-    --chapter-marker-removed-color: #f04747;
+    --chapter-marker-removed-color: #f58a8a;
 
     --bookmark-button-default-color: #faa61a;
     --bookmark-button-invalid-color: #aaabad;
@@ -167,12 +178,12 @@
     --page-control-background-color: #202225;
     --start-card-background-color: #2f3136;
 
-    --connector-dialog-category-color: #72767d;
+    --connector-dialog-category-color: #aaabad;
     --connector-dialog-background-color: #202225;
     --connector-dialog-border: 1px solid #40444b;
     --connector-card-background-color: #2f3136;
     --connector-card-border: 1px solid #000000;
-    --connector-card-selected: #40444b;
+    --connector-card-selected: #36393f;
     --connector-card-highlighted: #40444b;
     --connector-title-border: 1px solid #40444b;
     --connector-button-clear-color: #f04747;
@@ -187,10 +198,10 @@
     --page-viewer-title-background-color: rgba(32, 34, 37, 0.95);
     --page-chapter-title-color: #dcddde;
 
-    --status-unavailable-color: #56595e;
-    --status-available-color: #95989d;
-    --status-queued-color: #5667a4;
-    --status-downloading-color: #7289da;
+    --status-unavailable-color: #b0b3b8;
+    --status-available-color: #c8c9cc;
+    --status-queued-color: #a9b8ee;
+    --status-downloading-color: #bcc8f2;
     --status-completed-color: #dcddde;
 
     --input-color: #dcddde;
@@ -233,6 +244,32 @@ body {
     border-radius: 2em;
 }
 
+@layer base {
+    /* The keyboard focus is always visible (WCAG 2.4.7): one ring for every control, in a colour that stands out
+     * against every background of the theme. The mouse does not draw it (`:focus-visible`). */
+    :focus-visible {
+        outline: 2px solid var(--focus-ring-color);
+        outline-offset: 1px;
+    }
+
+    /* A pointer target is at least 24 x 24 pixels (WCAG 2.5.8): the icons stay small, the button around them grows. */
+    button {
+        min-width: 24px;
+        min-height: 24px;
+    }
+
+    /* The option that the keyboard is on in a list box (`aria-activedescendant`): the list has the focus, the ring
+     * goes around the option. */
+    [role="listbox"]:focus-visible {
+        outline: none;
+    }
+
+    [role="listbox"]:focus-visible .rk-active {
+        outline: 2px solid var(--focus-ring-color);
+        outline-offset: -2px;
+    }
+}
+
 /* Component classes live in the components layer so Tailwind utilities
  * (e.g. a status color on top of `rk-icon`) still override them. */
 @layer components {
@@ -264,9 +301,18 @@ body {
         border: var(--list-border);
     }
 
+    /* The selected row of a list, the selected card or tag: a mark next to the colour of the background, so that the
+     * selection is not told by colour alone (WCAG 1.4.1). */
+    .rk-selected {
+        box-shadow: inset 0.25em 0 0 0 var(--list-marker-color);
+    }
+
+    .rk-selected-ring {
+        box-shadow: inset 0 0 0 2px var(--list-marker-color);
+    }
+
     /* Classic inputs (theme.html): flat field with an accent underline. */
     .rk-field {
-        outline: none;
         appearance: none;
         font-family: Arial, Helvetica, sans-serif;
         font-size: 10pt;
@@ -280,7 +326,8 @@ body {
         box-shadow: inset 0px 0px 0.4em rgba(32, 128, 224, 0.25);
     }
 
-    .rk-field:disabled {
+    .rk-field:disabled,
+    .rk-field[readonly] {
         color: var(--input-disabled-color);
         background-color: var(--input-disabled-background-color);
         border-bottom-color: var(--input-disabled-border-color);
@@ -289,14 +336,14 @@ body {
     /* Dropdown chevron: inline SVG (classic colours), no image file */
     .rk-field-select {
         padding-right: 1.5em;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M9 13l7 7 7-7' fill='none' stroke='%23007FFE' stroke-opacity='.75' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M9 13l7 7 7-7' fill='none' stroke='%23155AA8' stroke-opacity='.85' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
         background-position: right center;
         background-size: auto 1.5em;
         background-repeat: no-repeat;
     }
 
     .dark .rk-field-select {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M9 13l7 7 7-7' fill='none' stroke='%237687D6' stroke-opacity='.75' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M9 13l7 7 7-7' fill='none' stroke='%237687D6' stroke-opacity='.85' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     }
 
     /* Content backdrop: the theme's page colour. */
@@ -397,5 +444,12 @@ body {
         width: 100%;
         opacity: 0.5;
         animation: none;
+    }
+
+    /* a spinner stands still: the status line next to it says what is going on */
+    @layer utilities {
+        .animate-spin {
+            animation: none;
+        }
     }
 }

@@ -241,3 +241,62 @@ describe('closing the application', () => {
         expect(bridge.send).not.toHaveBeenCalled();
     });
 });
+
+describe('names and landmarks for the screen reader', () => {
+    it('should name the buttons of the titlebar, and say which theme the toggle switches to', async () => {
+        vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false });
+        await renderShell();
+        expect(screen.getByRole('button', { name: 'Switch to the dark theme' })).toBeTruthy();
+        fireEvent.click(screen.getByTitle('Toggle theme'));
+        expect(screen.getByRole('button', { name: 'Switch to the light theme' })).toBeTruthy();
+        for (const name of ['Minimize window', 'Maximize or restore window', 'Close window']) {
+            expect(screen.getByRole('button', { name })).toBeTruthy();
+        }
+    });
+
+    it('should tell whether the menu is open on its button, which the menu is the popup of', async () => {
+        await renderShell();
+        const button = screen.getByRole('button', { name: 'Menu' });
+        expect(button.getAttribute('aria-haspopup')).toBe('dialog');
+        expect(button.getAttribute('aria-expanded')).toBe('false');
+        fireEvent.click(button);
+        expect(button.getAttribute('aria-expanded')).toBe('true');
+        expect(screen.getByRole('dialog', { name: 'Menu' }).id).toBe(button.getAttribute('aria-controls'));
+    });
+
+    it('should make what the menu covers inert while it is open: the panels, the download bar and its own button', async () => {
+        await renderShell();
+        const covered = () => [
+            screen.getByRole('navigation', { name: 'Application menu' }),
+            screen.getByRole('region', { name: 'Manga List' }).parentElement,
+            screen.getByRole('region', { name: 'Downloads' })
+        ];
+        expect(covered().map(element => element.hasAttribute('inert'))).toEqual([false, false, false]);
+        fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+        expect(covered().map(element => element.hasAttribute('inert'))).toEqual([true, true, true]);
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(covered().map(element => element.hasAttribute('inert'))).toEqual([false, false, false]);
+    });
+
+    it('should give the menu the focus when it opens, and the focus back to its button when it closes', async () => {
+        await renderShell();
+        const button = screen.getByRole('button', { name: 'Menu' });
+        button.focus();
+        fireEvent.click(button);
+        expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Menu' }));
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+        expect(document.activeElement).toBe(button);
+    });
+
+    it('should mark the panels, the download bar and the content as landmarks', async () => {
+        await renderShell();
+        expect(screen.getByRole('banner')).toBeTruthy();
+        expect(screen.getByRole('navigation', { name: 'Application menu' })).toBeTruthy();
+        expect(screen.getByRole('region', { name: 'Manga List' })).toBeTruthy();
+        expect(screen.getByRole('region', { name: 'Chapter List' })).toBeTruthy();
+        expect(screen.getByRole('region', { name: 'Downloads' })).toBeTruthy();
+        expect(screen.getByRole('main')).toBeTruthy();
+        expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Manga List', 'Chapter List']);
+    });
+});

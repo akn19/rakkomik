@@ -68,11 +68,13 @@ describe('download bar', () => {
         expect(document.querySelector('tbody tr td:first-child button').getAttribute('title')).toBe('Click to re-download\nError: HTTP 404\nError: timeout');
     });
 
-    it('should give no hint to download again while a job has no error to show', () => {
-        queued(job('Chapter 1', { status: 'queued' }));
+    it.each([['queued', 'Queued'], ['downloading', 'Downloading']])('should show the status of a job that is %s as an icon, and not as a button to download again', (status, name) => {
+        queued(job('Chapter 1', { status }));
         renderWithProviders(<JobsBar />, { selection: false });
         openList();
-        expect(document.querySelector('tbody tr td:first-child button').getAttribute('title')).toBe('');
+        const cell = document.querySelector('tbody tr td:first-child');
+        expect(cell.querySelector('button')).toBeNull();
+        expect(within(cell).getByRole('img', { name })).toBeTruthy();
     });
 
     it.each(['failed', 'completed'])('should download a %s job again when its button is clicked', status => {
@@ -83,11 +85,11 @@ describe('download bar', () => {
         expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(done.chapter);
     });
 
-    it('should leave a job that is still running alone when its button is clicked', () => {
+    it('should offer no button to a job that is still running', () => {
         queued(job('Chapter 1', { status: 'downloading' }), job('Chapter 2', { status: 'queued' }));
         renderWithProviders(<JobsBar />, { selection: false });
         openList();
-        document.querySelectorAll('tbody tr td:first-child button').forEach(button => fireEvent.click(button));
+        expect(document.querySelectorAll('tbody tr td:first-child button')).toHaveLength(0);
         expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
     });
 
@@ -306,5 +308,37 @@ describe('canceling downloads', () => {
         act(() => engine.DownloadManager.addDownload(only.chapter));
         expect(screen.getByText('1 Download(s)')).toBeTruthy();
         expect(screen.getByText('Chapter 1')).toBeTruthy();
+    });
+});
+
+describe('download bar for the keyboard and the screen reader', () => {
+    it('should say on its toggle whether the list is open, and which element it opens', () => {
+        queued(job('Chapter 1', { status: 'downloading' }));
+        renderWithProviders(<JobsBar />, { selection: false });
+        const toggle = screen.getByRole('button', { name: 'Show the download list' });
+        expect(toggle.getAttribute('aria-expanded')).toBe('false');
+        expect(toggle.getAttribute('aria-controls')).toBeNull();
+        fireEvent.click(toggle);
+        expect(toggle.getAttribute('aria-expanded')).toBe('true');
+        expect(screen.getByRole('button', { name: 'Hide the download list' })).toBe(toggle);
+        expect(document.getElementById(toggle.getAttribute('aria-controls')).querySelector('table')).not.toBeNull();
+    });
+
+    it('should name the status, the progress and the cancel button of a job', () => {
+        queued(job('Chapter 1', { status: 'failed', progress: 30, errors: [new Error('HTTP 404')] }), job('Chapter 2', { status: 'downloading', progress: 55.4 }));
+        renderWithProviders(<JobsBar />, { selection: false });
+        openList();
+        expect(screen.getByRole('button', { name: 'Failed (Error: HTTP 404): download again' })).toBeTruthy();
+        expect(screen.getByRole('img', { name: 'Downloading' })).toBeTruthy();
+        expect([...document.querySelectorAll('tbody tr td:nth-child(5)')].map(cell => cell.textContent)).toEqual(['30%', '55%']);
+        expect(screen.getByRole('button', { name: 'Cancel the download of Chapter 2' }).title).toBe('Cancel this download');
+    });
+
+    it('should be a landmark with a counter that a screen reader follows', () => {
+        queued(job('Chapter 1', { status: 'queued' }));
+        renderWithProviders(<JobsBar />, { selection: false });
+        expect(screen.getByRole('region', { name: 'Downloads' })).toBeTruthy();
+        expect(screen.getByRole('status').textContent).toBe('1 Download(s)');
+        expect(screen.getByRole('button', { name: 'Cancel all downloads' })).toBeTruthy();
     });
 });

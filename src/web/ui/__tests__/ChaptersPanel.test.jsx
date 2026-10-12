@@ -108,7 +108,7 @@ function toastOf(message) {
 
 // the question that asks to confirm; its buttons have the same names as buttons elsewhere
 function question() {
-    return within(screen.getByRole('heading').closest('.fixed'));
+    return within(screen.getByRole('dialog'));
 }
 
 const sortButton = () => screen.getByTitle('Click to toggle chapter sorting');
@@ -285,7 +285,7 @@ describe('chapters panel', () => {
             expect(rows().length).toBeGreaterThan(0);
             expect(rows().length).toBeLessThan(40);
             expect(rows()[0]).toBe('Chapter 1');
-            const list = screen.getByRole('list');
+            const list = screen.getByRole('grid').parentElement;
             list.scrollTop = 22 * 60;
             fireEvent.scroll(list);
             await waitFor(() => expect(rows()).toContain('Chapter 61'));
@@ -296,7 +296,7 @@ describe('chapters panel', () => {
             const manga = mangaWith(Array.from({ length: 100 }, (unused, index) => `Chapter ${index + 1}`));
             setLayout({ width: 900, height: 66 });
             await showManga(manga);
-            const list = screen.getByRole('list');
+            const list = screen.getByRole('grid').parentElement;
             list.scrollTop = 22 * 90;
             fireEvent.scroll(list);
             await waitFor(() => expect(rows()).toContain('Chapter 91'));
@@ -551,20 +551,20 @@ describe('chapters panel', () => {
         it('should ask before it queues, and queue only the chapters that are available', async () => {
             await showManga(mangaWithStatuses());
             fireEvent.click(downloadAllButton());
-            expect(screen.getByRole('heading').textContent).toBe('Download 2 new chapter(s) from the current chapter list?');
+            expect(question().getByRole('heading').textContent).toBe('Download 2 new chapter(s) from the current chapter list?');
             expect(queued()).toEqual([]);
             fireEvent.click(question().getByRole('button', { name: 'Download' }));
             expect(queued()).toEqual(['Chapter 1', 'Chapter 4']);
             expect(screen.getByText('Queued 2 chapter(s).')).toBeTruthy();
             expect(toastOf('Queued 2 chapter(s).').className).toMatch(/green/);
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
         });
 
         it('should queue nothing when the question is declined', async () => {
             await showManga(mangaWithStatuses());
             fireEvent.click(downloadAllButton());
             fireEvent.click(question().getByRole('button', { name: 'Cancel' }));
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
             expect(queued()).toEqual([]);
             expect(screen.queryByText(/^Queued/)).toBeNull();
         });
@@ -583,7 +583,7 @@ describe('chapters panel', () => {
             await showManga(mangaWithStatuses());
             filterBy('/chapter [1-3]$/i');
             fireEvent.click(downloadAllButton());
-            expect(screen.getByRole('heading').textContent).toBe('Download 1 new chapter(s) from the current chapter list?');
+            expect(question().getByRole('heading').textContent).toBe('Download 1 new chapter(s) from the current chapter list?');
             fireEvent.click(question().getByRole('button', { name: 'Download' }));
             expect(queued()).toEqual(['Chapter 1']);
         });
@@ -615,7 +615,7 @@ describe('chapters panel', () => {
         ])('should do nothing when %s', async (name, statuses) => {
             await showManga(mangaWith(statuses.map((status, index) => ({ title: `Chapter ${index + 1}`, status }))));
             fireEvent.click(downloadAllButton());
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
             expect(queued()).toEqual([]);
             expect(screen.queryByText(/^Queued/)).toBeNull();
         });
@@ -625,14 +625,14 @@ describe('chapters panel', () => {
             filterBy('/chapter [23]$/i');
             expect(rows()).toEqual(['Chapter 2', 'Chapter 3']);
             fireEvent.click(downloadAllButton());
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
             expect(queued()).toEqual([]);
         });
 
         it('should do nothing while no manga is selected', async () => {
             await mountPanel();
             fireEvent.click(downloadAllButton());
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
             expect(queued()).toEqual([]);
         });
 
@@ -643,7 +643,7 @@ describe('chapters panel', () => {
             fireEvent.click(question().getByRole('button', { name: 'Download' }));
             expect(queued()).toEqual(['Chapter 1', 'Chapter 4']);
             fireEvent.click(downloadAllButton());
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
             expect(queued()).toEqual(['Chapter 1', 'Chapter 4']);
         });
     });
@@ -705,7 +705,7 @@ describe('chapters panel', () => {
             expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(manga.chapters[0]);
             expect(toastOf('Queued 1 chapter(s).').className).toMatch(/green/);
             // no question for a chapter that is not on the device yet
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
         });
 
         it.each(['unavailable', 'offline', 'something else', undefined])('should say that there is nothing to do for a chapter that is %s', async status => {
@@ -714,7 +714,7 @@ describe('chapters panel', () => {
             expect(screen.getByText('No action available!')).toBeTruthy();
             expect(toastOf('No action available!').className).not.toMatch(/red|green/);
             expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
         });
 
         describe('canceling a download', () => {
@@ -739,7 +739,7 @@ describe('chapters panel', () => {
                 expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^AVAILABLE/);
                 expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledTimes(1);
                 expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
-                expect(screen.queryByRole('heading')).toBeNull();
+                expect(screen.queryByRole('dialog')).toBeNull();
             });
 
             it('should say that it is too late when the engine cannot stop the download any more', async () => {
@@ -777,13 +777,13 @@ describe('chapters panel', () => {
             const manga = mangaWith([{ title: 'Chapter 1', status: 'completed' }, { title: 'Chapter 2', status: 'completed' }]);
             await showManga(manga);
             fireEvent.click(statusButtonOf('Chapter 2'));
-            expect(screen.getByRole('heading').textContent).toBe('Re-download existing chapter?');
+            expect(question().getByRole('heading').textContent).toBe('Re-download existing chapter?');
             expect(screen.getByText('"Chapter 2" is already downloaded.')).toBeTruthy();
             expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
             fireEvent.click(question().getByRole('button', { name: 'Re-download' }));
             expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(manga.chapters[1]);
             expect(screen.getByText('Queued 1 chapter(s).')).toBeTruthy();
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
         });
 
         it('should leave a chapter that is on the device alone when the question is declined, and not remember it', async () => {
@@ -791,7 +791,7 @@ describe('chapters panel', () => {
             await showManga(manga);
             fireEvent.click(statusButtonOf('Chapter 1'));
             fireEvent.click(question().getByRole('button', { name: 'Cancel' }));
-            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByRole('dialog')).toBeNull();
             expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
             // the next question is about the next chapter, and queues only that one
             fireEvent.click(statusButtonOf('Chapter 2'));
@@ -1130,5 +1130,118 @@ describe('chapters panel', () => {
             fireEvent.doubleClick(screen.getByText('Chapter 2', { selector: 'span' }));
             expect(engine.Storage.showFolderContent).toHaveBeenCalledTimes(2);
         });
+    });
+});
+
+describe('the list for the keyboard and the screen reader', () => {
+    const grid = () => screen.getByRole('grid', { name: 'Chapters' });
+    const cellsOf = title => [...rowOf(title).querySelectorAll('[data-cell]')];
+    const tabStops = () => [...grid().querySelectorAll('[tabindex="0"]')];
+
+    it('should be a grid with one stop for Tab, the status button of the first chapter, and name its cells', async () => {
+        await showManga(mangaWith(['Chapter 1', 'Chapter 2']));
+        expect(grid().getAttribute('aria-rowcount')).toBe('2');
+        expect(grid().getAttribute('aria-colcount')).toBe('4');
+        expect(rowOf('Chapter 2').getAttribute('aria-rowindex')).toBe('2');
+        expect(tabStops()).toEqual([cellsOf('Chapter 1')[0]]);
+        expect(cellsOf('Chapter 1').map(cell => cell.getAttribute('role') || cell.parentElement.getAttribute('role'))).toEqual(['gridcell', 'gridcell', 'gridcell', 'gridcell']);
+        expect(screen.getByRole('button', { name: 'Chapter 1: available, download the chapter' })).toBe(cellsOf('Chapter 1')[0]);
+        expect(screen.getByRole('button', { name: 'Chapter 1: show the pages' })).toBe(cellsOf('Chapter 1')[1]);
+        expect(screen.getByRole('button', { name: 'Chapter 1: mark as "recently read"' })).toBe(cellsOf('Chapter 1')[2]);
+        expect(screen.getByRole('gridcell', { name: 'Chapter 1' })).toBe(cellsOf('Chapter 1')[3]);
+        expect(screen.getByRole('gridcell', { name: 'Chapter 1' }).getAttribute('aria-describedby')).toBe(screen.getByText(/press Enter, to open the folder/).id);
+    });
+
+    it('should have three columns without the reader', async () => {
+        await showManga(mangaWith(['Chapter 1']), { readerEnabled: false });
+        expect(grid().getAttribute('aria-colcount')).toBe('3');
+        expect(cellsOf('Chapter 1')).toHaveLength(3);
+    });
+
+    it('should move between the cells with the arrows, Home and End, and work the cell with Enter', async () => {
+        const user = userEvent.setup();
+        const manga = mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3']);
+        await showManga(manga);
+        cellsOf('Chapter 1')[0].focus();
+        await user.keyboard('{ArrowDown}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 2')[0]);
+        await user.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 2')[3]);
+        await user.keyboard('{ArrowRight}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 2')[3]);
+        await user.keyboard('{Home}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 2')[0]);
+        await user.keyboard('{ArrowLeft}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 2')[0]);
+        await user.keyboard('{End}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 2')[3]);
+        await user.keyboard('{Control>}{End}{/Control}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 3')[3]);
+        await user.keyboard('{ArrowDown}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 3')[3]);
+        await user.keyboard('{Control>}{Home}{/Control}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 1')[0]);
+        await user.keyboard('{ArrowUp}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 1')[0]);
+        // the stop for Tab followed the keys
+        expect(tabStops()).toEqual([cellsOf('Chapter 1')[0]]);
+        await user.keyboard('{Enter}');
+        expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(manga.chapters[0]);
+    });
+
+    it('should move by a screen with Page Down and Page Up', async () => {
+        const user = userEvent.setup();
+        setLayout({ width: 900, height: 24 * 5 });
+        await showManga(mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4', 'Chapter 5', 'Chapter 6', 'Chapter 7']));
+        cellsOf('Chapter 1')[0].focus();
+        await user.keyboard('{PageDown}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 5')[0]);
+        await user.keyboard('{PageDown}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 7')[0]);
+        await user.keyboard('{PageUp}');
+        expect(document.activeElement).toBe(cellsOf('Chapter 3')[0]);
+    });
+
+    it('should open the folder of the chapter whose title has the focus with Enter', async () => {
+        const user = userEvent.setup();
+        const manga = mangaWith(['Chapter 1', 'Chapter 2']);
+        await showManga(manga);
+        cellsOf('Chapter 2')[3].focus();
+        await user.keyboard('{Enter}');
+        expect(engine.Storage.showFolderContent).toHaveBeenCalledExactlyOnceWith(manga.chapters[1]);
+    });
+
+    it('should keep the stop for Tab on the cell that the mouse gave the focus', async () => {
+        await showManga(mangaWith(['Chapter 1', 'Chapter 2']));
+        act(() => cellsOf('Chapter 2')[2].focus());
+        expect(tabStops()).toEqual([cellsOf('Chapter 2')[2]]);
+    });
+
+    it('should say which chapter is marked as recently read on its button', async () => {
+        const manga = mangaWith(['Chapter 1', 'Chapter 2']);
+        engine.ChaptermarkManager.chaptermarks.push({ connectorID: 'site', mangaID: manga.id, chapterID: 'c2', chapterTitle: 'Chapter 2' });
+        await showManga(manga);
+        expect(screen.getByRole('button', { name: 'Chapter 2: remove the "recently read" marker' }).getAttribute('aria-pressed')).toBe('true');
+        expect(screen.getByRole('button', { name: 'Chapter 1: mark as "recently read"' }).getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('should name the buttons and the fields of the panel, and say how the chapters are sorted', async () => {
+        await showManga(mangaWith(['Chapter 1']));
+        expect(screen.getByRole('region', { name: 'Chapter List' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Sort the chapters (now as listed)' })).toBe(sortButton());
+        fireEvent.click(sortButton());
+        expect(screen.getByRole('button', { name: 'Sort the chapters (now A to Z)' })).toBe(sortButton());
+        fireEvent.click(sortButton());
+        expect(screen.getByRole('button', { name: 'Sort the chapters (now Z to A)' })).toBe(sortButton());
+        expect(screen.getByRole('button', { name: 'Download all listed chapters' })).toBe(downloadAllButton());
+        expect(screen.getByRole('combobox', { name: 'Language of the chapters' })).toBe(languageSelect());
+        expect(screen.getByRole('textbox', { name: 'Filter the chapters by title' })).toBe(patternInput());
+    });
+
+    it('should mark the row of the chapter that is open in the reader with more than a colour', async () => {
+        const manga = mangaWith(['Chapter 1', 'Chapter 2']);
+        await showManga(manga, { url: '/?connector=site&manga=m1&chapter=c2' });
+        expect(rowOf('Chapter 2').classList.contains('rk-selected')).toBe(true);
+        expect(rowOf('Chapter 1').classList.contains('rk-selected')).toBe(false);
     });
 });

@@ -8,6 +8,11 @@ function pickQuote() {
 
 const CARD = 'rounded-[1em] border-2 border-black/15 bg-(--start-card-background-color) p-[1em]';
 
+// an emoji is decoration: a screen reader does not read it out
+function Emoji({ children }) {
+    return <span aria-hidden="true">{children}</span>;
+}
+
 /** Classic start.html parity: welcome card, how-to card, closing card. */
 export default function StartView() {
     const quote = React.useMemo(pickQuote, []);
@@ -23,7 +28,7 @@ export default function StartView() {
                 <br />
                 Read the documentation on GitHub (link available in the menu)
             </p>
-            <h3 className="mb-[0.1em] text-[1.17em] font-bold">Find a site to get the content you want to view</h3>
+            <h2 className="mb-[0.1em] text-[1.17em] font-bold">Find a site to get the content you want to view</h2>
             <div className={CARD}>
                 <strong>RakKomik</strong> is not hosting anything. Find a website on the internet that provides the
                 content you want. Then :
@@ -51,14 +56,14 @@ export default function StartView() {
                 </ol>
                 The connector you are looking for is not in the list ?
                 <br />
-                👉 Create a website request on the github (issue)
+                <Emoji>👉</Emoji> Create a website request on the github (issue)
                 <br />
                 Use the copy/paste feature if you already have the manga link
                 <br />
-                👉 See the documentation for details
+                <Emoji>👉</Emoji> See the documentation for details
             </div>
-            <h3 className="mt-[1em] mb-[0.1em] text-[1.17em] font-bold">Ready to go 🚀</h3>
-            <div className={CARD}>Download, view, bookmark your favorite mangas 📚</div>
+            <h2 className="mt-[1em] mb-[0.1em] text-[1.17em] font-bold">Ready to go <Emoji>🚀</Emoji></h2>
+            <div className={CARD}>Download, view, bookmark your favorite mangas <Emoji>📚</Emoji></div>
             <blockquote className={CARD + ' mt-[1em] space-y-1'}>
                 {quote.lines.map(line => (
                     <p key={line} className="italic">{line}</p>

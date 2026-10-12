@@ -15,7 +15,7 @@ export default defineConfig({
     projects: [
         {
             name: 'ui',
-            testMatch: 'App.e2e.mjs',
+            testMatch: ['App.e2e.mjs', 'Accessibility.e2e.mjs'],
             timeout: 60000
         },
         {

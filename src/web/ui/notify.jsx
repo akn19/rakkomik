@@ -3,6 +3,9 @@ import Icon from './icon.jsx';
 
 const ToastContext = React.createContext(null);
 
+// how long a message that is not an error stays; an error stays until it is dismissed, so that it can be read
+const TOAST_DURATION = 4000;
+
 let nextId = 1;
 
 export function ToastProvider({ children }) {
@@ -13,7 +16,9 @@ export function ToastProvider({ children }) {
     const notify = React.useCallback((message, type) => {
         const id = nextId++;
         setToasts(current => [...current, { id, message, type: type || 'info' }]);
-        setTimeout(() => dismiss(id), 4000);
+        if (type !== 'error') {
+            setTimeout(() => dismiss(id), TOAST_DURATION);
+        }
         return id;
     }, [dismiss]);
     const value = React.useMemo(() => ({ notify, dismiss }), [notify, dismiss]);
@@ -24,6 +29,8 @@ export function ToastProvider({ children }) {
                 {toasts.map(toast => (
                     <div
                         key={toast.id}
+                        // a screen reader says the message when it appears: an error at once, anything else when it is quiet
+                        role={toast.type === 'error' ? 'alert' : 'status'}
                         className={
                             'pointer-events-auto rounded border px-3 py-2 text-sm shadow-lg ' +
                             (toast.type === 'error'
@@ -34,12 +41,13 @@ export function ToastProvider({ children }) {
                         }
                     >
                         <div className="flex items-start justify-between gap-2">
-                            <span>{toast.message}</span>
+                            <span className="whitespace-pre-line">{toast.message}</span>
                             <button
                                 type="button"
                                 onClick={() => dismiss(toast.id)}
                                 className="shrink-0 opacity-60 hover:opacity-100"
                                 title="Dismiss"
+                                aria-label="Dismiss this message"
                             >
                                 <Icon name="close" size={12} />
                             </button>

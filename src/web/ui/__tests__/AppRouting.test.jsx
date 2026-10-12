@@ -49,12 +49,12 @@ describe('addresses', () => {
     });
 
     it.each([
-        ['#/downloads', /The queue is empty/],
-        ['#/bookmarks', /No bookmarks yet/]
-    ])('should show the view of the address %s', async (hash, text) => {
+        ['#/downloads', /The queue is empty/, 'Downloads'],
+        ['#/bookmarks', /No bookmarks yet/, 'Bookmarks']
+    ])('should show the view of the address %s, with its name as the heading', async (hash, text, heading) => {
         await renderApp(hash);
         expect(screen.getByText(text)).toBeTruthy();
-        expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+        expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(heading);
     });
 
     it('should lead from the menu to each of the views, and back to the start', async () => {
