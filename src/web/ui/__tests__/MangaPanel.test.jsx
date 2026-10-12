@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MangaPanel from '../MangaPanel.jsx';
@@ -74,6 +76,9 @@ function createClipboardConnector(pasted) {
 
 const rows = () => screen.queryAllByRole('option').map(row => row.textContent);
 const selectedRows = () => screen.queryAllByRole('option').filter(row => row.getAttribute('aria-selected') === 'true').map(row => row.textContent);
+// the titles that are drawn in the colour of the bookmarked mangas
+const GOLD = 'text-(--manga-list-bookmarked-color)';
+const goldRows = () => screen.queryAllByRole('option').filter(row => row.classList.contains(GOLD)).map(row => row.textContent);
 const websiteField = () => screen.getByLabelText('Website');
 const filterField = () => screen.getByTitle(/to filter the manga list/);
 const pasteButton = () => screen.getByTitle('Click to paste manga links from the clipboard');
@@ -951,6 +956,154 @@ describe('the bookmark star', () => {
     });
 });
 
+describe('the bookmarked mangas in the list', () => {
+    it('should have no gold title while nothing is bookmarked', async () => {
+        await mountLoaded();
+        expect(rows()).toEqual(['Akira', 'Berserk', 'Vagabond']);
+        expect(goldRows()).toEqual([]);
+    });
+
+    it('should draw the title of a bookmarked manga in gold, and the others as they are', async () => {
+        engine.BookmarkManager.addBookmark(site.mangas[2]);
+        await mountLoaded();
+        expect(goldRows()).toEqual(['Vagabond']);
+        expect(screen.getByText('Akira').classList.contains(GOLD)).toBe(false);
+    });
+
+    it('should draw all the bookmarked titles in gold', async () => {
+        engine.BookmarkManager.addBookmark(site.mangas[0]);
+        engine.BookmarkManager.addBookmark(site.mangas[2]);
+        await mountLoaded();
+        expect(goldRows()).toEqual(['Akira', 'Vagabond']);
+    });
+
+    it('should not take a bookmark of another website with the same manga id for the manga of this one', async () => {
+        engine.BookmarkManager.addBookmark(other.mangas[1]);
+        await mountLoaded();
+        expect(site.mangas[1].id).toBe(other.mangas[1].id);
+        expect(goldRows()).toEqual([]);
+    });
+
+    it('should draw the title in gold on the list of the website that the bookmark is of', async () => {
+        const user = typist();
+        engine.BookmarkManager.addBookmark(other.mangas[1]);
+        await mountLoaded();
+        await pickConnector(user, 'Other Site');
+        await screen.findByText('Naruto');
+        expect(goldRows()).toEqual(['Naruto']);
+    });
+
+    it('should follow the star: gold when a manga is bookmarked, as it was when it is not any more', async () => {
+        const user = typist();
+        await mountLoaded();
+        await user.click(screen.getByText('Berserk'));
+        await user.click(starButton());
+        expect(goldRows()).toEqual(['Berserk']);
+        await user.click(starButton());
+        expect(goldRows()).toEqual([]);
+    });
+
+    it('should follow a bookmark that the engine adds or removes while the panel is open', async () => {
+        await mountLoaded();
+        act(() => {
+            engine.BookmarkManager.addBookmark(site.mangas[0]);
+        });
+        expect(goldRows()).toEqual(['Akira']);
+        act(() => {
+            engine.BookmarkManager.addBookmark(site.mangas[1]);
+        });
+        expect(goldRows()).toEqual(['Akira', 'Berserk']);
+        act(() => {
+            engine.BookmarkManager.deleteBookmark(engine.BookmarkManager.bookmarks[0]);
+        });
+        expect(goldRows()).toEqual(['Berserk']);
+    });
+
+    it('should follow a bookmark list that is replaced as a whole, as loading the bookmarks does', async () => {
+        await mountLoaded();
+        act(() => {
+            engine.BookmarkManager.bookmarks = [{ key: { connector: 'site', manga: 'm3' }, title: { connector: 'Site', manga: 'Vagabond' } }];
+            engine.BookmarkManager.emit('changed', engine.BookmarkManager.bookmarks);
+        });
+        expect(goldRows()).toEqual(['Vagabond']);
+        act(() => {
+            engine.BookmarkManager.bookmarks = [];
+            engine.BookmarkManager.emit('changed', engine.BookmarkManager.bookmarks);
+        });
+        expect(goldRows()).toEqual([]);
+    });
+
+    it('should keep the gold when the title is selected, and show that it is selected', async () => {
+        const user = typist();
+        engine.BookmarkManager.addBookmark(site.mangas[1]);
+        await mountLoaded();
+        await user.click(screen.getByText('Berserk'));
+        const row = screen.getByText('Berserk');
+        expect(selectedRows()).toEqual(['Berserk']);
+        expect(row.classList.contains(GOLD)).toBe(true);
+        expect(row.classList.contains('bg-(--list-selected)')).toBe(true);
+    });
+
+    it('should not change the tooltip, or the manga that is selected, with the colour', async () => {
+        const user = typist();
+        engine.BookmarkManager.addBookmark(site.mangas[1]);
+        await mountLoaded();
+        expect(screen.getByText('Berserk').getAttribute('title')).toBe('Berserk\nSite');
+        await user.click(screen.getByText('Berserk'));
+        expect(selection.manga).toBe(site.mangas[1]);
+    });
+
+    it('should draw the titles of a list of the clipboard in gold when they are bookmarked', async () => {
+        const user = typist();
+        const pasted = [createManga(site, 'm2', 'Berserk'), createManga(other, 'x9', 'Elsewhere')];
+        engine = installEngine({ connectors: [site, other, createClipboardConnector(pasted)] });
+        engine.BookmarkManager.addBookmark(site.mangas[1]);
+        await mountLoaded();
+        await user.click(pasteButton());
+        await screen.findByText('Elsewhere');
+        expect(goldRows()).toEqual(['Berserk']);
+    });
+});
+
+// A colour that is not defined is no error: the title quietly has the colour of the list. So the style sheet is read here.
+describe('the colour of a bookmarked manga', () => {
+    const css = fs.readFileSync(path.join(import.meta.dirname, '..', 'index.css'), 'utf8');
+    const block = selector => new RegExp(`^${selector} \\{([^}]*)\\}`, 'm').exec(css)[1];
+    const token = (selector, name) => new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6});`).exec(block(selector))?.[1];
+    // the contrast of two colours, as WCAG measures it
+    const luminance = hex => {
+        const [red, green, blue] = [1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16) / 255)
+            .map(value => (value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4));
+        return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    };
+    const contrast = (a, b) => {
+        const [lighter, darker] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+        return (lighter + 0.05) / (darker + 0.05);
+    };
+
+    it.each([[':root', 'light'], ['\\.dark', 'dark']])('should be defined for the %s theme (%s)', selector => {
+        expect(token(selector, '--manga-list-bookmarked-color')).toMatch(/^#[0-9a-f]{6}$/i);
+    });
+
+    it('should be a colour for each theme of its own', () => {
+        expect(token(':root', '--manga-list-bookmarked-color')).not.toBe(token('\\.dark', '--manga-list-bookmarked-color'));
+    });
+
+    it.each([[':root'], ['\\.dark']])('should be readable on the background of the list (%s): a contrast of at least 4.5', selector => {
+        const background = token(selector, '--list-background-color');
+        expect(background).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(contrast(token(selector, '--manga-list-bookmarked-color'), background)).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('should be gold: more red than green, and more green than blue', () => {
+        for (const selector of [':root', '\\.dark']) {
+            const [red, green, blue] = [1, 3, 5].map(start => parseInt(token(selector, '--manga-list-bookmarked-color').slice(start, start + 2), 16));
+            expect(red).toBeGreaterThan(green);
+            expect(green).toBeGreaterThan(blue);
+        }
+    });
+});
+
 describe('the bookmarks connector', () => {
     let bookmarks = null;
 
@@ -974,6 +1127,15 @@ describe('the bookmarks connector', () => {
         mount();
         expect(await screen.findByText('Mangas: 0 / 0')).toBeTruthy();
         expect(screen.queryByText(/Manga list is loading or empty/)).toBeNull();
+    });
+
+    it('should draw every title in gold, as every manga of the list is bookmarked, also when two websites have the same manga id', async () => {
+        engine.BookmarkManager.addBookmark(site.mangas[1]);
+        engine.BookmarkManager.addBookmark(other.mangas[1]);
+        mount();
+        await screen.findByText('Berserk');
+        expect(rows()).toEqual(['Berserk', 'Naruto']);
+        expect(goldRows()).toEqual(['Berserk', 'Naruto']);
     });
 
     it('should reload its list when a bookmark is added or removed', async () => {

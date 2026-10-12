@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { toggleBookmark, isMangaBookmarked, subscribeBookmarks, getUpdateProgress, announceConnector, announceManga } from './engine.js';
+import { toggleBookmark, isMangaBookmarked, getBookmarks, subscribeBookmarks, getUpdateProgress, announceConnector, announceManga } from './engine.js';
 import { useConnectors } from './connectorsState.js';
 import { fetchMangaList, updateMangaList } from './queries.js';
 import { useUpdateProgress, describeUpdateProgress, updateMessage, countTitles } from './updateProgress.js';
@@ -67,6 +67,13 @@ export default function MangaPanel({ readerEnabled }) {
     const bookmarked = React.useSyncExternalStore(
         subscribeBookmarks,
         () => (selectedManga ? isMangaBookmarked(selectedManga) : false)
+    );
+
+    // the bookmarked mangas by website and id (as the rows are keyed): their titles are gold in every list
+    const bookmarks = React.useSyncExternalStore(subscribeBookmarks, getBookmarks);
+    const bookmarkedKeys = React.useMemo(
+        () => new Set(bookmarks.map(bookmark => `${bookmark.key.connector}/${bookmark.key.manga}`)),
+        [bookmarks]
     );
 
     const mangaQuery = useQuery({
@@ -265,16 +272,18 @@ export default function MangaPanel({ readerEnabled }) {
                         }
                         // the lists of the bookmarks and of the clipboard hold mangas of several websites: the id is not enough
                         const selected = selectedManga && selectedManga.id === manga.id && selectedManga.connector.id === manga.connector.id;
+                        const key = `${manga.connector.id}/${manga.id}`;
                         return (
                             <div
-                                key={`${manga.connector.id}/${manga.id}`}
+                                key={key}
                                 role="option"
                                 aria-selected={!!selected}
                                 title={`${manga.title}\n${manga.connector.label}`}
                                 onClick={() => selectManga(manga)}
                                 className={
                                     'absolute top-0 left-0 w-full cursor-pointer overflow-hidden text-ellipsis ' +
-                                    (selected ? 'bg-(--list-selected)' : 'hover:bg-(--list-highlighted)')
+                                    (selected ? 'bg-(--list-selected) ' : 'hover:bg-(--list-highlighted) ') +
+                                    (bookmarkedKeys.has(key) ? 'text-(--manga-list-bookmarked-color)' : '')
                                 }
                                 style={{ height: virtual.size, transform: `translateY(${virtual.start}px)` }}
                             >
