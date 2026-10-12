@@ -2,7 +2,14 @@
 // chaptermarks of a manga, the events of the page and of the main process, and the saving of settings. Here the page is
 // real (happy-dom), so the events travel through a real `document` and `window`.
 import * as bridge from '../engine.js';
-import { addChapter, addManga, createConnector, createDownloadJob, installBridge, installEngine } from './support/fakeEngine.js';
+import {
+    addChapter,
+    addManga,
+    createConnector,
+    createDownloadJob,
+    installBridge,
+    installEngine,
+} from './support/fakeEngine.js';
 
 let engine = null;
 let site = null;
@@ -25,7 +32,9 @@ describe('the engine itself', () => {
 
     it('should refuse, with a message that says what to do, when the engine is not there', () => {
         delete window.Engine;
-        expect(() => bridge.getEngine()).toThrow('Engine global is not available (loadEngine() must run before mount)!');
+        expect(() => bridge.getEngine()).toThrow(
+            'Engine global is not available (loadEngine() must run before mount)!',
+        );
     });
 
     it('should answer with empty values, and not fail, while there is no engine', async () => {
@@ -74,7 +83,7 @@ describe('bookmarks of a manga', () => {
         expect(bridge.isMangaBookmarked(manga)).toBe(true);
         expect(bridge.toggleBookmark(manga)).toBe(true);
         expect(engine.BookmarkManager.deleteBookmark).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({ key: { connector: 'site', manga: 'm1' } })
+            expect.objectContaining({ key: { connector: 'site', manga: 'm1' } }),
         );
         expect(bridge.isMangaBookmarked(manga)).toBe(false);
     });
@@ -85,7 +94,9 @@ describe('bookmarks of a manga', () => {
         engine.BookmarkManager.addBookmark(twin);
         engine.BookmarkManager.addBookmark(manga);
         bridge.toggleBookmark(manga);
-        expect(engine.BookmarkManager.bookmarks.map(bookmark => bookmark.key.connector)).toEqual(['other']);
+        expect(engine.BookmarkManager.bookmarks.map((bookmark) => bookmark.key.connector)).toEqual([
+            'other',
+        ]);
     });
 });
 
@@ -94,7 +105,10 @@ describe('chaptermarks', () => {
         const chapter = addChapter(manga, { id: 'c1', title: 'Chapter 1' });
         expect(bridge.getChaptermark(manga)).toBeNull();
         bridge.markChapterRead(chapter);
-        expect(bridge.getChaptermark(manga)).toMatchObject({ chapterID: 'c1', chapterTitle: 'Chapter 1' });
+        expect(bridge.getChaptermark(manga)).toMatchObject({
+            chapterID: 'c1',
+            chapterTitle: 'Chapter 1',
+        });
         expect(bridge.getChaptermark(addManga(site, { id: 'm2', title: 'Akira' }))).toBeNull();
     });
 
@@ -203,7 +217,11 @@ describe('the main process', () => {
     it('should open a link in a window of its own, without the rights of the application, and ignore an empty one', () => {
         const open = vi.spyOn(window, 'open').mockReturnValue(null);
         bridge.openExternalLink('https://example.test/page');
-        expect(open).toHaveBeenCalledExactlyOnceWith('https://example.test/page', '_blank', 'nodeIntegration=no');
+        expect(open).toHaveBeenCalledExactlyOnceWith(
+            'https://example.test/page',
+            '_blank',
+            'nodeIntegration=no',
+        );
         bridge.openExternalLink('');
         bridge.openExternalLink(undefined);
         expect(open).toHaveBeenCalledTimes(1);
@@ -213,16 +231,21 @@ describe('the main process', () => {
 describe('choosing a file', () => {
     it('should give the first file that the user chose', async () => {
         const main = installBridge();
-        main.dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: ['/a/one.db', '/a/two.db'] });
+        main.dialog.showOpenDialog.mockResolvedValueOnce({
+            canceled: false,
+            filePaths: ['/a/one.db', '/a/two.db'],
+        });
         await expect(bridge.browseFile()).resolves.toBe('/a/one.db');
-        expect(main.dialog.showOpenDialog).toHaveBeenCalledExactlyOnceWith({ properties: ['openFile'] });
+        expect(main.dialog.showOpenDialog).toHaveBeenCalledExactlyOnceWith({
+            properties: ['openFile'],
+        });
     });
 
     it.each([
         ['the dialog was cancelled', { canceled: true, filePaths: ['/a/one.db'] }],
         ['nothing was chosen', { canceled: false, filePaths: [] }],
         ['the dialog gave no list', { canceled: false }],
-        ['the dialog gave nothing', undefined]
+        ['the dialog gave nothing', undefined],
     ])('should give nothing when %s', async (name, result) => {
         installBridge().dialog.showOpenDialog.mockResolvedValueOnce(result);
         await expect(bridge.browseFile()).resolves.toBeNull();
@@ -235,7 +258,15 @@ describe('choosing a file', () => {
 
 describe('saving the settings', () => {
     function draft(...items) {
-        return [{ category: 'General', items: items.map(([input, value, extra]) => ({ ref: { input, value: 'old', ...extra }, value })) }];
+        return [
+            {
+                category: 'General',
+                items: items.map(([input, value, extra]) => ({
+                    ref: { input, value: 'old', ...extra },
+                    value,
+                })),
+            },
+        ];
     }
 
     it.each([
@@ -248,32 +279,50 @@ describe('saving the settings', () => {
         ['a number with only a minimum', 0, { min: 3 }, 3],
         ['a number with only a maximum', 50, { max: 3 }, 3],
         ['a minimum of 0, which is a limit like any other', -4, { min: 0 }, 0],
-        ['a decimal number', '2.5', {}, 2.5]
+        ['a decimal number', '2.5', {}, 2.5],
     ])('should save %s as the number %j', async (name, typed, limits, expected) => {
         const groups = draft(['numeric', typed, limits]);
         await bridge.saveSettingsDraft(groups);
         expect(groups[0].items[0].ref.value).toBe(expected);
     });
 
-    it.each([[''], [undefined]])('should leave an emptied number (%j) as it is instead of making it 0', async value => {
-        const groups = draft(['numeric', value, { min: 1 }]);
-        await bridge.saveSettingsDraft(groups);
-        expect(groups[0].items[0].ref.value).toBe(value);
-    });
+    it.each([[''], [undefined]])(
+        'should leave an emptied number (%j) as it is instead of making it 0',
+        async (value) => {
+            const groups = draft(['numeric', value, { min: 1 }]);
+            await bridge.saveSettingsDraft(groups);
+            expect(groups[0].items[0].ref.value).toBe(value);
+        },
+    );
 
     it('should save the other kinds of settings as they are, even when they look like numbers', async () => {
-        const groups = draft(['text', '42'], ['password', 'p4ss'], ['checkbox', false], ['select', '.epub'], ['directory', '/a/b']);
+        const groups = draft(
+            ['text', '42'],
+            ['password', 'p4ss'],
+            ['checkbox', false],
+            ['select', '.epub'],
+            ['directory', '/a/b'],
+        );
         await bridge.saveSettingsDraft(groups);
-        expect(groups[0].items.map(item => item.ref.value)).toEqual(['42', 'p4ss', false, '.epub', '/a/b']);
+        expect(groups[0].items.map((item) => item.ref.value)).toEqual([
+            '42',
+            'p4ss',
+            false,
+            '.epub',
+            '/a/b',
+        ]);
     });
 
     it('should save every group, and tell the engine to store them, after all values were set', async () => {
         const groups = [
             { category: 'General', items: [{ ref: { input: 'text', value: 'a' }, value: 'b' }] },
-            { category: 'Site', items: [{ ref: { input: 'checkbox', value: false }, value: true }] }
+            {
+                category: 'Site',
+                items: [{ ref: { input: 'checkbox', value: false }, value: true }],
+            },
         ];
         engine.Settings.save.mockImplementationOnce(async () => {
-            expect(groups.map(group => group.items[0].ref.value)).toEqual(['b', true]);
+            expect(groups.map((group) => group.items[0].ref.value)).toEqual(['b', true]);
         });
         await bridge.saveSettingsDraft(groups);
         expect(engine.Settings.save).toHaveBeenCalledTimes(1);
@@ -281,7 +330,9 @@ describe('saving the settings', () => {
 
     it('should pass the failure of the engine to the caller', async () => {
         engine.Settings.save.mockRejectedValueOnce(new Error('disk is full'));
-        await expect(bridge.saveSettingsDraft(draft(['text', 'x']))).rejects.toThrow('disk is full');
+        await expect(bridge.saveSettingsDraft(draft(['text', 'x']))).rejects.toThrow(
+            'disk is full',
+        );
     });
 
     it('should draw the draft from the categories of the engine, with the values as they are now', () => {
@@ -308,16 +359,20 @@ describe('the download queue', () => {
         queue.other = [{ status: 'downloading' }];
         queue.counter = 3;
         engine.DownloadManager.queue = queue;
-        expect(bridge.getDownloadJobs().map(job => job.status)).toEqual(['queued', 'failed', 'downloading']);
+        expect(bridge.getDownloadJobs().map((job) => job.status)).toEqual([
+            'queued',
+            'failed',
+            'downloading',
+        ]);
     });
 
     it.each([
         [['completed', 'failed'], false],
         [['completed', 'queued'], true],
         [['downloading'], true],
-        [[], false]
+        [[], false],
     ])('should tell whether there is an active download in %j: %s', (statuses, active) => {
-        engine.DownloadManager.queue.site = statuses.map(status => ({ status }));
+        engine.DownloadManager.queue.site = statuses.map((status) => ({ status }));
         expect(bridge.hasActiveDownloads()).toBe(active);
     });
 });
@@ -420,13 +475,15 @@ describe('searching local manga lists', () => {
 
     it('should match on a part of a title, ignoring case and the spaces around the pattern', async () => {
         engine.Connectors.push({ id: 'one' }, { id: 'two' });
-        engine.Storage.loadMangaList.mockImplementation(async id => (id === 'one' ? [{ title: 'ONE PIECE' }] : [{ title: 'Naruto' }]));
+        engine.Storage.loadMangaList.mockImplementation(async (id) =>
+            id === 'one' ? [{ title: 'ONE PIECE' }] : [{ title: 'Naruto' }],
+        );
         await expect(bridge.findConnectorsByManga('  one pie ')).resolves.toEqual(['one']);
     });
 
     it('should skip a connector whose list cannot be read, and keep looking', async () => {
         engine.Connectors.push({ id: 'broken' }, { id: 'fine' });
-        engine.Storage.loadMangaList.mockImplementation(async id => {
+        engine.Storage.loadMangaList.mockImplementation(async (id) => {
             if (id === 'broken') {
                 throw new Error('no such file');
             }
@@ -445,16 +502,19 @@ describe('searching local manga lists', () => {
 describe('announcing the selection', () => {
     it.each([
         ['onSelectConnector', 'announceConnector'],
-        ['onSelectManga', 'announceManga']
-    ])('should tell the document, where the Discord presence listens, with %s', (name, announce) => {
-        const listener = vi.fn();
-        document.addEventListener(name, listener);
-        const selected = { id: 'x', label: 'X' };
-        bridge[announce](selected);
-        document.removeEventListener(name, listener);
-        expect(listener).toHaveBeenCalledTimes(1);
-        expect(listener.mock.calls[0][0].detail).toBe(selected);
-    });
+        ['onSelectManga', 'announceManga'],
+    ])(
+        'should tell the document, where the Discord presence listens, with %s',
+        (name, announce) => {
+            const listener = vi.fn();
+            document.addEventListener(name, listener);
+            const selected = { id: 'x', label: 'X' };
+            bridge[announce](selected);
+            document.removeEventListener(name, listener);
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener.mock.calls[0][0].detail).toBe(selected);
+        },
+    );
 
     it('should not mix the two events up', () => {
         const connector = vi.fn();

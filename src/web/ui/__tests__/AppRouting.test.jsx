@@ -3,7 +3,13 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from '../App.jsx';
 import { queryClient } from '../queries.js';
-import { addChapter, addManga, createConnector, installBridge, installEngine } from './support/fakeEngine.js';
+import {
+    addChapter,
+    addManga,
+    createConnector,
+    installBridge,
+    installEngine,
+} from './support/fakeEngine.js';
 
 let engine = null;
 let site = null;
@@ -50,19 +56,22 @@ describe('addresses', () => {
 
     it.each([
         ['#/downloads', /The queue is empty/, 'Downloads'],
-        ['#/bookmarks', /No bookmarks yet/, 'Bookmarks']
-    ])('should show the view of the address %s, with its name as the heading', async (hash, text, heading) => {
-        await renderApp(hash);
-        expect(screen.getByText(text)).toBeTruthy();
-        expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(heading);
-    });
+        ['#/bookmarks', /No bookmarks yet/, 'Bookmarks'],
+    ])(
+        'should show the view of the address %s, with its name as the heading',
+        async (hash, text, heading) => {
+            await renderApp(hash);
+            expect(screen.getByText(text)).toBeTruthy();
+            expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(heading);
+        },
+    );
 
     it('should lead from the menu to each of the views, and back to the start', async () => {
         await renderApp('#/');
         for (const [name, hash, text] of [
             ['Downloads', '#/downloads', /The queue is empty/],
             ['Bookmarks', '#/bookmarks', /No bookmarks yet/],
-            ['Start', '#/', /Welcome to RakKomik/]
+            ['Start', '#/', /Welcome to RakKomik/],
         ]) {
             openMenu();
             fireEvent.click(screen.getByRole('button', { name }));
@@ -86,7 +95,11 @@ describe('addresses', () => {
 describe('from the panels to the reader', () => {
     function library(chapterId) {
         const manga = addManga(site, { id: 'm1', title: 'Berserk' });
-        return addChapter(manga, { id: chapterId, title: `Chapter ${chapterId}`, getPages: vi.fn(callback => callback(null, ['https://img.example/1.jpg'])) });
+        return addChapter(manga, {
+            id: chapterId,
+            title: `Chapter ${chapterId}`,
+            getPages: vi.fn((callback) => callback(null, ['https://img.example/1.jpg'])),
+        });
     }
 
     // the user picks the manga and opens the preview of the chapter
@@ -94,18 +107,21 @@ describe('from the panels to the reader', () => {
         await renderApp('#/');
         fireEvent.click(await screen.findByText('Berserk'));
         await screen.findByText(chapter.title);
-        fireEvent.click(screen.getByTitle('Show preview of chapter\'s pages'));
+        fireEvent.click(screen.getByTitle("Show preview of chapter's pages"));
     }
 
-    it.each([['c1'], ['12345'], ['true'], ['null'], ['0042']])('should open the reader for the chapter %s, whatever the id looks like', async id => {
-        const chapter = library(id);
-        await openPreview(chapter);
-        await waitFor(() => expect(chapter.getPages).toHaveBeenCalledTimes(1));
-        expect(window.location.hash).toMatch(/^#\/reader\?/);
-        // the thumbnails of the pages: the id arrived as it left, so the chapter was found
-        expect(await screen.findByTitle('Page 1')).toBeTruthy();
-        expect(screen.queryByText('Chapter not found.')).toBeNull();
-    });
+    it.each([['c1'], ['12345'], ['true'], ['null'], ['0042']])(
+        'should open the reader for the chapter %s, whatever the id looks like',
+        async (id) => {
+            const chapter = library(id);
+            await openPreview(chapter);
+            await waitFor(() => expect(chapter.getPages).toHaveBeenCalledTimes(1));
+            expect(window.location.hash).toMatch(/^#\/reader\?/);
+            // the thumbnails of the pages: the id arrived as it left, so the chapter was found
+            expect(await screen.findByTitle('Page 1')).toBeTruthy();
+            expect(screen.queryByText('Chapter not found.')).toBeNull();
+        },
+    );
 
     it('should say so when the chapter of the address is not one of the manga', async () => {
         library('c1');

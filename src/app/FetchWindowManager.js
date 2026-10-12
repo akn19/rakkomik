@@ -24,7 +24,6 @@ const DEFAULT_INTERACTIVE_TIMEOUT = 180000;
  * - `error`       the site refuses the request: reject at once
  */
 module.exports = class FetchWindowManager {
-
     constructor(logger) {
         this._logger = logger;
         // the jobs that run: their windows share the session of the application, which has one listener for the blacklist
@@ -57,12 +56,15 @@ module.exports = class FetchWindowManager {
                     preload: preloadFile,
                     nodeIntegration: preferences.nodeIntegration || false,
                     webSecurity: preferences.webSecurity || false,
-                    images: preferences.images || false
-                }
+                    images: preferences.images || false,
+                },
             });
 
             if (job.blacklist && job.blacklist.length) {
-                win.webContents.session.webRequest.onBeforeRequest({ urls: job.blacklist }, (_, callback) => callback({ cancel: true }));
+                win.webContents.session.webRequest.onBeforeRequest(
+                    { urls: job.blacklist },
+                    (_, callback) => callback({ cancel: true }),
+                );
             }
 
             return await this._load(win, job);
@@ -98,20 +100,28 @@ module.exports = class FetchWindowManager {
                 callback(value);
             };
 
-            const armDeadline = ms => {
+            const armDeadline = (ms) => {
                 clearTimeout(deadline);
                 deadline = setTimeout(() => {
-                    settle(reject, new Error(`Failed to load "${job.url}" within the given timeout of ${Math.floor(ms / 1000)} seconds!`));
+                    settle(
+                        reject,
+                        new Error(
+                            `Failed to load "${job.url}" within the given timeout of ${Math.floor(ms / 1000)} seconds!`,
+                        ),
+                    );
                 }, ms);
             };
 
-            const showToUser = detection => {
+            const showToUser = (detection) => {
                 clearTimeout(reveal);
                 if (shown) {
                     return;
                 }
                 shown = true;
-                this._log('info', `Showing the window for "${job.url}" to the user (${detection.detector})`);
+                this._log(
+                    'info',
+                    `Showing the window for "${job.url}" to the user (${detection.detector})`,
+                );
                 win.setSize(1280, 720);
                 win.center();
                 win.show();
@@ -123,12 +133,19 @@ module.exports = class FetchWindowManager {
             armDeadline(timeout);
 
             win.on('closed', () => {
-                settle(reject, new Error(`The window for "${job.url}" was closed before the page finished loading!`));
+                settle(
+                    reject,
+                    new Error(
+                        `The window for "${job.url}" was closed before the page finished loading!`,
+                    ),
+                );
             });
 
             win.webContents.on('dom-ready', () => {
                 if (job.domPreparationScript) {
-                    win.webContents.executeJavaScript(job.domPreparationScript).catch(error => this._log('warn', error));
+                    win.webContents
+                        .executeJavaScript(job.domPreparationScript)
+                        .catch((error) => this._log('warn', error));
                 }
             });
 
@@ -144,7 +161,13 @@ module.exports = class FetchWindowManager {
                     const detection = await this._detect(win, job.scrapingCheckScript);
                     switch (detection.redirection) {
                         case 'error':
-                            settle(reject, new Error(detection.message || `The request to "${job.url}" was refused (${detection.detector})`));
+                            settle(
+                                reject,
+                                new Error(
+                                    detection.message ||
+                                        `The request to "${job.url}" was refused (${detection.detector})`,
+                                ),
+                            );
                             return;
                         case 'interactive':
                             showToUser(detection);
@@ -152,12 +175,17 @@ module.exports = class FetchWindowManager {
                         case 'automatic':
                             // the page reloads itself when done; the first detection starts the countdown
                             if (!shown && !reveal) {
-                                reveal = setTimeout(() => showToUser(detection), job.interactiveAfter || DEFAULT_INTERACTIVE_AFTER);
+                                reveal = setTimeout(
+                                    () => showToUser(detection),
+                                    job.interactiveAfter || DEFAULT_INTERACTIVE_AFTER,
+                                );
                             }
                             return;
                         default: {
                             clearTimeout(reveal);
-                            const result = await win.webContents.executeJavaScript(job.runtimeScript);
+                            const result = await win.webContents.executeJavaScript(
+                                job.runtimeScript,
+                            );
                             settle(resolve, result);
                         }
                     }

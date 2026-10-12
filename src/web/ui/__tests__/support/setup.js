@@ -8,7 +8,7 @@ import { DEFAULT_LAYOUT, setLayout } from './layout.js';
 // Which of the two comes first depends on the machine, so a view that shows the data of a query right after
 // `await act(...)` showed it on one machine and not on another: CI saw "Loading pages …" in the reader after the
 // pages had been answered. As a microtask the notification always comes before `act` ends.
-notifyManager.setScheduler(callback => queueMicrotask(callback));
+notifyManager.setScheduler((callback) => queueMicrotask(callback));
 
 class NoObserver {
     observe() {}

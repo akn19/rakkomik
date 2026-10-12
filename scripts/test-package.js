@@ -26,17 +26,33 @@ const ARCHITECTURES = { x64: 'amd64', arm64: 'arm64' };
  */
 function locate(platform, architecture) {
     const name = ARCHITECTURES[architecture];
-    if(!name) {
+    if (!name) {
         throw new Error(`No package is built for the architecture "${architecture}"!`);
     }
-    const staging = suffix => path.join(ROOT, 'build', `${config.name.package}_${config.version}_${suffix}`);
-    switch(platform) {
+    const staging = (suffix) =>
+        path.join(ROOT, 'build', `${config.name.package}_${config.version}_${suffix}`);
+    switch (platform) {
         case 'linux':
-            return { root: staging(`linux_${name}`), folder: path.join('usr', 'lib', config.name.package), executable: config.binary.linux, fuses: true };
+            return {
+                root: staging(`linux_${name}`),
+                folder: path.join('usr', 'lib', config.name.package),
+                executable: config.binary.linux,
+                fuses: true,
+            };
         case 'win32':
-            return { root: staging(`windows-portable_${name}`), folder: '', executable: config.binary.windows, fuses: true };
+            return {
+                root: staging(`windows-portable_${name}`),
+                folder: '',
+                executable: config.binary.windows,
+                fuses: true,
+            };
         case 'darwin':
-            return { root: staging(`macos_${name}`), folder: `${config.name.product}.app`, executable: path.join('Contents', 'MacOS', config.binary.darwin), fuses: false };
+            return {
+                root: staging(`macos_${name}`),
+                folder: `${config.name.product}.app`,
+                executable: path.join('Contents', 'MacOS', config.binary.darwin),
+                fuses: false,
+            };
         default:
             throw new Error(`No package is built for the platform "${platform}"!`);
     }
@@ -45,7 +61,7 @@ function locate(platform, architecture) {
 async function main() {
     const { root, folder, executable, fuses } = locate(process.platform, process.arch);
     const application = path.join(root, folder);
-    if(!fs.existsSync(path.join(application, executable))) {
+    if (!fs.existsSync(path.join(application, executable))) {
         throw new Error(`There is no package in "${application}", run 'pnpm run build:app' first!`);
     }
     // a copy of the application in its place of the package, so that the package stays what the packager made of it
@@ -55,22 +71,34 @@ async function main() {
     fs.rmSync(copyRoot, { recursive: true, force: true });
     fs.cpSync(application, copy, { recursive: true, verbatimSymlinks: true });
     const binary = path.join(copy, executable);
-    if(fuses) {
+    if (fuses) {
         console.log('Enabling the inspector of the copy (the package keeps it off) ...');
-        await flipFuses(binary, { version: FuseVersion.V1, [FuseV1Options.EnableNodeCliInspectArguments]: true });
+        await flipFuses(binary, {
+            version: FuseVersion.V1,
+            [FuseV1Options.EnableNodeCliInspectArguments]: true,
+        });
     }
 
-    const command = [ process.execPath, path.join(ROOT, 'node_modules', '@playwright', 'test', 'cli.js'), 'test', '--project=ui' ];
+    const command = [
+        process.execPath,
+        path.join(ROOT, 'node_modules', '@playwright', 'test', 'cli.js'),
+        'test',
+        '--project=ui',
+    ];
     // on GitHub Actions a failure is also an annotation of the run, which anyone can read (the log is for the admins)
-    if(process.env.GITHUB_ACTIONS === 'true') {
+    if (process.env.GITHUB_ACTIONS === 'true') {
         command.push('--reporter=list,github');
     }
-    if(process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
+    if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
         command.unshift('xvfb-run', '-a');
     }
     console.log(`Testing "${binary}" ...`);
-    const result = spawnSync(command[0], command.slice(1), { cwd: ROOT, stdio: 'inherit', env: { ...process.env, E2E_ELECTRON: binary } });
-    if(result.error) {
+    const result = spawnSync(command[0], command.slice(1), {
+        cwd: ROOT,
+        stdio: 'inherit',
+        env: { ...process.env, E2E_ELECTRON: binary },
+    });
+    if (result.error) {
         throw result.error;
     }
     return result.status ?? 1;
@@ -78,9 +106,11 @@ async function main() {
 
 module.exports = { locate, main };
 
-if(require.main === module) {
-    main().then(status => process.exit(status)).catch(error => {
-        console.error(error.message);
-        process.exit(1);
-    });
+if (require.main === module) {
+    main()
+        .then((status) => process.exit(status))
+        .catch((error) => {
+            console.error(error.message);
+            process.exit(1);
+        });
 }

@@ -3,13 +3,20 @@
 const { mockModule } = require('./support/mockRequire');
 
 const electron = mockModule('electron', () => ({
-    ipcMain: { handle: vi.fn() }
+    ipcMain: { handle: vi.fn() },
 }));
 // `mockModule` serves a single package per test file (every virtual module shares one cache entry, so a second package
 // would get the exports of the first): the RPC library is put into the require cache under its real path instead
 const rpc = { Client: vi.fn() };
 const rpcFile = require.resolve('@xhayper/discord-rpc');
-require.cache[rpcFile] = { id: rpcFile, filename: rpcFile, loaded: true, exports: rpc, children: [], paths: [] };
+require.cache[rpcFile] = {
+    id: rpcFile,
+    filename: rpcFile,
+    loaded: true,
+    exports: rpc,
+    children: [],
+    paths: [],
+};
 const DiscordBridge = require('../DiscordBridge');
 const { ConsoleLogger } = require('../Logger');
 
@@ -23,24 +30,26 @@ let pendingLogins = [];
 function fakeClients(options = {}) {
     clients = [];
     pendingLogins = [];
-    rpc.Client.mockImplementation(function(clientOptions) {
+    rpc.Client.mockImplementation(function (clientOptions) {
         const client = {
             options: clientOptions,
             handlers: {},
-            user: options.noUser ? undefined : {
-                setActivity: vi.fn(options.setActivity || (async () => undefined)),
-                clearActivity: vi.fn(options.clearActivity || (async () => undefined))
-            },
+            user: options.noUser
+                ? undefined
+                : {
+                      setActivity: vi.fn(options.setActivity || (async () => undefined)),
+                      clearActivity: vi.fn(options.clearActivity || (async () => undefined)),
+                  },
             on: vi.fn((event, handler) => {
                 client.handlers[event] = handler;
             }),
             login: vi.fn(() => {
                 if (options.login === 'pending') {
-                    return new Promise(resolve => pendingLogins.push(resolve));
+                    return new Promise((resolve) => pendingLogins.push(resolve));
                 }
                 return options.login ? options.login() : Promise.resolve();
             }),
-            destroy: vi.fn(options.destroy || (async () => undefined))
+            destroy: vi.fn(options.destroy || (async () => undefined)),
         };
         clients.push(client);
         return client;
@@ -68,7 +77,7 @@ describe('DiscordBridge', () => {
             expect(electron.ipcMain.handle.mock.calls.map(([channel]) => channel)).toEqual([
                 'rakkomik:presence:ensureStarted',
                 'rakkomik:presence:setActivity',
-                'rakkomik:presence:clearAndDestroy'
+                'rakkomik:presence:clearAndDestroy',
             ]);
         });
 
@@ -81,7 +90,9 @@ describe('DiscordBridge', () => {
             bridge.register();
             const handlers = Object.fromEntries(electron.ipcMain.handle.mock.calls);
             const status = { details: 'Browsing MangaDex', state: 'Looking at Berserk' };
-            await expect(handlers['rakkomik:presence:setActivity']({}, status)).resolves.toBe(false);
+            await expect(handlers['rakkomik:presence:setActivity']({}, status)).resolves.toBe(
+                false,
+            );
             await expect(handlers['rakkomik:presence:ensureStarted']({})).resolves.toBe(true);
             await expect(handlers['rakkomik:presence:setActivity']({}, status)).resolves.toBe(true);
             expect(clients[0].user.setActivity).toHaveBeenCalledWith(status);
@@ -122,7 +133,10 @@ describe('DiscordBridge', () => {
 
         it('should try again later and succeed once Discord is there', async () => {
             let running = false;
-            fakeClients({ login: () => (running ? Promise.resolve() : Promise.reject(new Error('Could not connect'))) });
+            fakeClients({
+                login: () =>
+                    running ? Promise.resolve() : Promise.reject(new Error('Could not connect')),
+            });
             await expect(bridge._ensureStarted()).resolves.toBe(false);
             running = true;
             await expect(bridge._ensureStarted()).resolves.toBe(true);
@@ -133,15 +147,18 @@ describe('DiscordBridge', () => {
         it.each([
             ['nothing', undefined],
             ['a text', 'refused'],
-            ['null', null]
-        ])('should answer false when the login fails with %s instead of an error', async (_, reason) => {
-            fakeClients({ login: () => Promise.reject(reason) });
-            await expect(bridge._ensureStarted()).resolves.toBe(false);
-            expect(logger.warn).toHaveBeenCalledTimes(1);
-        });
+            ['null', null],
+        ])(
+            'should answer false when the login fails with %s instead of an error',
+            async (_, reason) => {
+                fakeClients({ login: () => Promise.reject(reason) });
+                await expect(bridge._ensureStarted()).resolves.toBe(false);
+                expect(logger.warn).toHaveBeenCalledTimes(1);
+            },
+        );
 
         it('should answer false when the client cannot even be created', async () => {
-            rpc.Client.mockImplementation(function() {
+            rpc.Client.mockImplementation(function () {
                 throw new Error('library broken');
             });
             await expect(bridge._ensureStarted()).resolves.toBe(false);
@@ -160,14 +177,18 @@ describe('DiscordBridge', () => {
             fakeClients({ login: 'pending' });
             const first = bridge._ensureStarted();
             const second = bridge._ensureStarted();
-            pendingLogins.forEach(resolve => resolve());
+            pendingLogins.forEach((resolve) => resolve());
             await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
             expect(clients).toHaveLength(1);
         });
     });
 
     describe('_setActivity()', () => {
-        const status = { details: 'Browsing MangaDex', state: 'Looking at Berserk', startTimestamp: 1760000000000 };
+        const status = {
+            details: 'Browsing MangaDex',
+            state: 'Looking at Berserk',
+            startTimestamp: 1760000000000,
+        };
 
         it('should answer false without a client and not complain', async () => {
             await expect(bridge._setActivity(status)).resolves.toBe(false);
@@ -195,7 +216,7 @@ describe('DiscordBridge', () => {
                     if (refuse) {
                         throw new Error('RATE_LIMITED');
                     }
-                }
+                },
             });
             await bridge._ensureStarted();
             await expect(bridge._setActivity(status)).resolves.toBe(false);

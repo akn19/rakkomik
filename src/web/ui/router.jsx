@@ -1,4 +1,10 @@
-import { createHashHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
+import {
+    createHashHistory,
+    createRootRoute,
+    createRoute,
+    createRouter,
+    RouterProvider,
+} from '@tanstack/react-router';
 import Shell from './shell.jsx';
 import StartView from './views/Start.jsx';
 import ReaderView from './views/Reader.jsx';
@@ -15,35 +21,43 @@ import BookmarksView from './views/BookmarksView.jsx';
 const rootRoute = createRootRoute({ component: Shell });
 
 // An id is text, whatever it looks like: the router reads a bare 12345 of an address as a number.
-const text = value => (typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '');
+const text = (value) =>
+    typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
 
-const startRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: StartView });
+const startRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/',
+    component: StartView,
+});
 const downloadsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/downloads',
-    component: DownloadsView
+    component: DownloadsView,
 });
-const bookmarksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/bookmarks', component: BookmarksView });
+const bookmarksRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/bookmarks',
+    component: BookmarksView,
+});
 
 const readerRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/reader',
-    validateSearch: search => ({
+    validateSearch: (search) => ({
         connector: text(search.connector),
         manga: text(search.manga),
-        chapter: text(search.chapter)
+        chapter: text(search.chapter),
     }),
-    component: ReaderView
+    component: ReaderView,
 });
-const routeTree = rootRoute.addChildren([
-    startRoute,
-    readerRoute,
-    downloadsRoute,
-    bookmarksRoute
-]);
+const routeTree = rootRoute.addChildren([startRoute, readerRoute, downloadsRoute, bookmarksRoute]);
 
 // An address that nothing serves keeps the panels and says so where the view would be (the router warns when it has no text of its own).
-const router = createRouter({ routeTree, history: createHashHistory(), defaultNotFoundComponent: () => <p role="alert">Page not found.</p> });
+const router = createRouter({
+    routeTree,
+    history: createHashHistory(),
+    defaultNotFoundComponent: () => <p role="alert">Page not found.</p>,
+});
 
 export default function AppRouter() {
     return <RouterProvider router={router} />;

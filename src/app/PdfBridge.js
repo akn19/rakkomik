@@ -15,7 +15,6 @@ const PRINT_TIMEOUT = 120000;
  * node, no network (only the page and `data:` URLs), no navigation and no new windows.
  */
 module.exports = class PdfBridge {
-
     constructor(logger) {
         this._logger = logger;
     }
@@ -51,13 +50,13 @@ module.exports = class PdfBridge {
                     contextIsolation: true,
                     nodeIntegration: false,
                     javascript: false,
-                    webSecurity: true
-                }
+                    webSecurity: true,
+                },
             });
             // the page is the only file that may be read: it is known by its path, as Chromium writes the URL of a file
             // with another escaping than Node.js does (`[`, `]` and `~` are not escaped), and paths are compared the way
             // the platform does it (the case of a path on Windows does not matter)
-            const isPage = url => {
+            const isPage = (url) => {
                 try {
                     return path.relative(file, fileURLToPath(url)) === '';
                 } catch {
@@ -68,7 +67,7 @@ module.exports = class PdfBridge {
                 callback({ cancel: !details.url.startsWith('data:') && !isPage(details.url) });
             });
             win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-            win.webContents.on('will-navigate', event => event.preventDefault());
+            win.webContents.on('will-navigate', (event) => event.preventDefault());
 
             let printed = (async () => {
                 await win.loadFile(file);
@@ -76,13 +75,21 @@ module.exports = class PdfBridge {
                     preferCSSPageSize: true,
                     printBackground: false,
                     generateTaggedPDF: true,
-                    generateDocumentOutline: true
+                    generateDocumentOutline: true,
                 });
             })();
             // when the time is up, the window is gone before the printing ends: its failure is of no interest then
             printed.catch(() => undefined);
             let expired = new Promise((resolve, reject) => {
-                timer = setTimeout(() => reject(new Error(`Printing the page took longer than ${timeout / 1000} seconds!`)), timeout);
+                timer = setTimeout(
+                    () =>
+                        reject(
+                            new Error(
+                                `Printing the page took longer than ${timeout / 1000} seconds!`,
+                            ),
+                        ),
+                    timeout,
+                );
             });
             return await Promise.race([printed, expired]);
         } finally {

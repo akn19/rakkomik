@@ -49,15 +49,16 @@ function start(entries = []) {
     return { connector, library };
 }
 
-const ask = (subject, method, ...args) => new Promise(resolve => subject[method](...args, (...answer) => resolve(answer)));
-const titles = list => list.map(entry => entry.title.normalize('NFC')).sort();
-const addressed = address => decodeURIComponent(new URL(address).pathname);
-const addressOf = file => decodeURIComponent(pathToFileURL(file).pathname);
+const ask = (subject, method, ...args) =>
+    new Promise((resolve) => subject[method](...args, (...answer) => resolve(answer)));
+const titles = (list) => list.map((entry) => entry.title.normalize('NFC')).sort();
+const addressed = (address) => decodeURIComponent(new URL(address).pathname);
+const addressOf = (file) => decodeURIComponent(pathToFileURL(file).pathname);
 const quiet = () => vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
 async function mangaOf(connector, title) {
     const [, mangas] = await ask(connector, 'getMangas');
-    return mangas.find(manga => manga.title === title);
+    return mangas.find((manga) => manga.title === title);
 }
 
 describe('FolderConnector', () => {
@@ -68,7 +69,11 @@ describe('FolderConnector', () => {
         expect(connector.icon).toBe('/img/connectors/folder');
         expect(connector.tags).toEqual([]);
         expect(connector.url).toBeUndefined();
-        expect(connector.config.path).toMatchObject({ label: 'Manga Folder', input: 'directory', value: '' });
+        expect(connector.config.path).toMatchObject({
+            label: 'Manga Folder',
+            input: 'directory',
+            value: '',
+        });
         expect(connector.config.path.description).toContain(connector.label);
     });
 
@@ -81,10 +86,17 @@ describe('FolderConnector', () => {
 
     describe('the mangas', () => {
         it('should be the folders of the library, the way the engine knows a manga that is on the device', async () => {
-            const { connector, library } = start(['Alpha/', 'Beta/', '日本語 マンガ/', 'With #hash and \'quotes\'/']);
+            const { connector, library } = start([
+                'Alpha/',
+                'Beta/',
+                '日本語 マンガ/',
+                "With #hash and 'quotes'/",
+            ]);
             const [error, mangas] = await ask(connector, 'getMangas');
             expect(error).toBeNull();
-            expect(titles(mangas)).toEqual(['Alpha', 'Beta', 'With #hash and \'quotes\'', '日本語 マンガ'].sort());
+            expect(titles(mangas)).toEqual(
+                ['Alpha', 'Beta', "With #hash and 'quotes'", '日本語 マンガ'].sort(),
+            );
             for (const manga of mangas) {
                 expect(manga).toBeInstanceOf(Manga);
                 expect(manga.connector).toBe(connector);
@@ -96,7 +108,7 @@ describe('FolderConnector', () => {
         it('should be listed in the order that the folder lists them in, without a sort of its own', async () => {
             const { connector, library } = start(['b/', 'a/', 'C/', '10/', '2/']);
             const [, mangas] = await ask(connector, 'getMangas');
-            expect(mangas.map(manga => manga.title)).toEqual(fs.readdirSync(library));
+            expect(mangas.map((manga) => manga.title)).toEqual(fs.readdirSync(library));
         });
 
         it('should be the same when the list is updated, and show what was added since', async () => {
@@ -142,16 +154,19 @@ describe('FolderConnector', () => {
         });
 
         it.each([
-            ['a folder that is not there', library => path.join(library, 'nothing'), ['ENOENT']],
-            ['a file', library => path.join(library, 'a file.txt'), ['ENOTDIR', 'ENOENT']]
-        ])('should be refused, with the error, for %s as the library', async (name, locate, codes) => {
-            quiet();
-            const { connector, library } = start(['a file.txt']);
-            connector.config.path.value = locate(library);
-            const [failure, mangas] = await ask(connector, 'updateMangas');
-            expect(codes).toContain(failure.code);
-            expect(mangas).toEqual([]);
-        });
+            ['a folder that is not there', (library) => path.join(library, 'nothing'), ['ENOENT']],
+            ['a file', (library) => path.join(library, 'a file.txt'), ['ENOTDIR', 'ENOENT']],
+        ])(
+            'should be refused, with the error, for %s as the library',
+            async (name, locate, codes) => {
+                quiet();
+                const { connector, library } = start(['a file.txt']);
+                connector.config.path.value = locate(library);
+                const [failure, mangas] = await ask(connector, 'updateMangas');
+                expect(codes).toContain(failure.code);
+                expect(mangas).toEqual([]);
+            },
+        );
 
         it('should only be the folders of the library', async () => {
             const { connector } = start(['Alpha/', 'readme.txt', 'cover.jpg']);
@@ -166,7 +181,12 @@ describe('FolderConnector', () => {
 
     describe('the chapters', () => {
         it('should be the folders and the archives of the folder of the manga, as they are called', async () => {
-            const { connector, library } = start(['Alpha/Chapter 1/001.png', 'Alpha/Chapter 2.cbz', 'Alpha/Vol 3.epub', 'Alpha/Extra/']);
+            const { connector, library } = start([
+                'Alpha/Chapter 1/001.png',
+                'Alpha/Chapter 2.cbz',
+                'Alpha/Vol 3.epub',
+                'Alpha/Extra/',
+            ]);
             const manga = await mangaOf(connector, 'Alpha');
             const [error, chapters] = await ask(manga, 'getChapters');
             expect(error).toBeNull();
@@ -178,7 +198,11 @@ describe('FolderConnector', () => {
                 // it is on the device, and nowhere else
                 expect(chapter.status).toBe('offline');
                 expect(chapter.language).toBeUndefined();
-                expect(chapter.file).toEqual({ name: chapter.title, extension: '', full: chapter.title });
+                expect(chapter.file).toEqual({
+                    name: chapter.title,
+                    extension: '',
+                    full: chapter.title,
+                });
                 expect(Object.hasOwn(chapter, 'getPages')).toBe(true);
             }
         });
@@ -186,33 +210,57 @@ describe('FolderConnector', () => {
         // NOTE: there is no natural sort: "Chapter 10" comes before "Chapter 2" as the folder lists them, and the chapter
         // panel of the interface sorts on demand
         it('should be listed in the order that the folder lists them in, without a sort of its own', async () => {
-            const { connector, library } = start(['Alpha/Chapter 10/', 'Alpha/Chapter 2/', 'Alpha/Chapter 1/']);
+            const { connector, library } = start([
+                'Alpha/Chapter 10/',
+                'Alpha/Chapter 2/',
+                'Alpha/Chapter 1/',
+            ]);
             const [, chapters] = await ask(await mangaOf(connector, 'Alpha'), 'getChapters');
-            expect(chapters.map(chapter => chapter.title)).toEqual(fs.readdirSync(path.join(library, 'Alpha')));
+            expect(chapters.map((chapter) => chapter.title)).toEqual(
+                fs.readdirSync(path.join(library, 'Alpha')),
+            );
         });
 
         it('should only be the folders and the archives of the folder of the manga', async () => {
-            const { connector } = start(['Alpha/Chapter 1/001.png', 'Alpha/Chapter 2.cbz', 'Alpha/Vol 3.epub', 'Alpha/.DS_Store', 'Alpha/Thumbs.db', 'Alpha/desktop.ini', 'Alpha/cover.jpg', 'Alpha/notes.txt']);
+            const { connector } = start([
+                'Alpha/Chapter 1/001.png',
+                'Alpha/Chapter 2.cbz',
+                'Alpha/Vol 3.epub',
+                'Alpha/.DS_Store',
+                'Alpha/Thumbs.db',
+                'Alpha/desktop.ini',
+                'Alpha/cover.jpg',
+                'Alpha/notes.txt',
+            ]);
             const [, chapters] = await ask(await mangaOf(connector, 'Alpha'), 'getChapters');
             expect(titles(chapters)).toEqual(['Chapter 1', 'Chapter 2.cbz', 'Vol 3.epub']);
         });
 
         it('should be the chapters of that manga only', async () => {
             const { connector } = start(['Alpha/One/', 'Beta/Two/', 'Beta/Three/']);
-            expect(titles((await ask(await mangaOf(connector, 'Alpha'), 'getChapters'))[1])).toEqual(['One']);
-            expect(titles((await ask(await mangaOf(connector, 'Beta'), 'getChapters'))[1])).toEqual(['Three', 'Two']);
+            expect(
+                titles((await ask(await mangaOf(connector, 'Alpha'), 'getChapters'))[1]),
+            ).toEqual(['One']);
+            expect(titles((await ask(await mangaOf(connector, 'Beta'), 'getChapters'))[1])).toEqual(
+                ['Three', 'Two'],
+            );
         });
 
         it('should keep the names of any script and any shape', async () => {
-            const names = ['第1話 はじまり 😀', 'Chapter #1 (final); \'x\' 100%', 'été.cbz'];
-            const { connector } = start(names.map(name => `Alpha/${name}${name.endsWith('.cbz') ? '' : '/'}`));
+            const names = ['第1話 はじまり 😀', "Chapter #1 (final); 'x' 100%", 'été.cbz'];
+            const { connector } = start(
+                names.map((name) => `Alpha/${name}${name.endsWith('.cbz') ? '' : '/'}`),
+            );
             const [, chapters] = await ask(await mangaOf(connector, 'Alpha'), 'getChapters');
-            expect(titles(chapters)).toEqual(names.map(name => name.normalize('NFC')).sort());
+            expect(titles(chapters)).toEqual(names.map((name) => name.normalize('NFC')).sort());
         });
 
         it('should be none for an empty folder, without an error', async () => {
             const { connector } = start(['Alpha/']);
-            await expect(ask(await mangaOf(connector, 'Alpha'), 'getChapters')).resolves.toEqual([null, []]);
+            await expect(ask(await mangaOf(connector, 'Alpha'), 'getChapters')).resolves.toEqual([
+                null,
+                [],
+            ]);
         });
 
         it('should be refused, with the error, when the folder of the manga is gone', async () => {
@@ -230,7 +278,12 @@ describe('FolderConnector', () => {
             quiet();
             const { connector, library } = start(['readme.txt']);
             // the list has no files: the manga is made by hand
-            const manga = new Manga(connector, path.join(library, 'readme.txt'), 'readme.txt', 'completed');
+            const manga = new Manga(
+                connector,
+                path.join(library, 'readme.txt'),
+                'readme.txt',
+                'completed',
+            );
             manga.getChapters = connector.getChapters.bind(manga);
             const [failure, chapters] = await ask(manga, 'getChapters');
             expect(failure).toBeInstanceOf(Error);
@@ -239,15 +292,17 @@ describe('FolderConnector', () => {
 
         it.each([
             ['an object that is none', () => ({})],
-            ['the connector itself', connector => connector],
-            ['nothing', () => undefined]
+            ['the connector itself', (connector) => connector],
+            ['nothing', () => undefined],
         ])('should only be read for a manga, not for %s', async (name, pick) => {
             const { connector } = start();
             const callback = vi.fn();
             connector.getChapters.call(pick(connector), callback);
             expect(callback).toHaveBeenCalledTimes(1);
             expect(callback.mock.calls[0][0]).toBeInstanceOf(Error);
-            expect(callback.mock.calls[0][0].message).toBe('This method must be used from a <Manga> object\'s context!');
+            expect(callback.mock.calls[0][0].message).toBe(
+                "This method must be used from a <Manga> object's context!",
+            );
             expect(callback.mock.calls[0][1]).toEqual([]);
         });
 
@@ -256,7 +311,9 @@ describe('FolderConnector', () => {
             const callback = vi.fn();
             connector._getChapterList({}, callback);
             expect(callback).toHaveBeenCalledTimes(1);
-            expect(callback.mock.calls[0][0].message).toBe('This method cannot be called from any connector other then <Folder>!');
+            expect(callback.mock.calls[0][0].message).toBe(
+                'This method cannot be called from any connector other then <Folder>!',
+            );
             expect(callback.mock.calls[0][1]).toEqual([]);
         });
     });
@@ -265,39 +322,72 @@ describe('FolderConnector', () => {
         async function chapterOf(connector, mangaTitle, chapterTitle) {
             const manga = await mangaOf(connector, mangaTitle);
             const [, chapters] = await ask(manga, 'getChapters');
-            return chapters.find(chapter => chapter.title === chapterTitle);
+            return chapters.find((chapter) => chapter.title === chapterTitle);
         }
 
         it('should be the pictures of a folder', async () => {
-            const { connector, library } = start(['Alpha/Chapter 1/001.png', 'Alpha/Chapter 1/002.jpg', 'Alpha/Chapter 1/p #3.webp']);
+            const { connector, library } = start([
+                'Alpha/Chapter 1/001.png',
+                'Alpha/Chapter 1/002.jpg',
+                'Alpha/Chapter 1/p #3.webp',
+            ]);
             const chapter = await chapterOf(connector, 'Alpha', 'Chapter 1');
             const [error, pages] = await ask(chapter, 'getPages');
             expect(error).toBeNull();
-            expect(pages.map(addressed)).toEqual(['001.png', '002.jpg', 'p #3.webp'].map(name => addressOf(path.join(library, 'Alpha', 'Chapter 1', name))));
+            expect(pages.map(addressed)).toEqual(
+                ['001.png', '002.jpg', 'p #3.webp'].map((name) =>
+                    addressOf(path.join(library, 'Alpha', 'Chapter 1', name)),
+                ),
+            );
         });
 
         it('should be the pictures of an archive, taken out to the temp folder of the engine', async () => {
             const { connector, library } = start(['Alpha/']);
-            fs.writeFileSync(path.join(library, 'Alpha', 'Chapter 2.cbz'), zipSync({ '001.png': new Uint8Array(PNG), '002.png': new Uint8Array(PNG), 'ComicInfo.xml': strToU8('<ComicInfo/>') }, { level: 0 }));
+            fs.writeFileSync(
+                path.join(library, 'Alpha', 'Chapter 2.cbz'),
+                zipSync(
+                    {
+                        '001.png': new Uint8Array(PNG),
+                        '002.png': new Uint8Array(PNG),
+                        'ComicInfo.xml': strToU8('<ComicInfo/>'),
+                    },
+                    { level: 0 },
+                ),
+            );
             const chapter = await chapterOf(connector, 'Alpha', 'Chapter 2.cbz');
             const [error, pages] = await ask(chapter, 'getPages');
             expect(error).toBeNull();
-            expect(pages.map(addressed)).toEqual(['001.png', '002.png'].map(name => addressOf(path.join(env.storage.temp, name))));
+            expect(pages.map(addressed)).toEqual(
+                ['001.png', '002.png'].map((name) => addressOf(path.join(env.storage.temp, name))),
+            );
             expect([...fs.readFileSync(path.join(env.storage.temp, '001.png'))]).toEqual(PNG);
         });
 
         it('should be the pictures of an e-book', async () => {
             const { connector, library } = start(['Alpha/']);
-            fs.writeFileSync(path.join(library, 'Alpha', 'Vol 3.epub'), zipSync({ 'mimetype': strToU8('application/epub+zip'), 'OEBPS/img/001.png': new Uint8Array(PNG) }, { level: 0 }));
+            fs.writeFileSync(
+                path.join(library, 'Alpha', 'Vol 3.epub'),
+                zipSync(
+                    {
+                        mimetype: strToU8('application/epub+zip'),
+                        'OEBPS/img/001.png': new Uint8Array(PNG),
+                    },
+                    { level: 0 },
+                ),
+            );
             const chapter = await chapterOf(connector, 'Alpha', 'Vol 3.epub');
             const [error, pages] = await ask(chapter, 'getPages');
             expect(error).toBeNull();
-            expect(pages.map(addressed)).toEqual([addressOf(path.join(env.storage.temp, '001.png'))]);
+            expect(pages.map(addressed)).toEqual([
+                addressOf(path.join(env.storage.temp, '001.png')),
+            ]);
         });
 
         it('should be none for an empty folder, without an error', async () => {
             const { connector } = start(['Alpha/Chapter 1/']);
-            await expect(ask(await chapterOf(connector, 'Alpha', 'Chapter 1'), 'getPages')).resolves.toEqual([null, []]);
+            await expect(
+                ask(await chapterOf(connector, 'Alpha', 'Chapter 1'), 'getPages'),
+            ).resolves.toEqual([null, []]);
         });
 
         it('should be read from where the entry is, also when the engine would not give it that name', async () => {
@@ -306,7 +396,9 @@ describe('FolderConnector', () => {
             const chapter = await chapterOf(connector, 'Alpha', ' Chapter 1');
             const [error, pages] = await ask(chapter, 'getPages');
             expect(error).toBeNull();
-            expect(pages.map(addressed)).toEqual([addressOf(path.join(library, 'Alpha', ' Chapter 1', '001.png'))]);
+            expect(pages.map(addressed)).toEqual([
+                addressOf(path.join(library, 'Alpha', ' Chapter 1', '001.png')),
+            ]);
         });
 
         it('should be refused, with the error, for a portable document, which cannot be shown', async () => {
@@ -341,14 +433,16 @@ describe('FolderConnector', () => {
 
         it.each([
             ['an object that is none', () => ({})],
-            ['the connector itself', connector => connector],
-            ['nothing', () => undefined]
+            ['the connector itself', (connector) => connector],
+            ['nothing', () => undefined],
         ])('should only be read for a chapter, not for %s', (name, pick) => {
             const { connector } = start();
             const callback = vi.fn();
             connector.getPages.call(pick(connector), callback);
             expect(callback).toHaveBeenCalledTimes(1);
-            expect(callback.mock.calls[0][0].message).toBe('This method must be used from a <Chapter> object\'s context!');
+            expect(callback.mock.calls[0][0].message).toBe(
+                "This method must be used from a <Chapter> object's context!",
+            );
             expect(callback.mock.calls[0][1]).toEqual([]);
         });
 
@@ -357,13 +451,23 @@ describe('FolderConnector', () => {
             const callback = vi.fn();
             connector._getPageList({}, {}, callback);
             expect(callback).toHaveBeenCalledTimes(1);
-            expect(callback.mock.calls[0][0].message).toBe('This method cannot be called from any connector other then <Folder>!');
+            expect(callback.mock.calls[0][0].message).toBe(
+                'This method cannot be called from any connector other then <Folder>!',
+            );
             expect(callback.mock.calls[0][1]).toEqual([]);
         });
 
         it('should only be the pictures of a folder that holds more', async () => {
-            const { connector } = start(['Alpha/Chapter 1/001.png', 'Alpha/Chapter 1/Thumbs.db', 'Alpha/Chapter 1/.DS_Store', 'Alpha/Chapter 1/desktop.ini']);
-            const [, pages] = await ask(await chapterOf(connector, 'Alpha', 'Chapter 1'), 'getPages');
+            const { connector } = start([
+                'Alpha/Chapter 1/001.png',
+                'Alpha/Chapter 1/Thumbs.db',
+                'Alpha/Chapter 1/.DS_Store',
+                'Alpha/Chapter 1/desktop.ini',
+            ]);
+            const [, pages] = await ask(
+                await chapterOf(connector, 'Alpha', 'Chapter 1'),
+                'getPages',
+            );
             expect(pages).toHaveLength(1);
         });
     });
@@ -372,20 +476,33 @@ describe('FolderConnector', () => {
         it.each([
             ['img', 'Chapter 1'],
             ['.cbz', 'Chapter 1.cbz'],
-            ['.epub', 'Chapter 1.epub']
-        ])('should be shown from the downloads of the format %s, as the mangas, chapters and pages that they were', async (format, stored) => {
-            env = createEnvironment(Storage, { settings: { chapterFormat: format } });
-            const manga = { title: 'My Manga', connector: { label: 'Site', id: 'site' }, existingChapters: [] };
-            await env.storage.saveChapterPages(new Chapter(manga, '/1', 'Chapter 1', 'en', 'available'), [page('image/png', PNG), page('image/jpeg', [9, 9])]);
-            const connector = new FolderConnector();
-            connector.config.path.value = env.mangas;
-            const [, mangas] = await ask(connector, 'getMangas');
-            expect(mangas.map(entry => entry.title)).toEqual(['My Manga']);
-            const [, chapters] = await ask(mangas[0], 'getChapters');
-            expect(chapters.map(chapter => chapter.title)).toEqual([stored]);
-            const [error, pages] = await ask(chapters[0], 'getPages');
-            expect(error).toBeNull();
-            expect(pages.map(address => addressed(address).split('/').pop())).toEqual(['1.png', '2.jpg']);
-        });
+            ['.epub', 'Chapter 1.epub'],
+        ])(
+            'should be shown from the downloads of the format %s, as the mangas, chapters and pages that they were',
+            async (format, stored) => {
+                env = createEnvironment(Storage, { settings: { chapterFormat: format } });
+                const manga = {
+                    title: 'My Manga',
+                    connector: { label: 'Site', id: 'site' },
+                    existingChapters: [],
+                };
+                await env.storage.saveChapterPages(
+                    new Chapter(manga, '/1', 'Chapter 1', 'en', 'available'),
+                    [page('image/png', PNG), page('image/jpeg', [9, 9])],
+                );
+                const connector = new FolderConnector();
+                connector.config.path.value = env.mangas;
+                const [, mangas] = await ask(connector, 'getMangas');
+                expect(mangas.map((entry) => entry.title)).toEqual(['My Manga']);
+                const [, chapters] = await ask(mangas[0], 'getChapters');
+                expect(chapters.map((chapter) => chapter.title)).toEqual([stored]);
+                const [error, pages] = await ask(chapters[0], 'getPages');
+                expect(error).toBeNull();
+                expect(pages.map((address) => addressed(address).split('/').pop())).toEqual([
+                    '1.png',
+                    '2.jpg',
+                ]);
+            },
+        );
     });
 });

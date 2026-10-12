@@ -12,11 +12,11 @@ const run = promisify(execFile);
  * Run the GitHub CLI (authenticated through GITHUB_TOKEN).
  */
 async function gh(args, silent) {
-    if(!silent) {
+    if (!silent) {
         console.log('> gh', args.join(' '));
     }
     const { stdout } = await run('gh', args, { maxBuffer: 16 * 1024 * 1024 });
-    if(!silent) {
+    if (!silent) {
         console.log(stdout);
     }
     return stdout;
@@ -28,29 +28,39 @@ async function gh(args, silent) {
  * the CHANNEL environment variable (manual runs).
  */
 function resolveChannel() {
-    if(config.channel) {
+    if (config.channel) {
         return config.channel;
     }
     const ref = process.env.GITHUB_REF || '';
     const match = ref.match(/^refs\/heads\/(.+)$/);
-    if(match) {
+    if (match) {
         return match[1].replace(/\//g, '-');
     }
-    throw new Error('Cannot derive deployment channel: set CHANNEL or run in GitHub Actions (GITHUB_REF)! E.g. CHANNEL=main node deploy-web.js');
+    throw new Error(
+        'Cannot derive deployment channel: set CHANNEL or run in GitHub Actions (GITHUB_REF)! E.g. CHANNEL=main node deploy-web.js',
+    );
 }
 
 function validateEnvironment() {
-    if(!process.env.RAKKOMIK_PRIVATE_KEY) {
-        throw new Error('Missing environment variable "RAKKOMIK_PRIVATE_KEY" providing the PEM signing key!');
+    if (!process.env.RAKKOMIK_PRIVATE_KEY) {
+        throw new Error(
+            'Missing environment variable "RAKKOMIK_PRIVATE_KEY" providing the PEM signing key!',
+        );
     }
-    if(!process.env.RAKKOMIK_PASSPHRASE) {
-        throw new Error('Missing environment variable "RAKKOMIK_PASSPHRASE" to decrypt private key for signature!');
+    if (!process.env.RAKKOMIK_PASSPHRASE) {
+        throw new Error(
+            'Missing environment variable "RAKKOMIK_PASSPHRASE" to decrypt private key for signature!',
+        );
     }
-    if(!process.env.GITHUB_TOKEN) {
-        throw new Error('Missing environment variable "GITHUB_TOKEN" for GitHub Releases upload (gh CLI)!');
+    if (!process.env.GITHUB_TOKEN) {
+        throw new Error(
+            'Missing environment variable "GITHUB_TOKEN" for GitHub Releases upload (gh CLI)!',
+        );
     }
-    if(!process.env.GITHUB_REPOSITORY) {
-        throw new Error('Missing environment variable "GITHUB_REPOSITORY" (owner/repo) for GitHub Releases upload!');
+    if (!process.env.GITHUB_REPOSITORY) {
+        throw new Error(
+            'Missing environment variable "GITHUB_REPOSITORY" (owner/repo) for GitHub Releases upload!',
+        );
     }
 }
 
@@ -60,9 +70,11 @@ function validateEnvironment() {
 async function readTree(directory) {
     const entries = await fs.readdir(directory, { recursive: true, withFileTypes: true });
     const files = {};
-    for(const entry of entries.filter(entry => entry.isFile())) {
+    for (const entry of entries.filter((entry) => entry.isFile())) {
         const file = path.join(entry.parentPath, entry.name);
-        files[path.relative(directory, file).split(path.sep).join('/')] = new Uint8Array(await fs.readFile(file));
+        files[path.relative(directory, file).split(path.sep).join('/')] = new Uint8Array(
+            await fs.readFile(file),
+        );
     }
     return files;
 }
@@ -77,18 +89,20 @@ async function readTree(directory) {
 async function pack(directory, archive, meta) {
     const files = await readTree(directory);
     // an earlier run in this folder left its archive (the one its meta file names) and its meta file behind: they are not part of the bundle
-    if(files[meta]) {
+    if (files[meta]) {
         delete files[new TextDecoder().decode(files[meta]).split('?')[0]];
         delete files[meta];
     }
     const data = zipSync(files, { level: 6 });
-    const signature = crypto.sign('sha256', data, {
-        key: process.env.RAKKOMIK_PRIVATE_KEY,
-        passphrase: process.env.RAKKOMIK_PASSPHRASE
-    }).toString('hex');
+    const signature = crypto
+        .sign('sha256', data, {
+            key: process.env.RAKKOMIK_PRIVATE_KEY,
+            passphrase: process.env.RAKKOMIK_PASSPHRASE,
+        })
+        .toString('hex');
     await fs.writeFile(path.join(directory, archive), data);
     await fs.writeFile(path.join(directory, meta), `${archive}?signature=${signature}`);
-    return [ path.join(directory, archive), path.join(directory, meta) ];
+    return [path.join(directory, archive), path.join(directory, meta)];
 }
 
 /**
@@ -101,12 +115,24 @@ async function publishRelease(tag, files) {
     const repo = process.env.GITHUB_REPOSITORY;
     const sha = process.env.GITHUB_SHA || '';
     try {
-        await gh([ 'release', 'view', tag, '--repo', repo ], true);
-    } catch(error) {
-        const notes = 'Rolling web-application cache for update channel. Do not use these assets directly, they are consumed by the desktop client updater.';
-        await gh([ 'release', 'create', tag, '--repo', repo, '--title', `Web cache (${tag})`, '--notes', notes, ...sha ? [ '--target', sha ] : [] ]);
+        await gh(['release', 'view', tag, '--repo', repo], true);
+    } catch (error) {
+        const notes =
+            'Rolling web-application cache for update channel. Do not use these assets directly, they are consumed by the desktop client updater.';
+        await gh([
+            'release',
+            'create',
+            tag,
+            '--repo',
+            repo,
+            '--title',
+            `Web cache (${tag})`,
+            '--notes',
+            notes,
+            ...(sha ? ['--target', sha] : []),
+        ]);
     }
-    await gh([ 'release', 'upload', tag, ...files, '--repo', repo, '--clobber' ]);
+    await gh(['release', 'upload', tag, ...files, '--repo', repo, '--clobber']);
 }
 
 /**
@@ -119,16 +145,27 @@ async function publishRelease(tag, files) {
 async function removeOldArchives(tag, meta) {
     const repo = process.env.GITHUB_REPOSITORY;
     try {
-        const current = (await gh([ 'release', 'download', tag, '--repo', repo, '--pattern', meta, '--output', '-' ], true)).split('?')[0].trim();
-        const { assets } = JSON.parse(await gh([ 'release', 'view', tag, '--repo', repo, '--json', 'assets' ], true));
-        const names = assets.map(asset => asset.name);
-        if(!current || !names.includes(current)) {
-            throw new Error(`The meta file "${meta}" names "${current}", which is not an asset of the release "${tag}"`);
+        const current = (
+            await gh(
+                ['release', 'download', tag, '--repo', repo, '--pattern', meta, '--output', '-'],
+                true,
+            )
+        )
+            .split('?')[0]
+            .trim();
+        const { assets } = JSON.parse(
+            await gh(['release', 'view', tag, '--repo', repo, '--json', 'assets'], true),
+        );
+        const names = assets.map((asset) => asset.name);
+        if (!current || !names.includes(current)) {
+            throw new Error(
+                `The meta file "${meta}" names "${current}", which is not an asset of the release "${tag}"`,
+            );
         }
-        for(const name of names.filter(name => name.endsWith('.zip') && name !== current)) {
-            await gh([ 'release', 'delete-asset', tag, name, '--repo', repo, '--yes' ]);
+        for (const name of names.filter((name) => name.endsWith('.zip') && name !== current)) {
+            await gh(['release', 'delete-asset', tag, name, '--repo', repo, '--yes']);
         }
-    } catch(error) {
+    } catch (error) {
         console.warn(`Could not remove the old archives of "${tag}": ${error.message}`);
     }
 }
@@ -145,8 +182,10 @@ async function main() {
 
 module.exports = { pack, readTree, resolveChannel };
 
-if(require.main === module) {
+if (require.main === module) {
     // exit application as soon as any uncaught exception is thrown
-    process.on('unhandledRejection', error => { throw error; });
+    process.on('unhandledRejection', (error) => {
+        throw error;
+    });
     main();
 }

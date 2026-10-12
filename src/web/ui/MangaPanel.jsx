@@ -1,10 +1,23 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { toggleBookmark, isMangaBookmarked, getBookmarks, subscribeBookmarks, getUpdateProgress, announceConnector, announceManga } from './engine.js';
+import {
+    toggleBookmark,
+    isMangaBookmarked,
+    getBookmarks,
+    subscribeBookmarks,
+    getUpdateProgress,
+    announceConnector,
+    announceManga,
+} from './engine.js';
 import { useConnectors } from './connectorsState.js';
 import { fetchMangaList, updateMangaList } from './queries.js';
-import { useUpdateProgress, describeUpdateProgress, updateMessage, countTitles } from './updateProgress.js';
+import {
+    useUpdateProgress,
+    describeUpdateProgress,
+    updateMessage,
+    countTitles,
+} from './updateProgress.js';
 import { useToast } from './notify.jsx';
 import { useSelection } from './selection.jsx';
 import ConnectorDialog from './connectors.jsx';
@@ -24,7 +37,11 @@ function filterMangas(list, pattern) {
         return list;
     }
     const needle = pattern.toLowerCase();
-    return list.filter(manga => manga.title.toLowerCase().includes(needle) || manga.connector.label.toLowerCase().includes(needle));
+    return list.filter(
+        (manga) =>
+            manga.title.toLowerCase().includes(needle) ||
+            manga.connector.label.toLowerCase().includes(needle),
+    );
 }
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -52,7 +69,7 @@ export default function MangaPanel({ readerEnabled }) {
 
     // the default (first) connector is only known once the list is complete and sorted
     const effectiveId = connectorId || (ready && connectors[0] ? connectors[0].id : '');
-    const connector = connectors.find(entry => entry.id === effectiveId);
+    const connector = connectors.find((entry) => entry.id === effectiveId);
     // The chapter list and the reader read the connector from the selection, so the default one has to be put there:
     // without it the link of the reader is made with an empty connector and the chapter is "not found".
     React.useEffect(() => {
@@ -74,22 +91,22 @@ export default function MangaPanel({ readerEnabled }) {
     const progress = useUpdateProgress(connector);
     // the engine knows about updates that were started elsewhere as well (the connector dialog)
     const refreshing = !!updating[effectiveId] || !!progress;
-    const bookmarked = React.useSyncExternalStore(
-        subscribeBookmarks,
-        () => (selectedManga ? isMangaBookmarked(selectedManga) : false)
+    const bookmarked = React.useSyncExternalStore(subscribeBookmarks, () =>
+        selectedManga ? isMangaBookmarked(selectedManga) : false,
     );
 
     // the bookmarked mangas by website and id (as the rows are keyed): their titles are gold in every list
     const bookmarks = React.useSyncExternalStore(subscribeBookmarks, getBookmarks);
     const bookmarkedKeys = React.useMemo(
-        () => new Set(bookmarks.map(bookmark => `${bookmark.key.connector}/${bookmark.key.manga}`)),
-        [bookmarks]
+        () =>
+            new Set(bookmarks.map((bookmark) => `${bookmark.key.connector}/${bookmark.key.manga}`)),
+        [bookmarks],
     );
 
     const mangaQuery = useQuery({
         queryKey: ['mangas', effectiveId],
         queryFn: () => fetchMangaList(connector),
-        enabled: !!connector
+        enabled: !!connector,
     });
 
     // Bookmarks of connectors that registered late become available once all are loaded.
@@ -101,14 +118,18 @@ export default function MangaPanel({ readerEnabled }) {
 
     // The bookmark connector mirrors the bookmark list: reload it on change, also while another connector is shown (the
     // list is kept for good, so it would be out of date when it is shown again).
-    React.useEffect(() => subscribeBookmarks(() => {
-        queryClient.invalidateQueries({ queryKey: ['mangas', BOOKMARK_CONNECTOR_ID] });
-    }), [queryClient]);
+    React.useEffect(
+        () =>
+            subscribeBookmarks(() => {
+                queryClient.invalidateQueries({ queryKey: ['mangas', BOOKMARK_CONNECTOR_ID] });
+            }),
+        [queryClient],
+    );
 
     const total = mangaQuery.data ? mangaQuery.data.length : 0;
     const mangas = React.useMemo(
         () => filterMangas(mangaQuery.data || [], pattern),
-        [mangaQuery.data, pattern]
+        [mangaQuery.data, pattern],
     );
 
     // The manga that the keyboard is on (`aria-activedescendant`): the selected one when the list arrives, then where
@@ -116,43 +137,57 @@ export default function MangaPanel({ readerEnabled }) {
     const [active, setActive] = React.useState(0);
     const [focused, setFocused] = React.useState(false);
     const activeIndex = clamp(active, 0, Math.max(0, mangas.length - 1));
-    const optionId = index => `${listId}-${index}`;
+    const optionId = (index) => `${listId}-${index}`;
     React.useEffect(() => {
         if (selectedManga) {
-            const index = mangas.findIndex(manga => manga.id === selectedManga.id && manga.connector.id === selectedManga.connector.id);
+            const index = mangas.findIndex(
+                (manga) =>
+                    manga.id === selectedManga.id &&
+                    manga.connector.id === selectedManga.connector.id,
+            );
             if (index >= 0) {
                 setActive(index);
             }
         }
     }, [mangas, selectedManga]);
 
-    const rangeExtractor = React.useCallback(range => {
-        const start = Math.max(range.startIndex - range.overscan, 0);
-        const end = Math.min(range.endIndex + range.overscan, range.count - 1);
-        const indexes = [];
-        for (let index = start; index <= end; index++) {
-            indexes.push(index);
-        }
-        if (focused && activeIndex < range.count && (activeIndex < start || activeIndex > end)) {
-            indexes.push(activeIndex);
-            indexes.sort((a, b) => a - b);
-        }
-        return indexes;
-    }, [focused, activeIndex]);
+    const rangeExtractor = React.useCallback(
+        (range) => {
+            const start = Math.max(range.startIndex - range.overscan, 0);
+            const end = Math.min(range.endIndex + range.overscan, range.count - 1);
+            const indexes = [];
+            for (let index = start; index <= end; index++) {
+                indexes.push(index);
+            }
+            if (
+                focused &&
+                activeIndex < range.count &&
+                (activeIndex < start || activeIndex > end)
+            ) {
+                indexes.push(activeIndex);
+                indexes.sort((a, b) => a - b);
+            }
+            return indexes;
+        },
+        [focused, activeIndex],
+    );
 
     const virtualizer = useVirtualizer({
         count: mangas.length,
         getScrollElement: () => scrollRef.current,
         estimateSize: () => ROW_HEIGHT,
         overscan: 20,
-        rangeExtractor
+        rangeExtractor,
     });
 
-    const onListKeyDown = event => {
+    const onListKeyDown = (event) => {
         if (mangas.length === 0) {
             return;
         }
-        const screen = Math.max(1, Math.floor((scrollRef.current ? scrollRef.current.clientHeight : 0) / ROW_HEIGHT) - 1);
+        const screen = Math.max(
+            1,
+            Math.floor((scrollRef.current ? scrollRef.current.clientHeight : 0) / ROW_HEIGHT) - 1,
+        );
         let next = activeIndex;
         switch (event.key) {
             case 'ArrowDown':
@@ -187,12 +222,12 @@ export default function MangaPanel({ readerEnabled }) {
         virtualizer.scrollToIndex(next);
     };
 
-    const update = async target => {
+    const update = async (target) => {
         // an update that runs elsewhere (the connector dialog) is not started a second time: the engine would not answer
         if (!target || updating[target.id] || getUpdateProgress(target)) {
             return;
         }
-        setUpdating(current => ({ ...current, [target.id]: true }));
+        setUpdating((current) => ({ ...current, [target.id]: true }));
         try {
             const updated = await updateMangaList(target);
             queryClient.setQueryData(['mangas', target.id], updated);
@@ -200,13 +235,13 @@ export default function MangaPanel({ readerEnabled }) {
         } catch (error) {
             notify(`Failed to update manga list for ${target.label}\n${error.message}`, 'error');
         } finally {
-            setUpdating(current => ({ ...current, [target.id]: false }));
+            setUpdating((current) => ({ ...current, [target.id]: false }));
         }
     };
 
     // Classic onPasteClick: switch to the clipboard connector and read it.
     const onPaste = () => {
-        const clipboard = connectors.find(entry => entry.id === CLIPBOARD_CONNECTOR_ID);
+        const clipboard = connectors.find((entry) => entry.id === CLIPBOARD_CONNECTOR_ID);
         if (clipboard) {
             selectConnector(clipboard.id);
             update(clipboard);
@@ -225,10 +260,19 @@ export default function MangaPanel({ readerEnabled }) {
     };
 
     const showNotification = !!connector && connector.id !== BOOKMARK_CONNECTOR_ID && total < 1;
-    const refreshClass = 'text-(--manga-refresh-button-color) [filter:drop-shadow(var(--manga-refresh-button-shadow))] cursor-pointer';
-    const refreshTitle = connector ? `Synchronize local manga list with online list from <${connector.label}>` : '';
-    const refreshLabel = connector ? `Update the manga list of ${connector.label}` : 'Update the manga list';
-    const websiteText = connector ? connector.label : (ready ? '' : `Loading connectors … (${connectors.length})`);
+    const refreshClass =
+        'text-(--manga-refresh-button-color) [filter:drop-shadow(var(--manga-refresh-button-shadow))] cursor-pointer';
+    const refreshTitle = connector
+        ? `Synchronize local manga list with online list from <${connector.label}>`
+        : '';
+    const refreshLabel = connector
+        ? `Update the manga list of ${connector.label}`
+        : 'Update the manga list';
+    const websiteText = connector
+        ? connector.label
+        : ready
+          ? ''
+          : `Loading connectors … (${connectors.length})`;
 
     return (
         <section
@@ -239,7 +283,9 @@ export default function MangaPanel({ readerEnabled }) {
             }
         >
             <div className="rk-separator flex items-center p-[0.25em] text-[1.25em] font-bold">
-                <h2 id={headingId} className="flex-1">Manga List</h2>
+                <h2 id={headingId} className="flex-1">
+                    Manga List
+                </h2>
                 <button
                     type="button"
                     onClick={onPaste}
@@ -270,7 +316,12 @@ export default function MangaPanel({ readerEnabled }) {
                     disabled={!connector}
                     title={refreshTitle}
                     aria-label={refreshLabel}
-                    className={refreshClass + (refreshing ? ' cursor-progress! text-(--manga-button-disabled-color)!' : '')}
+                    className={
+                        refreshClass +
+                        (refreshing
+                            ? ' cursor-progress! text-(--manga-button-disabled-color)!'
+                            : '')
+                    }
                 >
                     <Icon name="refresh" size={14} spin={refreshing} />
                 </button>
@@ -278,7 +329,7 @@ export default function MangaPanel({ readerEnabled }) {
                 <input
                     type="text"
                     value={pattern}
-                    onChange={event => setPattern(event.target.value)}
+                    onChange={(event) => setPattern(event.target.value)}
                     title="Enter a pattern (at least 3 characters) to filter the manga list by their titles"
                     aria-label="Filter the mangas by title"
                     className="rk-field w-[calc(100%-0.5em)]"
@@ -293,8 +344,8 @@ export default function MangaPanel({ readerEnabled }) {
                         !selectedManga
                             ? 'Please select a manga to use the bookmark feature'
                             : bookmarked
-                                ? 'Click to remove the selected manga from the bookmark list'
-                                : 'Click to add the selected manga to the bookmark list'
+                              ? 'Click to remove the selected manga from the bookmark list'
+                              : 'Click to add the selected manga to the bookmark list'
                     }
                     className="relative cursor-pointer text-(--bookmark-button-default-color) [filter:drop-shadow(var(--bookmark-button-shadow))] disabled:cursor-default"
                 >
@@ -341,7 +392,8 @@ export default function MangaPanel({ readerEnabled }) {
                         &nbsp;button to update list
                         <br />
                         <br />
-                        <Icon name="info" size={13} className="inline align-text-bottom" /> Some connectors are slow
+                        <Icon name="info" size={13} className="inline align-text-bottom" /> Some
+                        connectors are slow
                         <br />
                         and may take more than 10mins
                         <br />
@@ -356,13 +408,16 @@ export default function MangaPanel({ readerEnabled }) {
                     </div>
                 )}
                 <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-                    {virtualizer.getVirtualItems().map(virtual => {
+                    {virtualizer.getVirtualItems().map((virtual) => {
                         const manga = mangas[virtual.index];
                         if (!manga) {
                             return null;
                         }
                         // the lists of the bookmarks and of the clipboard hold mangas of several websites: the id is not enough
-                        const selected = selectedManga && selectedManga.id === manga.id && selectedManga.connector.id === manga.connector.id;
+                        const selected =
+                            selectedManga &&
+                            selectedManga.id === manga.id &&
+                            selectedManga.connector.id === manga.connector.id;
                         const key = `${manga.connector.id}/${manga.id}`;
                         const isBookmarked = bookmarkedKeys.has(key);
                         return (
@@ -388,13 +443,25 @@ export default function MangaPanel({ readerEnabled }) {
                                 // the padding keeps the title, and the star, clear of the mark of the selected row
                                 className={
                                     'absolute top-0 left-0 w-full cursor-pointer overflow-hidden pl-[0.5em] text-ellipsis leading-6 ' +
-                                    (selected ? 'rk-selected bg-(--list-selected) ' : 'hover:bg-(--list-highlighted) ') +
+                                    (selected
+                                        ? 'rk-selected bg-(--list-selected) '
+                                        : 'hover:bg-(--list-highlighted) ') +
                                     (virtual.index === activeIndex ? 'rk-active ' : '') +
                                     (isBookmarked ? 'text-(--manga-list-bookmarked-color)' : '')
                                 }
-                                style={{ height: virtual.size, transform: `translateY(${virtual.start}px)` }}
+                                style={{
+                                    height: virtual.size,
+                                    transform: `translateY(${virtual.start}px)`,
+                                }}
                             >
-                                {isBookmarked && <Icon name="star" size={11} filled className="mr-[0.25em] inline shrink-0 align-[-1px]" />}
+                                {isBookmarked && (
+                                    <Icon
+                                        name="star"
+                                        size={11}
+                                        filled
+                                        className="mr-[0.25em] inline shrink-0 align-[-1px]"
+                                    />
+                                )}
                                 {manga.title}
                             </div>
                         );
@@ -402,25 +469,32 @@ export default function MangaPanel({ readerEnabled }) {
                 </div>
             </div>
             {refreshing && (
-                <div role="progressbar" aria-label="Updating manga list" aria-valuetext={describeUpdateProgress(progress) || 'Updating'} className="rk-progress" />
+                <div
+                    role="progressbar"
+                    aria-label="Updating manga list"
+                    aria-valuetext={describeUpdateProgress(progress) || 'Updating'}
+                    className="rk-progress"
+                />
             )}
             <StatusLine
-                message={refreshing ? updateMessage(progress) : `Mangas: ${mangas.length} / ${total}`}
+                message={
+                    refreshing ? updateMessage(progress) : `Mangas: ${mangas.length} / ${total}`
+                }
                 busy={refreshing || mangaQuery.isLoading || !ready}
                 busyTitle={
                     !ready
                         ? `Loading connectors (${connectors.length})`
                         : connector
-                            ? refreshing
-                                ? `Updating manga list (${connector.label}): ${describeUpdateProgress(progress) || 'waiting for the website'}`
-                                : `Loading manga list (${connector.label})`
-                            : ''
+                          ? refreshing
+                              ? `Updating manga list (${connector.label}): ${describeUpdateProgress(progress) || 'waiting for the website'}`
+                              : `Loading manga list (${connector.label})`
+                          : ''
                 }
             />
             <ConnectorDialog
                 open={pickerOpen}
                 selectedId={effectiveId}
-                onSelect={id => {
+                onSelect={(id) => {
                     selectConnector(id);
                     setPickerOpen(false);
                 }}

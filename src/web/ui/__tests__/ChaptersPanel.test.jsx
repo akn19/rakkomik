@@ -48,12 +48,17 @@ async function mountPanel({ readerEnabled = true, url = '/' } = {}) {
         const [shown, setShown] = React.useState(true);
         return (
             <>
-                <button type="button" onClick={() => setShown(false)}>Remove the panel</button>
+                <button type="button" onClick={() => setShown(false)}>
+                    Remove the panel
+                </button>
                 {shown && <ChaptersPanel readerEnabled={readerEnabled} />}
             </>
         );
     }
-    const utils = await renderRouted(<Harness />, { url, routes: [{ path: '/reader', element: <p>The reader</p> }] });
+    const utils = await renderRouted(<Harness />, {
+        url,
+        routes: [{ path: '/reader', element: <p>The reader</p> }],
+    });
     return { selection, ...utils };
 }
 
@@ -82,7 +87,7 @@ async function showManga(manga, options) {
 
 // the titles of the rows, in the order that they are drawn
 function rows() {
-    return screen.queryAllByTitle(/Doubleclick to open the folder/).map(node => node.textContent);
+    return screen.queryAllByTitle(/Doubleclick to open the folder/).map((node) => node.textContent);
 }
 
 function rowOf(title) {
@@ -126,18 +131,23 @@ function chooseLanguage(language) {
 }
 
 function languageOptions() {
-    return [...languageSelect().options].map(option => option.value);
+    return [...languageSelect().options].map((option) => option.value);
 }
 
 function highlighted() {
-    return rows().filter(title => rowOf(title).className.includes('list-selected'));
+    return rows().filter((title) => rowOf(title).className.includes('list-selected'));
 }
 
 function markedRows() {
-    return rows().filter(title => within(rowOf(title)).getByTitle(/recently read/).getAttribute('title') === UNMARK);
+    return rows().filter(
+        (title) =>
+            within(rowOf(title))
+                .getByTitle(/recently read/)
+                .getAttribute('title') === UNMARK,
+    );
 }
 
-const orderOf = selection => selection.current.chapterOrder.map(chapter => chapter.title);
+const orderOf = (selection) => selection.current.chapterOrder.map((chapter) => chapter.title);
 
 // what Chapter.setStatus of the engine does after it changed the status: it tells the document, under the name that the engine
 // gives the event
@@ -187,7 +197,12 @@ describe('chapters panel', () => {
     describe('loading', () => {
         it('should say that the list is loading until the engine has answered, then show it', async () => {
             let answer = null;
-            const manga = mangaWith(['Chapter 1', 'Chapter 2'], { title: 'Berserk', getChapters: vi.fn(callback => { answer = callback; }) });
+            const manga = mangaWith(['Chapter 1', 'Chapter 2'], {
+                title: 'Berserk',
+                getChapters: vi.fn((callback) => {
+                    answer = callback;
+                }),
+            });
             const { selection } = await mountPanel();
             await select(selection, manga);
             expect(screen.getByTitle('Loading chapter list (Berserk)')).toBeTruthy();
@@ -204,7 +219,12 @@ describe('chapters panel', () => {
         it('should not keep showing the chapters of the previous manga while the next one is loading', async () => {
             let answer = null;
             const first = mangaWith(['First 1', 'First 2'], { title: 'First' });
-            const second = mangaWith(['Second 1'], { title: 'Second', getChapters: vi.fn(callback => { answer = callback; }) });
+            const second = mangaWith(['Second 1'], {
+                title: 'Second',
+                getChapters: vi.fn((callback) => {
+                    answer = callback;
+                }),
+            });
             const { selection } = await showManga(first);
             await select(selection, second);
             expect(rows()).toEqual([]);
@@ -216,22 +236,26 @@ describe('chapters panel', () => {
         });
 
         it.each([
-            ['an error', callback => callback(new Error('site is down'), [])],
-            ['no list at all', callback => callback(null, undefined)]
-        ])('should stop saying that it is loading, and show an empty list, when the engine answers with %s', async (name, answer) => {
-            // NOTE: nothing tells the user why the list is empty, the failure is only visible to the query
-            const manga = mangaWith(['Chapter 1'], { getChapters: vi.fn(answer) });
-            await showManga(manga);
-            expect(rows()).toEqual([]);
-            expect(footer()).toBe('Chapters: 0 / 0');
-            expect(spinning()).toBe(false);
-        });
+            ['an error', (callback) => callback(new Error('site is down'), [])],
+            ['no list at all', (callback) => callback(null, undefined)],
+        ])(
+            'should stop saying that it is loading, and show an empty list, when the engine answers with %s',
+            async (name, answer) => {
+                // NOTE: nothing tells the user why the list is empty, the failure is only visible to the query
+                const manga = mangaWith(['Chapter 1'], { getChapters: vi.fn(answer) });
+                await showManga(manga);
+                expect(rows()).toEqual([]);
+                expect(footer()).toBe('Chapters: 0 / 0');
+                expect(spinning()).toBe(false);
+            },
+        );
 
         it('should try again to load a list that failed when its manga is selected again', async () => {
             const broken = mangaWith(['Chapter 1', 'Chapter 2'], {
-                getChapters: vi.fn()
-                    .mockImplementationOnce(callback => callback(new Error('site is down'), []))
-                    .mockImplementation(callback => callback(null, broken.chapters))
+                getChapters: vi
+                    .fn()
+                    .mockImplementationOnce((callback) => callback(new Error('site is down'), []))
+                    .mockImplementation((callback) => callback(null, broken.chapters)),
             });
             const other = mangaWith(['Other 1']);
             const { selection } = await showManga(broken);
@@ -263,7 +287,11 @@ describe('chapters panel', () => {
 
         it('should not let a late answer for the previous manga replace the list of the current one', async () => {
             let late = null;
-            const slow = mangaWith(['Slow 1', 'Slow 2'], { getChapters: vi.fn(callback => { late = callback; }) });
+            const slow = mangaWith(['Slow 1', 'Slow 2'], {
+                getChapters: vi.fn((callback) => {
+                    late = callback;
+                }),
+            });
             const fast = mangaWith(['Fast 1']);
             const { selection } = await mountPanel();
             await select(selection, slow);
@@ -271,14 +299,16 @@ describe('chapters panel', () => {
             await screen.findByText('Fast 1');
             await act(async () => late(null, slow.chapters));
             // give the query the time to hand the late list to the panel, if it was going to
-            await act(async () => new Promise(resolve => setTimeout(resolve, 10)));
+            await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
             expect(rows()).toEqual(['Fast 1']);
             expect(footer()).toBe('Chapters: 1 / 1');
             expect(orderOf(selection)).toEqual(['Fast 1']);
         });
 
         it('should draw only the rows that fit, and the rows that are scrolled to, of a long list', async () => {
-            const manga = mangaWith(Array.from({ length: 100 }, (unused, index) => `Chapter ${index + 1}`));
+            const manga = mangaWith(
+                Array.from({ length: 100 }, (unused, index) => `Chapter ${index + 1}`),
+            );
             setLayout({ width: 900, height: 66 });
             await showManga(manga);
             expect(footer()).toBe('Chapters: 100 / 100');
@@ -293,7 +323,9 @@ describe('chapters panel', () => {
         });
 
         it('should survive a filter that makes the list shorter than the part that was scrolled to', async () => {
-            const manga = mangaWith(Array.from({ length: 100 }, (unused, index) => `Chapter ${index + 1}`));
+            const manga = mangaWith(
+                Array.from({ length: 100 }, (unused, index) => `Chapter ${index + 1}`),
+            );
             setLayout({ width: 900, height: 66 });
             await showManga(manga);
             const list = screen.getByRole('grid').parentElement;
@@ -302,13 +334,21 @@ describe('chapters panel', () => {
             await waitFor(() => expect(rows()).toContain('Chapter 91'));
             filterBy('Chapter 1');
             expect(rows().length).toBeGreaterThan(0);
-            expect(rows().every(title => title.startsWith('Chapter 1'))).toBe(true);
+            expect(rows().every((title) => title.startsWith('Chapter 1'))).toBe(true);
             expect(footer()).toBe('Chapters: 12 / 100');
         });
     });
 
     describe('title filter', () => {
-        const TITLES = ['Chapter 1', 'Chapter 2', 'Chapter 10', 'Special 1.5', 'Special 1x5', 'Épisode 3', 'Vol. 1 / Part 2'];
+        const TITLES = [
+            'Chapter 1',
+            'Chapter 2',
+            'Chapter 10',
+            'Special 1.5',
+            'Special 1x5',
+            'Épisode 3',
+            'Vol. 1 / Part 2',
+        ];
 
         it.each([
             ['nothing', '', TITLES],
@@ -316,18 +356,38 @@ describe('chapters panel', () => {
             ['capital letters', 'CHAPTER 1', ['Chapter 1', 'Chapter 10']],
             ['a part from the middle of a title', 'ter 2', ['Chapter 2']],
             ['letters with accents, whatever the case', 'ÉPISODE', ['Épisode 3']],
-            ['a pattern with a slash that is not a regular expression', 'vol. 1 / part', ['Vol. 1 / Part 2']],
+            [
+                'a pattern with a slash that is not a regular expression',
+                'vol. 1 / part',
+                ['Vol. 1 / Part 2'],
+            ],
             ['a plain pattern, which is not read as a regular expression', '1.5', ['Special 1.5']],
             ['a pattern that matches no title', 'volume', []],
             ['a regular expression with an anchor', '/^Chapter 1$/', ['Chapter 1']],
-            ['a regular expression, which is a regular expression', '/1.5/', ['Special 1.5', 'Special 1x5']],
-            ['a regular expression, which is case sensitive without the flag i', '/chapter 1$/', []],
+            [
+                'a regular expression, which is a regular expression',
+                '/1.5/',
+                ['Special 1.5', 'Special 1x5'],
+            ],
+            [
+                'a regular expression, which is case sensitive without the flag i',
+                '/chapter 1$/',
+                [],
+            ],
             ['a regular expression with the flag i', '/chapter 1$/i', ['Chapter 1']],
-            ['a regular expression with classes and quantifiers', '/chapter\\s\\d{2}/i', ['Chapter 10']],
-            ['a regular expression with the flag g, for every title alike', '/chapter/gi', ['Chapter 1', 'Chapter 2', 'Chapter 10']],
+            [
+                'a regular expression with classes and quantifiers',
+                '/chapter\\s\\d{2}/i',
+                ['Chapter 10'],
+            ],
+            [
+                'a regular expression with the flag g, for every title alike',
+                '/chapter/gi',
+                ['Chapter 1', 'Chapter 2', 'Chapter 10'],
+            ],
             ['a regular expression that is not finished, which is plain text', '/chapter', []],
             ['more slashes than a regular expression has, which is plain text', '/chapter/i/', []],
-            ['two slashes without an expression, which is plain text', '//', []]
+            ['two slashes without an expression, which is plain text', '//', []],
         ])('should list %s: "%s"', async (name, pattern, expected) => {
             await showManga(mangaWith(TITLES));
             filterBy(pattern);
@@ -337,7 +397,7 @@ describe('chapters panel', () => {
 
         it.each([
             ['an expression that cannot be compiled', '/(/'],
-            ['a flag that does not exist', '/chapter/z']
+            ['a flag that does not exist', '/chapter/z'],
         ])('should match no title, and go on working, with %s', async (name, pattern) => {
             await showManga(mangaWith(TITLES));
             filterBy(pattern);
@@ -369,7 +429,7 @@ describe('chapters panel', () => {
             { title: 'Chapter 3', language: '' },
             { title: 'Chapter 4', language: 'de' },
             { title: 'Chapter 5', language: 'en' },
-            { title: 'Chapter 6', language: undefined }
+            { title: 'Chapter 6', language: undefined },
         ];
 
         it('should offer every language of the chapters once, sorted, after the choice of all of them', async () => {
@@ -397,11 +457,13 @@ describe('chapters panel', () => {
         });
 
         it('should treat languages that differ only in case as the same one', async () => {
-            await showManga(mangaWith([
-                { title: 'Chapter 1', language: 'en' },
-                { title: 'Chapter 2', language: 'EN' },
-                { title: 'Chapter 3', language: 'de' }
-            ]));
+            await showManga(
+                mangaWith([
+                    { title: 'Chapter 1', language: 'en' },
+                    { title: 'Chapter 2', language: 'EN' },
+                    { title: 'Chapter 3', language: 'de' },
+                ]),
+            );
             chooseLanguage('en');
             expect(rows()).toEqual(['Chapter 1', 'Chapter 2']);
         });
@@ -419,7 +481,7 @@ describe('chapters panel', () => {
             const first = mangaWith(CHAPTERS);
             const second = mangaWith([
                 { title: 'Second 1', language: 'en' },
-                { title: 'Second 2', language: 'fr' }
+                { title: 'Second 2', language: 'fr' },
             ]);
             const { selection } = await showManga(first);
             chooseLanguage('en');
@@ -444,7 +506,10 @@ describe('chapters panel', () => {
 
     describe('sorting', () => {
         const TITLES = ['Chapter 10', 'Chapter 2', 'Chapter 1', 'Chapter 21', 'Chapter 3'];
-        const shapeOf = () => [...sortButton().querySelector('svg').classList].filter(name => name.startsWith('lucide-'));
+        const shapeOf = () =>
+            [...sortButton().querySelector('svg').classList].filter((name) =>
+                name.startsWith('lucide-'),
+            );
 
         it('should keep the order of the engine until it is asked to sort', async () => {
             await showManga(mangaWith(TITLES));
@@ -455,10 +520,22 @@ describe('chapters panel', () => {
         it('should go from the order of the engine to ascending, to descending, and back, with the icon of each state', async () => {
             await showManga(mangaWith(TITLES));
             fireEvent.click(sortButton());
-            expect(rows()).toEqual(['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 10', 'Chapter 21']);
+            expect(rows()).toEqual([
+                'Chapter 1',
+                'Chapter 2',
+                'Chapter 3',
+                'Chapter 10',
+                'Chapter 21',
+            ]);
             expect(shapeOf()).toContain('lucide-arrow-down-a-z');
             fireEvent.click(sortButton());
-            expect(rows()).toEqual(['Chapter 21', 'Chapter 10', 'Chapter 3', 'Chapter 2', 'Chapter 1']);
+            expect(rows()).toEqual([
+                'Chapter 21',
+                'Chapter 10',
+                'Chapter 3',
+                'Chapter 2',
+                'Chapter 1',
+            ]);
             expect(shapeOf()).toContain('lucide-arrow-up-a-z');
             fireEvent.click(sortButton());
             expect(rows()).toEqual(TITLES);
@@ -466,7 +543,9 @@ describe('chapters panel', () => {
         });
 
         it('should put the numbers inside of the titles in numeric order, not in alphabetical order', async () => {
-            await showManga(mangaWith(['Vol.2 Ch.10', 'Vol.10 Ch.1', 'Vol.2 Ch.9', 'Vol.1 Ch.100']));
+            await showManga(
+                mangaWith(['Vol.2 Ch.10', 'Vol.10 Ch.1', 'Vol.2 Ch.9', 'Vol.1 Ch.100']),
+            );
             fireEvent.click(sortButton());
             expect(rows()).toEqual(['Vol.1 Ch.100', 'Vol.2 Ch.9', 'Vol.2 Ch.10', 'Vol.10 Ch.1']);
         });
@@ -488,7 +567,7 @@ describe('chapters panel', () => {
             expect(rows()).toEqual(['Chapter 1', 'Chapter 10']);
             expect(footer()).toBe('Chapters: 2 / 5');
             // the reader steps through the list of the engine: sorting must work on a copy
-            expect(manga.chapters.map(chapter => chapter.title)).toEqual(TITLES);
+            expect(manga.chapters.map((chapter) => chapter.title)).toEqual(TITLES);
         });
     });
 
@@ -502,7 +581,9 @@ describe('chapters panel', () => {
         });
 
         it('should hand over the list as it is filtered and sorted', async () => {
-            const { selection } = await showManga(mangaWith(['Chapter 10', 'Chapter 2', 'Chapter 1', 'Special 7']));
+            const { selection } = await showManga(
+                mangaWith(['Chapter 10', 'Chapter 2', 'Chapter 1', 'Special 7']),
+            );
             filterBy('chapter');
             expect(orderOf(selection)).toEqual(['Chapter 10', 'Chapter 2', 'Chapter 1']);
             fireEvent.click(sortButton());
@@ -514,10 +595,12 @@ describe('chapters panel', () => {
         });
 
         it('should follow the language filter', async () => {
-            const { selection } = await showManga(mangaWith([
-                { title: 'Chapter 1', language: 'en' },
-                { title: 'Chapter 2', language: 'de' }
-            ]));
+            const { selection } = await showManga(
+                mangaWith([
+                    { title: 'Chapter 1', language: 'en' },
+                    { title: 'Chapter 2', language: 'de' },
+                ]),
+            );
             chooseLanguage('de');
             expect(orderOf(selection)).toEqual(['Chapter 2']);
         });
@@ -540,18 +623,32 @@ describe('chapters panel', () => {
 
     describe('downloading all chapters', () => {
         // available are 1 and 4
-        const STATUSES = ['available', 'completed', 'failed', 'available', 'queued', 'offline', 'unavailable', 'downloading'];
+        const STATUSES = [
+            'available',
+            'completed',
+            'failed',
+            'available',
+            'queued',
+            'offline',
+            'unavailable',
+            'downloading',
+        ];
 
         function mangaWithStatuses() {
-            return mangaWith(STATUSES.map((status, index) => ({ title: `Chapter ${index + 1}`, status })));
+            return mangaWith(
+                STATUSES.map((status, index) => ({ title: `Chapter ${index + 1}`, status })),
+            );
         }
 
-        const queued = () => engine.DownloadManager.addDownload.mock.calls.map(([chapter]) => chapter.title);
+        const queued = () =>
+            engine.DownloadManager.addDownload.mock.calls.map(([chapter]) => chapter.title);
 
         it('should ask before it queues, and queue only the chapters that are available', async () => {
             await showManga(mangaWithStatuses());
             fireEvent.click(downloadAllButton());
-            expect(question().getByRole('heading').textContent).toBe('Download 2 new chapter(s) from the current chapter list?');
+            expect(question().getByRole('heading').textContent).toBe(
+                'Download 2 new chapter(s) from the current chapter list?',
+            );
             expect(queued()).toEqual([]);
             fireEvent.click(question().getByRole('button', { name: 'Download' }));
             expect(queued()).toEqual(['Chapter 1', 'Chapter 4']);
@@ -574,7 +671,9 @@ describe('chapters panel', () => {
             await showManga(manga);
             fireEvent.click(downloadAllButton());
             fireEvent.click(question().getByRole('button', { name: 'Download' }));
-            const [first, second] = engine.DownloadManager.addDownload.mock.calls.map(([chapter]) => chapter);
+            const [first, second] = engine.DownloadManager.addDownload.mock.calls.map(
+                ([chapter]) => chapter,
+            );
             expect(first).toBe(manga.chapters[0]);
             expect(second).toBe(manga.chapters[3]);
         });
@@ -583,17 +682,21 @@ describe('chapters panel', () => {
             await showManga(mangaWithStatuses());
             filterBy('/chapter [1-3]$/i');
             fireEvent.click(downloadAllButton());
-            expect(question().getByRole('heading').textContent).toBe('Download 1 new chapter(s) from the current chapter list?');
+            expect(question().getByRole('heading').textContent).toBe(
+                'Download 1 new chapter(s) from the current chapter list?',
+            );
             fireEvent.click(question().getByRole('button', { name: 'Download' }));
             expect(queued()).toEqual(['Chapter 1']);
         });
 
         it('should queue only the chapters that the language filter shows', async () => {
-            await showManga(mangaWith([
-                { title: 'Chapter 1', language: 'en' },
-                { title: 'Chapter 2', language: 'de' },
-                { title: 'Chapter 3', language: 'en' }
-            ]));
+            await showManga(
+                mangaWith([
+                    { title: 'Chapter 1', language: 'en' },
+                    { title: 'Chapter 2', language: 'de' },
+                    { title: 'Chapter 3', language: 'en' },
+                ]),
+            );
             chooseLanguage('de');
             fireEvent.click(downloadAllButton());
             fireEvent.click(question().getByRole('button', { name: 'Download' }));
@@ -611,9 +714,13 @@ describe('chapters panel', () => {
 
         it.each([
             ['every chapter has a status other than available', ['completed', 'failed', 'queued']],
-            ['the manga has no chapters', []]
+            ['the manga has no chapters', []],
         ])('should do nothing when %s', async (name, statuses) => {
-            await showManga(mangaWith(statuses.map((status, index) => ({ title: `Chapter ${index + 1}`, status }))));
+            await showManga(
+                mangaWith(
+                    statuses.map((status, index) => ({ title: `Chapter ${index + 1}`, status })),
+                ),
+            );
             fireEvent.click(downloadAllButton());
             expect(screen.queryByRole('dialog')).toBeNull();
             expect(queued()).toEqual([]);
@@ -651,23 +758,27 @@ describe('chapters panel', () => {
     describe('a list that cannot be loaded', () => {
         it('should say why, instead of looking like a manga without chapters', async () => {
             const manga = mangaWith(['Chapter 1']);
-            manga.getChapters.mockImplementation(callback => callback(new Error('HTTP 503')));
+            manga.getChapters.mockImplementation((callback) => callback(new Error('HTTP 503')));
             const { selection } = await mountPanel();
             await select(selection, manga);
-            expect(await screen.findByText('Failed to load the chapter list: HTTP 503')).toBeTruthy();
+            expect(
+                await screen.findByText('Failed to load the chapter list: HTTP 503'),
+            ).toBeTruthy();
             expect(toastOf('Failed to load the chapter list: HTTP 503').className).toMatch(/red/);
             expect(footer()).toBe('Chapters: 0 / 0');
         });
 
         it('should say it once for a failure, however often the panel is drawn again', async () => {
             const manga = mangaWith(['Chapter 1']);
-            manga.getChapters.mockImplementation(callback => callback(new Error('HTTP 503')));
+            manga.getChapters.mockImplementation((callback) => callback(new Error('HTTP 503')));
             const { selection } = await mountPanel();
             await select(selection, manga);
             await screen.findByText('Failed to load the chapter list: HTTP 503');
             fireEvent.change(screen.getByTitle(/Enter a pattern/), { target: { value: 'x' } });
             fireEvent.change(screen.getByTitle(/Enter a pattern/), { target: { value: '' } });
-            expect(screen.getAllByText('Failed to load the chapter list: HTTP 503')).toHaveLength(1);
+            expect(screen.getAllByText('Failed to load the chapter list: HTTP 503')).toHaveLength(
+                1,
+            );
         });
     });
 
@@ -679,74 +790,112 @@ describe('chapters panel', () => {
             ['queued', 'QUEUED\nClick to cancel the download'],
             ['downloading', 'DOWNLOADING\nClick to cancel the download'],
             ['completed', 'DOWNLOADED\nClick to delete and re-download chapter'],
-            ['failed', 'DOWNLOAD FAILED\nCheck the exclamation mark in the joblist for details\nClick to delete and re-download the chapter'],
+            [
+                'failed',
+                'DOWNLOAD FAILED\nCheck the exclamation mark in the joblist for details\nClick to delete and re-download the chapter',
+            ],
             ['not known', 'No tooltip available!'],
-            [undefined, 'No tooltip available!']
-        ])('should explain a chapter that is %s in the tooltip of its button', async (status, tooltip) => {
-            await showManga(mangaWith([{ title: 'Chapter 1', status: status === 'not known' ? 'something else' : status }]));
-            expect(statusButtonOf('Chapter 1').getAttribute('title')).toBe(tooltip);
-        });
+            [undefined, 'No tooltip available!'],
+        ])(
+            'should explain a chapter that is %s in the tooltip of its button',
+            async (status, tooltip) => {
+                await showManga(
+                    mangaWith([
+                        {
+                            title: 'Chapter 1',
+                            status: status === 'not known' ? 'something else' : status,
+                        },
+                    ]),
+                );
+                expect(statusButtonOf('Chapter 1').getAttribute('title')).toBe(tooltip);
+            },
+        );
 
         it('should show the status of every chapter on its own row', async () => {
-            await showManga(mangaWith([
-                { title: 'Chapter 1', status: 'available' },
-                { title: 'Chapter 2', status: 'completed' },
-                { title: 'Chapter 3', status: 'failed' }
-            ]));
+            await showManga(
+                mangaWith([
+                    { title: 'Chapter 1', status: 'available' },
+                    { title: 'Chapter 2', status: 'completed' },
+                    { title: 'Chapter 3', status: 'failed' },
+                ]),
+            );
             expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^AVAILABLE/);
             expect(statusButtonOf('Chapter 2').getAttribute('title')).toMatch(/^DOWNLOADED/);
             expect(statusButtonOf('Chapter 3').getAttribute('title')).toMatch(/^DOWNLOAD FAILED/);
         });
 
-        it.each(['available', 'failed'])('should queue a chapter that is %s, and tell so', async status => {
-            const manga = mangaWith([{ title: 'Chapter 1', status }, { title: 'Chapter 2', status: 'available' }]);
-            await showManga(manga);
-            fireEvent.click(statusButtonOf('Chapter 1'));
-            expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(manga.chapters[0]);
-            expect(toastOf('Queued 1 chapter(s).').className).toMatch(/green/);
-            // no question for a chapter that is not on the device yet
-            expect(screen.queryByRole('dialog')).toBeNull();
-        });
+        it.each(['available', 'failed'])(
+            'should queue a chapter that is %s, and tell so',
+            async (status) => {
+                const manga = mangaWith([
+                    { title: 'Chapter 1', status },
+                    { title: 'Chapter 2', status: 'available' },
+                ]);
+                await showManga(manga);
+                fireEvent.click(statusButtonOf('Chapter 1'));
+                expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(
+                    manga.chapters[0],
+                );
+                expect(toastOf('Queued 1 chapter(s).').className).toMatch(/green/);
+                // no question for a chapter that is not on the device yet
+                expect(screen.queryByRole('dialog')).toBeNull();
+            },
+        );
 
-        it.each(['unavailable', 'offline', 'something else', undefined])('should say that there is nothing to do for a chapter that is %s', async status => {
-            await showManga(mangaWith([{ title: 'Chapter 1', status }]));
-            fireEvent.click(statusButtonOf('Chapter 1'));
-            expect(screen.getByText('No action available!')).toBeTruthy();
-            expect(toastOf('No action available!').className).not.toMatch(/red|green/);
-            expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
-            expect(screen.queryByRole('dialog')).toBeNull();
-        });
+        it.each(['unavailable', 'offline', 'something else', undefined])(
+            'should say that there is nothing to do for a chapter that is %s',
+            async (status) => {
+                await showManga(mangaWith([{ title: 'Chapter 1', status }]));
+                fireEvent.click(statusButtonOf('Chapter 1'));
+                expect(screen.getByText('No action available!')).toBeTruthy();
+                expect(toastOf('No action available!').className).not.toMatch(/red|green/);
+                expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
+                expect(screen.queryByRole('dialog')).toBeNull();
+            },
+        );
 
         describe('canceling a download', () => {
             // the chapter is on its way: the engine changes its status in place and announces it, like the manager does
             async function showQueued(status) {
-                const manga = mangaWith([{ title: 'Chapter 1', status }, { title: 'Chapter 2', status: 'available' }]);
+                const manga = mangaWith([
+                    { title: 'Chapter 1', status },
+                    { title: 'Chapter 2', status: 'available' },
+                ]);
                 await showManga(manga);
                 return manga;
             }
 
-            it.each(['queued', 'downloading'])('should cancel the download of a chapter that is %s, and tell so', async status => {
-                const manga = await showQueued(status);
-                engine.DownloadManager.cancelChapter.mockImplementationOnce(chapter => {
-                    chapter.status = 'available';
-                    document.dispatchEvent(new CustomEvent(STATUS_CHANGED, { detail: chapter }));
-                    return true;
-                });
-                fireEvent.click(statusButtonOf('Chapter 1'));
-                expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledExactlyOnceWith(manga.chapters[0]);
-                expect(toastOf('Canceled "Chapter 1".').className).toMatch(/green/);
-                // the chapter can be downloaded again, and the other chapters were left alone
-                expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^AVAILABLE/);
-                expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledTimes(1);
-                expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
-                expect(screen.queryByRole('dialog')).toBeNull();
-            });
+            it.each(['queued', 'downloading'])(
+                'should cancel the download of a chapter that is %s, and tell so',
+                async (status) => {
+                    const manga = await showQueued(status);
+                    engine.DownloadManager.cancelChapter.mockImplementationOnce((chapter) => {
+                        chapter.status = 'available';
+                        document.dispatchEvent(
+                            new CustomEvent(STATUS_CHANGED, { detail: chapter }),
+                        );
+                        return true;
+                    });
+                    fireEvent.click(statusButtonOf('Chapter 1'));
+                    expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledExactlyOnceWith(
+                        manga.chapters[0],
+                    );
+                    expect(toastOf('Canceled "Chapter 1".').className).toMatch(/green/);
+                    // the chapter can be downloaded again, and the other chapters were left alone
+                    expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^AVAILABLE/);
+                    expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledTimes(1);
+                    expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
+                    expect(screen.queryByRole('dialog')).toBeNull();
+                },
+            );
 
             it('should say that it is too late when the engine cannot stop the download any more', async () => {
                 await showQueued('downloading');
                 engine.DownloadManager.cancelChapter.mockReturnValueOnce(false);
                 fireEvent.click(statusButtonOf('Chapter 1'));
-                expect(toastOf('The download cannot be canceled any more.').className).not.toMatch(/red|green/);
+                expect(toastOf('The download cannot be canceled any more.').className).not.toMatch(
+                    /red|green/,
+                );
                 expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^DOWNLOADING/);
             });
 
@@ -761,11 +910,13 @@ describe('chapters panel', () => {
             });
 
             it('should not cancel anything for the chapters that are not on their way', async () => {
-                await showManga(mangaWith([
-                    { title: 'Chapter 1', status: 'available' },
-                    { title: 'Chapter 2', status: 'failed' },
-                    { title: 'Chapter 3', status: 'unavailable' }
-                ]));
+                await showManga(
+                    mangaWith([
+                        { title: 'Chapter 1', status: 'available' },
+                        { title: 'Chapter 2', status: 'failed' },
+                        { title: 'Chapter 3', status: 'unavailable' },
+                    ]),
+                );
                 for (const title of ['Chapter 1', 'Chapter 2', 'Chapter 3']) {
                     fireEvent.click(statusButtonOf(title));
                 }
@@ -774,20 +925,30 @@ describe('chapters panel', () => {
         });
 
         it('should ask before it downloads a chapter again that is on the device, and then queue it', async () => {
-            const manga = mangaWith([{ title: 'Chapter 1', status: 'completed' }, { title: 'Chapter 2', status: 'completed' }]);
+            const manga = mangaWith([
+                { title: 'Chapter 1', status: 'completed' },
+                { title: 'Chapter 2', status: 'completed' },
+            ]);
             await showManga(manga);
             fireEvent.click(statusButtonOf('Chapter 2'));
-            expect(question().getByRole('heading').textContent).toBe('Re-download existing chapter?');
+            expect(question().getByRole('heading').textContent).toBe(
+                'Re-download existing chapter?',
+            );
             expect(screen.getByText('"Chapter 2" is already downloaded.')).toBeTruthy();
             expect(engine.DownloadManager.addDownload).not.toHaveBeenCalled();
             fireEvent.click(question().getByRole('button', { name: 'Re-download' }));
-            expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(manga.chapters[1]);
+            expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(
+                manga.chapters[1],
+            );
             expect(screen.getByText('Queued 1 chapter(s).')).toBeTruthy();
             expect(screen.queryByRole('dialog')).toBeNull();
         });
 
         it('should leave a chapter that is on the device alone when the question is declined, and not remember it', async () => {
-            const manga = mangaWith([{ title: 'Chapter 1', status: 'completed' }, { title: 'Chapter 2', status: 'completed' }]);
+            const manga = mangaWith([
+                { title: 'Chapter 1', status: 'completed' },
+                { title: 'Chapter 2', status: 'completed' },
+            ]);
             await showManga(manga);
             fireEvent.click(statusButtonOf('Chapter 1'));
             fireEvent.click(question().getByRole('button', { name: 'Cancel' }));
@@ -797,18 +958,25 @@ describe('chapters panel', () => {
             fireEvent.click(statusButtonOf('Chapter 2'));
             expect(screen.getByText('"Chapter 2" is already downloaded.')).toBeTruthy();
             fireEvent.click(question().getByRole('button', { name: 'Re-download' }));
-            expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(manga.chapters[1]);
+            expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(
+                manga.chapters[1],
+            );
         });
     });
 
     describe('status changes by the engine', () => {
         it('should draw a chapter again when the engine changes its status in place and announces it', async () => {
-            const manga = mangaWith([{ title: 'Chapter 1', status: 'available' }, { title: 'Chapter 2', status: 'available' }]);
+            const manga = mangaWith([
+                { title: 'Chapter 1', status: 'available' },
+                { title: 'Chapter 2', status: 'available' },
+            ]);
             await showManga(manga);
             expect(statusButtonOf('Chapter 1').getAttribute('title')).toMatch(/^AVAILABLE/);
             manga.chapters[0].status = 'downloading';
             announceStatus(manga.chapters[0]);
-            expect(statusButtonOf('Chapter 1').getAttribute('title')).toBe('DOWNLOADING\nClick to cancel the download');
+            expect(statusButtonOf('Chapter 1').getAttribute('title')).toBe(
+                'DOWNLOADING\nClick to cancel the download',
+            );
             expect(statusButtonOf('Chapter 2').getAttribute('title')).toMatch(/^AVAILABLE/);
             manga.chapters[0].status = 'completed';
             announceStatus(manga.chapters[0]);
@@ -820,10 +988,14 @@ describe('chapters panel', () => {
             const manga = mangaWith([{ title: 'Chapter 1', status: 'available' }]);
             await showManga(manga);
             fireEvent.click(statusButtonOf('Chapter 1'));
-            expect(statusButtonOf('Chapter 1').getAttribute('title')).toBe('QUEUED\nClick to cancel the download');
+            expect(statusButtonOf('Chapter 1').getAttribute('title')).toBe(
+                'QUEUED\nClick to cancel the download',
+            );
             fireEvent.click(statusButtonOf('Chapter 1'));
             expect(engine.DownloadManager.addDownload).toHaveBeenCalledTimes(1);
-            expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledExactlyOnceWith(manga.chapters[0]);
+            expect(engine.DownloadManager.cancelChapter).toHaveBeenCalledExactlyOnceWith(
+                manga.chapters[0],
+            );
         });
 
         it('should listen on the document once, and stop listening when it goes away', async () => {
@@ -852,36 +1024,50 @@ describe('chapters panel', () => {
     });
 
     describe('reader button', () => {
-        const searchOf = router => router.state.location.search;
+        const searchOf = (router) => router.state.location.search;
 
         it.each([
             ['is', true, 2],
-            ['is not', false, 0]
-        ])('should have a button on every row when the reader %s enabled: %i of them', async (name, readerEnabled, buttons) => {
-            await showManga(mangaWith(['Chapter 1', 'Chapter 2']), { readerEnabled });
-            expect(rows()).toEqual(['Chapter 1', 'Chapter 2']);
-            expect(screen.queryAllByTitle(PREVIEW)).toHaveLength(buttons);
-        });
+            ['is not', false, 0],
+        ])(
+            'should have a button on every row when the reader %s enabled: %i of them',
+            async (name, readerEnabled, buttons) => {
+                await showManga(mangaWith(['Chapter 1', 'Chapter 2']), { readerEnabled });
+                expect(rows()).toEqual(['Chapter 1', 'Chapter 2']);
+                expect(screen.queryAllByTitle(PREVIEW)).toHaveLength(buttons);
+            },
+        );
 
         it('should open the reader with the connector, the manga and the chapter of the row in the address', async () => {
-            const { router } = await showManga(mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3'], { id: 'berserk' }));
+            const { router } = await showManga(
+                mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3'], { id: 'berserk' }),
+            );
             fireEvent.click(within(rowOf('Chapter 2')).getByTitle(PREVIEW));
             await waitFor(() => expect(router.state.location.pathname).toBe('/reader'));
-            expect(searchOf(router)).toEqual({ connector: 'site', manga: 'berserk', chapter: 'c2' });
+            expect(searchOf(router)).toEqual({
+                connector: 'site',
+                manga: 'berserk',
+                chapter: 'c2',
+            });
             expect(await screen.findByText('The reader')).toBeTruthy();
         });
 
-        it.each(['12345', '007', '1e3', '-5', '0', 'true', 'null', '[1]'])('should keep the id %s of a chapter and of a manga a string in the address', async id => {
-            const { router } = await showManga(mangaWith([{ id, title: 'Chapter 1' }], { id }));
-            fireEvent.click(within(rowOf('Chapter 1')).getByTitle(PREVIEW));
-            await waitFor(() => expect(router.state.location.pathname).toBe('/reader'));
-            expect(searchOf(router)).toEqual({ connector: 'site', manga: id, chapter: id });
-        });
+        it.each(['12345', '007', '1e3', '-5', '0', 'true', 'null', '[1]'])(
+            'should keep the id %s of a chapter and of a manga a string in the address',
+            async (id) => {
+                const { router } = await showManga(mangaWith([{ id, title: 'Chapter 1' }], { id }));
+                fireEvent.click(within(rowOf('Chapter 1')).getByTitle(PREVIEW));
+                await waitFor(() => expect(router.state.location.pathname).toBe('/reader'));
+                expect(searchOf(router)).toEqual({ connector: 'site', manga: id, chapter: id });
+            },
+        );
 
         // some connectors hand over numbers as ids (WutopiaComics: parseInt, ShueishaMangaPlus: protobuf), and the route of the
         // reader accepts only text
         it('should hand ids that are numbers to the reader as strings, which is all that its route accepts', async () => {
-            const { router } = await showManga(mangaWith([{ id: 12345, title: 'Chapter 1' }], { id: 987 }));
+            const { router } = await showManga(
+                mangaWith([{ id: 12345, title: 'Chapter 1' }], { id: 987 }),
+            );
             fireEvent.click(within(rowOf('Chapter 1')).getByTitle(PREVIEW));
             await waitFor(() => expect(router.state.location.pathname).toBe('/reader'));
             expect(searchOf(router)).toEqual({ connector: 'site', manga: '987', chapter: '12345' });
@@ -895,7 +1081,7 @@ describe('chapters panel', () => {
                     <MangaPanel readerEnabled />
                     <ChaptersPanel readerEnabled />
                 </>,
-                { routes: [{ path: '/reader', element: <p>The reader</p> }] }
+                { routes: [{ path: '/reader', element: <p>The reader</p> }] },
             );
             fireEvent.click(await screen.findByText('Berserk'));
             await screen.findByText('Chapter 2');
@@ -906,24 +1092,27 @@ describe('chapters panel', () => {
 
         it.each([
             ['the connector of the manga', 'site'],
-            ['the bookmarks, which are not the connector of the manga', 'bookmarks']
-        ])('should open the reader under the connector that was selected, %s, so that it finds the list that was loaded here', async (name, connectorId) => {
-            const bookmarks = createConnector({ id: 'bookmarks', label: 'Bookmarks' });
-            engine.Connectors.push(bookmarks);
-            const manga = mangaWith(['Chapter 1', 'Chapter 2']);
-            bookmarks.mangas.push(manga);
-            const { selection, router } = await mountPanel();
-            await select(selection, manga, connectorId);
-            await loaded(manga);
-            fireEvent.click(within(rowOf('Chapter 2')).getByTitle(PREVIEW));
-            await waitFor(() => expect(router.state.location.pathname).toBe('/reader'));
-            const { connector, manga: mangaId, chapter } = searchOf(router);
-            expect(connector).toBe(connectorId);
-            const resolved = await resolveChapter(connector, mangaId, chapter);
-            expect(resolved.index).toBe(1);
-            expect(resolved.chapters).toBe(manga.chapters);
-            expect(manga.getChapters).toHaveBeenCalledTimes(1);
-        });
+            ['the bookmarks, which are not the connector of the manga', 'bookmarks'],
+        ])(
+            'should open the reader under the connector that was selected, %s, so that it finds the list that was loaded here',
+            async (name, connectorId) => {
+                const bookmarks = createConnector({ id: 'bookmarks', label: 'Bookmarks' });
+                engine.Connectors.push(bookmarks);
+                const manga = mangaWith(['Chapter 1', 'Chapter 2']);
+                bookmarks.mangas.push(manga);
+                const { selection, router } = await mountPanel();
+                await select(selection, manga, connectorId);
+                await loaded(manga);
+                fireEvent.click(within(rowOf('Chapter 2')).getByTitle(PREVIEW));
+                await waitFor(() => expect(router.state.location.pathname).toBe('/reader'));
+                const { connector, manga: mangaId, chapter } = searchOf(router);
+                expect(connector).toBe(connectorId);
+                const resolved = await resolveChapter(connector, mangaId, chapter);
+                expect(resolved.index).toBe(1);
+                expect(resolved.chapters).toBe(manga.chapters);
+                expect(manga.getChapters).toHaveBeenCalledTimes(1);
+            },
+        );
     });
 
     describe('chapter that is open in the reader', () => {
@@ -937,21 +1126,43 @@ describe('chapters panel', () => {
         it('should highlight nothing when the address names no chapter, or a chapter that is not in the list', async () => {
             const { router } = await showManga(manga(), { url: '/' });
             expect(highlighted()).toEqual([]);
-            await act(async () => router.navigate({ to: '/', search: { connector: 'site', manga: 'm1', chapter: 'c99' } }));
+            await act(async () =>
+                router.navigate({
+                    to: '/',
+                    search: { connector: 'site', manga: 'm1', chapter: 'c99' },
+                }),
+            );
             expect(highlighted()).toEqual([]);
         });
 
         it('should move the highlight when the address changes, and take it away when the chapter leaves the address', async () => {
-            const { router } = await showManga(manga(), { url: '/?connector=site&manga=m1&chapter=c2' });
-            await act(async () => router.navigate({ to: '/', search: { connector: 'site', manga: 'm1', chapter: 'c3' } }));
+            const { router } = await showManga(manga(), {
+                url: '/?connector=site&manga=m1&chapter=c2',
+            });
+            await act(async () =>
+                router.navigate({
+                    to: '/',
+                    search: { connector: 'site', manga: 'm1', chapter: 'c3' },
+                }),
+            );
             expect(highlighted()).toEqual(['Chapter 3']);
             await act(async () => router.navigate({ to: '/', search: {} }));
             expect(highlighted()).toEqual([]);
         });
 
         it('should highlight a chapter whose id looks like a number, when the address was made by the router', async () => {
-            const { router } = await showManga(mangaWith([{ id: '12345', title: 'Chapter 1' }, { id: '12346', title: 'Chapter 2' }]));
-            await act(async () => router.navigate({ to: '/', search: { connector: 'site', manga: 'm1', chapter: '12345' } }));
+            const { router } = await showManga(
+                mangaWith([
+                    { id: '12345', title: 'Chapter 1' },
+                    { id: '12346', title: 'Chapter 2' },
+                ]),
+            );
+            await act(async () =>
+                router.navigate({
+                    to: '/',
+                    search: { connector: 'site', manga: 'm1', chapter: '12345' },
+                }),
+            );
             expect(highlighted()).toEqual(['Chapter 1']);
         });
 
@@ -968,20 +1179,27 @@ describe('chapters panel', () => {
         // the id of a chapter of another manga (or of another connector) can be the same as the one of the chapter in the reader
         it.each([
             ['another manga of the connector', 'site', 'm2'],
-            ['a manga with the same id on another connector', 'other', 'm1']
-        ])('should not highlight a chapter of %s that has the id of the chapter in the reader', async (name, connectorId, mangaId) => {
-            const other = createConnector({ id: 'other', label: 'Other' });
-            engine.Connectors.push(other);
-            const open = mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3'], { id: 'm1' });
-            mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3'], { id: 'm2' });
-            mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3'], { id: 'm1' }, other);
-            const shown = [...site.mangas, ...other.mangas].find(entry => entry.connector.id === connectorId && entry.id === mangaId);
-            const { selection } = await showManga(open, { url: '/?connector=site&manga=m1&chapter=c2' });
-            expect(highlighted()).toEqual(['Chapter 2']);
-            await select(selection, shown);
-            await screen.findByText('Chapter 3');
-            expect(highlighted()).toEqual([]);
-        });
+            ['a manga with the same id on another connector', 'other', 'm1'],
+        ])(
+            'should not highlight a chapter of %s that has the id of the chapter in the reader',
+            async (name, connectorId, mangaId) => {
+                const other = createConnector({ id: 'other', label: 'Other' });
+                engine.Connectors.push(other);
+                const open = mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3'], { id: 'm1' });
+                mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3'], { id: 'm2' });
+                mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3'], { id: 'm1' }, other);
+                const shown = [...site.mangas, ...other.mangas].find(
+                    (entry) => entry.connector.id === connectorId && entry.id === mangaId,
+                );
+                const { selection } = await showManga(open, {
+                    url: '/?connector=site&manga=m1&chapter=c2',
+                });
+                expect(highlighted()).toEqual(['Chapter 2']);
+                await select(selection, shown);
+                await screen.findByText('Chapter 3');
+                expect(highlighted()).toEqual([]);
+            },
+        );
     });
 
     describe('recently read marker', () => {
@@ -989,13 +1207,17 @@ describe('chapters panel', () => {
             connectorID: manga.connector.id,
             mangaID: manga.id,
             chapterID: chapter.id,
-            chapterTitle: chapter.title
+            chapterTitle: chapter.title,
         });
 
         it('should offer to mark every chapter when none is marked, and show no stub', async () => {
             await showManga(mangaWith(['Chapter 1', 'Chapter 2']));
             expect(markedRows()).toEqual([]);
-            expect(within(rowOf('Chapter 1')).getByTitle(/recently read/).getAttribute('title')).toBe(MARK);
+            expect(
+                within(rowOf('Chapter 1'))
+                    .getByTitle(/recently read/)
+                    .getAttribute('title'),
+            ).toBe(MARK);
             expect(screen.queryByTitle('Click to remove the marked chapter')).toBeNull();
         });
 
@@ -1003,7 +1225,9 @@ describe('chapters panel', () => {
             const manga = mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3']);
             await showManga(manga);
             fireEvent.click(within(rowOf('Chapter 2')).getByTitle(MARK));
-            expect(engine.ChaptermarkManager.addChaptermark).toHaveBeenCalledExactlyOnceWith(manga.chapters[1]);
+            expect(engine.ChaptermarkManager.addChaptermark).toHaveBeenCalledExactlyOnceWith(
+                manga.chapters[1],
+            );
             expect(markedRows()).toEqual(['Chapter 2']);
             fireEvent.click(within(rowOf('Chapter 3')).getByTitle(MARK));
             expect(markedRows()).toEqual(['Chapter 3']);
@@ -1016,7 +1240,9 @@ describe('chapters panel', () => {
             await showManga(manga);
             expect(markedRows()).toEqual(['Chapter 1']);
             fireEvent.click(within(rowOf('Chapter 1')).getByTitle(UNMARK));
-            expect(engine.ChaptermarkManager.deleteChaptermark).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ chapterID: 'c1' }));
+            expect(engine.ChaptermarkManager.deleteChaptermark).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ chapterID: 'c1' }),
+            );
             expect(engine.ChaptermarkManager.addChaptermark).not.toHaveBeenCalled();
             expect(markedRows()).toEqual([]);
         });
@@ -1028,7 +1254,11 @@ describe('chapters panel', () => {
             expect(markedRows()).toEqual(['Chapter 3']);
             act(() => engine.ChaptermarkManager.addChaptermark(manga.chapters[0]));
             expect(markedRows()).toEqual(['Chapter 1']);
-            act(() => engine.ChaptermarkManager.deleteChaptermark(engine.ChaptermarkManager.chaptermarks[0]));
+            act(() =>
+                engine.ChaptermarkManager.deleteChaptermark(
+                    engine.ChaptermarkManager.chaptermarks[0],
+                ),
+            );
             expect(markedRows()).toEqual([]);
         });
 
@@ -1057,7 +1287,12 @@ describe('chapters panel', () => {
         });
 
         describe('of a chapter that is gone', () => {
-            const GONE = { connectorID: 'site', mangaID: 'm1', chapterID: 'gone', chapterTitle: 'Chapter 99' };
+            const GONE = {
+                connectorID: 'site',
+                mangaID: 'm1',
+                chapterID: 'gone',
+                chapterTitle: 'Chapter 99',
+            };
 
             it('should draw a stub row with the title of the chapter and a button to remove the marker', async () => {
                 const manga = mangaWith(['Chapter 1', 'Chapter 2']);
@@ -1065,18 +1300,26 @@ describe('chapters panel', () => {
                 engine.ChaptermarkManager.chaptermarks.push(mark);
                 await showManga(manga);
                 const stub = screen.getByText('Chapter 99');
-                expect(stub.getAttribute('title')).toBe('The chapter has been marked as "recently read" but is no longer available\nID: gone');
+                expect(stub.getAttribute('title')).toBe(
+                    'The chapter has been marked as "recently read" but is no longer available\nID: gone',
+                );
                 expect(markedRows()).toEqual([]);
                 expect(rows()).toEqual(['Chapter 1', 'Chapter 2']);
                 fireEvent.click(screen.getByTitle('Click to remove the marked chapter'));
-                expect(engine.ChaptermarkManager.deleteChaptermark).toHaveBeenCalledExactlyOnceWith(mark);
+                expect(engine.ChaptermarkManager.deleteChaptermark).toHaveBeenCalledExactlyOnceWith(
+                    mark,
+                );
                 expect(screen.queryByText('Chapter 99')).toBeNull();
                 expect(engine.ChaptermarkManager.chaptermarks).toEqual([]);
             });
 
             it('should wait for the list before it decides that the chapter is gone', async () => {
                 let answer = null;
-                const manga = mangaWith(['Chapter 1'], { getChapters: vi.fn(callback => { answer = callback; }) });
+                const manga = mangaWith(['Chapter 1'], {
+                    getChapters: vi.fn((callback) => {
+                        answer = callback;
+                    }),
+                });
                 engine.ChaptermarkManager.chaptermarks.push({ ...GONE, mangaID: manga.id });
                 const { selection } = await mountPanel();
                 await select(selection, manga);
@@ -1114,7 +1357,9 @@ describe('chapters panel', () => {
             fireEvent.click(title);
             expect(engine.Storage.showFolderContent).not.toHaveBeenCalled();
             fireEvent.doubleClick(title);
-            expect(engine.Storage.showFolderContent).toHaveBeenCalledExactlyOnceWith(manga.chapters[1]);
+            expect(engine.Storage.showFolderContent).toHaveBeenCalledExactlyOnceWith(
+                manga.chapters[1],
+            );
             expect(screen.queryByText(/^Failed to open/)).toBeNull();
         });
 
@@ -1135,7 +1380,7 @@ describe('chapters panel', () => {
 
 describe('the list for the keyboard and the screen reader', () => {
     const grid = () => screen.getByRole('grid', { name: 'Chapters' });
-    const cellsOf = title => [...rowOf(title).querySelectorAll('[data-cell]')];
+    const cellsOf = (title) => [...rowOf(title).querySelectorAll('[data-cell]')];
     const tabStops = () => [...grid().querySelectorAll('[tabindex="0"]')];
 
     it('should be a grid with one stop for Tab, the status button of the first chapter, and name its cells', async () => {
@@ -1144,12 +1389,24 @@ describe('the list for the keyboard and the screen reader', () => {
         expect(grid().getAttribute('aria-colcount')).toBe('4');
         expect(rowOf('Chapter 2').getAttribute('aria-rowindex')).toBe('2');
         expect(tabStops()).toEqual([cellsOf('Chapter 1')[0]]);
-        expect(cellsOf('Chapter 1').map(cell => cell.getAttribute('role') || cell.parentElement.getAttribute('role'))).toEqual(['gridcell', 'gridcell', 'gridcell', 'gridcell']);
-        expect(screen.getByRole('button', { name: 'Chapter 1: available, download the chapter' })).toBe(cellsOf('Chapter 1')[0]);
-        expect(screen.getByRole('button', { name: 'Chapter 1: show the pages' })).toBe(cellsOf('Chapter 1')[1]);
-        expect(screen.getByRole('button', { name: 'Chapter 1: mark as "recently read"' })).toBe(cellsOf('Chapter 1')[2]);
+        expect(
+            cellsOf('Chapter 1').map(
+                (cell) => cell.getAttribute('role') || cell.parentElement.getAttribute('role'),
+            ),
+        ).toEqual(['gridcell', 'gridcell', 'gridcell', 'gridcell']);
+        expect(
+            screen.getByRole('button', { name: 'Chapter 1: available, download the chapter' }),
+        ).toBe(cellsOf('Chapter 1')[0]);
+        expect(screen.getByRole('button', { name: 'Chapter 1: show the pages' })).toBe(
+            cellsOf('Chapter 1')[1],
+        );
+        expect(screen.getByRole('button', { name: 'Chapter 1: mark as "recently read"' })).toBe(
+            cellsOf('Chapter 1')[2],
+        );
         expect(screen.getByRole('gridcell', { name: 'Chapter 1' })).toBe(cellsOf('Chapter 1')[3]);
-        expect(screen.getByRole('gridcell', { name: 'Chapter 1' }).getAttribute('aria-describedby')).toBe(screen.getByText(/press Enter, to open the folder/).id);
+        expect(
+            screen.getByRole('gridcell', { name: 'Chapter 1' }).getAttribute('aria-describedby'),
+        ).toBe(screen.getByText(/press Enter, to open the folder/).id);
     });
 
     it('should have three columns without the reader', async () => {
@@ -1186,13 +1443,25 @@ describe('the list for the keyboard and the screen reader', () => {
         // the stop for Tab followed the keys
         expect(tabStops()).toEqual([cellsOf('Chapter 1')[0]]);
         await user.keyboard('{Enter}');
-        expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(manga.chapters[0]);
+        expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(
+            manga.chapters[0],
+        );
     });
 
     it('should move by a screen with Page Down and Page Up', async () => {
         const user = userEvent.setup();
         setLayout({ width: 900, height: 24 * 5 });
-        await showManga(mangaWith(['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4', 'Chapter 5', 'Chapter 6', 'Chapter 7']));
+        await showManga(
+            mangaWith([
+                'Chapter 1',
+                'Chapter 2',
+                'Chapter 3',
+                'Chapter 4',
+                'Chapter 5',
+                'Chapter 6',
+                'Chapter 7',
+            ]),
+        );
         cellsOf('Chapter 1')[0].focus();
         await user.keyboard('{PageDown}');
         expect(document.activeElement).toBe(cellsOf('Chapter 5')[0]);
@@ -1219,23 +1488,48 @@ describe('the list for the keyboard and the screen reader', () => {
 
     it('should say which chapter is marked as recently read on its button', async () => {
         const manga = mangaWith(['Chapter 1', 'Chapter 2']);
-        engine.ChaptermarkManager.chaptermarks.push({ connectorID: 'site', mangaID: manga.id, chapterID: 'c2', chapterTitle: 'Chapter 2' });
+        engine.ChaptermarkManager.chaptermarks.push({
+            connectorID: 'site',
+            mangaID: manga.id,
+            chapterID: 'c2',
+            chapterTitle: 'Chapter 2',
+        });
         await showManga(manga);
-        expect(screen.getByRole('button', { name: 'Chapter 2: remove the "recently read" marker' }).getAttribute('aria-pressed')).toBe('true');
-        expect(screen.getByRole('button', { name: 'Chapter 1: mark as "recently read"' }).getAttribute('aria-pressed')).toBe('false');
+        expect(
+            screen
+                .getByRole('button', { name: 'Chapter 2: remove the "recently read" marker' })
+                .getAttribute('aria-pressed'),
+        ).toBe('true');
+        expect(
+            screen
+                .getByRole('button', { name: 'Chapter 1: mark as "recently read"' })
+                .getAttribute('aria-pressed'),
+        ).toBe('false');
     });
 
     it('should name the buttons and the fields of the panel, and say how the chapters are sorted', async () => {
         await showManga(mangaWith(['Chapter 1']));
         expect(screen.getByRole('region', { name: 'Chapter List' })).toBeTruthy();
-        expect(screen.getByRole('button', { name: 'Sort the chapters (now as listed)' })).toBe(sortButton());
+        expect(screen.getByRole('button', { name: 'Sort the chapters (now as listed)' })).toBe(
+            sortButton(),
+        );
         fireEvent.click(sortButton());
-        expect(screen.getByRole('button', { name: 'Sort the chapters (now A to Z)' })).toBe(sortButton());
+        expect(screen.getByRole('button', { name: 'Sort the chapters (now A to Z)' })).toBe(
+            sortButton(),
+        );
         fireEvent.click(sortButton());
-        expect(screen.getByRole('button', { name: 'Sort the chapters (now Z to A)' })).toBe(sortButton());
-        expect(screen.getByRole('button', { name: 'Download all listed chapters' })).toBe(downloadAllButton());
-        expect(screen.getByRole('combobox', { name: 'Language of the chapters' })).toBe(languageSelect());
-        expect(screen.getByRole('textbox', { name: 'Filter the chapters by title' })).toBe(patternInput());
+        expect(screen.getByRole('button', { name: 'Sort the chapters (now Z to A)' })).toBe(
+            sortButton(),
+        );
+        expect(screen.getByRole('button', { name: 'Download all listed chapters' })).toBe(
+            downloadAllButton(),
+        );
+        expect(screen.getByRole('combobox', { name: 'Language of the chapters' })).toBe(
+            languageSelect(),
+        );
+        expect(screen.getByRole('textbox', { name: 'Filter the chapters by title' })).toBe(
+            patternInput(),
+        );
     });
 
     it('should mark the row of the chapter that is open in the reader with more than a colour', async () => {

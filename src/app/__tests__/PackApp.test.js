@@ -20,7 +20,8 @@ function writeShell(source = 'app') {
     const files = {
         'main.js': 'require("./App");',
         'App.js': 'module.exports = class App {};',
-        'package.json': '{ "name": "app", "main": "main.js", "dependencies": { "dep": "1.0.0", "@scope/dep": "2.0.0" } }',
+        'package.json':
+            '{ "name": "app", "main": "main.js", "dependencies": { "dep": "1.0.0", "@scope/dep": "2.0.0" } }',
         '__tests__/App.test.js': 'test();',
         '__tests__/App.test.js.log': 'log of the test',
         '__tests__/support/fixture.js': 'fixture',
@@ -63,22 +64,25 @@ function writeShell(source = 'app') {
         'node_modules/dep/.travis.yml': 'ci',
         'node_modules/dep/build.log': 'log',
         'node_modules/dep/index.tsbuildinfo': '{}',
-        'node_modules/@scope/dep/package.json': '{ "name": "@scope/dep", "exports": { ".": { "require": "./dist/index.js", "import": "./dist/index.mjs" } } }',
+        'node_modules/@scope/dep/package.json':
+            '{ "name": "@scope/dep", "exports": { ".": { "require": "./dist/index.js", "import": "./dist/index.mjs" } } }',
         'node_modules/@scope/dep/dist/index.js': 'module.exports = {};',
         'node_modules/@scope/dep/dist/index.mjs': 'export default {};',
         'node_modules/@scope/dep/dist/index.d.ts': 'export {};',
         'node_modules/@scope/dep/dist/index.mjs.map': '{}',
         'node_modules/@scope/dep/CODE_OF_CONDUCT.md': 'conduct',
-        'node_modules/@scope/dep/SECURITY.md': 'security'
+        'node_modules/@scope/dep/SECURITY.md': 'security',
     };
-    for (const [ name, content ] of Object.entries(files)) {
+    for (const [name, content] of Object.entries(files)) {
         write(path.join(source, ...name.split('/')), content);
     }
     return source;
 }
 
 async function entriesOf(archive) {
-    return (await asar.listPackage(archive, { isPack: false })).map(entry => entry.split(path.sep).join('/')).sort();
+    return (await asar.listPackage(archive, { isPack: false }))
+        .map((entry) => entry.split(path.sep).join('/'))
+        .sort();
 }
 
 describe('the packer of the shell', () => {
@@ -106,11 +110,29 @@ describe('the packer of the shell', () => {
             '/node_modules/dep/lib/parser.wasm',
             '/node_modules/dep/lib/worker.js',
             '/node_modules/dep/package.json',
-            '/package.json'
+            '/package.json',
         ]);
         // the count and the size of what was packed, and of what was left out, are reported
         expect(result.files).toBe(15);
-        expect(result.bytes).toBe([ 'main.js', 'App.js', 'package.json', 'node_modules/dep/package.json', 'node_modules/dep/index.js', 'node_modules/dep/index.mjs', 'node_modules/dep/index.cjs', 'node_modules/dep/lib/parser.wasm', 'node_modules/dep/lib/data.json', 'node_modules/dep/lib/worker.js', 'node_modules/dep/LICENSE', 'node_modules/dep/LICENSE.txt', 'node_modules/@scope/dep/package.json', 'node_modules/@scope/dep/dist/index.js', 'node_modules/@scope/dep/dist/index.mjs' ].reduce((sum, file) => sum + fs.statSync(path.join(source, file)).size, 0));
+        expect(result.bytes).toBe(
+            [
+                'main.js',
+                'App.js',
+                'package.json',
+                'node_modules/dep/package.json',
+                'node_modules/dep/index.js',
+                'node_modules/dep/index.mjs',
+                'node_modules/dep/index.cjs',
+                'node_modules/dep/lib/parser.wasm',
+                'node_modules/dep/lib/data.json',
+                'node_modules/dep/lib/worker.js',
+                'node_modules/dep/LICENSE',
+                'node_modules/dep/LICENSE.txt',
+                'node_modules/@scope/dep/package.json',
+                'node_modules/@scope/dep/dist/index.js',
+                'node_modules/@scope/dep/dist/index.mjs',
+            ].reduce((sum, file) => sum + fs.statSync(path.join(source, file)).size, 0),
+        );
         expect(result.left.count).toBe(37);
         expect(result.left.bytes).toBeGreaterThan(0);
     });
@@ -120,7 +142,11 @@ describe('the packer of the shell', () => {
         const archive = path.join('deep', 'er', 'app.asar');
         await packApp(source, archive);
         expect(asar.extractFile(archive, 'main.js').toString()).toBe('require("./App");');
-        expect(asar.extractFile(archive, path.join('node_modules', 'dep', 'lib', 'parser.wasm')).toString()).toBe('wasm');
+        expect(
+            asar
+                .extractFile(archive, path.join('node_modules', 'dep', 'lib', 'parser.wasm'))
+                .toString(),
+        ).toBe('wasm');
     });
 
     it('should replace an archive of an earlier build', async () => {
@@ -132,14 +158,18 @@ describe('the packer of the shell', () => {
 
     it('should refuse a directory that is not the shell', async () => {
         fs.mkdirSync('elsewhere');
-        await expect(packApp('elsewhere', 'app.asar')).rejects.toThrow('"elsewhere" is not the shell of the application, it has no package.json!');
+        await expect(packApp('elsewhere', 'app.asar')).rejects.toThrow(
+            '"elsewhere" is not the shell of the application, it has no package.json!',
+        );
         expect(fs.existsSync('app.asar')).toBe(false);
     });
 
     it('should refuse a shell whose dependencies are not installed: the application would not start', async () => {
         const source = writeShell();
         fs.rmSync(path.join(source, 'node_modules'), { recursive: true });
-        await expect(packApp(source, 'app.asar')).rejects.toThrow(`The dependencies of "${source}" are not installed (no node_modules), run 'pnpm install' first!`);
+        await expect(packApp(source, 'app.asar')).rejects.toThrow(
+            `The dependencies of "${source}" are not installed (no node_modules), run 'pnpm install' first!`,
+        );
         expect(fs.existsSync('app.asar')).toBe(false);
     });
 
@@ -147,67 +177,67 @@ describe('the packer of the shell', () => {
         write(path.join('bare', 'main.js'), 'process.exit(0);');
         write(path.join('bare', 'package.json'), '{ "name": "bare", "main": "main.js" }');
         await packApp('bare', 'app.asar');
-        expect(await entriesOf('app.asar')).toEqual([ '/main.js', '/package.json' ]);
+        expect(await entriesOf('app.asar')).toEqual(['/main.js', '/package.json']);
     });
 
     describe('what is shipped', () => {
         it.each([
-            [ 'main.js', false ],
-            [ 'package.json', false ],
-            [ 'node_modules', true ],
-            [ 'node_modules/dep/package.json', false ],
-            [ 'node_modules/dep/index.js', false ],
-            [ 'node_modules/dep/lib/parser.wasm', false ],
-            [ 'node_modules/dep/LICENSE', false ],
-            [ 'node_modules/dep/LICENSE.md', false ],
-            [ 'node_modules/dep/NOTICE', false ],
-            [ 'node_modules/dep/AUTHORS', false ],
-            [ 'node_modules/dep/lib', true ],
+            ['main.js', false],
+            ['package.json', false],
+            ['node_modules', true],
+            ['node_modules/dep/package.json', false],
+            ['node_modules/dep/index.js', false],
+            ['node_modules/dep/lib/parser.wasm', false],
+            ['node_modules/dep/LICENSE', false],
+            ['node_modules/dep/LICENSE.md', false],
+            ['node_modules/dep/NOTICE', false],
+            ['node_modules/dep/AUTHORS', false],
+            ['node_modules/dep/lib', true],
             // a runtime file whose name only starts like a word of the developers
-            [ 'node_modules/dep/testing.js', false ],
-            [ 'node_modules/dep/document.js', false ],
-            [ 'node_modules/dep/readme-parser.js', false ],
-            [ 'node_modules/dep/typescript.js', false ],
-            [ 'node_modules/dep/lib/test-helpers', true ],
-            [ 'node_modules/dep/data.yml.js', false ]
+            ['node_modules/dep/testing.js', false],
+            ['node_modules/dep/document.js', false],
+            ['node_modules/dep/readme-parser.js', false],
+            ['node_modules/dep/typescript.js', false],
+            ['node_modules/dep/lib/test-helpers', true],
+            ['node_modules/dep/data.yml.js', false],
         ])('should ship %s', (name, directory) => {
             expect(isShipped(name, directory)).toBe(true);
         });
 
         it.each([
-            [ '__tests__', true ],
-            [ 'App.test.js.log', false ],
-            [ 'pnpm-lock.yaml', false ],
-            [ 'pnpm-workspace.yaml', false ],
-            [ '.npmrc', false ],
-            [ 'node_modules/.bin', true ],
-            [ 'node_modules/.pnpm', true ],
-            [ 'node_modules/.modules.yaml', false ],
-            [ 'node_modules/dep/index.d.ts', false ],
-            [ 'node_modules/dep/index.d.mts', false ],
-            [ 'node_modules/dep/index.d.cts', false ],
-            [ 'node_modules/dep/src/index.ts', false ],
-            [ 'node_modules/dep/index.js.map', false ],
-            [ 'node_modules/dep/README.md', false ],
-            [ 'node_modules/dep/README', false ],
-            [ 'node_modules/dep/readme.markdown', false ],
-            [ 'node_modules/dep/CHANGELOG', false ],
-            [ 'node_modules/dep/CHANGELOG.md', false ],
-            [ 'node_modules/dep/History.md', false ],
-            [ 'node_modules/dep/SECURITY.md', false ],
-            [ 'node_modules/dep/tsconfig.json', false ],
-            [ 'node_modules/dep/tsconfig.build.json', false ],
-            [ 'node_modules/dep/.travis.yml', false ],
-            [ 'node_modules/dep/.github', true ],
-            [ 'node_modules/dep/test', true ],
-            [ 'node_modules/dep/tests', true ],
-            [ 'node_modules/dep/__tests__', true ],
-            [ 'node_modules/dep/examples', true ],
-            [ 'node_modules/dep/docs', true ],
-            [ 'node_modules/dep/benchmark', true ],
-            [ 'node_modules/dep/coverage', true ],
-            [ 'node_modules/dep/build.log', false ],
-            [ 'node_modules/dep/index.tsbuildinfo', false ]
+            ['__tests__', true],
+            ['App.test.js.log', false],
+            ['pnpm-lock.yaml', false],
+            ['pnpm-workspace.yaml', false],
+            ['.npmrc', false],
+            ['node_modules/.bin', true],
+            ['node_modules/.pnpm', true],
+            ['node_modules/.modules.yaml', false],
+            ['node_modules/dep/index.d.ts', false],
+            ['node_modules/dep/index.d.mts', false],
+            ['node_modules/dep/index.d.cts', false],
+            ['node_modules/dep/src/index.ts', false],
+            ['node_modules/dep/index.js.map', false],
+            ['node_modules/dep/README.md', false],
+            ['node_modules/dep/README', false],
+            ['node_modules/dep/readme.markdown', false],
+            ['node_modules/dep/CHANGELOG', false],
+            ['node_modules/dep/CHANGELOG.md', false],
+            ['node_modules/dep/History.md', false],
+            ['node_modules/dep/SECURITY.md', false],
+            ['node_modules/dep/tsconfig.json', false],
+            ['node_modules/dep/tsconfig.build.json', false],
+            ['node_modules/dep/.travis.yml', false],
+            ['node_modules/dep/.github', true],
+            ['node_modules/dep/test', true],
+            ['node_modules/dep/tests', true],
+            ['node_modules/dep/__tests__', true],
+            ['node_modules/dep/examples', true],
+            ['node_modules/dep/docs', true],
+            ['node_modules/dep/benchmark', true],
+            ['node_modules/dep/coverage', true],
+            ['node_modules/dep/build.log', false],
+            ['node_modules/dep/index.tsbuildinfo', false],
         ])('should leave out %s', (name, directory) => {
             expect(isShipped(name, directory)).toBe(false);
         });

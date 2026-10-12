@@ -1,5 +1,11 @@
 import React from 'react';
-import { getDownloadJobs, subscribeDownloads, mergeDownloadJobs, cancelDownload, cancelAllDownloads } from './engine.js';
+import {
+    getDownloadJobs,
+    subscribeDownloads,
+    mergeDownloadJobs,
+    cancelDownload,
+    cancelAllDownloads,
+} from './engine.js';
 import { useToast } from './notify.jsx';
 
 /**
@@ -8,9 +14,13 @@ import { useToast } from './notify.jsx';
  */
 export function useDownloadJobs() {
     const [jobs, setJobs] = React.useState(() => getDownloadJobs());
-    React.useEffect(() => subscribeDownloads(event => {
-        setJobs(current => mergeDownloadJobs(current, event.detail));
-    }), []);
+    React.useEffect(
+        () =>
+            subscribeDownloads((event) => {
+                setJobs((current) => mergeDownloadJobs(current, event.detail));
+            }),
+        [],
+    );
     return jobs;
 }
 
@@ -27,7 +37,7 @@ export function isCancelable(job) {
  */
 export function useCancelDownloads() {
     const { notify } = useToast();
-    const cancel = job => {
+    const cancel = (job) => {
         try {
             if (cancelDownload(job)) {
                 notify(`Canceled "${job.labels.chapter}".`, 'success');

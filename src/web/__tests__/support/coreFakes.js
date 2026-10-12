@@ -18,7 +18,9 @@ function directoryListing(...names) {
 }
 
 function missing(what) {
-    return Object.assign(new Error(`ENOENT: no such file or directory, open '${what}'`), { code: 'ENOENT' });
+    return Object.assign(new Error(`ENOENT: no such file or directory, open '${what}'`), {
+        code: 'ENOENT',
+    });
 }
 
 /**
@@ -31,29 +33,35 @@ function missing(what) {
  * @returns {{ Storage: object, Settings: object }} the value for the global `Engine`; set `Storage.existingMangas` and
  *     `Storage.existingChapters` to the entries of the directories (`null`: the directory does not exist yet)
  */
-function createEngine({ Storage, platform = 'linux', chapterFormat = 'img', novelFormat = '.epub', chapterTitleFormat = '' }) {
+function createEngine({
+    Storage,
+    platform = 'linux',
+    chapterFormat = 'img',
+    novelFormat = '.epub',
+    chapterTitleFormat = '',
+}) {
     const files = new Map();
     return {
         Storage: {
             existingMangas: directoryListing(),
             existingChapters: directoryListing(),
-            sanatizePath: title => Storage.prototype.sanatizePath.call({ platform }, title),
+            sanatizePath: (title) => Storage.prototype.sanatizePath.call({ platform }, title),
             saveMangaList: vi.fn(async (connectorID, mangas) => {
                 files.set('mangas.' + connectorID, JSON.stringify(mangas));
             }),
-            loadMangaList: vi.fn(async connectorID => {
+            loadMangaList: vi.fn(async (connectorID) => {
                 if (!files.has('mangas.' + connectorID)) {
                     throw missing('mangas.' + connectorID);
                 }
                 return JSON.parse(files.get('mangas.' + connectorID));
             }),
-            getExistingMangaTitles: vi.fn(async function() {
+            getExistingMangaTitles: vi.fn(async function () {
                 if (!this.existingMangas) {
                     throw missing('connector directory');
                 }
                 return Object.assign([], this.existingMangas);
             }),
-            getExistingChapterTitles: vi.fn(async function() {
+            getExistingChapterTitles: vi.fn(async function () {
                 if (!this.existingChapters) {
                     throw missing('manga directory');
                 }
@@ -61,13 +69,13 @@ function createEngine({ Storage, platform = 'linux', chapterFormat = 'img', nove
             }),
             loadChapterPages: vi.fn(async () => {
                 throw missing('chapter');
-            })
+            }),
         },
         Settings: {
             chapterTitleFormat: { value: chapterTitleFormat },
             chapterFormat: { value: chapterFormat },
-            novelFormat: { value: novelFormat }
-        }
+            novelFormat: { value: novelFormat },
+        },
     };
 }
 
@@ -82,7 +90,9 @@ function installPage({ engine, EventListener }) {
     const document = new EventTarget();
     const events = [];
     for (const type of Object.values(EventListener)) {
-        document.addEventListener(type, event => events.push({ type: event.type, detail: event.detail }));
+        document.addEventListener(type, (event) =>
+            events.push({ type: event.type, detail: event.detail }),
+        );
     }
     vi.stubGlobal('document', document);
     vi.stubGlobal('EventListener', EventListener);

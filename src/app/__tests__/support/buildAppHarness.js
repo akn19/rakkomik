@@ -57,18 +57,18 @@ function createCommandRunner() {
                 let answer;
                 try {
                     answer = runner.respond(command);
-                } catch(error) {
+                } catch (error) {
                     answer = error;
                 }
-                if(answer instanceof Error) {
+                if (answer instanceof Error) {
                     callback(answer, '', answer.message);
-                } else if(typeof answer === 'string') {
+                } else if (typeof answer === 'string') {
                     callback(null, answer, '');
                 } else {
                     callback(answer.error ?? null, answer.stdout ?? '', answer.stderr ?? '');
                 }
             });
-        }
+        },
     };
     return runner;
 }
@@ -87,11 +87,19 @@ function createCommandRunner() {
  * @param {(module: object) => void} [options.onEntry] called when the script is about to run its entry point
  * @param {string[]} [options.expose] private bindings of the script that `exposed` returns
  */
-function loadBuildApp({ platform = process.platform, argv = [ 'node', 'build-app.js' ], modules = {}, fetch, entry = false, onEntry, expose } = {}) {
+function loadBuildApp({
+    platform = process.platform,
+    argv = ['node', 'build-app.js'],
+    modules = {},
+    fetch,
+    entry = false,
+    onEntry,
+    expose,
+} = {}) {
     const runner = createCommandRunner();
     const output = createConsole();
     const fakeProcess = { platform, argv, on: vi.fn() };
-    const noNetwork = async uri => {
+    const noNetwork = async (uri) => {
         throw new Error(`Unexpected network access: ${uri}`);
     };
     const { module, exposed } = loadToolScript(BUILD_APP, {
@@ -99,7 +107,7 @@ function loadBuildApp({ platform = process.platform, argv = [ 'node', 'build-app
         globals: { process: fakeProcess, console: output, fetch: fetch ?? noNetwork },
         entry,
         onEntry,
-        expose
+        expose,
     });
     return { ...module.exports, runner, output, process: fakeProcess, exposed };
 }
@@ -109,7 +117,13 @@ function loadBuildApp({ platform = process.platform, argv = [ 'node', 'build-app
  * its length and the states.
  */
 function electronExecutable(wire = STOCK_FUSES) {
-    return Buffer.concat([ Buffer.from('binary header\0'), Buffer.from(FUSE_SENTINEL), Buffer.from([ 1, wire.length ]), Buffer.from(wire, 'latin1'), Buffer.from('\0binary tail') ]);
+    return Buffer.concat([
+        Buffer.from('binary header\0'),
+        Buffer.from(FUSE_SENTINEL),
+        Buffer.from([1, wire.length]),
+        Buffer.from(wire, 'latin1'),
+        Buffer.from('\0binary tail'),
+    ]);
 }
 
 /**
@@ -136,27 +150,27 @@ function write(file, content) {
 function writeElectronArchive(directory, platform, executable = electronExecutable()) {
     const files = {
         linux: {
-            'electron': executable,
+            electron: executable,
             'chrome-sandbox': 'sandbox',
             'libffmpeg.so': 'library',
             'locales/en-US.pak': 'locale',
-            'resources/default_app.asar': 'default app'
+            'resources/default_app.asar': 'default app',
         },
         win32: {
             'electron.exe': executable,
             'ffmpeg.dll': 'library',
             'd3dcompiler_47.dll': 'shader compiler',
             'locales/en-US.pak': 'locale',
-            'resources/default_app.asar': 'default app'
+            'resources/default_app.asar': 'default app',
         },
         darwin: {
             'Electron.app/Contents/MacOS/Electron': executable,
             'Electron.app/Contents/Resources/default_app.asar': 'default app',
             'Electron.app/Contents/Resources/electron.icns': 'icons of electron',
-            'Electron.app/Contents/Info.plist': INFO_PLIST
-        }
+            'Electron.app/Contents/Info.plist': INFO_PLIST,
+        },
     }[platform];
-    for(const [ name, content ] of Object.entries(files)) {
+    for (const [name, content] of Object.entries(files)) {
         write(path.join(directory, ...name.split('/')), content);
     }
 }
@@ -167,9 +181,15 @@ function writeElectronArchive(directory, platform, executable = electronExecutab
  */
 function writeSources() {
     write(path.join('src', 'app', 'main.js'), 'process.exit(0);');
-    write(path.join('src', 'app', 'package.json'), '{ "name": "app", "main": "main.js", "dependencies": { "dep": "1.0.0" } }');
+    write(
+        path.join('src', 'app', 'package.json'),
+        '{ "name": "app", "main": "main.js", "dependencies": { "dep": "1.0.0" } }',
+    );
     // a dependency with a file for its developers, and a unit test of the shell: neither is part of a package
-    write(path.join('src', 'app', 'node_modules', 'dep', 'package.json'), '{ "name": "dep", "main": "index.js" }');
+    write(
+        path.join('src', 'app', 'node_modules', 'dep', 'package.json'),
+        '{ "name": "dep", "main": "index.js" }',
+    );
     write(path.join('src', 'app', 'node_modules', 'dep', 'index.js'), 'module.exports = {};');
     write(path.join('src', 'app', 'node_modules', 'dep', 'index.d.ts'), 'export {};');
     write(path.join('src', 'app', '__tests__', 'main.test.js'), 'test();');
@@ -178,8 +198,13 @@ function writeSources() {
 }
 
 // the entries of an app.asar that every package holds, and the ones that none holds (see writeSources)
-const PACKED = [ '/main.js', '/package.json', '/node_modules/dep/package.json', '/node_modules/dep/index.js' ];
-const NOT_PACKED = [ '/node_modules/dep/index.d.ts', '/__tests__/main.test.js' ];
+const PACKED = [
+    '/main.js',
+    '/package.json',
+    '/node_modules/dep/package.json',
+    '/node_modules/dep/index.js',
+];
+const NOT_PACKED = ['/node_modules/dep/index.d.ts', '/__tests__/main.test.js'];
 
 module.exports = {
     REPOSITORY,
@@ -193,5 +218,5 @@ module.exports = {
     writeSources,
     PACKED,
     NOT_PACKED,
-    write
+    write,
 };

@@ -14,15 +14,15 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function once(target, type) {
-    return new Promise(resolve => target.addEventListener(type, resolve, { once: true }));
+    return new Promise((resolve) => target.addEventListener(type, resolve, { once: true }));
 }
 
 function deferred() {
     let resolve = null;
-    const promise = new Promise(done => {
+    const promise = new Promise((done) => {
         resolve = done;
     });
     return { promise, resolve };
@@ -36,12 +36,12 @@ function storage(files = {}) {
         saveBookmarks: vi.fn(async (key, value) => {
             stored.set(key, JSON.parse(JSON.stringify(value)));
         }),
-        loadBookmarks: vi.fn(async key => {
+        loadBookmarks: vi.fn(async (key) => {
             if (!stored.has(key)) {
                 throw new Error(`ENOENT: no such file or directory, open '${key}'`);
             }
             return JSON.parse(JSON.stringify(stored.get(key)));
-        })
+        }),
     };
 }
 
@@ -51,7 +51,12 @@ function setup({ files, connectors = [{ id: 'site' }, { id: 'other' }] } = {}) {
     globalThis.window = { open: vi.fn() };
     const settings = new EventTarget();
     const importer = { importBookmarks: vi.fn(async () => []) };
-    return { manager: new BookmarkManager(settings, importer), settings, importer, storage: engineStorage };
+    return {
+        manager: new BookmarkManager(settings, importer),
+        settings,
+        importer,
+        storage: engineStorage,
+    };
 }
 
 function manga(id, title, connectorId = 'site') {
@@ -60,11 +65,14 @@ function manga(id, title, connectorId = 'site') {
 
 // what the importer of FMD (BookmarkImporter) hands over
 function favorite(connector, id, connectorTitle, mangaTitle) {
-    return { key: { connector, manga: id }, title: { connector: connectorTitle, manga: mangaTitle } };
+    return {
+        key: { connector, manga: id },
+        title: { connector: connectorTitle, manga: mangaTitle },
+    };
 }
 
 function titles(manager) {
-    return manager.bookmarks.map(bookmark => bookmark.title.manga);
+    return manager.bookmarks.map((bookmark) => bookmark.title.manga);
 }
 
 describe('addBookmark', () => {
@@ -84,7 +92,7 @@ describe('addBookmark', () => {
         expect(manager.bookmarks[0]).toBeInstanceOf(Bookmark);
         expect(manager.bookmarks[0]).toEqual({
             title: { connector: 'Label of site', manga: 'One Piece' },
-            key: { connector: 'site', manga: '/m/1' }
+            key: { connector: 'site', manga: '/m/1' },
         });
         expect(files.saveBookmarks).toHaveBeenCalledTimes(1);
         expect(files.saveBookmarks).toHaveBeenCalledWith('bookmarks', manager.bookmarks, 2);
@@ -112,7 +120,11 @@ describe('addBookmark', () => {
         manager.addBookmark(manga('/m/2', 'Beta'));
         manager.addBookmark(manga('/m/3', 'Gamma'));
         await flush();
-        expect(files.stored.get('bookmarks').map(bookmark => bookmark.title.manga)).toEqual(['Alpha', 'Beta', 'Gamma']);
+        expect(files.stored.get('bookmarks').map((bookmark) => bookmark.title.manga)).toEqual([
+            'Alpha',
+            'Beta',
+            'Gamma',
+        ]);
     });
 
     it('should not bookmark a manga twice', async () => {
@@ -140,14 +152,18 @@ describe('addBookmark', () => {
         expect(manager.addBookmark(manga('/m/1', 'Same', 'site'))).toBe(true);
         expect(manager.addBookmark(manga('/m/1', 'Same', 'other'))).toBe(true);
         expect(manager.addBookmark(manga('/m/2', 'Same', 'site'))).toBe(true);
-        expect(manager.bookmarks.map(bookmark => `${bookmark.key.connector}${bookmark.key.manga}`).sort()).toEqual(['other/m/1', 'site/m/1', 'site/m/2']);
+        expect(
+            manager.bookmarks
+                .map((bookmark) => `${bookmark.key.connector}${bookmark.key.manga}`)
+                .sort(),
+        ).toEqual(['other/m/1', 'site/m/1', 'site/m/2']);
     });
 
     it.each([
         ['nothing', undefined],
         ['null', null],
         ['a manga without a connector', { id: '/m/1', title: 'One Piece' }],
-        ['a manga whose connector is null', { id: '/m/1', title: 'One Piece', connector: null }]
+        ['a manga whose connector is null', { id: '/m/1', title: 'One Piece', connector: null }],
     ])('should refuse %s', async (name, value) => {
         const { manager, storage: files } = setup();
         const added = vi.fn();
@@ -163,7 +179,9 @@ describe('addBookmark', () => {
         const { manager, storage: files } = setup();
         manager.addBookmark(manga('/m/1', '進撃の巨人'));
         await flush();
-        expect(JSON.stringify(files.stored.get('bookmarks'))).toBe('[{"title":{"connector":"Label of site","manga":"進撃の巨人"},"key":{"connector":"site","manga":"/m/1"}}]');
+        expect(JSON.stringify(files.stored.get('bookmarks'))).toBe(
+            '[{"title":{"connector":"Label of site","manga":"進撃の巨人"},"key":{"connector":"site","manga":"/m/1"}}]',
+        );
     });
 
     it('should keep the bookmark when the list cannot be saved, and say so in the log', async () => {
@@ -183,7 +201,11 @@ describe('addBookmark', () => {
 describe('deleteBookmark', () => {
     function withBookmarks() {
         const context = setup();
-        context.manager.bookmarks = [favorite('site', '/m/1', 'Site', 'Alpha'), favorite('site', '/m/2', 'Site', 'Beta'), favorite('other', '/m/1', 'Other', 'Gamma')];
+        context.manager.bookmarks = [
+            favorite('site', '/m/1', 'Site', 'Alpha'),
+            favorite('site', '/m/2', 'Site', 'Beta'),
+            favorite('other', '/m/1', 'Other', 'Gamma'),
+        ];
         return context;
     }
 
@@ -215,13 +237,18 @@ describe('deleteBookmark', () => {
 
     it('should recognise the bookmark by its keys, not by the object', () => {
         const { manager } = withBookmarks();
-        expect(manager.deleteBookmark({ key: { connector: 'other', manga: '/m/1' }, title: { connector: 'x', manga: 'other title' } })).toBe(true);
+        expect(
+            manager.deleteBookmark({
+                key: { connector: 'other', manga: '/m/1' },
+                title: { connector: 'x', manga: 'other title' },
+            }),
+        ).toBe(true);
         expect(titles(manager)).toEqual(['Alpha', 'Beta']);
     });
 
     it.each([
         ['a manga that is not bookmarked', favorite('site', '/m/404', 'Site', 'Nope')],
-        ['a manga of another connector', favorite('elsewhere', '/m/1', 'Site', 'Alpha')]
+        ['a manga of another connector', favorite('elsewhere', '/m/1', 'Site', 'Alpha')],
     ])('should refuse %s', async (name, bookmark) => {
         const { manager, storage: files } = withBookmarks();
         const removed = vi.fn();
@@ -236,13 +263,22 @@ describe('deleteBookmark', () => {
     it('should leave the bookmark of the same manga id at another connector', () => {
         const { manager } = withBookmarks();
         manager.deleteBookmark(favorite('site', '/m/1', 'Site', 'Alpha'));
-        expect(manager.bookmarks.map(bookmark => `${bookmark.key.connector}${bookmark.key.manga}`)).toEqual(['site/m/2', 'other/m/1']);
+        expect(
+            manager.bookmarks.map((bookmark) => `${bookmark.key.connector}${bookmark.key.manga}`),
+        ).toEqual(['site/m/2', 'other/m/1']);
     });
 });
 
 describe('loadProfile', () => {
     it('should take over the stored bookmarks, sorted, and tell about it', async () => {
-        const { manager, storage: files } = setup({ files: { bookmarks: [favorite('site', '/m/2', 'Site', 'beta'), favorite('site', '/m/1', 'Site', 'Alpha')] } });
+        const { manager, storage: files } = setup({
+            files: {
+                bookmarks: [
+                    favorite('site', '/m/2', 'Site', 'beta'),
+                    favorite('site', '/m/1', 'Site', 'Alpha'),
+                ],
+            },
+        });
         const changed = once(manager, 'changed');
         const callback = vi.fn();
         manager.loadProfile('default', callback);
@@ -257,7 +293,7 @@ describe('loadProfile', () => {
     it.each([
         ['null', null],
         ['an empty list', []],
-        ['an empty object', {}]
+        ['an empty object', {}],
     ])('should refuse %s and keep the list that it has', async (name, stored) => {
         const { manager } = setup({ files: { bookmarks: stored } });
         manager.bookmarks = [favorite('site', '/m/1', 'Site', 'Alpha')];
@@ -286,7 +322,9 @@ describe('loadProfile', () => {
     });
 
     it('should work without a callback', async () => {
-        const { manager } = setup({ files: { bookmarks: [favorite('site', '/m/1', 'Site', 'Alpha')] } });
+        const { manager } = setup({
+            files: { bookmarks: [favorite('site', '/m/1', 'Site', 'Alpha')] },
+        });
         const changed = once(manager, 'changed');
         manager.loadProfile('default', undefined);
         await changed;
@@ -295,7 +333,7 @@ describe('loadProfile', () => {
 
     it.each([
         ['a storage that fails', undefined],
-        ['an invalid list', []]
+        ['an invalid list', []],
     ])('should work without a callback for %s', async (name, stored) => {
         const { manager } = setup(stored ? { files: { bookmarks: stored } } : undefined);
         vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -308,23 +346,26 @@ describe('loadProfile', () => {
         ['a text', 'not a list'],
         ['a number', 42],
         ['an object with a length', { length: 3 }],
-        ['true', true]
-    ])('should refuse a stored value that is %s, and keep an array as the list', async (name, stored) => {
-        const { manager } = setup({ files: { bookmarks: stored } });
-        manager.bookmarks = [favorite('site', '/m/1', 'Site', 'Alpha')];
-        vi.spyOn(console, 'error').mockImplementation(() => undefined);
-        const changed = vi.fn();
-        manager.addEventListener('changed', changed);
-        const callback = vi.fn();
-        manager.loadProfile('default', callback);
-        await flush();
-        expect(callback.mock.calls[0][0]).toBeInstanceOf(Error);
-        expect(callback.mock.calls[0][0].message).toBe('Invalid bookmark list!');
-        expect(titles(manager)).toEqual(['Alpha']);
-        expect(changed).not.toHaveBeenCalled();
-        expect(manager.addBookmark(manga('/m/2', 'Beta'))).toBe(true);
-        expect(titles(manager)).toEqual(['Alpha', 'Beta']);
-    });
+        ['true', true],
+    ])(
+        'should refuse a stored value that is %s, and keep an array as the list',
+        async (name, stored) => {
+            const { manager } = setup({ files: { bookmarks: stored } });
+            manager.bookmarks = [favorite('site', '/m/1', 'Site', 'Alpha')];
+            vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            const changed = vi.fn();
+            manager.addEventListener('changed', changed);
+            const callback = vi.fn();
+            manager.loadProfile('default', callback);
+            await flush();
+            expect(callback.mock.calls[0][0]).toBeInstanceOf(Error);
+            expect(callback.mock.calls[0][0].message).toBe('Invalid bookmark list!');
+            expect(titles(manager)).toEqual(['Alpha']);
+            expect(changed).not.toHaveBeenCalled();
+            expect(manager.addBookmark(manga('/m/2', 'Beta'))).toBe(true);
+            expect(titles(manager)).toEqual(['Alpha', 'Beta']);
+        },
+    );
 });
 
 describe('saveProfile', () => {
@@ -355,7 +396,10 @@ describe('saveProfile', () => {
         expect(changed).not.toHaveBeenCalled();
     });
 
-    it.each([['no callback', undefined], ['a callback that is no function', 'callback']])('should work with %s', async (name, callback) => {
+    it.each([
+        ['no callback', undefined],
+        ['a callback that is no function', 'callback'],
+    ])('should work with %s', async (name, callback) => {
         const { manager, storage: files } = setup();
         const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
         manager.saveProfile('default', callback);
@@ -392,23 +436,38 @@ describe('compareBookmarks', () => {
         const b = favorite('site', '/2', 'S', 'Banana');
         expect(manager.compareBookmarks(a, b)).toBeLessThan(0);
         expect(manager.compareBookmarks(b, a)).toBeGreaterThan(0);
-        expect(manager.compareBookmarks(favorite('s', '/3', 'S', 'ABC'), favorite('s', '/4', 'S', 'abd'))).toBeLessThan(0);
+        expect(
+            manager.compareBookmarks(
+                favorite('s', '/3', 'S', 'ABC'),
+                favorite('s', '/4', 'S', 'abd'),
+            ),
+        ).toBeLessThan(0);
     });
 
     it('should sort a long list, whatever the order it comes in', () => {
         const { manager } = setup();
-        const words = Array.from({ length: 120 }, (value, index) => `${String.fromCharCode(97 + (index * 7) % 26)}${(index * 31) % 97}`);
+        const words = Array.from(
+            { length: 120 },
+            (value, index) => `${String.fromCharCode(97 + ((index * 7) % 26))}${(index * 31) % 97}`,
+        );
         const sorted = [...words].sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
-        const list = words.map((word, index) => favorite('site', `/${index}`, 'S', index % 2 ? word.toUpperCase() : word));
+        const list = words.map((word, index) =>
+            favorite('site', `/${index}`, 'S', index % 2 ? word.toUpperCase() : word),
+        );
         list.sort(manager.compareBookmarks);
-        expect(list.map(bookmark => bookmark.title.manga.toLowerCase())).toEqual(sorted);
+        expect(list.map((bookmark) => bookmark.title.manga.toLowerCase())).toEqual(sorted);
     });
 
     it('should keep bookmarks with the same title in the order they were added', () => {
         const { manager } = setup();
-        const list = [favorite('c', '/1', 'C', 'Same'), favorite('a', '/2', 'A', 'same'), favorite('b', '/3', 'B', 'SAME'), favorite('d', '/4', 'D', 'Before')];
+        const list = [
+            favorite('c', '/1', 'C', 'Same'),
+            favorite('a', '/2', 'A', 'same'),
+            favorite('b', '/3', 'B', 'SAME'),
+            favorite('d', '/4', 'D', 'Before'),
+        ];
         list.sort(manager.compareBookmarks);
-        expect(list.map(bookmark => bookmark.key.connector)).toEqual(['d', 'c', 'a', 'b']);
+        expect(list.map((bookmark) => bookmark.key.connector)).toEqual(['d', 'c', 'a', 'b']);
     });
 });
 
@@ -421,9 +480,16 @@ describe('importBookmarks', () => {
         const [url, target, features] = window.open.mock.calls[0];
         expect(url.startsWith('data:text/html;utf8,')).toBe(true);
         const html = decodeURIComponent(url.slice('data:text/html;utf8,'.length));
-        const at = name => html.indexOf(`<a name="${name}">`);
-        const rows = section => [...section.matchAll(/<tr><td[^>]*>([^<]*)<\/td><td>([^<]*)<\/td><\/tr>/g)].map(match => [match[1], match[2]]);
-        const sections = { dropped: html.slice(at('dropped'), at('exists')), exists: html.slice(at('exists'), at('added')), added: html.slice(at('added')) };
+        const at = (name) => html.indexOf(`<a name="${name}">`);
+        const rows = (section) =>
+            [...section.matchAll(/<tr><td[^>]*>([^<]*)<\/td><td>([^<]*)<\/td><\/tr>/g)].map(
+                (match) => [match[1], match[2]],
+            );
+        const sections = {
+            dropped: html.slice(at('dropped'), at('exists')),
+            exists: html.slice(at('exists'), at('added')),
+            added: html.slice(at('added')),
+        };
         return {
             html,
             target,
@@ -431,7 +497,7 @@ describe('importBookmarks', () => {
             sections,
             dropped: rows(sections.dropped),
             exists: rows(sections.exists),
-            added: rows(sections.added)
+            added: rows(sections.added),
         };
     }
 
@@ -440,7 +506,7 @@ describe('importBookmarks', () => {
         importer.importBookmarks.mockResolvedValue([
             favorite('site', '/m/2', 'Site', 'zeta'),
             favorite('other', '/m/1', 'Other', 'Alpha'),
-            favorite('site', '/m/3', 'Site', 'Beta')
+            favorite('site', '/m/3', 'Site', 'Beta'),
         ]);
         const changed = once(manager, 'changed');
         await manager.importBookmarks(file);
@@ -457,7 +523,7 @@ describe('importBookmarks', () => {
         importer.importBookmarks.mockResolvedValue([
             favorite('site', '/m/1', 'Site', 'Known'),
             favorite('site', '/m/2', 'Site', 'New'),
-            favorite('gone', '/m/3', 'Gone Site', 'Lost')
+            favorite('gone', '/m/3', 'Gone Site', 'Lost'),
         ]);
         await manager.importBookmarks(file);
         const page = results();
@@ -480,14 +546,19 @@ describe('importBookmarks', () => {
 
     it('should show titles in any script in the report', async () => {
         const { manager, importer } = setup();
-        importer.importBookmarks.mockResolvedValue([favorite('site', '/m/1', 'サイト', '進撃の巨人 😀 Ünï')]);
+        importer.importBookmarks.mockResolvedValue([
+            favorite('site', '/m/1', 'サイト', '進撃の巨人 😀 Ünï'),
+        ]);
         await manager.importBookmarks(file);
         expect(results().added).toEqual([['サイト', '進撃の巨人 😀 Ünï']]);
     });
 
     it('should add a manga that is twice in the file once', async () => {
         const { manager, importer } = setup();
-        importer.importBookmarks.mockResolvedValue([favorite('site', '/m/1', 'Site', 'Alpha'), favorite('site', '/m/1', 'Site', 'Alpha again')]);
+        importer.importBookmarks.mockResolvedValue([
+            favorite('site', '/m/1', 'Site', 'Alpha'),
+            favorite('site', '/m/1', 'Site', 'Alpha again'),
+        ]);
         await manager.importBookmarks(file);
         const page = results();
         expect(titles(manager)).toEqual(['Alpha']);
@@ -498,7 +569,10 @@ describe('importBookmarks', () => {
     it('should import the favorites of a connector for each id on its own', async () => {
         const { manager, importer } = setup();
         manager.bookmarks = [favorite('site', '/m/1', 'Site', 'Alpha')];
-        importer.importBookmarks.mockResolvedValue([favorite('other', '/m/1', 'Other', 'Alpha'), favorite('site', '/m/2', 'Site', 'Alpha 2')]);
+        importer.importBookmarks.mockResolvedValue([
+            favorite('other', '/m/1', 'Other', 'Alpha'),
+            favorite('site', '/m/2', 'Site', 'Alpha 2'),
+        ]);
         await manager.importBookmarks(file);
         expect(manager.bookmarks).toHaveLength(3);
         expect(results().exists).toEqual([]);
@@ -528,7 +602,9 @@ describe('importBookmarks', () => {
     it('should reject, and neither save nor open anything, when the file cannot be imported', async () => {
         const { manager, importer, storage: files } = setup();
         manager.bookmarks = [favorite('site', '/m/1', 'Site', 'Alpha')];
-        importer.importBookmarks.mockRejectedValue(new Error("File type 'text/plain' is not supported!"));
+        importer.importBookmarks.mockRejectedValue(
+            new Error("File type 'text/plain' is not supported!"),
+        );
         await expect(manager.importBookmarks(file)).rejects.toThrow('not supported');
         expect(titles(manager)).toEqual(['Alpha']);
         expect(files.saveBookmarks).not.toHaveBeenCalled();
@@ -538,22 +614,36 @@ describe('importBookmarks', () => {
     // the titles are the text of a file of a user: a title in angle brackets must not vanish as an unknown tag, markup in it is
     // not interpreted and a script in it does not run, in whichever section of the report it is
     it('should show the titles in the report as the text that they are', async () => {
-        const decode = text => text.replace(/&(?:amp|lt|gt|quot|apos|#39|#x27);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"' }[entity] || '\''));
+        const decode = (text) =>
+            text.replace(
+                /&(?:amp|lt|gt|quot|apos|#39|#x27);/g,
+                (entity) =>
+                    ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"' })[entity] || "'",
+            );
         const { manager, importer } = setup();
         manager.bookmarks = [favorite('site', '/m/3', 'Known <i>', '<Known> &amp; Co')];
         importer.importBookmarks.mockResolvedValue([
-            favorite('site', '/m/1', 'Site <b>', '<img src=x onerror=alert(1)> & <Overlord> "quoted" \'single\''),
+            favorite(
+                'site',
+                '/m/1',
+                'Site <b>',
+                '<img src=x onerror=alert(1)> & <Overlord> "quoted" \'single\'',
+            ),
             favorite('site', '/m/3', 'Known <i>', '<Known> &amp; Co'),
-            favorite('gone', '/m/2', 'Gone </td><td>', '</td></tr><script>alert(1)</script>')
+            favorite('gone', '/m/2', 'Gone </td><td>', '</td></tr><script>alert(1)</script>'),
         ]);
 
         await manager.importBookmarks(file);
 
         const page = results();
-        const text = row => row.map(decode);
-        expect(page.added.map(text)).toEqual([['Site <b>', '<img src=x onerror=alert(1)> & <Overlord> "quoted" \'single\'']]);
+        const text = (row) => row.map(decode);
+        expect(page.added.map(text)).toEqual([
+            ['Site <b>', '<img src=x onerror=alert(1)> & <Overlord> "quoted" \'single\''],
+        ]);
         expect(page.exists.map(text)).toEqual([['Known <i>', '<Known> &amp; Co']]);
-        expect(page.dropped.map(text)).toEqual([['Gone </td><td>', '</td></tr><script>alert(1)</script>']]);
+        expect(page.dropped.map(text)).toEqual([
+            ['Gone </td><td>', '</td></tr><script>alert(1)</script>'],
+        ]);
         // none of it is markup of the page, and no title opened a cell of its own: three rows of two cells
         expect(page.html).not.toMatch(/<(?:img|script|b|i|Overlord|Known)\b/);
         expect(page.html.match(/<td/g)).toHaveLength(6);
@@ -565,7 +655,10 @@ describe('importBookmarks', () => {
         const ready = deferred();
         const { manager, importer } = setup({ connectors });
         Object.assign(globalThis.Engine, { ConnectorsReady: ready.promise });
-        importer.importBookmarks.mockResolvedValue([favorite('late', '/m/1', 'Late Site', 'Alpha'), favorite('never', '/m/2', 'Never Site', 'Beta')]);
+        importer.importBookmarks.mockResolvedValue([
+            favorite('late', '/m/1', 'Late Site', 'Alpha'),
+            favorite('never', '/m/2', 'Never Site', 'Beta'),
+        ]);
 
         const importing = manager.importBookmarks(file);
         await flush();
@@ -583,7 +676,9 @@ describe('importBookmarks', () => {
     it('should refuse a file that cannot be imported at once, without waiting for the connectors', async () => {
         const { manager, importer } = setup();
         Object.assign(globalThis.Engine, { ConnectorsReady: new Promise(() => undefined) });
-        importer.importBookmarks.mockRejectedValue(new Error("File type 'text/plain' is not supported!"));
+        importer.importBookmarks.mockRejectedValue(
+            new Error("File type 'text/plain' is not supported!"),
+        );
         await expect(manager.importBookmarks(file)).rejects.toThrow('not supported');
     });
 });

@@ -9,7 +9,6 @@ const electron = require('electron');
  * the renderer itself ships no SQLite engine any more.
  */
 module.exports = class SqliteBridge {
-
     constructor(logger) {
         this._logger = logger;
     }

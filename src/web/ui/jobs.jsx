@@ -8,14 +8,25 @@ import Icon from './icon.jsx';
 // Classic jobs.html getStatusClass parity (icon + token color per status). The label is what a screen reader reads.
 const STATUS = {
     queued: { icon: 'clock', color: 'text-(--job-list-button-queued-color)', label: 'Queued' },
-    downloading: { icon: 'exchange', color: 'text-(--job-list-button-downloading-color)', label: 'Downloading' },
-    completed: { icon: 'check', color: 'text-(--job-list-button-completed-color)', label: 'Completed' },
-    failed: { icon: 'warning', color: 'text-(--job-list-button-failed-color)', label: 'Failed' }
+    downloading: {
+        icon: 'exchange',
+        color: 'text-(--job-list-button-downloading-color)',
+        label: 'Downloading',
+    },
+    completed: {
+        icon: 'check',
+        color: 'text-(--job-list-button-completed-color)',
+        label: 'Completed',
+    },
+    failed: { icon: 'warning', color: 'text-(--job-list-button-failed-color)', label: 'Failed' },
 };
 
 function errorTitle(job) {
     const errors = job.errors || [];
-    return (errors.length > 0 ? 'Click to re-download\n' : '') + errors.map(error => error.toString()).join('\n');
+    return (
+        (errors.length > 0 ? 'Click to re-download\n' : '') +
+        errors.map((error) => error.toString()).join('\n')
+    );
 }
 
 // a job that is done, well or not, can be downloaded again
@@ -36,7 +47,7 @@ export default function JobsBar({ inert }) {
     const listId = React.useId();
     const active = jobs.filter(isCancelable);
 
-    const restart = job => {
+    const restart = (job) => {
         if (!restartable(job)) {
             return;
         }
@@ -48,16 +59,31 @@ export default function JobsBar({ inert }) {
     };
 
     return (
-        <section aria-label="Downloads" inert={inert || undefined} className="w-full bg-(--job-control-background-color)">
+        <section
+            aria-label="Downloads"
+            inert={inert || undefined}
+            className="w-full bg-(--job-control-background-color)"
+        >
             {open && (
-                <div id={listId} className="h-[8em] overflow-x-hidden overflow-y-scroll bg-(--job-list-background-color)">
-                    {jobs.length === 0 && <p className="p-[0.5em] text-(--menu-control-category-color)">No downloads.</p>}
+                <div
+                    id={listId}
+                    className="h-[8em] overflow-x-hidden overflow-y-scroll bg-(--job-list-background-color)"
+                >
+                    {jobs.length === 0 && (
+                        <p className="p-[0.5em] text-(--menu-control-category-color)">
+                            No downloads.
+                        </p>
+                    )}
                     <table className="w-full table-fixed border-collapse">
-                        <caption className="sr-only">Download list: status, website, manga, chapter, progress</caption>
+                        <caption className="sr-only">
+                            Download list: status, website, manga, chapter, progress
+                        </caption>
                         <tbody>
                             {jobs.map((job, index) => {
                                 const status = STATUS[job.status];
-                                const errors = (job.errors || []).map(error => error.toString()).join('; ');
+                                const errors = (job.errors || [])
+                                    .map((error) => error.toString())
+                                    .join('; ');
                                 return (
                                     <tr
                                         key={`${job.labels.connector}/${job.labels.manga}/${job.labels.chapter}/${index}`}
@@ -76,21 +102,35 @@ export default function JobsBar({ inert }) {
                                                 </button>
                                             )}
                                             {status && !restartable(job) && (
-                                                <span role="img" aria-label={status.label} className={'inline-block align-middle ' + status.color}>
+                                                <span
+                                                    role="img"
+                                                    aria-label={status.label}
+                                                    className={
+                                                        'inline-block align-middle ' + status.color
+                                                    }
+                                                >
                                                     <Icon name={status.icon} size={13} />
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="cursor-default overflow-hidden px-[0.25em] text-ellipsis whitespace-nowrap [border-bottom:var(--job-list-row-border)]">{job.labels.connector}</td>
-                                        <td className="cursor-default overflow-hidden px-[0.25em] text-ellipsis whitespace-nowrap [border-bottom:var(--job-list-row-border)]">{job.labels.manga}</td>
-                                        <td className="cursor-default overflow-hidden px-[0.25em] text-ellipsis whitespace-nowrap [border-bottom:var(--job-list-row-border)]">{job.labels.chapter}</td>
+                                        <td className="cursor-default overflow-hidden px-[0.25em] text-ellipsis whitespace-nowrap [border-bottom:var(--job-list-row-border)]">
+                                            {job.labels.connector}
+                                        </td>
+                                        <td className="cursor-default overflow-hidden px-[0.25em] text-ellipsis whitespace-nowrap [border-bottom:var(--job-list-row-border)]">
+                                            {job.labels.manga}
+                                        </td>
+                                        <td className="cursor-default overflow-hidden px-[0.25em] text-ellipsis whitespace-nowrap [border-bottom:var(--job-list-row-border)]">
+                                            {job.labels.chapter}
+                                        </td>
                                         <td
                                             className="w-[4em] [border-bottom:var(--job-list-row-border)]"
                                             style={{
-                                                background: `linear-gradient(90deg, var(--job-list-progress-color) ${job.progress || 0}%, var(--job-list-progress-background-color) 0%)`
+                                                background: `linear-gradient(90deg, var(--job-list-progress-color) ${job.progress || 0}%, var(--job-list-progress-background-color) 0%)`,
                                             }}
                                         >
-                                            <span className="sr-only">{Math.round(job.progress || 0)}%</span>
+                                            <span className="sr-only">
+                                                {Math.round(job.progress || 0)}%
+                                            </span>
                                         </td>
                                         <td className="w-6 cursor-default text-center [border-bottom:var(--job-list-row-border)]">
                                             {isCancelable(job) && (
@@ -120,7 +160,7 @@ export default function JobsBar({ inert }) {
                         aria-label={open ? 'Hide the download list' : 'Show the download list'}
                         aria-expanded={open}
                         aria-controls={open ? listId : undefined}
-                        onClick={() => setOpen(value => !value)}
+                        onClick={() => setOpen((value) => !value)}
                         className="rk-button"
                     >
                         <Icon name={open ? 'closeBox' : 'chart'} size={16} />
@@ -138,7 +178,9 @@ export default function JobsBar({ inert }) {
                         <Icon name="ban" size={16} />
                     </button>
                 </div>
-                <div role="status" className="flex-1 p-[0.25em] text-right">{jobs.length} Download(s)</div>
+                <div role="status" className="flex-1 p-[0.25em] text-right">
+                    {jobs.length} Download(s)
+                </div>
             </div>
             <ConfirmDialog
                 open={confirmAll}

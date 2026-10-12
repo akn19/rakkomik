@@ -1,7 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import { useConnectors } from '../connectorsState.js';
 import { useDownloadJobs } from '../downloads.js';
-import { addChapter, addManga, createConnector, createDownloadJob, installEngine } from './support/fakeEngine.js';
+import {
+    addChapter,
+    addManga,
+    createConnector,
+    createDownloadJob,
+    installEngine,
+} from './support/fakeEngine.js';
 
 describe('live list of connectors', () => {
     it('should be empty and not ready while there is no engine', () => {
@@ -13,11 +19,11 @@ describe('live list of connectors', () => {
         const list = [createConnector({ id: 'a' })];
         const engine = installEngine({ connectors: list, ready: false });
         const { result } = renderHook(() => useConnectors());
-        expect(result.current.connectors.map(connector => connector.id)).toEqual(['a']);
+        expect(result.current.connectors.map((connector) => connector.id)).toEqual(['a']);
         expect(result.current.ready).toBe(false);
         list.push(createConnector({ id: 'b' }));
         act(() => engine.ConnectorRegistry.emit('registered'));
-        expect(result.current.connectors.map(connector => connector.id)).toEqual(['a', 'b']);
+        expect(result.current.connectors.map((connector) => connector.id)).toEqual(['a', 'b']);
         expect(result.current.ready).toBe(false);
         engine.ConnectorRegistry.isReady = true;
         act(() => engine.ConnectorRegistry.emit('ready'));
@@ -39,7 +45,7 @@ describe('live list of connectors', () => {
         const { result } = renderHook(() => useConnectors());
         const before = result.current.connectors;
         list.push(createConnector({ id: 'b' }));
-        expect(before.map(connector => connector.id)).toEqual(['a']);
+        expect(before.map((connector) => connector.id)).toEqual(['a']);
         act(() => engine.ConnectorRegistry.emit('registered'));
         expect(result.current.connectors).not.toBe(before);
     });
@@ -49,7 +55,7 @@ describe('live list of connectors', () => {
         delete engine.ConnectorRegistry;
         const { result } = renderHook(() => useConnectors());
         expect(result.current.ready).toBe(true);
-        expect(result.current.connectors.map(connector => connector.id)).toEqual(['a']);
+        expect(result.current.connectors.map((connector) => connector.id)).toEqual(['a']);
     });
 
     it('should stop listening to the registry when it goes away', () => {
@@ -57,7 +63,10 @@ describe('live list of connectors', () => {
         const removeEventListener = vi.spyOn(engine.ConnectorRegistry, 'removeEventListener');
         const { unmount } = renderHook(() => useConnectors());
         unmount();
-        expect(removeEventListener.mock.calls.map(([event]) => event).sort()).toEqual(['ready', 'registered']);
+        expect(removeEventListener.mock.calls.map(([event]) => event).sort()).toEqual([
+            'ready',
+            'registered',
+        ]);
     });
 });
 
@@ -125,6 +134,9 @@ describe('live list of downloads', () => {
         const removeEventListener = vi.spyOn(engine.DownloadManager, 'removeEventListener');
         const { unmount } = renderHook(() => useDownloadJobs());
         unmount();
-        expect(removeEventListener).toHaveBeenCalledExactlyOnceWith('updated', expect.any(Function));
+        expect(removeEventListener).toHaveBeenCalledExactlyOnceWith(
+            'updated',
+            expect.any(Function),
+        );
     });
 });

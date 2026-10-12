@@ -13,7 +13,7 @@ export function mountReactShell(container) {
     root.render(
         <React.StrictMode>
             <App />
-        </React.StrictMode>
+        </React.StrictMode>,
     );
     return () => root.unmount();
 }

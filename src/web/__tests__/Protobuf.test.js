@@ -21,8 +21,8 @@ afterEach(() => {
 function pageWithoutLibrary() {
     const scripts = [];
     vi.stubGlobal('document', {
-        createElement: vi.fn(tag => ({ tag, remove: vi.fn() })),
-        head: { append: vi.fn(script => scripts.push(script)) }
+        createElement: vi.fn((tag) => ({ tag, remove: vi.fn() })),
+        head: { append: vi.fn((script) => scripts.push(script)) },
     });
     return scripts;
 }
@@ -42,7 +42,9 @@ describe('loadProtobuf', () => {
         expect(scripts).toHaveLength(1);
         expect(scripts[0].tag).toBe('script');
         // src/web/js/protobuf.min.js is where scripts/vendor.js puts the bundle
-        expect(path.resolve(fileURLToPath(scripts[0].src))).toBe(path.resolve(__dirname, '..', 'js', 'protobuf.min.js'));
+        expect(path.resolve(fileURLToPath(scripts[0].src))).toBe(
+            path.resolve(__dirname, '..', 'js', 'protobuf.min.js'),
+        );
         const library = { load: vi.fn() };
         globalThis.protobuf = library;
         scripts[0].onload();
@@ -56,7 +58,10 @@ describe('loadProtobuf', () => {
         expect(scripts).toHaveLength(1);
         globalThis.protobuf = { name: 'library' };
         scripts[0].onload();
-        await expect(Promise.all([first, second])).resolves.toEqual([globalThis.protobuf, globalThis.protobuf]);
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            globalThis.protobuf,
+            globalThis.protobuf,
+        ]);
     });
 
     it('should not load the script again once the library is there', async () => {

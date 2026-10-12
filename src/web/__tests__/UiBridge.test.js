@@ -7,13 +7,16 @@ beforeAll(async () => {
 
 function fakeEngine(overrides) {
     globalThis.window = Object.assign({}, globalThis.window, {
-        Engine: Object.assign({
-            Connectors: [{ id: 'a' }, { id: 'b' }],
-            Version: {
-                branch: { label: 'main' },
-                revision: { label: 'a1965c' }
-            }
-        }, overrides)
+        Engine: Object.assign(
+            {
+                Connectors: [{ id: 'a' }, { id: 'b' }],
+                Version: {
+                    branch: { label: 'main' },
+                    revision: { label: 'a1965c' },
+                },
+            },
+            overrides,
+        ),
     });
 }
 
@@ -27,7 +30,7 @@ describe('ui engine bridge', () => {
         fakeEngine();
         expect(bridge.getEngineStatus()).toEqual({
             connectors: 2,
-            version: 'main@a1965c'
+            version: 'main@a1965c',
         });
     });
 
@@ -37,7 +40,9 @@ describe('ui engine bridge', () => {
 
     it('should subscribe to bookmark manager events and read live bookmarks', () => {
         const listeners = {};
-        const bookmarks = [{ key: { manga: 'm1', connector: 'c1' }, title: { manga: 'M1', connector: 'C1' } }];
+        const bookmarks = [
+            { key: { manga: 'm1', connector: 'c1' }, title: { manga: 'M1', connector: 'C1' } },
+        ];
         fakeEngine({
             BookmarkManager: {
                 bookmarks,
@@ -45,8 +50,8 @@ describe('ui engine bridge', () => {
                     listeners[event] = handler;
                 }),
                 removeEventListener: vi.fn(),
-                deleteBookmark: vi.fn(() => true)
-            }
+                deleteBookmark: vi.fn(() => true),
+            },
         });
         const notify = vi.fn();
         const unsubscribe = bridge.subscribeBookmarks(notify);
@@ -58,8 +63,14 @@ describe('ui engine bridge', () => {
     });
 
     it('should hand out a new bookmark snapshot only when the list that the manager changes in place has changed', () => {
-        const first = { key: { manga: 'a', connector: 'c' }, title: { manga: 'A', connector: 'C' } };
-        const second = { key: { manga: 'b', connector: 'c' }, title: { manga: 'B', connector: 'C' } };
+        const first = {
+            key: { manga: 'a', connector: 'c' },
+            title: { manga: 'A', connector: 'C' },
+        };
+        const second = {
+            key: { manga: 'b', connector: 'c' },
+            title: { manga: 'B', connector: 'C' },
+        };
         const bookmarks = [first];
         fakeEngine({ BookmarkManager: { bookmarks } });
         const snapshot = bridge.getBookmarks();
@@ -96,8 +107,8 @@ describe('ui engine bridge', () => {
                 getCategorizedSettings: () => [{ category: 'General', settings: [text, numeric] }],
                 save: vi.fn(async () => {
                     saved.push([text.value, numeric.value]);
-                })
-            }
+                }),
+            },
         });
         const draft = bridge.getSettingsDraft();
         expect(draft).toHaveLength(1);
@@ -110,14 +121,14 @@ describe('ui engine bridge', () => {
     });
 
     it('should merge download manager events like the classic job list', () => {
-        const makeJob = status => {
+        const makeJob = (status) => {
             const instance = {
                 status,
                 labels: { connector: 'c', manga: 'm', chapter: `ch-${status}` },
                 progress: 0,
                 errors: [],
-                isSame: other => other === instance,
-                chapter: {}
+                isSame: (other) => other === instance,
+                chapter: {},
             };
             return instance;
         };
@@ -132,7 +143,7 @@ describe('ui engine bridge', () => {
         expect(bridge.mergeDownloadJobs([tracked], tracked)).toHaveLength(0);
         // failed twin is replaced by the retry
         const failed = { status: 'failed', isSame: () => true };
-        const retry = { status: 'queued', isSame: other => other === failed };
+        const retry = { status: 'queued', isSame: (other) => other === failed };
         expect(bridge.mergeDownloadJobs([failed], retry)).toEqual([retry]);
     });
 
@@ -141,15 +152,17 @@ describe('ui engine bridge', () => {
         fakeEngine({
             DownloadManager: {
                 queue: {
-                    c1: Object.assign([{ status: 'downloading' }, { status: 'completed' }], { activeCount: 1 }),
-                    c2: [{ status: 'failed' }]
+                    c1: Object.assign([{ status: 'downloading' }, { status: 'completed' }], {
+                        activeCount: 1,
+                    }),
+                    c2: [{ status: 'failed' }],
                 },
                 addEventListener: vi.fn((event, handler) => {
                     listeners[event] = handler;
                 }),
                 removeEventListener: vi.fn(),
-                addDownload: vi.fn()
-            }
+                addDownload: vi.fn(),
+            },
         });
         expect(bridge.getDownloadJobs()).toHaveLength(3);
         expect(bridge.hasActiveDownloads()).toBe(true);
@@ -168,7 +181,9 @@ describe('ui engine bridge', () => {
         job.status = 'canceled';
         expect(bridge.mergeDownloadJobs(list, job)).toEqual([]);
         // a canceled job that nobody tracks is not a download either
-        expect(bridge.mergeDownloadJobs([], { status: 'canceled', isSame: () => false })).toEqual([]);
+        expect(bridge.mergeDownloadJobs([], { status: 'canceled', isSame: () => false })).toEqual(
+            [],
+        );
         // and the list that was given is left as it was
         expect(list).toEqual([job]);
     });
@@ -177,7 +192,7 @@ describe('ui engine bridge', () => {
         const manager = {
             cancel: vi.fn(() => true),
             cancelChapter: vi.fn(() => false),
-            cancelAll: vi.fn(() => 3)
+            cancelAll: vi.fn(() => 3),
         };
         fakeEngine({ DownloadManager: manager });
         const job = { id: 'job' };
@@ -200,8 +215,8 @@ describe('ui engine bridge', () => {
         fakeEngine({
             Connectors: [{ id: 'c1' }, { id: 'c2' }],
             Storage: {
-                loadMangaList: vi.fn(async id => (id === 'c1' ? [{ title: 'One Piece' }] : []))
-            }
+                loadMangaList: vi.fn(async (id) => (id === 'c1' ? [{ title: 'One Piece' }] : [])),
+            },
         });
         await expect(bridge.findConnectorsByManga('piece')).resolves.toEqual(['c1']);
         await expect(bridge.findConnectorsByManga('naruto')).resolves.toEqual([]);
@@ -209,11 +224,16 @@ describe('ui engine bridge', () => {
 
     it('should browse directories and files through the available bridges', async () => {
         fakeEngine({
-            Storage: { folderBrowser: vi.fn(async () => '/tmp/manga') }
+            Storage: { folderBrowser: vi.fn(async () => '/tmp/manga') },
         });
         await expect(bridge.browseDirectory('/tmp')).resolves.toBe('/tmp/manga');
         globalThis.window.hakuneko = {
-            dialog: { showOpenDialog: vi.fn(async () => ({ canceled: false, filePaths: ['/tmp/a.epub'] })) }
+            dialog: {
+                showOpenDialog: vi.fn(async () => ({
+                    canceled: false,
+                    filePaths: ['/tmp/a.epub'],
+                })),
+            },
         };
         await expect(bridge.browseFile()).resolves.toBe('/tmp/a.epub');
         delete globalThis.window.hakuneko;
@@ -221,23 +241,33 @@ describe('ui engine bridge', () => {
     it('should expose version links, reader flag and settings events', () => {
         const listeners = {};
         fakeEngine({
-            Version: { branch: { label: 'main' }, revision: { label: 'a1965c', link: 'https://example.test/rev' } },
+            Version: {
+                branch: { label: 'main' },
+                revision: { label: 'a1965c', link: 'https://example.test/rev' },
+            },
             Settings: {
                 readerEnabled: { value: false },
                 addEventListener: vi.fn((event, handler) => {
                     listeners[event] = handler;
                 }),
-                removeEventListener: vi.fn()
-            }
+                removeEventListener: vi.fn(),
+            },
         });
-        expect(bridge.getVersionInfo()).toEqual({ branch: 'main', revision: 'a1965c', link: 'https://example.test/rev' });
+        expect(bridge.getVersionInfo()).toEqual({
+            branch: 'main',
+            revision: 'a1965c',
+            link: 'https://example.test/rev',
+        });
         expect(bridge.isReaderEnabled()).toBe(false);
         const notify = vi.fn();
         const unsubscribe = bridge.subscribeSettings(notify);
         listeners.saved();
         expect(notify).toHaveBeenCalledTimes(1);
         unsubscribe();
-        expect(globalThis.window.Engine.Settings.removeEventListener).toHaveBeenCalledWith('saved', expect.any(Function));
+        expect(globalThis.window.Engine.Settings.removeEventListener).toHaveBeenCalledWith(
+            'saved',
+            expect.any(Function),
+        );
     });
 
     it('should degrade version, reader flag and settings events without an engine', () => {
@@ -253,14 +283,16 @@ describe('ui engine bridge', () => {
         fakeEngine({
             Storage: { showFolderContent: vi.fn() },
             BookmarkManager: { importBookmarks: vi.fn(async () => undefined) },
-            ChaptermarkManager: { deleteChaptermark: vi.fn() }
+            ChaptermarkManager: { deleteChaptermark: vi.fn() },
         });
         bridge.showChapterFolder(chapter);
         expect(globalThis.window.Engine.Storage.showFolderContent).toHaveBeenCalledWith(chapter);
         await bridge.importBookmarksFile(file);
         expect(globalThis.window.Engine.BookmarkManager.importBookmarks).toHaveBeenCalledWith(file);
         bridge.deleteChaptermark(marked);
-        expect(globalThis.window.Engine.ChaptermarkManager.deleteChaptermark).toHaveBeenCalledWith(marked);
+        expect(globalThis.window.Engine.ChaptermarkManager.deleteChaptermark).toHaveBeenCalledWith(
+            marked,
+        );
     });
     it('should snapshot the connector registry and notify on registration', async () => {
         const listeners = {};
@@ -271,7 +303,7 @@ describe('ui engine bridge', () => {
             addEventListener: vi.fn((event, handler) => {
                 listeners[event] = handler;
             }),
-            removeEventListener: vi.fn()
+            removeEventListener: vi.fn(),
         };
         fakeEngine({ ConnectorRegistry: registry, Connectors: list });
         const first = bridge.getConnectorsSnapshot();
@@ -298,9 +330,15 @@ describe('ui engine bridge', () => {
         expect(bridge.getConnectorsSnapshot().ready).toBe(true);
         expect(bridge.subscribeConnectors(vi.fn())()).toBeUndefined();
         let release = null;
-        fakeEngine({ ConnectorsReady: new Promise(resolve => { release = resolve; }) });
+        fakeEngine({
+            ConnectorsReady: new Promise((resolve) => {
+                release = resolve;
+            }),
+        });
         let done = false;
-        const waiting = bridge.whenConnectorsReady().then(() => { done = true; });
+        const waiting = bridge.whenConnectorsReady().then(() => {
+            done = true;
+        });
         await Promise.resolve();
         expect(done).toBe(false);
         release([]);

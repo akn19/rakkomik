@@ -1,7 +1,6 @@
 const crypto = require('node:crypto');
 
 module.exports = class UpdatePackageInfo {
-
     constructor(version, signature, link) {
         this.version = version;
         this.signature = signature;
@@ -15,8 +14,10 @@ module.exports = class UpdatePackageInfo {
      * @returns {Promise} A promise that will resolve with the given data if verification succeeds, otherwise reject with a related error
      */
     async validate(data, pubkey) {
-        if(!crypto.verify('sha256', data, pubkey, Buffer.from(this.signature, 'hex'))) {
-            throw new Error('Integrity check of update failed! The signature does not match the update package.');
+        if (!crypto.verify('sha256', data, pubkey, Buffer.from(this.signature, 'hex'))) {
+            throw new Error(
+                'Integrity check of update failed! The signature does not match the update package.',
+            );
         }
         return data;
     }

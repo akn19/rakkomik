@@ -1,6 +1,12 @@
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import JobsBar from '../jobs.jsx';
-import { addChapter, addManga, createConnector, createDownloadJob, installEngine } from './support/fakeEngine.js';
+import {
+    addChapter,
+    addManga,
+    createConnector,
+    createDownloadJob,
+    installEngine,
+} from './support/fakeEngine.js';
 import { renderWithProviders } from './support/render.jsx';
 
 let engine = null;
@@ -54,36 +60,60 @@ describe('download bar', () => {
         queued(job('Chapter 1', { status: 'downloading', progress: 30 }));
         const { container } = renderWithProviders(<JobsBar />, { selection: false });
         openList();
-        const cells = [...container.querySelectorAll('tbody tr td')].map(cell => cell.textContent);
+        const cells = [...container.querySelectorAll('tbody tr td')].map(
+            (cell) => cell.textContent,
+        );
         expect(cells.slice(1, 4)).toEqual(['Site', 'Berserk', 'Chapter 1']);
-        expect(container.querySelector('tbody tr').getAttribute('title')).toBe('Site\nBerserk\nChapter 1');
-        expect(container.querySelector('tbody tr td:nth-child(5)').getAttribute('style')).toMatch(/30%/);
+        expect(container.querySelector('tbody tr').getAttribute('title')).toBe(
+            'Site\nBerserk\nChapter 1',
+        );
+        expect(container.querySelector('tbody tr td:nth-child(5)').getAttribute('style')).toMatch(
+            /30%/,
+        );
     });
 
     it('should show the errors of a job in the tooltip of its button, with the hint to download again', () => {
-        queued(job('Chapter 1', { status: 'failed', errors: [new Error('HTTP 404'), new Error('timeout')] }));
+        queued(
+            job('Chapter 1', {
+                status: 'failed',
+                errors: [new Error('HTTP 404'), new Error('timeout')],
+            }),
+        );
         renderWithProviders(<JobsBar />, { selection: false });
         openList();
         // not `getByTitle`: it folds the line breaks of the text into spaces
-        expect(document.querySelector('tbody tr td:first-child button').getAttribute('title')).toBe('Click to re-download\nError: HTTP 404\nError: timeout');
+        expect(document.querySelector('tbody tr td:first-child button').getAttribute('title')).toBe(
+            'Click to re-download\nError: HTTP 404\nError: timeout',
+        );
     });
 
-    it.each([['queued', 'Queued'], ['downloading', 'Downloading']])('should show the status of a job that is %s as an icon, and not as a button to download again', (status, name) => {
-        queued(job('Chapter 1', { status }));
-        renderWithProviders(<JobsBar />, { selection: false });
-        openList();
-        const cell = document.querySelector('tbody tr td:first-child');
-        expect(cell.querySelector('button')).toBeNull();
-        expect(within(cell).getByRole('img', { name })).toBeTruthy();
-    });
+    it.each([
+        ['queued', 'Queued'],
+        ['downloading', 'Downloading'],
+    ])(
+        'should show the status of a job that is %s as an icon, and not as a button to download again',
+        (status, name) => {
+            queued(job('Chapter 1', { status }));
+            renderWithProviders(<JobsBar />, { selection: false });
+            openList();
+            const cell = document.querySelector('tbody tr td:first-child');
+            expect(cell.querySelector('button')).toBeNull();
+            expect(within(cell).getByRole('img', { name })).toBeTruthy();
+        },
+    );
 
-    it.each(['failed', 'completed'])('should download a %s job again when its button is clicked', status => {
-        const [done] = queued(job('Chapter 1', { status }));
-        renderWithProviders(<JobsBar />, { selection: false });
-        openList();
-        fireEvent.click(document.querySelector('tbody tr td:first-child button'));
-        expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(done.chapter);
-    });
+    it.each(['failed', 'completed'])(
+        'should download a %s job again when its button is clicked',
+        (status) => {
+            const [done] = queued(job('Chapter 1', { status }));
+            renderWithProviders(<JobsBar />, { selection: false });
+            openList();
+            fireEvent.click(document.querySelector('tbody tr td:first-child button'));
+            expect(engine.DownloadManager.addDownload).toHaveBeenCalledExactlyOnceWith(
+                done.chapter,
+            );
+        },
+    );
 
     it('should offer no button to a job that is still running', () => {
         queued(job('Chapter 1', { status: 'downloading' }), job('Chapter 2', { status: 'queued' }));
@@ -137,7 +167,7 @@ describe('download bar', () => {
 describe('canceling downloads', () => {
     const cancelButtons = () => [...document.querySelectorAll('tbody tr td:last-child button')];
     const cancelAllButton = () => screen.getByTitle('Cancel all downloads');
-    const toast = text => screen.getByText(text).closest('.pointer-events-auto');
+    const toast = (text) => screen.getByText(text).closest('.pointer-events-auto');
     // the question that is asked before all the downloads are stopped
     const question = () => within(screen.getByText('Cancel all downloads?').closest('.fixed'));
 
@@ -147,17 +177,22 @@ describe('canceling downloads', () => {
             job('Chapter 2', { status: 'queued' }),
             job('Chapter 3', { status: 'failed' }),
             job('Chapter 4', { status: 'completed' }),
-            job('Chapter 5', { status: 'paused' })
+            job('Chapter 5', { status: 'paused' }),
         );
         renderWithProviders(<JobsBar />, { selection: false });
         openList();
-        const offered = [...document.querySelectorAll('tbody tr')].map(row => row.querySelector('td:last-child button') !== null);
+        const offered = [...document.querySelectorAll('tbody tr')].map(
+            (row) => row.querySelector('td:last-child button') !== null,
+        );
         expect(offered).toEqual([true, true, false, false, false]);
         expect(cancelButtons()[0].getAttribute('title')).toBe('Cancel this download');
     });
 
     it('should cancel the job of its row, and only that one', () => {
-        const [first, second] = queued(job('Chapter 1', { status: 'downloading' }), job('Chapter 2', { status: 'queued' }));
+        const [first, second] = queued(
+            job('Chapter 1', { status: 'downloading' }),
+            job('Chapter 2', { status: 'queued' }),
+        );
         renderWithProviders(<JobsBar />, { selection: false });
         openList();
         fireEvent.click(cancelButtons()[1]);
@@ -184,7 +219,9 @@ describe('canceling downloads', () => {
         renderWithProviders(<JobsBar />, { selection: false });
         openList();
         fireEvent.click(cancelButtons()[0]);
-        expect(toast('"Chapter 1" cannot be canceled any more.').className).not.toMatch(/red|green/);
+        expect(toast('"Chapter 1" cannot be canceled any more.').className).not.toMatch(
+            /red|green/,
+        );
         expect(writing.status).toBe('downloading');
         expect(screen.getByText('1 Download(s)')).toBeTruthy();
     });
@@ -203,7 +240,7 @@ describe('canceling downloads', () => {
 
     it.each([
         ['there are no downloads', []],
-        ['only downloads that are over are left', [{ status: 'failed' }, { status: 'completed' }]]
+        ['only downloads that are over are left', [{ status: 'failed' }, { status: 'completed' }]],
     ])('should not offer to cancel all when %s', (_, fields) => {
         queued(...fields.map((entry, index) => job(`Chapter ${index + 1}`, entry)));
         renderWithProviders(<JobsBar />, { selection: false });
@@ -216,7 +253,7 @@ describe('canceling downloads', () => {
         queued(
             job('Chapter 1', { status: 'downloading' }),
             job('Chapter 2', { status: 'queued' }),
-            job('Chapter 3', { status: 'failed' })
+            job('Chapter 3', { status: 'failed' }),
         );
         renderWithProviders(<JobsBar />, { selection: false });
         expect(cancelAllButton().disabled).toBe(false);
@@ -229,7 +266,7 @@ describe('canceling downloads', () => {
         const [running, waiting, failed] = queued(
             job('Chapter 1', { status: 'downloading' }),
             job('Chapter 2', { status: 'queued' }),
-            job('Chapter 3', { status: 'failed' })
+            job('Chapter 3', { status: 'failed' }),
         );
         renderWithProviders(<JobsBar />, { selection: false });
         fireEvent.click(cancelAllButton());
@@ -237,20 +274,27 @@ describe('canceling downloads', () => {
         expect(engine.DownloadManager.cancelAll).toHaveBeenCalledTimes(1);
         expect(toast('Canceled 2 download(s).').className).toMatch(/green/);
         expect(screen.queryByText('Cancel all downloads?')).toBeNull();
-        expect([running.status, waiting.status, failed.status]).toEqual(['canceled', 'canceled', 'failed']);
+        expect([running.status, waiting.status, failed.status]).toEqual([
+            'canceled',
+            'canceled',
+            'failed',
+        ]);
         // only the failed job is left, and there is nothing more to cancel
         expect(screen.getByText('1 Download(s)')).toBeTruthy();
         expect(cancelAllButton().disabled).toBe(true);
     });
 
     it('should keep every download when the question is declined', () => {
-        const jobs = queued(job('Chapter 1', { status: 'downloading' }), job('Chapter 2', { status: 'queued' }));
+        const jobs = queued(
+            job('Chapter 1', { status: 'downloading' }),
+            job('Chapter 2', { status: 'queued' }),
+        );
         renderWithProviders(<JobsBar />, { selection: false });
         fireEvent.click(cancelAllButton());
         fireEvent.click(question().getByRole('button', { name: 'Keep them' }));
         expect(screen.queryByText('Cancel all downloads?')).toBeNull();
         expect(engine.DownloadManager.cancelAll).not.toHaveBeenCalled();
-        expect(jobs.map(entry => entry.status)).toEqual(['downloading', 'queued']);
+        expect(jobs.map((entry) => entry.status)).toEqual(['downloading', 'queued']);
         expect(screen.getByText('2 Download(s)')).toBeTruthy();
     });
 
@@ -276,7 +320,10 @@ describe('canceling downloads', () => {
     });
 
     it('should drop a download as soon as the engine cancels it, whoever asked for it, and follow the buttons with it', () => {
-        const [running, waiting] = queued(job('Chapter 1', { status: 'downloading' }), job('Chapter 2', { status: 'queued' }));
+        const [running, waiting] = queued(
+            job('Chapter 1', { status: 'downloading' }),
+            job('Chapter 2', { status: 'queued' }),
+        );
         renderWithProviders(<JobsBar />, { selection: false });
         waiting.status = 'canceled';
         act(() => engine.DownloadManager.emit('updated', waiting));
@@ -321,17 +368,30 @@ describe('download bar for the keyboard and the screen reader', () => {
         fireEvent.click(toggle);
         expect(toggle.getAttribute('aria-expanded')).toBe('true');
         expect(screen.getByRole('button', { name: 'Hide the download list' })).toBe(toggle);
-        expect(document.getElementById(toggle.getAttribute('aria-controls')).querySelector('table')).not.toBeNull();
+        expect(
+            document.getElementById(toggle.getAttribute('aria-controls')).querySelector('table'),
+        ).not.toBeNull();
     });
 
     it('should name the status, the progress and the cancel button of a job', () => {
-        queued(job('Chapter 1', { status: 'failed', progress: 30, errors: [new Error('HTTP 404')] }), job('Chapter 2', { status: 'downloading', progress: 55.4 }));
+        queued(
+            job('Chapter 1', { status: 'failed', progress: 30, errors: [new Error('HTTP 404')] }),
+            job('Chapter 2', { status: 'downloading', progress: 55.4 }),
+        );
         renderWithProviders(<JobsBar />, { selection: false });
         openList();
-        expect(screen.getByRole('button', { name: 'Failed (Error: HTTP 404): download again' })).toBeTruthy();
+        expect(
+            screen.getByRole('button', { name: 'Failed (Error: HTTP 404): download again' }),
+        ).toBeTruthy();
         expect(screen.getByRole('img', { name: 'Downloading' })).toBeTruthy();
-        expect([...document.querySelectorAll('tbody tr td:nth-child(5)')].map(cell => cell.textContent)).toEqual(['30%', '55%']);
-        expect(screen.getByRole('button', { name: 'Cancel the download of Chapter 2' }).title).toBe('Cancel this download');
+        expect(
+            [...document.querySelectorAll('tbody tr td:nth-child(5)')].map(
+                (cell) => cell.textContent,
+            ),
+        ).toEqual(['30%', '55%']);
+        expect(screen.getByRole('button', { name: 'Cancel the download of Chapter 2' }).title).toBe(
+            'Cancel this download',
+        );
     });
 
     it('should be a landmark with a counter that a screen reader follows', () => {

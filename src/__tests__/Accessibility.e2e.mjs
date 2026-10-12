@@ -16,23 +16,30 @@ async function pickConnector(page, id) {
 
 // Chapters come from the (offline) fixture instead of a website.
 async function useFakeChapters(page) {
-    await page.evaluate(async id => {
+    await page.evaluate(async (id) => {
         const chapterModule = '/mjs/engine/Chapter.mjs';
         const { default: Chapter } = await import(chapterModule);
-        const connector = Engine.Connectors.find(entry => entry.id === id);
+        const connector = Engine.Connectors.find((entry) => entry.id === id);
         connector.initialize = async () => undefined;
         connector._getChapterList = (manga, callback) => {
             const list = [];
             for (let number = 30; number >= 1; number--) {
-                list.push(new Chapter(manga, '/c/' + number, 'Chapter ' + number, 'en', 'available'));
+                list.push(
+                    new Chapter(manga, '/c/' + number, 'Chapter ' + number, 'en', 'available'),
+                );
             }
             callback(null, list);
         };
-        const svg = (index, height) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
-            `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="${height}"><rect width="800" height="${height}" fill="hsl(${index * 40},60%,60%)"/><text x="40" y="80" font-size="60">Page ${index + 1}</text></svg>`
-        );
-        Chapter.prototype.getPages = function(callback) {
-            callback(null, [0, 1, 2].map(index => svg(index, 1100)));
+        const svg = (index, height) =>
+            'data:image/svg+xml;utf8,' +
+            encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="${height}"><rect width="800" height="${height}" fill="hsl(${index * 40},60%,60%)"/><text x="40" y="80" font-size="60">Page ${index + 1}</text></svg>`,
+            );
+        Chapter.prototype.getPages = function (callback) {
+            callback(
+                null,
+                [0, 1, 2].map((index) => svg(index, 1100)),
+            );
         };
     }, SEED_CONNECTOR);
 }
@@ -47,10 +54,13 @@ async function openSeededManga(page) {
 
 async function setTheme(page, dark) {
     // the start page, not the view of the last test: a reload in the reader would ask the website for the chapter
-    await page.evaluate(theme => {
-        window.localStorage.setItem('rakkomik.theme', theme);
-        window.location.hash = '';
-    }, dark ? 'dark' : 'light');
+    await page.evaluate(
+        (theme) => {
+            window.localStorage.setItem('rakkomik.theme', theme);
+            window.location.hash = '';
+        },
+        dark ? 'dark' : 'light',
+    );
     await reload(page);
     expect(await page.evaluate(() => !!document.querySelector('#react-root .dark'))).toBe(dark);
 }
@@ -62,14 +72,20 @@ async function violationsOf(page) {
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'])
         .setLegacyMode(true)
         .analyze();
-    return results.violations.map(violation => `${violation.id}: ${violation.help}\n` + violation.nodes.map(node => `    ${node.target.join(' ')}`).join('\n'));
+    return results.violations.map(
+        (violation) =>
+            `${violation.id}: ${violation.help}\n` +
+            violation.nodes.map((node) => `    ${node.target.join(' ')}`).join('\n'),
+    );
 }
 
 test.describe('accessibility', () => {
     for (const dark of [false, true]) {
         const theme = dark ? 'dark' : 'light';
 
-        test(`should have no violation on the start page, in the menu and in the website picker (${theme} theme)`, async ({ page }) => {
+        test(`should have no violation on the start page, in the menu and in the website picker (${theme} theme)`, async ({
+            page,
+        }) => {
             await setTheme(page, dark);
             await connectorsReady(page);
             expect(await violationsOf(page)).toEqual([]);
@@ -86,7 +102,9 @@ test.describe('accessibility', () => {
             await page.keyboard.press('Escape');
         });
 
-        test(`should have no violation in the chapter list, the downloads, the bookmarks and the reader (${theme} theme)`, async ({ page }) => {
+        test(`should have no violation in the chapter list, the downloads, the bookmarks and the reader (${theme} theme)`, async ({
+            page,
+        }) => {
             await setTheme(page, dark);
             await openSeededManga(page);
             expect(await violationsOf(page)).toEqual([]);
@@ -101,7 +119,11 @@ test.describe('accessibility', () => {
             await expect(page.getByText(/No bookmarks yet/)).toBeVisible();
             expect(await violationsOf(page)).toEqual([]);
 
-            await page.locator('[role=grid] > div > div').first().getByTitle(/^Show preview/).click();
+            await page
+                .locator('[role=grid] > div > div')
+                .first()
+                .getByTitle(/^Show preview/)
+                .click();
             await expect(page.getByRole('button', { name: /^Page \d$/ })).toHaveCount(3);
             expect(await violationsOf(page)).toEqual([]);
             await page.getByRole('button', { name: 'Page 1' }).click();
@@ -114,7 +136,9 @@ test.describe('accessibility', () => {
         });
     }
 
-    test('should let the keyboard choose a manga in the list box and work the grid of the chapters', async ({ page }) => {
+    test('should let the keyboard choose a manga in the list box and work the grid of the chapters', async ({
+        page,
+    }) => {
         await reload(page);
         await connectorsReady(page);
         await pickConnector(page, SEED_CONNECTOR);
@@ -131,9 +155,15 @@ test.describe('accessibility', () => {
         // between the cells
         await page.getByLabel('Filter the chapters by title').focus();
         await page.keyboard.press('Tab');
-        await expect(page.locator(':focus')).toHaveAttribute('aria-label', 'Chapter 30: available, download the chapter');
+        await expect(page.locator(':focus')).toHaveAttribute(
+            'aria-label',
+            'Chapter 30: available, download the chapter',
+        );
         await page.keyboard.press('ArrowDown');
-        await expect(page.locator(':focus')).toHaveAttribute('aria-label', 'Chapter 29: available, download the chapter');
+        await expect(page.locator(':focus')).toHaveAttribute(
+            'aria-label',
+            'Chapter 29: available, download the chapter',
+        );
         await page.keyboard.press('End');
         await expect(page.locator(':focus')).toHaveText('Chapter 29');
         await page.keyboard.press('Control+End');
@@ -143,7 +173,9 @@ test.describe('accessibility', () => {
         await expect(page.locator(':focus')).not.toHaveAttribute('role', 'gridcell');
     });
 
-    test('should move the focus into a dialog, keep it there and give it back', async ({ page }) => {
+    test('should move the focus into a dialog, keep it there and give it back', async ({
+        page,
+    }) => {
         await reload(page);
         await connectorsReady(page);
         const opener = page.getByRole('button', { name: /^Website:/ });
@@ -162,16 +194,34 @@ test.describe('accessibility', () => {
 
     // The keys of the menu are bound by Electron and do not fire for the keys that Playwright types into the page: the
     // entries of the menu are worked directly, on the window of the page.
-    test('should zoom the window with the entries of the menu of the application, which have their keys', async ({ app, page }) => {
+    test('should zoom the window with the entries of the menu of the application, which have their keys', async ({
+        app,
+        page,
+    }) => {
         await reload(page);
         const url = page.url();
-        const work = role => app.electronApp.evaluate(({ BrowserWindow, Menu }, [role, url]) => {
-            const window = BrowserWindow.getAllWindows().find(entry => entry.webContents.getURL() === url);
-            const items = list => list.flatMap(item => [item, ...(item.submenu ? items(item.submenu.items) : [])]);
-            const item = items(Menu.getApplicationMenu().items).find(entry => String(entry.role).toLowerCase() === role);
-            item.click(undefined, window, window.webContents);
-            return { accelerator: item.accelerator, zoom: window.webContents.getZoomFactor() };
-        }, [role, url]);
+        const work = (role) =>
+            app.electronApp.evaluate(
+                ({ BrowserWindow, Menu }, [role, url]) => {
+                    const window = BrowserWindow.getAllWindows().find(
+                        (entry) => entry.webContents.getURL() === url,
+                    );
+                    const items = (list) =>
+                        list.flatMap((item) => [
+                            item,
+                            ...(item.submenu ? items(item.submenu.items) : []),
+                        ]);
+                    const item = items(Menu.getApplicationMenu().items).find(
+                        (entry) => String(entry.role).toLowerCase() === role,
+                    );
+                    item.click(undefined, window, window.webContents);
+                    return {
+                        accelerator: item.accelerator,
+                        zoom: window.webContents.getZoomFactor(),
+                    };
+                },
+                [role, url],
+            );
         const larger = await work('zoomin');
         expect(larger.accelerator).toBe('CommandOrControl+Plus');
         expect(larger.zoom).toBeGreaterThan(1);

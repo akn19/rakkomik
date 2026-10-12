@@ -16,11 +16,17 @@ export function useUpdateProgress(connector) {
             setProgress(undefined);
             return undefined;
         }
-        const sample = () => setProgress(current => {
-            const next = getUpdateProgress(connector);
-            const unchanged = current === next || (current && next && current.requests === next.requests && current.seconds === next.seconds);
-            return unchanged ? current : next;
-        });
+        const sample = () =>
+            setProgress((current) => {
+                const next = getUpdateProgress(connector);
+                const unchanged =
+                    current === next ||
+                    (current &&
+                        next &&
+                        current.requests === next.requests &&
+                        current.seconds === next.seconds);
+                return unchanged ? current : next;
+            });
         sample();
         const timer = setInterval(sample, SAMPLE_INTERVAL);
         return () => clearInterval(timer);

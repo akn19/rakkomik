@@ -9,8 +9,10 @@ const os = require('node:os');
 const path = require('node:path');
 
 // what Electron 44 reports on Linux for an application called RakKomik, and what the application sends instead
-const ELECTRON_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) RakKomik/1.0.0 Chrome/152.0.7977.130 Electron/44.7.0 Safari/537.36';
-const CHROMIUM_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.7977.130 Safari/537.36';
+const ELECTRON_USER_AGENT =
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) RakKomik/1.0.0 Chrome/152.0.7977.130 Electron/44.7.0 Safari/537.36';
+const CHROMIUM_USER_AGENT =
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.7977.130 Safari/537.36';
 
 // what the doubles keep for the tests
 const world = {
@@ -18,7 +20,7 @@ const world = {
     trays: [],
     loading: false,
     // answers the requests of the main process the way the renderer does: (channel, payload) => answer
-    reply: undefined
+    reply: undefined,
 };
 
 function createWindow(options) {
@@ -32,7 +34,7 @@ function createWindow(options) {
         isLoading: vi.fn(() => world.loading),
         getURL: vi.fn(() => 'https://site.test/'),
         loadURL: vi.fn(async () => undefined),
-        setWindowOpenHandler: vi.fn()
+        setWindowOpenHandler: vi.fn(),
     });
     const win = Object.assign(new EventEmitter(), {
         options,
@@ -46,8 +48,13 @@ function createWindow(options) {
             return this.destroyed;
         },
         // like Electron: a listener can prevent `close`, otherwise the window is gone, and says so, a little later
-        close: vi.fn(function() {
-            const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+        close: vi.fn(function () {
+            const event = {
+                defaultPrevented: false,
+                preventDefault() {
+                    this.defaultPrevented = true;
+                },
+            };
             this.emit('close', event);
             if (!event.defaultPrevented) {
                 setImmediate(() => {
@@ -55,7 +62,7 @@ function createWindow(options) {
                     this.emit('closed');
                 });
             }
-        })
+        }),
     });
     world.windows.push(win);
     // Electron announces every new web contents on the application
@@ -72,38 +79,38 @@ const electron = mockModule('electron', () => {
         setPath: vi.fn(),
         quit: vi.fn(),
         whenReady: vi.fn(() => Promise.resolve()),
-        dock: { hide: vi.fn(), show: vi.fn() }
+        dock: { hide: vi.fn(), show: vi.fn() },
     });
-    const BrowserWindow = vi.fn(function(options) {
+    const BrowserWindow = vi.fn(function (options) {
         return createWindow(options);
     });
-    BrowserWindow.getAllWindows = vi.fn(() => world.windows.filter(win => !win.destroyed));
+    BrowserWindow.getAllWindows = vi.fn(() => world.windows.filter((win) => !win.destroyed));
     return {
         app,
         BrowserWindow,
         ipcMain: Object.assign(new EventEmitter(), { handle: vi.fn() }),
-        Tray: vi.fn(function(icon) {
+        Tray: vi.fn(function (icon) {
             const tray = { icon, setContextMenu: vi.fn(), setToolTip: vi.fn(), destroy: vi.fn() };
             world.trays.push(tray);
             return tray;
         }),
         Menu: {
-            buildFromTemplate: vi.fn(template => ({ template })),
-            setApplicationMenu: vi.fn()
+            buildFromTemplate: vi.fn((template) => ({ template })),
+            setApplicationMenu: vi.fn(),
         },
         clipboard: { readText: vi.fn(() => ''), writeText: vi.fn() },
-        nativeImage: { createFromPath: vi.fn(file => ({ file })) },
+        nativeImage: { createFromPath: vi.fn((file) => ({ file })) },
         protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
         session: {
             defaultSession: {
                 webRequest: { onBeforeSendHeaders: vi.fn(), onHeadersReceived: vi.fn() },
                 setPermissionRequestHandler: vi.fn(),
-                setPermissionCheckHandler: vi.fn()
-            }
+                setPermissionCheckHandler: vi.fn(),
+            },
         },
         // for the preload script, which the main window loads
         contextBridge: { exposeInMainWorld: vi.fn() },
-        ipcRenderer: { invoke: vi.fn(), on: vi.fn(), send: vi.fn() }
+        ipcRenderer: { invoke: vi.fn(), on: vi.fn(), send: vi.fn() },
     };
 });
 const ElectronBootstrap = require('../ElectronBootstrap');
@@ -113,7 +120,7 @@ const { ConsoleLogger } = require('../Logger');
 const PLATFORM = Object.getOwnPropertyDescriptor(process, 'platform');
 
 // lets the windows that are closing finish
-const settle = () => new Promise(resolve => setImmediate(resolve));
+const settle = () => new Promise((resolve) => setImmediate(resolve));
 
 async function withPlatform(platform, action) {
     Object.defineProperty(process, 'platform', { ...PLATFORM, value: platform });
@@ -136,7 +143,11 @@ describe('ElectronBootstrap', () => {
     const SECRET = 'TOP SECRET OUTSIDE OF THE CACHE';
 
     function configure(options = {}) {
-        return new Configuration({ applicationCacheDirectory: cache, applicationUserDataDirectory: userData, ...options });
+        return new Configuration({
+            applicationCacheDirectory: cache,
+            applicationUserDataDirectory: userData,
+            ...options,
+        });
     }
 
     async function launch(options) {
@@ -146,7 +157,8 @@ describe('ElectronBootstrap', () => {
     }
 
     const mainWindow = () => world.windows[0];
-    const protocolHandler = scheme => electron.protocol.handle.mock.calls.find(([name]) => name === scheme)[1];
+    const protocolHandler = (scheme) =>
+        electron.protocol.handle.mock.calls.find(([name]) => name === scheme)[1];
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -167,7 +179,9 @@ describe('ElectronBootstrap', () => {
         electron.app.name = 'RakKomik';
         electron.app.userAgentFallback = ELECTRON_USER_AGENT;
         // `clearAllMocks` keeps what a test made the doubles do: put the defaults back
-        electron.app.getPath.mockImplementation(name => path.join(os.tmpdir(), 'rk-electron-double', name));
+        electron.app.getPath.mockImplementation((name) =>
+            path.join(os.tmpdir(), 'rk-electron-double', name),
+        );
         electron.app.whenReady.mockImplementation(() => Promise.resolve());
         electron.clipboard.readText.mockReturnValue('');
     });
@@ -195,9 +209,12 @@ describe('ElectronBootstrap', () => {
     describe('launch()', () => {
         it('should register the schemes before the application is ready and everything else after it', async () => {
             let ready = null;
-            electron.app.whenReady.mockImplementation(() => new Promise(resolve => {
-                ready = resolve;
-            }));
+            electron.app.whenReady.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        ready = resolve;
+                    }),
+            );
             bootstrap = new ElectronBootstrap(configure(), logger);
             const launching = bootstrap.launch();
             // Electron only accepts privileged schemes before `ready`
@@ -212,27 +229,45 @@ describe('ElectronBootstrap', () => {
 
         it.each([
             ['the application scheme', 0, 'hakuneko'],
-            ['the connector scheme', 1, 'connector']
-        ])('should give %s exactly the privileges the engine needs and no more', async (_, index, scheme) => {
-            await launch();
-            const schemes = electron.protocol.registerSchemesAsPrivileged.mock.calls[0][0];
-            expect(schemes).toHaveLength(2);
-            // `bypassCSP` and `allowServiceWorkers` would be a security regression
-            expect(schemes[index]).toEqual({
-                scheme,
-                privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true }
-            });
-        });
+            ['the connector scheme', 1, 'connector'],
+        ])(
+            'should give %s exactly the privileges the engine needs and no more',
+            async (_, index, scheme) => {
+                await launch();
+                const schemes = electron.protocol.registerSchemesAsPrivileged.mock.calls[0][0];
+                expect(schemes).toHaveLength(2);
+                // `bypassCSP` and `allowServiceWorkers` would be a security regression
+                expect(schemes[index]).toEqual({
+                    scheme,
+                    privileges: {
+                        secure: true,
+                        standard: true,
+                        supportFetchAPI: true,
+                        corsEnabled: true,
+                    },
+                });
+            },
+        );
 
         it('should name the application scheme after the startup URL', async () => {
             await launch({ applicationStartupURL: 'custom://app/index.html' });
-            expect(electron.protocol.registerSchemesAsPrivileged.mock.calls[0][0].map(entry => entry.scheme)).toEqual(['custom', 'connector']);
-            expect(electron.protocol.handle.mock.calls.map(([scheme]) => scheme)).toEqual(['custom', 'connector']);
+            expect(
+                electron.protocol.registerSchemesAsPrivileged.mock.calls[0][0].map(
+                    (entry) => entry.scheme,
+                ),
+            ).toEqual(['custom', 'connector']);
+            expect(electron.protocol.handle.mock.calls.map(([scheme]) => scheme)).toEqual([
+                'custom',
+                'connector',
+            ]);
         });
 
         it('should serve the application scheme from the cache and the connector scheme from the renderer', async () => {
             await launch();
-            expect(electron.protocol.handle.mock.calls.map(([scheme]) => scheme)).toEqual(['hakuneko', 'connector']);
+            expect(electron.protocol.handle.mock.calls.map(([scheme]) => scheme)).toEqual([
+                'hakuneko',
+                'connector',
+            ]);
         });
 
         it('should keep the user data where the configuration says (e.g. next to a portable application)', async () => {
@@ -256,13 +291,16 @@ describe('ElectronBootstrap', () => {
         it.each([
             ['linux', 'logo.png'],
             ['darwin', 'logo.png'],
-            ['win32', 'logo.ico']
-        ])('should take the icon of the window from the cache directory (%s: %s)', async (platform, file) => {
-            await withPlatform(platform, () => launch());
-            const expected = path.join(cache, 'img', 'tray', file);
-            expect(electron.nativeImage.createFromPath).toHaveBeenCalledWith(expected);
-            expect(mainWindow().options.icon).toEqual({ file: expected });
-        });
+            ['win32', 'logo.ico'],
+        ])(
+            'should take the icon of the window from the cache directory (%s: %s)',
+            async (platform, file) => {
+                await withPlatform(platform, () => launch());
+                const expected = path.join(cache, 'img', 'tray', file);
+                expect(electron.nativeImage.createFromPath).toHaveBeenCalledWith(expected);
+                expect(mainWindow().options.icon).toEqual({ file: expected });
+            },
+        );
     });
 
     describe('user agent', () => {
@@ -272,11 +310,36 @@ describe('ElectronBootstrap', () => {
         });
 
         it.each([
-            ['a user agent without the tokens', CHROMIUM_USER_AGENT, 'RakKomik', CHROMIUM_USER_AGENT],
-            ['every occurrence of a token', 'A/1 Electron/1.0 B/2 Electron/2.0 RakKomik/3 C/4', 'RakKomik', 'A/1 B/2 C/4'],
-            ['only whole product tokens', 'Mozilla/5.0 ElectronicsBot/1.0 Chrome/150 RakKomikLite/2', 'RakKomik', 'Mozilla/5.0 ElectronicsBot/1.0 Chrome/150 RakKomikLite/2'],
-            ['an application that is called Electron', 'Mozilla/5.0 Chrome/150 Electron/44.7.0 Safari/537.36', 'Electron', 'Mozilla/5.0 Chrome/150 Safari/537.36'],
-            ['the version up to the next space', 'Mozilla/5.0 RakKomik/1.0.0-beta.2+build.5 Chrome/150', 'RakKomik', 'Mozilla/5.0 Chrome/150']
+            [
+                'a user agent without the tokens',
+                CHROMIUM_USER_AGENT,
+                'RakKomik',
+                CHROMIUM_USER_AGENT,
+            ],
+            [
+                'every occurrence of a token',
+                'A/1 Electron/1.0 B/2 Electron/2.0 RakKomik/3 C/4',
+                'RakKomik',
+                'A/1 B/2 C/4',
+            ],
+            [
+                'only whole product tokens',
+                'Mozilla/5.0 ElectronicsBot/1.0 Chrome/150 RakKomikLite/2',
+                'RakKomik',
+                'Mozilla/5.0 ElectronicsBot/1.0 Chrome/150 RakKomikLite/2',
+            ],
+            [
+                'an application that is called Electron',
+                'Mozilla/5.0 Chrome/150 Electron/44.7.0 Safari/537.36',
+                'Electron',
+                'Mozilla/5.0 Chrome/150 Safari/537.36',
+            ],
+            [
+                'the version up to the next space',
+                'Mozilla/5.0 RakKomik/1.0.0-beta.2+build.5 Chrome/150',
+                'RakKomik',
+                'Mozilla/5.0 Chrome/150',
+            ],
         ])('should strip %s', async (_, userAgent, name, expected) => {
             electron.app.name = name;
             electron.app.userAgentFallback = userAgent;
@@ -286,9 +349,12 @@ describe('ElectronBootstrap', () => {
 
         it('should take the name of the application literally, whatever characters it has', async () => {
             electron.app.name = 'Rak.Komik+(beta)';
-            electron.app.userAgentFallback = 'Mozilla/5.0 RakXKomik+(beta)/1.0 Rak.Komik+(beta)/1.0 Chrome/150 Electron/44.7.0';
+            electron.app.userAgentFallback =
+                'Mozilla/5.0 RakXKomik+(beta)/1.0 Rak.Komik+(beta)/1.0 Chrome/150 Electron/44.7.0';
             await launch();
-            expect(electron.app.userAgentFallback).toBe('Mozilla/5.0 RakXKomik+(beta)/1.0 Chrome/150');
+            expect(electron.app.userAgentFallback).toBe(
+                'Mozilla/5.0 RakXKomik+(beta)/1.0 Chrome/150',
+            );
         });
     });
 
@@ -296,7 +362,13 @@ describe('ElectronBootstrap', () => {
         it('should open a hidden frameless window of the size of the interface and show it when it is ready', async () => {
             await launch();
             const win = mainWindow();
-            expect(win.options).toMatchObject({ width: 1120, height: 680, title: 'RakKomik', show: false, frame: false });
+            expect(win.options).toMatchObject({
+                width: 1120,
+                height: 680,
+                title: 'RakKomik',
+                show: false,
+                frame: false,
+            });
             win.emit('ready-to-show');
             expect(win.show).toHaveBeenCalledTimes(1);
             win.emit('ready-to-show');
@@ -311,7 +383,13 @@ describe('ElectronBootstrap', () => {
             expect(preferences.contextIsolation).toBe(true);
             // `true`, or left to the default of Electron, which is the sandbox
             expect(preferences.sandbox).not.toBe(false);
-            for (const unsafe of ['nodeIntegrationInWorker', 'nodeIntegrationInSubFrames', 'webviewTag', 'allowRunningInsecureContent', 'enableRemoteModule']) {
+            for (const unsafe of [
+                'nodeIntegrationInWorker',
+                'nodeIntegrationInSubFrames',
+                'webviewTag',
+                'allowRunningInsecureContent',
+                'enableRemoteModule',
+            ]) {
                 expect(preferences[unsafe]).not.toBe(true);
             }
         });
@@ -365,8 +443,14 @@ describe('ElectronBootstrap', () => {
             ['a file of the user', 'file:///home/user/.ssh/id_rsa'],
             ['a page that is made of text', 'data:text/html;base64,PHA+eDwvcD4='],
             ['the scheme of the connectors', 'connector://mangadex?payload=x'],
-            ['a scheme that only starts like the one of the application', 'hakuneko-evil://cache/index.html'],
-            ['a website that has the scheme in its address', 'https://evil.example/hakuneko://cache/index.html']
+            [
+                'a scheme that only starts like the one of the application',
+                'hakuneko-evil://cache/index.html',
+            ],
+            [
+                'a website that has the scheme in its address',
+                'https://evil.example/hakuneko://cache/index.html',
+            ],
         ])('should not let the page of the main window navigate to %s', async (_, url) => {
             await launch();
             const event = { url, preventDefault: vi.fn() };
@@ -376,13 +460,16 @@ describe('ElectronBootstrap', () => {
 
         it.each([
             ['the cache', 'hakuneko://cache/index.html?v=2'],
-            ['the plugins', 'hakuneko://plugins/MyConnector.mjs']
-        ])('should let the page of the main window navigate within the application (%s)', async (_, url) => {
-            await launch();
-            const event = { url, preventDefault: vi.fn() };
-            mainWindow().webContents.emit('will-navigate', event, url);
-            expect(event.preventDefault).not.toHaveBeenCalled();
-        });
+            ['the plugins', 'hakuneko://plugins/MyConnector.mjs'],
+        ])(
+            'should let the page of the main window navigate within the application (%s)',
+            async (_, url) => {
+                await launch();
+                const event = { url, preventDefault: vi.fn() };
+                mainWindow().webContents.emit('will-navigate', event, url);
+                expect(event.preventDefault).not.toHaveBeenCalled();
+            },
+        );
 
         it('should take the scheme of the application from the startup URL', async () => {
             await launch({ applicationStartupURL: 'custom://app/index.html' });
@@ -407,27 +494,43 @@ describe('ElectronBootstrap', () => {
         // the permission requests of every page of the session, as Electron asks for them
         function ask(handler, permission) {
             const callback = vi.fn();
-            handler({ getURL: () => 'https://site.test/' }, permission, callback, { requestingUrl: 'https://site.test/', isMainFrame: true });
+            handler({ getURL: () => 'https://site.test/' }, permission, callback, {
+                requestingUrl: 'https://site.test/',
+                isMainFrame: true,
+            });
             return callback;
         }
 
         it('should not approve the permission requests of a remote page on its own', async () => {
             await launch();
-            const [handler] = electron.session.defaultSession.setPermissionRequestHandler.mock.calls[0] || [];
+            const [handler] =
+                electron.session.defaultSession.setPermissionRequestHandler.mock.calls[0] || [];
             expect(handler).toBeTypeOf('function');
-            for (const permission of ['media', 'notifications', 'geolocation', 'midi', 'clipboard-read', 'hid', 'serial']) {
+            for (const permission of [
+                'media',
+                'notifications',
+                'geolocation',
+                'midi',
+                'clipboard-read',
+                'hid',
+                'serial',
+            ]) {
                 const callback = vi.fn();
-                handler({ getURL: () => 'https://site.test/' }, permission, callback, { requestingUrl: 'https://site.test/', isMainFrame: true });
+                handler({ getURL: () => 'https://site.test/' }, permission, callback, {
+                    requestingUrl: 'https://site.test/',
+                    isMainFrame: true,
+                });
                 expect(callback).toHaveBeenCalledWith(false);
             }
         });
 
         it.each([
             ['a video in full screen', 'fullscreen'],
-            ['a text copied to the clipboard', 'clipboard-sanitized-write']
+            ['a text copied to the clipboard', 'clipboard-sanitized-write'],
         ])('should approve the request for %s, and no more than that', async (_, permission) => {
             await launch();
-            const [handler] = electron.session.defaultSession.setPermissionRequestHandler.mock.calls[0];
+            const [handler] =
+                electron.session.defaultSession.setPermissionRequestHandler.mock.calls[0];
             expect(ask(handler, permission).mock.calls).toEqual([[true]]);
         });
 
@@ -441,31 +544,53 @@ describe('ElectronBootstrap', () => {
             'automatic-fullscreen',
             'unknown',
             // what a later version of Electron may ask for
-            'a-permission-that-does-not-exist-yet'
-        ])('should deny the request for %s', async permission => {
+            'a-permission-that-does-not-exist-yet',
+        ])('should deny the request for %s', async (permission) => {
             await launch();
-            const [handler] = electron.session.defaultSession.setPermissionRequestHandler.mock.calls[0];
+            const [handler] =
+                electron.session.defaultSession.setPermissionRequestHandler.mock.calls[0];
             expect(ask(handler, permission).mock.calls).toEqual([[false]]);
         });
 
         it('should install the handler once on the session of the application, after the application is ready', async () => {
             let ready = null;
-            electron.app.whenReady.mockImplementation(() => new Promise(resolve => {
-                ready = resolve;
-            }));
+            electron.app.whenReady.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        ready = resolve;
+                    }),
+            );
             bootstrap = new ElectronBootstrap(configure(), logger);
             const launching = bootstrap.launch();
-            expect(electron.session.defaultSession.setPermissionRequestHandler).not.toHaveBeenCalled();
+            expect(
+                electron.session.defaultSession.setPermissionRequestHandler,
+            ).not.toHaveBeenCalled();
             ready();
             await launching;
-            expect(electron.session.defaultSession.setPermissionRequestHandler).toHaveBeenCalledTimes(1);
+            expect(
+                electron.session.defaultSession.setPermissionRequestHandler,
+            ).toHaveBeenCalledTimes(1);
             electron.app.emit('activate');
-            expect(electron.session.defaultSession.setPermissionRequestHandler).toHaveBeenCalledTimes(1);
+            expect(
+                electron.session.defaultSession.setPermissionRequestHandler,
+            ).toHaveBeenCalledTimes(1);
         });
     });
 
     describe('renderer bootstrap', () => {
-        const PATHS = ['home', 'appData', 'userData', 'sessionData', 'temp', 'desktop', 'documents', 'downloads', 'music', 'pictures', 'videos'];
+        const PATHS = [
+            'home',
+            'appData',
+            'userData',
+            'sessionData',
+            'temp',
+            'desktop',
+            'documents',
+            'downloads',
+            'music',
+            'pictures',
+            'videos',
+        ];
 
         it('should name the platform, the temp directory and every directory the renderer asks for', async () => {
             await launch();
@@ -481,14 +606,14 @@ describe('ElectronBootstrap', () => {
         it('should leave out a directory the system does not have, and warn', async () => {
             await launch();
             const failure = new Error("Failed to get 'documents' path");
-            electron.app.getPath.mockImplementation(name => {
+            electron.app.getPath.mockImplementation((name) => {
                 if (name === 'documents') {
                     throw failure;
                 }
                 return path.join(os.tmpdir(), name);
             });
             const values = bootstrap._rendererBootstrap();
-            expect(Object.keys(values.paths)).toEqual(PATHS.filter(name => name !== 'documents'));
+            expect(Object.keys(values.paths)).toEqual(PATHS.filter((name) => name !== 'documents'));
             expect(logger.warn).toHaveBeenCalledWith(failure);
         });
 
@@ -523,7 +648,10 @@ describe('ElectronBootstrap', () => {
             const argv = process.argv;
             const preload = mainWindow().options.webPreferences.preload;
             try {
-                process.argv = [...argv.slice(0, 2), ...mainWindow().options.webPreferences.additionalArguments];
+                process.argv = [
+                    ...argv.slice(0, 2),
+                    ...mainWindow().options.webPreferences.additionalArguments,
+                ];
                 delete require.cache[preload];
                 electron.contextBridge.exposeInMainWorld.mockClear();
                 require(preload);
@@ -542,11 +670,16 @@ describe('ElectronBootstrap', () => {
     describe('web requests', () => {
         const requestHooks = () => electron.session.defaultSession.webRequest;
 
-        it.each(['onBeforeSendHeaders', 'onHeadersReceived'])('should rewrite the headers of web requests only with %s, never those of the application schemes', async hook => {
-            await launch();
-            expect(requestHooks()[hook]).toHaveBeenCalledTimes(1);
-            expect(requestHooks()[hook].mock.calls[0][0]).toEqual({ urls: ['http://*/*', 'https://*/*'] });
-        });
+        it.each(['onBeforeSendHeaders', 'onHeadersReceived'])(
+            'should rewrite the headers of web requests only with %s, never those of the application schemes',
+            async (hook) => {
+                await launch();
+                expect(requestHooks()[hook]).toHaveBeenCalledTimes(1);
+                expect(requestHooks()[hook].mock.calls[0][0]).toEqual({
+                    urls: ['http://*/*', 'https://*/*'],
+                });
+            },
+        );
 
         describe('before they are sent', () => {
             async function send(details) {
@@ -560,7 +693,12 @@ describe('ElectronBootstrap', () => {
             it('should apply the header surgery and let the request go', async () => {
                 const callback = await send({
                     url: 'https://example.org/page',
-                    requestHeaders: { 'User-Agent': ELECTRON_USER_AGENT, 'x-referer': 'https://example.org/', 'x-cookie': 'a=1', Cookie: 'b=2' }
+                    requestHeaders: {
+                        'User-Agent': ELECTRON_USER_AGENT,
+                        'x-referer': 'https://example.org/',
+                        'x-cookie': 'a=1',
+                        Cookie: 'b=2',
+                    },
                 });
                 expect(callback).toHaveBeenCalledTimes(1);
                 const { cancel, requestHeaders } = callback.mock.calls[0][0];
@@ -568,12 +706,19 @@ describe('ElectronBootstrap', () => {
                 expect(requestHeaders.Referer).toBe('https://example.org/');
                 expect(requestHeaders.Cookie).toBe('b=2; a=1');
                 expect(requestHeaders['Cache-Control']).toBe('no-cache');
-                expect(Object.keys(requestHeaders).filter(name => name.startsWith('x-'))).toEqual([]);
+                expect(Object.keys(requestHeaders).filter((name) => name.startsWith('x-'))).toEqual(
+                    [],
+                );
             });
 
             it('should align a stray Electron user agent with the user agent of the application', async () => {
-                const callback = await send({ url: 'https://example.org/', requestHeaders: { 'User-Agent': ELECTRON_USER_AGENT } });
-                expect(callback.mock.calls[0][0].requestHeaders['User-Agent']).toBe(CHROMIUM_USER_AGENT);
+                const callback = await send({
+                    url: 'https://example.org/',
+                    requestHeaders: { 'User-Agent': ELECTRON_USER_AGENT },
+                });
+                expect(callback.mock.calls[0][0].requestHeaders['User-Agent']).toBe(
+                    CHROMIUM_USER_AGENT,
+                );
             });
 
             it('should let the request go with its own headers, and warn, when the surgery fails', async () => {
@@ -599,13 +744,18 @@ describe('ElectronBootstrap', () => {
             it('should apply the header surgery and let the response through', async () => {
                 const callback = await receive({
                     url: 'https://stream.test/video',
-                    responseHeaders: { 'x-redirect': ['https://stream.test/next'], 'set-cookie': ['a=1; SameSite=Lax; Path=/'] }
+                    responseHeaders: {
+                        'x-redirect': ['https://stream.test/next'],
+                        'set-cookie': ['a=1; SameSite=Lax; Path=/'],
+                    },
                 });
                 expect(callback).toHaveBeenCalledTimes(1);
                 const { cancel, responseHeaders } = callback.mock.calls[0][0];
                 expect(cancel).toBe(false);
                 expect(responseHeaders.Location).toEqual(['https://stream.test/next']);
-                expect(responseHeaders['set-cookie']).toEqual(['a=1; Path=/; Secure; SameSite=None']);
+                expect(responseHeaders['set-cookie']).toEqual([
+                    'a=1; Path=/; Secure; SameSite=None',
+                ]);
             });
 
             it('should let the response through with its own headers, and warn, when the surgery fails', async () => {
@@ -638,7 +788,7 @@ describe('ElectronBootstrap', () => {
             ['font.woff2', 'font/woff2'],
             // the icons of the connectors have no extension: still rendered by <img>
             ['mangadex', 'application/octet-stream'],
-            ['archive.zip', 'application/octet-stream']
+            ['archive.zip', 'application/octet-stream'],
         ];
 
         async function get(url, scheme = 'hakuneko') {
@@ -649,15 +799,18 @@ describe('ElectronBootstrap', () => {
             await launch();
         });
 
-        it.each(MIME_TYPES)('should serve %s as %s, readable from the other schemes', async (file, mimeType) => {
-            fs.writeFileSync(path.join(cache, file), 'content of ' + file);
-            const response = await get('hakuneko://cache/' + file);
-            expect(response.status).toBe(200);
-            expect(response.headers.get('Content-Type')).toBe(mimeType);
-            // connector:// images and the hidden fetch windows read it across schemes
-            expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
-            await expect(response.text()).resolves.toBe('content of ' + file);
-        });
+        it.each(MIME_TYPES)(
+            'should serve %s as %s, readable from the other schemes',
+            async (file, mimeType) => {
+                fs.writeFileSync(path.join(cache, file), 'content of ' + file);
+                const response = await get('hakuneko://cache/' + file);
+                expect(response.status).toBe(200);
+                expect(response.headers.get('Content-Type')).toBe(mimeType);
+                // connector:// images and the hidden fetch windows read it across schemes
+                expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+                await expect(response.text()).resolves.toBe('content of ' + file);
+            },
+        );
 
         it('should serve the bytes of a file unchanged', async () => {
             const bytes = Buffer.from(Array.from({ length: 256 }, (_, index) => index));
@@ -668,7 +821,10 @@ describe('ElectronBootstrap', () => {
 
         it('should serve a file below directories', async () => {
             fs.mkdirSync(path.join(cache, 'mjs', 'engine'), { recursive: true });
-            fs.writeFileSync(path.join(cache, 'mjs', 'engine', 'Connectors.mjs'), 'export default 1;');
+            fs.writeFileSync(
+                path.join(cache, 'mjs', 'engine', 'Connectors.mjs'),
+                'export default 1;',
+            );
             const response = await get('hakuneko://cache/mjs/engine/Connectors.mjs');
             expect(response.headers.get('Content-Type')).toBe('text/javascript');
             await expect(response.text()).resolves.toBe('export default 1;');
@@ -684,7 +840,7 @@ describe('ElectronBootstrap', () => {
         it.each([
             ['with a slash', 'hakuneko://cache/mjs/'],
             ['without a slash', 'hakuneko://cache/mjs'],
-            ['with dot segments', 'hakuneko://cache/mjs/./sub/..']
+            ['with dot segments', 'hakuneko://cache/mjs/./sub/..'],
         ])('should list a directory as a JSON array of its entries (%s)', async (_, url) => {
             fs.mkdirSync(path.join(cache, 'mjs', 'sub'), { recursive: true });
             fs.writeFileSync(path.join(cache, 'mjs', 'a.mjs'), '');
@@ -725,7 +881,7 @@ describe('ElectronBootstrap', () => {
         it.each([
             ['a file that does not exist', 'hakuneko://cache/missing.js'],
             ['a directory that does not exist', 'hakuneko://cache/missing/'],
-            ['a path below a file', 'hakuneko://cache/index.html/inside.js']
+            ['a path below a file', 'hakuneko://cache/index.html/inside.js'],
         ])('should answer %s with a 404', async (_, url) => {
             fs.writeFileSync(path.join(cache, 'index.html'), '');
             const response = await get(url);
@@ -747,7 +903,10 @@ describe('ElectronBootstrap', () => {
             ['a double encoding', 'hakuneko://cache/%252e%252e/secret.txt'],
             ['the plugins host', 'hakuneko://plugins/../../secret.txt'],
             // the directory of the test only exists while it runs
-            ['the absolute path of the file', () => 'hakuneko://cache/' + path.join(root, 'secret.txt').split(path.sep).join('/')]
+            [
+                'the absolute path of the file',
+                () => 'hakuneko://cache/' + path.join(root, 'secret.txt').split(path.sep).join('/'),
+            ],
         ])('should not serve a file outside of the cache by %s', async (_, url) => {
             const response = await get(typeof url === 'function' ? url() : url);
             expect(response.status).not.toBe(200);
@@ -758,19 +917,24 @@ describe('ElectronBootstrap', () => {
             ['another name', 'hakuneko://elsewhere/index.html'],
             ['a name of Object.prototype', 'hakuneko://constructor/index.html'],
             ['the prototype', 'hakuneko://__proto__/index.html'],
-            ['no name at all', 'hakuneko:///index.html']
-        ])('should refuse a host that is neither the cache nor the plugins (%s) and say so in the log', async (_, url) => {
-            // the cache holds the same file: it must not be found for another host
-            fs.writeFileSync(path.join(cache, 'index.html'), 'the cache');
-            const response = await get(url);
-            expect(response.ok).toBe(false);
-            await expect(response.text()).resolves.not.toContain('the cache');
-            expect(logger.warn).toHaveBeenCalledTimes(1);
-        });
+            ['no name at all', 'hakuneko:///index.html'],
+        ])(
+            'should refuse a host that is neither the cache nor the plugins (%s) and say so in the log',
+            async (_, url) => {
+                // the cache holds the same file: it must not be found for another host
+                fs.writeFileSync(path.join(cache, 'index.html'), 'the cache');
+                const response = await get(url);
+                expect(response.ok).toBe(false);
+                await expect(response.text()).resolves.not.toContain('the cache');
+                expect(logger.warn).toHaveBeenCalledTimes(1);
+            },
+        );
 
         it('should answer a failure of the file system with a 500 and a warning, not with an exception', async () => {
             fs.writeFileSync(path.join(cache, 'index.html'), '');
-            const failure = Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
+            const failure = Object.assign(new Error('EACCES: permission denied'), {
+                code: 'EACCES',
+            });
             vi.spyOn(fs.promises, 'stat').mockRejectedValueOnce(failure);
             const response = await get('hakuneko://cache/index.html');
             expect(response.status).toBe(500);
@@ -778,20 +942,30 @@ describe('ElectronBootstrap', () => {
             expect(logger.warn).toHaveBeenCalledWith(failure);
         });
 
-        it.each(['readFile', 'readdir'])('should answer a failure of %s with a 500 and a warning', async method => {
-            fs.mkdirSync(path.join(cache, 'directory'));
-            fs.writeFileSync(path.join(cache, 'file.js'), '');
-            const failure = Object.assign(new Error('EIO'), { code: 'EIO' });
-            vi.spyOn(fs.promises, method).mockRejectedValueOnce(failure);
-            const response = await get(method === 'readFile' ? 'hakuneko://cache/file.js' : 'hakuneko://cache/directory');
-            expect(response.status).toBe(500);
-            expect(logger.warn).toHaveBeenCalledWith(failure);
-        });
+        it.each(['readFile', 'readdir'])(
+            'should answer a failure of %s with a 500 and a warning',
+            async (method) => {
+                fs.mkdirSync(path.join(cache, 'directory'));
+                fs.writeFileSync(path.join(cache, 'file.js'), '');
+                const failure = Object.assign(new Error('EIO'), { code: 'EIO' });
+                vi.spyOn(fs.promises, method).mockRejectedValueOnce(failure);
+                const response = await get(
+                    method === 'readFile'
+                        ? 'hakuneko://cache/file.js'
+                        : 'hakuneko://cache/directory',
+                );
+                expect(response.status).toBe(500);
+                expect(logger.warn).toHaveBeenCalledWith(failure);
+            },
+        );
 
         it('should serve a file that is read while another request is still waiting', async () => {
             fs.writeFileSync(path.join(cache, 'a.js'), 'A');
             fs.writeFileSync(path.join(cache, 'b.js'), 'B');
-            const [a, b] = await Promise.all([get('hakuneko://cache/a.js'), get('hakuneko://cache/b.js')]);
+            const [a, b] = await Promise.all([
+                get('hakuneko://cache/a.js'),
+                get('hakuneko://cache/b.js'),
+            ]);
             expect([await a.text(), await b.text()]).toEqual(['A', 'B']);
         });
 
@@ -809,14 +983,29 @@ describe('ElectronBootstrap', () => {
         // the path is decoded before it is checked against the directory: what the decoding makes of it must stay inside
         describe('encoded paths', () => {
             it.each([
-                ['a double encoding with an encoded slash', 'hakuneko://cache/%252e%252e%252fsecret.txt'],
+                [
+                    'a double encoding with an encoded slash',
+                    'hakuneko://cache/%252e%252e%252fsecret.txt',
+                ],
                 ['a double encoding of the slash only', 'hakuneko://cache/..%252fsecret.txt'],
                 ['an encoded slash after an encoded dot', 'hakuneko://cache/.%2e%2fsecret.txt'],
-                ['encoded dots, slashes and a backslash', 'hakuneko://cache/%2e%2e%2f%2e%2e%5csecret.txt'],
-                ['encoded dots below a directory', 'hakuneko://cache/mjs/%2e%2e%2f%2e%2e%2fsecret.txt'],
-                ['an encoded NUL and encoded dots', 'hakuneko://cache/index.html%00%2f%2e%2e%2f%2e%2e%2fsecret.txt'],
+                [
+                    'encoded dots, slashes and a backslash',
+                    'hakuneko://cache/%2e%2e%2f%2e%2e%5csecret.txt',
+                ],
+                [
+                    'encoded dots below a directory',
+                    'hakuneko://cache/mjs/%2e%2e%2f%2e%2e%2fsecret.txt',
+                ],
+                [
+                    'an encoded NUL and encoded dots',
+                    'hakuneko://cache/index.html%00%2f%2e%2e%2f%2e%2e%2fsecret.txt',
+                ],
                 ['an encoded NUL at the end of a name', 'hakuneko://cache/index.html%00'],
-                ['the plugins host and encoded dots', 'hakuneko://plugins/%2e%2e%2f%2e%2e%2fsecret.txt']
+                [
+                    'the plugins host and encoded dots',
+                    'hakuneko://plugins/%2e%2e%2f%2e%2e%2fsecret.txt',
+                ],
             ])('should not serve a file outside of the directory by %s', async (_, url) => {
                 fs.writeFileSync(path.join(cache, 'index.html'), 'inside');
                 const response = await get(url);
@@ -827,14 +1016,21 @@ describe('ElectronBootstrap', () => {
             it('should look for a path that decodes to a parent directory inside of the directory, never outside', async () => {
                 // the name of the secret next to the cache: its twin inside of the cache is the only one that can be reached
                 fs.writeFileSync(path.join(cache, 'secret.txt'), 'the file inside');
-                for (const url of ['hakuneko://cache/%2e%2e%2fsecret.txt', 'hakuneko://cache/..%2f..%2fsecret.txt', 'hakuneko://cache/%2E%2E%2Fsecret.txt']) {
+                for (const url of [
+                    'hakuneko://cache/%2e%2e%2fsecret.txt',
+                    'hakuneko://cache/..%2f..%2fsecret.txt',
+                    'hakuneko://cache/%2E%2E%2Fsecret.txt',
+                ]) {
                     const response = await get(url);
                     await expect(response.text()).resolves.toBe('the file inside');
                 }
             });
 
             it('should decode the path once: the name of a file that is encoded in its own name is that name', async () => {
-                fs.writeFileSync(path.join(cache, '%2e%2e%2fsecret.txt'), 'the file whose name looks encoded');
+                fs.writeFileSync(
+                    path.join(cache, '%2e%2e%2fsecret.txt'),
+                    'the file whose name looks encoded',
+                );
                 const response = await get('hakuneko://cache/%252e%252e%252fsecret.txt');
                 expect(response.status).toBe(200);
                 await expect(response.text()).resolves.toBe('the file whose name looks encoded');
@@ -846,7 +1042,7 @@ describe('ElectronBootstrap', () => {
                 ['a percent sign at the end', 'hakuneko://cache/index.html%'],
                 ['half of an escape', 'hakuneko://cache/index.html%2'],
                 ['a cut off character', 'hakuneko://cache/%E0%A4%A'],
-                ['bytes that are no UTF-8', 'hakuneko://plugins/%C3%28.mjs']
+                ['bytes that are no UTF-8', 'hakuneko://plugins/%C3%28.mjs'],
             ])('should answer %s with an error status, not with an exception', async (_, url) => {
                 const response = await get(url);
                 expect(response.status).toBe(400);
@@ -869,7 +1065,11 @@ describe('ElectronBootstrap', () => {
 
         it('should ask the renderer, which hosts the connectors, and hand over nothing but the URL', async () => {
             world.reply = () => ({ data: IMAGE, mimeType: 'image/png' });
-            const request = { url: 'connector://mangadex?payload=eyJ4IjoxfQ==', method: 'GET', headers: { a: 'b' } };
+            const request = {
+                url: 'connector://mangadex?payload=eyJ4IjoxfQ==',
+                method: 'GET',
+                headers: { a: 'b' },
+            };
             await protocolHandler('connector')(request);
             expect(mainWindow().webContents.send).toHaveBeenCalledTimes(1);
             const [channel, id, payload] = mainWindow().webContents.send.mock.calls[0];
@@ -897,7 +1097,7 @@ describe('ElectronBootstrap', () => {
             ['nothing', undefined],
             ['null', null],
             ['an answer without data', { mimeType: 'image/png' }],
-            ['an empty text as data', { data: '', mimeType: 'text/plain' }]
+            ['an empty text as data', { data: '', mimeType: 'text/plain' }],
         ])('should answer a 404 when the renderer answers %s', async (_, answer) => {
             world.reply = () => answer;
             const response = await get('connector://unknown?payload=x');
@@ -907,12 +1107,18 @@ describe('ElectronBootstrap', () => {
         });
 
         it.each([
-            ['is still loading', () => {
-                world.loading = true;
-            }],
-            ['has been closed', () => {
-                bootstrap._window = null;
-            }]
+            [
+                'is still loading',
+                () => {
+                    world.loading = true;
+                },
+            ],
+            [
+                'has been closed',
+                () => {
+                    bootstrap._window = null;
+                },
+            ],
         ])('should answer a 404 and warn while the window %s', async (_, close) => {
             close();
             const response = await get('connector://mangadex?payload=x');
@@ -925,14 +1131,14 @@ describe('ElectronBootstrap', () => {
             let answer = null;
             world.reply = () => undefined;
             mainWindow().webContents.send.mockImplementation((channel, id) => {
-                answer = data => electron.ipcMain.emit(id, {}, data);
+                answer = (data) => electron.ipcMain.emit(id, {}, data);
             });
             const pending = get('connector://mangadex?payload=x');
             let settled = false;
             pending.then(() => {
                 settled = true;
             });
-            await new Promise(resolve => setImmediate(resolve));
+            await new Promise((resolve) => setImmediate(resolve));
             expect(settled).toBe(false);
             answer({ data: IMAGE, mimeType: 'image/png' });
             expect((await pending).status).toBe(200);
@@ -941,7 +1147,7 @@ describe('ElectronBootstrap', () => {
         it('should keep concurrent requests apart', async () => {
             const answers = {};
             mainWindow().webContents.send.mockImplementation((channel, id, payload) => {
-                answers[payload.url] = data => electron.ipcMain.emit(id, {}, data);
+                answers[payload.url] = (data) => electron.ipcMain.emit(id, {}, data);
             });
             const first = get('connector://a?payload=1');
             const second = get('connector://b?payload=2');
@@ -958,7 +1164,7 @@ describe('ElectronBootstrap', () => {
             world.reply = () => ({ data: IMAGE });
             await get('connector://a?payload=1');
             await get('connector://b?payload=2');
-            const ids = mainWindow().webContents.send.mock.calls.map(call => call[1]);
+            const ids = mainWindow().webContents.send.mock.calls.map((call) => call[1]);
             expect(new Set(ids).size).toBe(2);
             for (const id of ids) {
                 expect(electron.ipcMain.listenerCount(id)).toBe(0);
@@ -967,12 +1173,25 @@ describe('ElectronBootstrap', () => {
     });
 
     describe('proxy login', () => {
-        const AUTH = { isProxy: true, scheme: 'basic', host: 'proxy.test', port: 8080, realm: 'proxy' };
+        const AUTH = {
+            isProxy: true,
+            scheme: 'basic',
+            host: 'proxy.test',
+            port: 8080,
+            realm: 'proxy',
+        };
 
         function login() {
             const event = { preventDefault: vi.fn() };
             const callback = vi.fn();
-            electron.app.emit('login', event, mainWindow().webContents, { url: 'http://site.test/' }, AUTH, callback);
+            electron.app.emit(
+                'login',
+                event,
+                mainWindow().webContents,
+                { url: 'http://site.test/' },
+                AUTH,
+                callback,
+            );
             return { event, callback };
         }
 
@@ -992,13 +1211,16 @@ describe('ElectronBootstrap', () => {
 
         it.each([
             ['nothing', undefined],
-            ['null', null]
-        ])('should cancel the login when the renderer has no credentials (%s)', async (_, answer) => {
-            world.reply = () => answer;
-            const { callback } = login();
-            await vi.waitFor(() => expect(callback).toHaveBeenCalled());
-            expect(callback.mock.calls).toEqual([[]]);
-        });
+            ['null', null],
+        ])(
+            'should cancel the login when the renderer has no credentials (%s)',
+            async (_, answer) => {
+                world.reply = () => answer;
+                const { callback } = login();
+                await vi.waitFor(() => expect(callback).toHaveBeenCalled());
+                expect(callback.mock.calls).toEqual([[]]);
+            },
+        );
 
         it('should cancel the login when Electron does not take the credentials', async () => {
             world.reply = () => ['user', 'secret'];
@@ -1006,7 +1228,14 @@ describe('ElectronBootstrap', () => {
             const callback = vi.fn().mockImplementationOnce(() => {
                 throw new Error('the request is gone');
             });
-            electron.app.emit('login', event, mainWindow().webContents, { url: 'http://site.test/' }, AUTH, callback);
+            electron.app.emit(
+                'login',
+                event,
+                mainWindow().webContents,
+                { url: 'http://site.test/' },
+                AUTH,
+                callback,
+            );
             await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
             expect(callback.mock.calls).toEqual([['user', 'secret'], []]);
         });
@@ -1028,12 +1257,20 @@ describe('ElectronBootstrap', () => {
         it.each([
             'net::ERR_CERT_DATE_INVALID',
             'net::ERR_CERT_AUTHORITY_INVALID',
-            'net::ERR_CERT_COMMON_NAME_INVALID'
-        ])('should accept the certificate error %s', async error => {
+            'net::ERR_CERT_COMMON_NAME_INVALID',
+        ])('should accept the certificate error %s', async (error) => {
             await launch();
             const event = { preventDefault: vi.fn() };
             const callback = vi.fn();
-            electron.app.emit('certificate-error', event, {}, 'https://site.test/', error, { subjectName: 'site.test' }, callback);
+            electron.app.emit(
+                'certificate-error',
+                event,
+                {},
+                'https://site.test/',
+                error,
+                { subjectName: 'site.test' },
+                callback,
+            );
             expect(event.preventDefault).toHaveBeenCalledTimes(1);
             expect(callback.mock.calls).toEqual([[true]]);
         });
@@ -1046,39 +1283,52 @@ describe('ElectronBootstrap', () => {
             return menu.template;
         }
 
-        const items = template => template.flatMap(entry => [entry, ...(entry.submenu ? items(entry.submenu) : [])]);
+        const items = (template) =>
+            template.flatMap((entry) => [entry, ...(entry.submenu ? items(entry.submenu) : [])]);
 
         it('should bind F12 to the developer tools, as a local hotkey because Windows cannot take F12 globally', async () => {
             await launch();
-            const view = applicationMenu().find(entry => entry.role === 'viewMenu');
-            expect(view.submenu.find(entry => entry.role === 'toggleDevTools').accelerator).toBe('F12');
-            expect(view.submenu.some(entry => entry.role === 'togglefullscreen')).toBe(true);
+            const view = applicationMenu().find((entry) => entry.role === 'viewMenu');
+            expect(view.submenu.find((entry) => entry.role === 'toggleDevTools').accelerator).toBe(
+                'F12',
+            );
+            expect(view.submenu.some((entry) => entry.role === 'togglefullscreen')).toBe(true);
         });
 
         it('should offer the zoom of the window, so that the text can be made larger', async () => {
             await launch();
-            const view = applicationMenu().find(entry => entry.role === 'viewMenu');
-            const roles = view.submenu.map(entry => entry.role).filter(Boolean);
-            expect(roles).toEqual(['togglefullscreen', 'toggleDevTools', 'zoomIn', 'zoomOut', 'resetZoom']);
+            const view = applicationMenu().find((entry) => entry.role === 'viewMenu');
+            const roles = view.submenu.map((entry) => entry.role).filter(Boolean);
+            expect(roles).toEqual([
+                'togglefullscreen',
+                'toggleDevTools',
+                'zoomIn',
+                'zoomOut',
+                'resetZoom',
+            ]);
         });
 
         it('should offer the clipboard shortcuts and the two shortcuts for the URL of a window', async () => {
             await launch();
-            const edit = applicationMenu().find(entry => entry.role === 'editMenu');
-            const roles = edit.submenu.map(entry => entry.role).filter(Boolean);
+            const edit = applicationMenu().find((entry) => entry.role === 'editMenu');
+            const roles = edit.submenu.map((entry) => entry.role).filter(Boolean);
             expect(roles).toEqual(['undo', 'redo', 'cut', 'copy', 'paste', 'selectall']);
-            const labelled = Object.fromEntries(edit.submenu.filter(entry => entry.label).map(entry => [entry.label, entry.accelerator]));
+            const labelled = Object.fromEntries(
+                edit.submenu
+                    .filter((entry) => entry.label)
+                    .map((entry) => [entry.label, entry.accelerator]),
+            );
             expect(labelled).toEqual({ 'Copy URL': 'Shift+C', 'Paste URL': 'Shift+V' });
         });
 
         it.each([
             ['darwin', true],
             ['linux', false],
-            ['win32', false]
+            ['win32', false],
         ])('should have a quit entry in the view menu on %s: %s', async (platform, quits) => {
             await withPlatform(platform, () => launch());
-            const view = applicationMenu().find(entry => entry.role === 'viewMenu');
-            expect(view.submenu.some(entry => entry.role === 'quit')).toBe(quits);
+            const view = applicationMenu().find((entry) => entry.role === 'viewMenu');
+            expect(view.submenu.some((entry) => entry.role === 'quit')).toBe(quits);
             if (quits) {
                 expect(view.submenu.at(-2)).toEqual({ type: 'separator' });
             }
@@ -1092,8 +1342,8 @@ describe('ElectronBootstrap', () => {
             beforeEach(async () => {
                 await launch();
                 const entries = items(applicationMenu());
-                copyURL = entries.find(entry => entry.label === 'Copy URL').click;
-                pasteURL = entries.find(entry => entry.label === 'Paste URL').click;
+                copyURL = entries.find((entry) => entry.label === 'Copy URL').click;
+                pasteURL = entries.find((entry) => entry.label === 'Paste URL').click;
                 // a window the page opened
                 child = new electron.BrowserWindow({});
                 child.webContents.getURL.mockReturnValue('https://child.test/chapter/1?x=y');
@@ -1101,7 +1351,9 @@ describe('ElectronBootstrap', () => {
 
             it('should copy the URL of a window that is not the main window', () => {
                 copyURL({}, child);
-                expect(electron.clipboard.writeText).toHaveBeenCalledWith('https://child.test/chapter/1?x=y');
+                expect(electron.clipboard.writeText).toHaveBeenCalledWith(
+                    'https://child.test/chapter/1?x=y',
+                );
             });
 
             it('should open the URL of the clipboard in a window that is not the main window', () => {
@@ -1204,14 +1456,20 @@ describe('ElectronBootstrap', () => {
             bootstrap = new ElectronBootstrap(configure(), logger);
             bootstrap._showTray = true;
             await withPlatform(platform, () => bootstrap.launch());
-            const entries = electron.Menu.buildFromTemplate.mock.calls.map(call => call[0]).find(template => template.some(item => item.label === 'Minimize to Tray'));
+            const entries = electron.Menu.buildFromTemplate.mock.calls
+                .map((call) => call[0])
+                .find((template) => template.some((item) => item.label === 'Minimize to Tray'));
             return { tray: world.trays[0], entries };
         }
 
         it('should show the icon of the application with a menu to hide, restore and quit', async () => {
             const { tray, entries } = await launchWithTray();
             expect(tray.icon).toEqual(mainWindow().options.icon);
-            expect(entries.map(item => item.label || item.role)).toEqual(['Minimize to Tray', 'Restore from Tray', 'quit']);
+            expect(entries.map((item) => item.label || item.role)).toEqual([
+                'Minimize to Tray',
+                'Restore from Tray',
+                'quit',
+            ]);
             expect(tray.setContextMenu).toHaveBeenCalledTimes(1);
             expect(tray.setContextMenu.mock.calls[0][0].template).toBe(entries);
         });
@@ -1219,18 +1477,21 @@ describe('ElectronBootstrap', () => {
         it.each([
             ['linux', false],
             ['win32', false],
-            ['darwin', true]
-        ])('should hide and restore the window from the tray menu (%s, dock: %s)', async (platform, dock) => {
-            const { entries } = await launchWithTray(platform);
-            await withPlatform(platform, () => {
-                entries[0].click();
-                expect(mainWindow().hide).toHaveBeenCalledTimes(1);
-                entries[1].click();
-                expect(mainWindow().show).toHaveBeenCalledTimes(1);
-            });
-            expect(electron.app.dock.hide).toHaveBeenCalledTimes(dock ? 1 : 0);
-            expect(electron.app.dock.show).toHaveBeenCalledTimes(dock ? 1 : 0);
-        });
+            ['darwin', true],
+        ])(
+            'should hide and restore the window from the tray menu (%s, dock: %s)',
+            async (platform, dock) => {
+                const { entries } = await launchWithTray(platform);
+                await withPlatform(platform, () => {
+                    entries[0].click();
+                    expect(mainWindow().hide).toHaveBeenCalledTimes(1);
+                    entries[1].click();
+                    expect(mainWindow().show).toHaveBeenCalledTimes(1);
+                });
+                expect(electron.app.dock.hide).toHaveBeenCalledTimes(dock ? 1 : 0);
+                expect(electron.app.dock.show).toHaveBeenCalledTimes(dock ? 1 : 0);
+            },
+        );
 
         it('should say in the tooltip what a click does', async () => {
             const { tray } = await launchWithTray();
@@ -1284,21 +1545,29 @@ describe('ElectronBootstrap', () => {
 
         it('should pass the failure of loading a URL on', async () => {
             mainWindow().loadURL.mockRejectedValue(new Error('ERR_CONNECTION_REFUSED'));
-            await expect(bootstrap.loadURL('http://127.0.0.1:1/')).rejects.toThrow('ERR_CONNECTION_REFUSED');
+            await expect(bootstrap.loadURL('http://127.0.0.1:1/')).rejects.toThrow(
+                'ERR_CONNECTION_REFUSED',
+            );
         });
 
         it.each([
             ['plain markup', '<p>Checking for Update</p>'],
             ['text of any writing system', '<p>日本語 Ünïcödé € 🙂</p>'],
             ['nothing', ''],
-            ['markup that would end a data URL early', '<a href="x#y?z=1;q">100%</a>\n\t<script>alert("</script>']
-        ])('should show %s through a data URL that keeps the characters intact', async (_, html) => {
-            bootstrap.loadHTML(html);
-            const [url] = mainWindow().loadURL.mock.calls[0];
-            const prefix = 'data:text/html;charset=utf-8;base64,';
-            expect(url.startsWith(prefix)).toBe(true);
-            expect(Buffer.from(url.slice(prefix.length), 'base64').toString('utf8')).toBe(html);
-        });
+            [
+                'markup that would end a data URL early',
+                '<a href="x#y?z=1;q">100%</a>\n\t<script>alert("</script>',
+            ],
+        ])(
+            'should show %s through a data URL that keeps the characters intact',
+            async (_, html) => {
+                bootstrap.loadHTML(html);
+                const [url] = mainWindow().loadURL.mock.calls[0];
+                const prefix = 'data:text/html;charset=utf-8;base64,';
+                expect(url.startsWith(prefix)).toBe(true);
+                expect(Buffer.from(url.slice(prefix.length), 'base64').toString('utf8')).toBe(html);
+            },
+        );
 
         it('should answer the promise of the window when it shows a page', async () => {
             const loaded = Promise.resolve();

@@ -10,7 +10,9 @@ function dialog(props = {}) {
 
 describe('confirm dialog', () => {
     it('should draw nothing while it is closed', () => {
-        const { container } = render(<ConfirmDialog open={false} title="Hidden" onConfirm={vi.fn()} onCancel={vi.fn()} />);
+        const { container } = render(
+            <ConfirmDialog open={false} title="Hidden" onConfirm={vi.fn()} onCancel={vi.fn()} />,
+        );
         expect(container.innerHTML).toBe('');
     });
 
@@ -31,7 +33,9 @@ describe('confirm dialog', () => {
     });
 
     it('should leave out the paragraph when there is no message', () => {
-        const { container } = render(<ConfirmDialog open title="Only a title" onConfirm={vi.fn()} onCancel={vi.fn()} />);
+        const { container } = render(
+            <ConfirmDialog open title="Only a title" onConfirm={vi.fn()} onCancel={vi.fn()} />,
+        );
         expect(container.querySelector('p')).toBeNull();
     });
 
@@ -56,7 +60,9 @@ describe('confirm dialog for the keyboard and the screen reader', () => {
         const element = screen.getByRole('dialog', { name: 'Remove bookmark?' });
         expect(element.getAttribute('aria-modal')).toBe('true');
         expect(element.getAttribute('aria-labelledby')).toBe(screen.getByRole('heading').id);
-        expect(element.getAttribute('aria-describedby')).toBe(screen.getByText('It will be gone.').id);
+        expect(element.getAttribute('aria-describedby')).toBe(
+            screen.getByText('It will be gone.').id,
+        );
     });
 
     it('should describe nothing when there is no message', () => {
@@ -99,7 +105,9 @@ describe('confirm dialog for the keyboard and the screen reader', () => {
 
     it('should not listen for keys while it is closed', () => {
         const onCancel = vi.fn();
-        render(<ConfirmDialog open={false} title="Hidden" onConfirm={vi.fn()} onCancel={onCancel} />);
+        render(
+            <ConfirmDialog open={false} title="Hidden" onConfirm={vi.fn()} onCancel={onCancel} />,
+        );
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(onCancel).not.toHaveBeenCalled();
     });

@@ -19,16 +19,24 @@ const SCOPE = path.resolve(__dirname, '..', '..') + path.sep;
 const VIRTUAL = pathToFileURL(path.join(__dirname, 'virtual-mock.cjs')).href;
 const MOCKS = '__rakkomikMockModules';
 
-const mocks = globalThis[MOCKS] ??= new Map();
+const mocks = (globalThis[MOCKS] ??= new Map());
 
 function requiredFromScope(parentURL) {
-    return typeof parentURL === 'string' && parentURL.startsWith('file:') && fileURLToPath(parentURL).startsWith(SCOPE);
+    return (
+        typeof parentURL === 'string' &&
+        parentURL.startsWith('file:') &&
+        fileURLToPath(parentURL).startsWith(SCOPE)
+    );
 }
 
 registerHooks({
     resolve(specifier, context, nextResolve) {
         if (mocks.has(specifier) && requiredFromScope(context.parentURL)) {
-            return { url: `${VIRTUAL}?name=${encodeURIComponent(specifier)}`, format: 'commonjs', shortCircuit: true };
+            return {
+                url: `${VIRTUAL}?name=${encodeURIComponent(specifier)}`,
+                format: 'commonjs',
+                shortCircuit: true,
+            };
         }
         return nextResolve(specifier, context);
     },
@@ -38,11 +46,11 @@ registerHooks({
             return {
                 format: 'commonjs',
                 source: `module.exports = globalThis[${JSON.stringify(MOCKS)}].get(${JSON.stringify(name)});`,
-                shortCircuit: true
+                shortCircuit: true,
             };
         }
         return nextLoad(url, context);
-    }
+    },
 });
 
 /**

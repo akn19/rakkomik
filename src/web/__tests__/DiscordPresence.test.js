@@ -24,7 +24,7 @@ afterEach(() => {
     delete globalThis.window;
 });
 
-const tick = ms => vi.advanceTimersByTimeAsync(ms);
+const tick = (ms) => vi.advanceTimersByTimeAsync(ms);
 
 // the delay for Discord to be receptive, and the interval of the updates (the limit of the API)
 const DELAY = 2000;
@@ -42,12 +42,12 @@ function setup({ mode = 'none', presence = {} } = {}) {
         sent,
         results,
         ensureStarted: vi.fn(async () => true),
-        setActivity: vi.fn(async status => {
+        setActivity: vi.fn(async (status) => {
             sent.push(structuredClone(status));
             return results.length ? results.shift() : true;
         }),
         clearAndDestroy: vi.fn(async () => true),
-        ...presence
+        ...presence,
     };
     globalThis.window = { hakuneko: { presence: bridge } };
     const settings = Object.assign(new EventTarget(), { discordPresence: { value: mode } });
@@ -65,15 +65,21 @@ function connector(label, tags = []) {
 }
 
 const select = {
-    connector: (document, detail) => document.dispatchEvent(new CustomEvent('onSelectConnector', { detail })),
-    manga: (document, detail) => document.dispatchEvent(new CustomEvent('onSelectManga', { detail })),
-    chapter: (document, detail) => document.dispatchEvent(new CustomEvent('onSelectChapter', { detail }))
+    connector: (document, detail) =>
+        document.dispatchEvent(new CustomEvent('onSelectConnector', { detail })),
+    manga: (document, detail) =>
+        document.dispatchEvent(new CustomEvent('onSelectManga', { detail })),
+    chapter: (document, detail) =>
+        document.dispatchEvent(new CustomEvent('onSelectChapter', { detail })),
 };
 
 describe('a new presence', () => {
     it('should start with the status of the application and nothing shown', async () => {
         const { discord, bridge, document } = setup();
-        expect(discord.status).toEqual({ largeImageKey: 'logo', largeImageText: 'Manga & Anime Downloader for Linux, Windows & MacOS' });
+        expect(discord.status).toEqual({
+            largeImageKey: 'logo',
+            largeImageText: 'Manga & Anime Downloader for Linux, Windows & MacOS',
+        });
         expect(discord.enabled).toBe(false);
         expect(discord.enabledHentai).toBe(false);
         expect(discord.updater).toBeNull();
@@ -89,7 +95,7 @@ describe('the setting', () => {
     it.each([
         ['none', false, false],
         ['nohentai', true, false],
-        ['hentai', true, true]
+        ['hentai', true, true],
     ])('should show %s: enabled %s, hentai %s', async (value, enabled, enabledHentai) => {
         const { discord, settings } = setup();
         await change(settings, value);
@@ -113,7 +119,10 @@ describe('the setting', () => {
         bridge.clearAndDestroy.mockClear();
         select.connector(document, connector('MangaDex'));
         select.manga(document, { title: 'One Piece', connector: connector('MangaDex') });
-        select.chapter(document, { title: 'Chapter 1', manga: { title: 'One Piece', connector: connector('MangaDex') } });
+        select.chapter(document, {
+            title: 'Chapter 1',
+            manga: { title: 'One Piece', connector: connector('MangaDex') },
+        });
         await tick(RETRY);
         expect(bridge.ensureStarted).not.toHaveBeenCalled();
         expect(bridge.setActivity).not.toHaveBeenCalled();
@@ -144,7 +153,10 @@ describe('the setting', () => {
         expect(discord.updater).toBeNull();
         expect(discord.statusNew).toBe(false);
         expect(vi.getTimerCount()).toBe(0);
-        select.chapter(document, { title: 'Chapter 1', manga: { title: 'One Piece', connector: connector('MangaDex') } });
+        select.chapter(document, {
+            title: 'Chapter 1',
+            manga: { title: 'One Piece', connector: connector('MangaDex') },
+        });
         await tick(RETRY);
         expect(bridge.setActivity).not.toHaveBeenCalled();
     });
@@ -152,7 +164,10 @@ describe('the setting', () => {
     it('should not show what was selected a moment before it was switched off', async () => {
         const { settings, bridge, document } = setup();
         await change(settings, 'nohentai');
-        select.chapter(document, { title: 'Chapter 1', manga: { title: 'One Piece', connector: connector('MangaDex') } });
+        select.chapter(document, {
+            title: 'Chapter 1',
+            manga: { title: 'One Piece', connector: connector('MangaDex') },
+        });
         await change(settings, 'none');
         await tick(RETRY);
         expect(bridge.setActivity).not.toHaveBeenCalled();
@@ -178,7 +193,7 @@ describe('the text of the status', () => {
             largeImageKey: 'logo',
             largeImageText: 'Manga & Anime Downloader for Linux, Windows & MacOS',
             details: 'Browsing MangaDex',
-            startTimestamp: START.getTime()
+            startTimestamp: START.getTime(),
         });
         expect('state' in status).toBe(false);
     });
@@ -191,7 +206,10 @@ describe('the text of the status', () => {
     });
 
     it('should say which chapter the user views', async () => {
-        const status = await shown(select.chapter, { title: 'Chapter 1: The Beginning', manga: onePiece });
+        const status = await shown(select.chapter, {
+            title: 'Chapter 1: The Beginning',
+            manga: onePiece,
+        });
         expect(status.details).toBe('Viewing One Piece');
         expect(status.state).toBe('Chapter 1: The Beginning');
     });
@@ -201,14 +219,20 @@ describe('the text of the status', () => {
         ['nothing', '', '  '],
         ['two characters', 'AB', 'AB'],
         ['a number', '7', '7 '],
-        ['a long text', 'Chapter 1 '.repeat(5), 'Chapter 1 '.repeat(5)]
-    ])('should give the state a length of at least two characters, for a chapter that is called %s', async (name, title, state) => {
-        const status = await shown(select.chapter, { title, manga: onePiece });
-        expect(status.state).toBe(state);
-    });
+        ['a long text', 'Chapter 1 '.repeat(5), 'Chapter 1 '.repeat(5)],
+    ])(
+        'should give the state a length of at least two characters, for a chapter that is called %s',
+        async (name, title, state) => {
+            const status = await shown(select.chapter, { title, manga: onePiece });
+            expect(status.state).toBe(state);
+        },
+    );
 
     it('should show titles in any script', async () => {
-        const status = await shown(select.chapter, { title: '第1話 😀', manga: { title: '進撃の巨人', connector: connector('日本語') } });
+        const status = await shown(select.chapter, {
+            title: '第1話 😀',
+            manga: { title: '進撃の巨人', connector: connector('日本語') },
+        });
         expect(status.details).toBe('Viewing 進撃の巨人');
         expect(status.state).toBe('第1話 😀');
     });
@@ -239,27 +263,33 @@ describe('the text of the status', () => {
         const { settings, bridge } = setup();
         await change(settings, 'nohentai');
         await tick(DELAY);
-        expect(bridge.sent).toEqual([{
-            largeImageKey: 'logo',
-            largeImageText: 'Manga & Anime Downloader for Linux, Windows & MacOS',
-            startTimestamp: START.getTime()
-        }]);
+        expect(bridge.sent).toEqual([
+            {
+                largeImageKey: 'logo',
+                largeImageText: 'Manga & Anime Downloader for Linux, Windows & MacOS',
+                startTimestamp: START.getTime(),
+            },
+        ]);
     });
 
     it('should keep the details and the state within the 128 characters that Discord accepts', async () => {
-        const status = await shown(select.chapter, { title: 'C'.repeat(300), manga: { title: 'M'.repeat(300), connector: mangadex } });
+        const status = await shown(select.chapter, {
+            title: 'C'.repeat(300),
+            manga: { title: 'M'.repeat(300), connector: mangadex },
+        });
         expect(status.details.length).toBeLessThanOrEqual(128);
         expect(status.state.length).toBeLessThanOrEqual(128);
     });
 });
 
 describe('what is shown while hentai is hidden', () => {
-    const manga = tags => ({ title: 'Some Manga', connector: connector('Site', tags) });
+    const manga = (tags) => ({ title: 'Some Manga', connector: connector('Site', tags) });
 
     const SELECTIONS = {
         connector: (document, tags) => select.connector(document, connector('Site', tags)),
         manga: (document, tags) => select.manga(document, manga(tags)),
-        chapter: (document, tags) => select.chapter(document, { title: 'Chapter 1', manga: manga(tags) })
+        chapter: (document, tags) =>
+            select.chapter(document, { title: 'Chapter 1', manga: manga(tags) }),
     };
 
     it.each([
@@ -273,16 +303,22 @@ describe('what is shown while hentai is hidden', () => {
         ['show', ['hentai-free', 'pornography'], 'nohentai'],
         ['show', ['hentai'], 'hentai'],
         ['show', ['PORN'], 'hentai'],
-        ['show', ['manga'], 'hentai']
-    ])('should %s what is selected on a connector with the tags %j when the mode is %s', async (action, tags, mode) => {
-        for (const [kind, selectKind] of Object.entries(SELECTIONS)) {
-            const { settings, bridge, document } = setup();
-            await change(settings, mode);
-            selectKind(document, tags);
-            await tick(DELAY + INTERVAL);
-            expect(bridge.setActivity, `the ${kind} of a connector with the tags ${tags}`).toHaveBeenCalledTimes(action === 'show' ? 1 : 0);
-        }
-    });
+        ['show', ['manga'], 'hentai'],
+    ])(
+        'should %s what is selected on a connector with the tags %j when the mode is %s',
+        async (action, tags, mode) => {
+            for (const [kind, selectKind] of Object.entries(SELECTIONS)) {
+                const { settings, bridge, document } = setup();
+                await change(settings, mode);
+                selectKind(document, tags);
+                await tick(DELAY + INTERVAL);
+                expect(
+                    bridge.setActivity,
+                    `the ${kind} of a connector with the tags ${tags}`,
+                ).toHaveBeenCalledTimes(action === 'show' ? 1 : 0);
+            }
+        },
+    );
 
     it('should drop what it holds back, so it is not sent later either', async () => {
         const { discord, settings, bridge, document } = setup();
@@ -335,7 +371,10 @@ describe('what is shown while hentai is hidden', () => {
 });
 
 describe('the updates', () => {
-    const chapter = { title: 'Chapter 1', manga: { title: 'One Piece', connector: connector('MangaDex') } };
+    const chapter = {
+        title: 'Chapter 1',
+        manga: { title: 'One Piece', connector: connector('MangaDex') },
+    };
 
     it('should send the last selection once, when the user selects several things within the delay', async () => {
         const { settings, bridge, document } = setup();
@@ -393,7 +432,11 @@ describe('the updates', () => {
 
         await tick(5 * INTERVAL);
         expect(bridge.setActivity).toHaveBeenCalledTimes(3);
-        expect(bridge.sent.map(status => status.state)).toEqual(['Chapter 1', 'Chapter 1', 'Chapter 1']);
+        expect(bridge.sent.map((status) => status.state)).toEqual([
+            'Chapter 1',
+            'Chapter 1',
+            'Chapter 1',
+        ]);
     });
 
     // NOTE: only the timer of the interval keeps to the 15 seconds that the code names as the limit of the API: a new selection is
@@ -405,15 +448,20 @@ describe('the updates', () => {
         await tick(DELAY);
         select.chapter(document, { ...chapter, title: 'Chapter 2' });
         await tick(DELAY);
-        expect(bridge.sent.map(status => status.state)).toEqual(['Chapter 1', 'Chapter 2']);
+        expect(bridge.sent.map((status) => status.state)).toEqual(['Chapter 1', 'Chapter 2']);
     });
 });
 
 describe('when Discord is not running', () => {
-    const chapter = { title: 'Chapter 1', manga: { title: 'One Piece', connector: connector('MangaDex') } };
+    const chapter = {
+        title: 'Chapter 1',
+        manga: { title: 'One Piece', connector: connector('MangaDex') },
+    };
 
     it('should send nothing, and ask for the connection again after two minutes', async () => {
-        const { settings, bridge, document } = setup({ presence: { ensureStarted: vi.fn(async () => false) } });
+        const { settings, bridge, document } = setup({
+            presence: { ensureStarted: vi.fn(async () => false) },
+        });
         await change(settings, 'nohentai');
         select.chapter(document, chapter);
         await tick(0);
@@ -441,7 +489,9 @@ describe('when Discord is not running', () => {
     });
 
     it('should stop asking when the user switches the setting off meanwhile', async () => {
-        const { settings, bridge } = setup({ presence: { ensureStarted: vi.fn(async () => false) } });
+        const { settings, bridge } = setup({
+            presence: { ensureStarted: vi.fn(async () => false) },
+        });
         await change(settings, 'nohentai');
         await change(settings, 'none');
         bridge.ensureStarted.mockClear();
@@ -451,7 +501,9 @@ describe('when Discord is not running', () => {
     });
 
     it('should have one request for the connection pending, not one for each selection', async () => {
-        const { settings, bridge, document } = setup({ presence: { ensureStarted: vi.fn(async () => false) } });
+        const { settings, bridge, document } = setup({
+            presence: { ensureStarted: vi.fn(async () => false) },
+        });
         await change(settings, 'nohentai');
         for (const title of ['Chapter 1', 'Chapter 2', 'Chapter 3']) {
             select.chapter(document, { ...chapter, title });
@@ -469,7 +521,10 @@ describe('when the bridge fails', () => {
     it('should keep what was not sent, so the next update sends it', async () => {
         const { discord, settings, bridge, document } = setup();
         await change(settings, 'nohentai');
-        select.chapter(document, { title: 'Chapter 1', manga: { title: 'One Piece', connector: connector('MangaDex') } });
+        select.chapter(document, {
+            title: 'Chapter 1',
+            manga: { title: 'One Piece', connector: connector('MangaDex') },
+        });
         await tick(DELAY - 1);
         bridge.setActivity.mockRejectedValueOnce(new Error('IPC failed'));
 

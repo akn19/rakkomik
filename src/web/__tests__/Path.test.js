@@ -9,29 +9,105 @@ beforeAll(async () => {
 });
 
 const COMMON = [
-    '', '.', '..', '/', '//', '///', 'a', 'a/', 'a//b', '/a', '/a/', '/a/b/c', '/a/b/../c', 'a/../..', '../a', './a/./b/',
-    '/a/b/c.txt', 'a.b.c', '.bashrc', '..a', 'a.', 'a..', '...', '.a.', '/a/b/.', 'a/b/..', '/..', '/../a', 'file.tar.gz',
-    '/home/user/dir/file.txt', '/home/user/Mangas/One Piece/Chapter 1 - Romance Dawn/001.png', 'C:\\windows\\style', '/tmp/rakkomik/'
+    '',
+    '.',
+    '..',
+    '/',
+    '//',
+    '///',
+    'a',
+    'a/',
+    'a//b',
+    '/a',
+    '/a/',
+    '/a/b/c',
+    '/a/b/../c',
+    'a/../..',
+    '../a',
+    './a/./b/',
+    '/a/b/c.txt',
+    'a.b.c',
+    '.bashrc',
+    '..a',
+    'a.',
+    'a..',
+    '...',
+    '.a.',
+    '/a/b/.',
+    'a/b/..',
+    '/..',
+    '/../a',
+    'file.tar.gz',
+    '/home/user/dir/file.txt',
+    '/home/user/Mangas/One Piece/Chapter 1 - Romance Dawn/001.png',
+    'C:\\windows\\style',
+    '/tmp/rakkomik/',
 ];
 
 const WINDOWS = [
-    'C:', 'C:\\', 'C:/', 'C:a', 'C:a\\b', 'C:\\a\\b', 'C:\\a\\..\\b', 'c:/a/b', 'C:\\a\\', 'C:\\Users\\me\\Mangas\\Title\\Ch 1\\001.png',
-    '\\', '\\a', '\\\\', '\\\\server', '\\\\server\\', '\\\\server\\share', '\\\\server\\share\\', '\\\\server\\share\\dir\\file.txt',
-    '\\\\\\a', '//server/share/x', 'a\\b\\c.txt', 'a/b\\c', 'D:\\..\\..\\x', 'C:\\a\\b\\..\\..\\..\\c', '\\\\?\\C:\\x'
+    'C:',
+    'C:\\',
+    'C:/',
+    'C:a',
+    'C:a\\b',
+    'C:\\a\\b',
+    'C:\\a\\..\\b',
+    'c:/a/b',
+    'C:\\a\\',
+    'C:\\Users\\me\\Mangas\\Title\\Ch 1\\001.png',
+    '\\',
+    '\\a',
+    '\\\\',
+    '\\\\server',
+    '\\\\server\\',
+    '\\\\server\\share',
+    '\\\\server\\share\\',
+    '\\\\server\\share\\dir\\file.txt',
+    '\\\\\\a',
+    '//server/share/x',
+    'a\\b\\c.txt',
+    'a/b\\c',
+    'D:\\..\\..\\x',
+    'C:\\a\\b\\..\\..\\..\\c',
+    '\\\\?\\C:\\x',
 ];
 
 const JOINS = [
-    [], [ '' ], [ '', '' ], [ 'a', 'b' ], [ 'a/', 'b' ], [ '/a', 'b/' ], [ '', 'a' ], [ 'a', '', 'b' ], [ '..', 'a' ], [ '/', '..' ],
-    [ 'a', '..', '..', 'b' ], [ '/tmp', 'rakkomik', 'page 1.png' ], [ '/cfg', 'rakkomik.' ], [ 'a/', '/b' ], [ '.', 'a' ], [ 'a', '.' ],
-    [ 'C:', 'a' ], [ 'C:\\', 'a' ], [ 'C:\\a', '..', 'b' ], [ '\\\\server', 'share' ], [ '//server', 'share' ], [ '\\\\server\\share', 'dir' ],
-    [ '\\\\server\\share\\', 'dir', 'file.txt' ], [ '\\', 'a' ], [ '//', 'a' ], [ '///', 'a' ], [ 'a\\', '\\b' ], [ 'C:\\Users\\me', 'Mangas', 'Title' ]
+    [],
+    [''],
+    ['', ''],
+    ['a', 'b'],
+    ['a/', 'b'],
+    ['/a', 'b/'],
+    ['', 'a'],
+    ['a', '', 'b'],
+    ['..', 'a'],
+    ['/', '..'],
+    ['a', '..', '..', 'b'],
+    ['/tmp', 'rakkomik', 'page 1.png'],
+    ['/cfg', 'rakkomik.'],
+    ['a/', '/b'],
+    ['.', 'a'],
+    ['a', '.'],
+    ['C:', 'a'],
+    ['C:\\', 'a'],
+    ['C:\\a', '..', 'b'],
+    ['\\\\server', 'share'],
+    ['//server', 'share'],
+    ['\\\\server\\share', 'dir'],
+    ['\\\\server\\share\\', 'dir', 'file.txt'],
+    ['\\', 'a'],
+    ['//', 'a'],
+    ['///', 'a'],
+    ['a\\', '\\b'],
+    ['C:\\Users\\me', 'Mangas', 'Title'],
 ];
 
-const SUFFIXES = [ undefined, '', '.txt', '.png', 'file.txt', '.gz', 'a', '/' ];
+const SUFFIXES = [undefined, '', '.txt', '.png', 'file.txt', '.gz', 'a', '/'];
 
 describe.each([
-    [ 'posix', 'linux', nodePath.posix, COMMON ],
-    [ 'win32', 'win32', nodePath.win32, [ ...COMMON, ...WINDOWS ] ]
+    ['posix', 'linux', nodePath.posix, COMMON],
+    ['win32', 'win32', nodePath.win32, [...COMMON, ...WINDOWS]],
 ])('%s', (name, platform, reference, corpus) => {
     let path = null;
 
@@ -43,17 +119,22 @@ describe.each([
         expect(path.sep).toBe(reference.sep);
     });
 
-    it.each(corpus.map(entry => [ entry ]))('should normalize, split and parse %j like Node', entry => {
-        expect(path.normalize(entry), 'normalize').toBe(reference.normalize(entry));
-        expect(path.dirname(entry), 'dirname').toBe(reference.dirname(entry));
-        expect(path.extname(entry), 'extname').toBe(reference.extname(entry));
-        expect(path.parse(entry), 'parse').toEqual(reference.parse(entry));
-        for (const suffix of SUFFIXES) {
-            expect(path.basename(entry, suffix), `basename(${JSON.stringify(suffix)})`).toBe(reference.basename(entry, suffix));
-        }
-    });
+    it.each(corpus.map((entry) => [entry]))(
+        'should normalize, split and parse %j like Node',
+        (entry) => {
+            expect(path.normalize(entry), 'normalize').toBe(reference.normalize(entry));
+            expect(path.dirname(entry), 'dirname').toBe(reference.dirname(entry));
+            expect(path.extname(entry), 'extname').toBe(reference.extname(entry));
+            expect(path.parse(entry), 'parse').toEqual(reference.parse(entry));
+            for (const suffix of SUFFIXES) {
+                expect(path.basename(entry, suffix), `basename(${JSON.stringify(suffix)})`).toBe(
+                    reference.basename(entry, suffix),
+                );
+            }
+        },
+    );
 
-    it.each(JOINS.map(parts => [ parts ]))('should join %j like Node', parts => {
+    it.each(JOINS.map((parts) => [parts]))('should join %j like Node', (parts) => {
         expect(path.join(...parts)).toBe(reference.join(...parts));
     });
 

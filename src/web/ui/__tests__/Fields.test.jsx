@@ -1,5 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { CheckboxField, NumberField, PasswordField, PathField, SelectField, TextField } from '../fields.jsx';
+import {
+    CheckboxField,
+    NumberField,
+    PasswordField,
+    PathField,
+    SelectField,
+    TextField,
+} from '../fields.jsx';
 
 function type(element, value) {
     fireEvent.change(element, { target: { value } });
@@ -15,7 +22,7 @@ describe('text field', () => {
         expect(onChange).toHaveBeenCalledExactlyOnceWith('abcd');
     });
 
-    it.each([undefined, null])('should show an empty field for %s, not the word', value => {
+    it.each([undefined, null])('should show an empty field for %s, not the word', (value) => {
         render(<TextField value={value} onChange={vi.fn()} title="Name" />);
         expect(screen.getByTitle('Name').value).toBe('');
     });
@@ -51,7 +58,9 @@ describe('password field', () => {
 describe('number field', () => {
     function numberField(props) {
         const onChange = vi.fn();
-        const { container } = render(<NumberField value={5} min={1} max={10} onChange={onChange} {...props} />);
+        const { container } = render(
+            <NumberField value={5} min={1} max={10} onChange={onChange} {...props} />,
+        );
         return { input: container.querySelector('input'), onChange };
     }
 
@@ -62,7 +71,12 @@ describe('number field', () => {
         expect(input.max).toBe('10');
     });
 
-    it.each([['7', 7], ['0', 0], ['-3', -3], ['2.5', 2.5]])('should report %s as the number %d', (typed, expected) => {
+    it.each([
+        ['7', 7],
+        ['0', 0],
+        ['-3', -3],
+        ['2.5', 2.5],
+    ])('should report %s as the number %d', (typed, expected) => {
         const { input, onChange } = numberField();
         type(input, typed);
         expect(onChange).toHaveBeenCalledExactlyOnceWith(expected);
@@ -82,14 +96,17 @@ describe('number field', () => {
 });
 
 describe('select field', () => {
-    const options = [{ value: '.cbz', name: 'Comic Book Archive' }, { value: '.epub', name: 'Ebook' }];
+    const options = [
+        { value: '.cbz', name: 'Comic Book Archive' },
+        { value: '.epub', name: 'Ebook' },
+    ];
 
     it('should list the options by name and select the current one', () => {
         render(<SelectField value=".epub" options={options} onChange={vi.fn()} />);
         const select = screen.getByRole('combobox');
-        expect([...select.options].map(option => [option.value, option.textContent])).toEqual([
+        expect([...select.options].map((option) => [option.value, option.textContent])).toEqual([
             ['.cbz', 'Comic Book Archive'],
-            ['.epub', 'Ebook']
+            ['.epub', 'Ebook'],
         ]);
         expect(select.value).toBe('.epub');
     });
@@ -107,15 +124,31 @@ describe('select field', () => {
     });
 
     it('should accept options whose values are not strings', () => {
-        render(<SelectField value="2" options={[{ value: 1, name: 'One' }, { value: 2, name: 'Two' }]} onChange={vi.fn()} />);
+        render(
+            <SelectField
+                value="2"
+                options={[
+                    { value: 1, name: 'One' },
+                    { value: 2, name: 'Two' },
+                ]}
+                onChange={vi.fn()}
+            />,
+        );
         const select = screen.getByRole('combobox');
         expect(select.value).toBe('2');
-        expect([...select.options].map(option => option.textContent)).toEqual(['One', 'Two']);
+        expect([...select.options].map((option) => option.textContent)).toEqual(['One', 'Two']);
     });
 });
 
 describe('checkbox field', () => {
-    it.each([[true, true], [false, false], [undefined, false], [null, false], [1, true], ['', false]])('should show %j as checked: %s', (value, checked) => {
+    it.each([
+        [true, true],
+        [false, false],
+        [undefined, false],
+        [null, false],
+        [1, true],
+        ['', false],
+    ])('should show %j as checked: %s', (value, checked) => {
         render(<CheckboxField value={value} onChange={vi.fn()} />);
         expect(screen.getByRole('checkbox').checked).toBe(checked);
     });
@@ -158,22 +191,38 @@ describe('path field', () => {
 
 describe('fields for the screen reader', () => {
     it.each([
-        ['text', props => <TextField {...props} />],
-        ['password', props => <PasswordField {...props} />],
-        ['number', props => <NumberField {...props} />],
-        ['select', props => <SelectField options={[]} {...props} />],
-        ['checkbox', props => <CheckboxField {...props} />],
-        ['path', props => <PathField onBrowse={vi.fn()} {...props} />]
+        ['text', (props) => <TextField {...props} />],
+        ['password', (props) => <PasswordField {...props} />],
+        ['number', (props) => <NumberField {...props} />],
+        ['select', (props) => <SelectField options={[]} {...props} />],
+        ['checkbox', (props) => <CheckboxField {...props} />],
+        ['path', (props) => <PathField onBrowse={vi.fn()} {...props} />],
     ])('should take the id of its label and the id of its description: %s field', (name, field) => {
-        const { container } = render(field({ value: '', onChange: vi.fn(), id: 'the-field', describedBy: 'the-description' }));
+        const { container } = render(
+            field({
+                value: '',
+                onChange: vi.fn(),
+                id: 'the-field',
+                describedBy: 'the-description',
+            }),
+        );
         const control = container.querySelector('input, select');
         expect(control.id).toBe('the-field');
         expect(control.getAttribute('aria-describedby')).toBe('the-description');
     });
 
     it('should name the browse button of a path for the screen reader, apart from its tooltip', () => {
-        render(<PathField value="/mangas" onBrowse={vi.fn()} browseTitle="Browse …" browseLabel="Choose a folder for Manga Directory" />);
-        expect(screen.getByRole('button', { name: 'Choose a folder for Manga Directory' }).title).toBe('Browse …');
+        render(
+            <PathField
+                value="/mangas"
+                onBrowse={vi.fn()}
+                browseTitle="Browse …"
+                browseLabel="Choose a folder for Manga Directory"
+            />,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Choose a folder for Manga Directory' }).title,
+        ).toBe('Browse …');
     });
 
     it('should name the browse button after its tooltip when it is given no name', () => {

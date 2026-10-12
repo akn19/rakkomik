@@ -13,7 +13,7 @@ const LEVEL = {
     Warn: 5,
     Error: 6,
     Critical: 7,
-    None: Infinity
+    None: Infinity,
 };
 
 function toPinoLevel(level) {
@@ -50,14 +50,13 @@ const hooks = {
         if (typeof message !== 'string' || values.length === 0 || /%[sdifjoO%]/.test(message)) {
             return method.apply(this, args);
         }
-        const error = values.find(value => value instanceof Error);
-        const text = util.format(message, ...values.filter(value => value !== error));
+        const error = values.find((value) => value instanceof Error);
+        const text = util.format(message, ...values.filter((value) => value !== error));
         return error ? method.call(this, { err: error }, text) : method.call(this, text);
-    }
+    },
 };
 
 class BaseLogger {
-
     static get LEVEL() {
         return LEVEL;
     }
@@ -96,14 +95,12 @@ class BaseLogger {
 }
 
 class ConsoleLogger extends BaseLogger {
-
     constructor(level) {
         super(pino({ level: toPinoLevel(level || LEVEL.Info), hooks }));
     }
 }
 
 class FileLogger extends BaseLogger {
-
     constructor(file, level) {
         super(pino({ level: toPinoLevel(level || LEVEL.Info), hooks }, pino.destination(file)));
         this._file = file;
@@ -116,5 +113,5 @@ class FileLogger extends BaseLogger {
 
 module.exports = {
     ConsoleLogger: ConsoleLogger,
-    FileLogger: FileLogger
+    FileLogger: FileLogger,
 };

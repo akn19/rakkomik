@@ -3,10 +3,17 @@
 // quoted attributes, void elements, the common entities), `querySelector(All)` understands `tag`, `.class` and `#id`.
 // Real elements are tested in the application itself (src/__tests__/App.e2e.mjs).
 const VOID = new Set(['br', 'hr', 'img', 'input', 'meta', 'link', 'source', 'wbr']);
-const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&nbsp;': ' ', '&#39;': '\'' };
+const ENTITIES = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&nbsp;': ' ',
+    '&#39;': "'",
+};
 
 function decode(value) {
-    return value.replace(/&(?:amp|lt|gt|quot|nbsp|#39);/g, entity => ENTITIES[entity]);
+    return value.replace(/&(?:amp|lt|gt|quot|nbsp|#39);/g, (entity) => ENTITIES[entity]);
 }
 
 function matches(element, selector) {
@@ -20,7 +27,9 @@ function matches(element, selector) {
 }
 
 function descendants(node) {
-    return node.childNodes.flatMap(child => child.nodeType === 1 ? [child, ...descendants(child)] : []);
+    return node.childNodes.flatMap((child) =>
+        child.nodeType === 1 ? [child, ...descendants(child)] : [],
+    );
 }
 
 function textOf(node) {
@@ -39,14 +48,18 @@ export function createElement(name, attrs = {}, childNodes = [], document = unde
         attrs,
         childNodes,
         ownerDocument: document,
-        getAttribute: key => (Object.hasOwn(attrs, key) ? attrs[key] : null),
-        querySelectorAll: selector => {
+        getAttribute: (key) => (Object.hasOwn(attrs, key) ? attrs[key] : null),
+        querySelectorAll: (selector) => {
             if (selector.includes('!')) {
                 throw new SyntaxError(`"${selector}" is not a valid selector`);
             }
-            return selector.split(',').flatMap(part => descendants(element).filter(candidate => matches(candidate, part.trim())));
+            return selector
+                .split(',')
+                .flatMap((part) =>
+                    descendants(element).filter((candidate) => matches(candidate, part.trim())),
+                );
         },
-        querySelector: selector => element.querySelectorAll(selector)[0] || null
+        querySelector: (selector) => element.querySelectorAll(selector)[0] || null,
     };
     Object.defineProperty(element, 'textContent', { get: () => textOf(element) });
     return element;
@@ -61,12 +74,24 @@ export function createElement(name, attrs = {}, childNodes = [], document = unde
  */
 export function parseHTML(markup, options = {}) {
     const document = {
-        baseURI: options.baseURI === undefined ? 'https://novels.example/series/1/chapter-1' : options.baseURI,
-        defaultView: options.style ? { getComputedStyle: element => ({ display: 'block', visibility: 'visible', ...options.style(element) }) } : undefined
+        baseURI:
+            options.baseURI === undefined
+                ? 'https://novels.example/series/1/chapter-1'
+                : options.baseURI,
+        defaultView: options.style
+            ? {
+                  getComputedStyle: (element) => ({
+                      display: 'block',
+                      visibility: 'visible',
+                      ...options.style(element),
+                  }),
+              }
+            : undefined,
     };
     const body = createElement('body', {}, [], document);
     const stack = [body];
-    const token = /<!--[\s\S]*?-->|<\/([a-zA-Z0-9]+)\s*>|<([a-zA-Z0-9]+)((?:\s+[a-zA-Z0-9:_-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/?)>|([^<]+)/g;
+    const token =
+        /<!--[\s\S]*?-->|<\/([a-zA-Z0-9]+)\s*>|<([a-zA-Z0-9]+)((?:\s+[a-zA-Z0-9:_-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/?)>|([^<]+)/g;
     for (let match = token.exec(markup); match; match = token.exec(markup)) {
         const [whole, closing, opening, source, selfClosing, text] = match;
         const parent = stack[stack.length - 1];
@@ -74,7 +99,9 @@ export function parseHTML(markup, options = {}) {
             parent.childNodes.push(createText(decode(text), document));
         } else if (opening) {
             const attrs = {};
-            for (const attribute of source.matchAll(/([a-zA-Z0-9:_-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)) {
+            for (const attribute of source.matchAll(
+                /([a-zA-Z0-9:_-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g,
+            )) {
                 attrs[attribute[1]] = decode(attribute[2] ?? attribute[3] ?? attribute[4] ?? '');
             }
             const element = createElement(opening.toLowerCase(), attrs, [], document);
@@ -83,12 +110,12 @@ export function parseHTML(markup, options = {}) {
                 stack.push(element);
             }
         } else if (closing && !whole.startsWith('<!--')) {
-            const index = stack.findLastIndex(entry => entry.localName === closing.toLowerCase());
+            const index = stack.findLastIndex((entry) => entry.localName === closing.toLowerCase());
             if (index > 0) {
                 stack.length = index;
             }
         }
     }
-    document.querySelector = selector => body.querySelector(selector);
+    document.querySelector = (selector) => body.querySelector(selector);
     return { document, body };
 }

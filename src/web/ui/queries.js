@@ -16,13 +16,13 @@ export const queryClient = new QueryClient({
             staleTime: Infinity,
             gcTime: Infinity,
             retry: false,
-            refetchOnWindowFocus: false
-        }
-    }
+            refetchOnWindowFocus: false,
+        },
+    },
 });
 
 export function getConnector(connectorId) {
-    const connector = getEngine().Connectors.find(entry => entry.id === connectorId);
+    const connector = getEngine().Connectors.find((entry) => entry.id === connectorId);
     if (!connector) {
         throw new Error(`Unknown connector "${connectorId}"!`);
     }
@@ -73,7 +73,7 @@ export async function resolveChapter(connectorId, mangaId, chapterId) {
         queryClient.setQueryData(['chapters', connectorId, mangaId], chapters);
     }
     // some connectors hand over numbers as ids, the address only holds text
-    const index = chapters.findIndex(entry => String(entry.id) === String(chapterId));
+    const index = chapters.findIndex((entry) => String(entry.id) === String(chapterId));
     if (index < 0) {
         throw new Error(`Chapter "${chapterId}" not found!`);
     }
@@ -106,7 +106,7 @@ export async function resolveManga(connectorId, mangaId) {
         mangas = await fetchMangaList(connector);
         queryClient.setQueryData(['mangas', connectorId], mangas);
     }
-    const manga = mangas.find(entry => String(entry.id) === String(mangaId));
+    const manga = mangas.find((entry) => String(entry.id) === String(mangaId));
     if (!manga) {
         throw new Error(`Manga "${mangaId}" not found for connector "${connector.label}"!`);
     }

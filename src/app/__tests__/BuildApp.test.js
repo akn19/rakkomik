@@ -10,7 +10,18 @@ const asar = require('@electron/asar');
 const { FuseState, FuseV1Options, FuseVersion } = require('@electron/fuses');
 const { ElectronPackagerLinux, ElectronPackagerWindows } = require('../../../build-app.js');
 const config = require('../../../build-app.config');
-const { REPOSITORY, STOCK_FUSES, PACKED, NOT_PACKED, electronExecutable, loadBuildApp, readFuseWire, write, writeElectronArchive, writeSources } = require('./support/buildAppHarness');
+const {
+    REPOSITORY,
+    STOCK_FUSES,
+    PACKED,
+    NOT_PACKED,
+    electronExecutable,
+    loadBuildApp,
+    readFuseWire,
+    write,
+    writeElectronArchive,
+    writeSources,
+} = require('./support/buildAppHarness');
 const { useTemporaryWorkingDirectory } = require('./support/toolScripts');
 
 let directory = null;
@@ -33,7 +44,9 @@ afterEach(() => {
 function linuxPackager(architecture = '64') {
     const packager = new ElectronPackagerLinux(config);
     packager._architecture = packager.architectures[architecture];
-    Object.defineProperty(packager, '_dirBuildRoot', { get: () => path.join(directory, 'package') });
+    Object.defineProperty(packager, '_dirBuildRoot', {
+        get: () => path.join(directory, 'package'),
+    });
     return packager;
 }
 
@@ -44,7 +57,7 @@ function modeOf(file) {
 // A DEB is built on Linux only. Windows has no file modes (`stat` reports 0o666 for every writable file) and writes the
 // paths of the Linux target with backslashes, so there is nothing to check there.
 describe.skipIf(process.platform === 'win32')('the maintainer scripts of the DEB', () => {
-    const script = name => path.join(directory, 'package', 'DEBIAN', name);
+    const script = (name) => path.join(directory, 'package', 'DEBIAN', name);
 
     it('should be executable whatever the umask is, because dpkg-deb refuses anything else', () => {
         const packager = linuxPackager();
@@ -67,7 +80,9 @@ describe.skipIf(process.platform === 'win32')('the maintainer scripts of the DEB
         const postinst = fs.readFileSync(script('postinst'), 'utf8');
         const postrm = fs.readFileSync(script('postrm'), 'utf8');
         expect(postinst.startsWith('#!/bin/sh\nset -e')).toBe(true);
-        expect(postinst).toContain(`if [ ! -f ${symbolic} ] ; then ln -s ${binary} ${symbolic} ; fi`);
+        expect(postinst).toContain(
+            `if [ ! -f ${symbolic} ] ; then ln -s ${binary} ${symbolic} ; fi`,
+        );
         expect(postrm.startsWith('#!/bin/sh\nset -e')).toBe(true);
         expect(postrm).toContain(`if [ -f ${symbolic} ] ; then rm -f ${symbolic} ; fi`);
     });
@@ -101,7 +116,7 @@ describe('the RPM', () => {
         packager._createChangelog = () => undefined;
         packager._createDesktopShortcut = () => undefined;
         packager._createSpecsRPM = async () => path.join(directory, 'specfile.spec');
-        packager._executeCommand = async command => {
+        packager._executeCommand = async (command) => {
             commands.push(command);
             return '';
         };
@@ -110,18 +125,29 @@ describe('the RPM', () => {
 
     it('should name the architecture of each package: the name of rpm, which is not the one of Debian', () => {
         const { architectures } = linuxPackager();
-        expect(Object.values(architectures).map(entry => [entry.name, entry.rpm])).toEqual([['amd64', 'x86_64'], ['arm64', 'aarch64']]);
+        expect(Object.values(architectures).map((entry) => [entry.name, entry.rpm])).toEqual([
+            ['amd64', 'x86_64'],
+            ['arm64', 'aarch64'],
+        ]);
     });
 
-    it.each([['64', 'x86_64'], ['ARM64', 'aarch64']])('should be built for the architecture of the package (%s: %s)', async (architecture, target) => {
-        const { packager, commands } = rpmPackager(architecture);
-        await packager.buildRPM(architecture);
-        const build = commands.find(command => command.startsWith('rpmbuild'));
-        expect(build).toContain(` --target ${target} `);
-        expect(build).toMatch(/^rpmbuild -bb --noclean --target \S+ --define "_topdir .+[\\/]package" --define "buildroot %\{_topdir\}" --define "_binary_payload w9\.xzdio" ".+specfile\.spec"$/);
-        // the package is moved from the directory of its architecture, whichever that is
-        expect(commands.find(command => command.startsWith('mv'))).toContain('/RPMS/*/*.rpm');
-    });
+    it.each([
+        ['64', 'x86_64'],
+        ['ARM64', 'aarch64'],
+    ])(
+        'should be built for the architecture of the package (%s: %s)',
+        async (architecture, target) => {
+            const { packager, commands } = rpmPackager(architecture);
+            await packager.buildRPM(architecture);
+            const build = commands.find((command) => command.startsWith('rpmbuild'));
+            expect(build).toContain(` --target ${target} `);
+            expect(build).toMatch(
+                /^rpmbuild -bb --noclean --target \S+ --define "_topdir .+[\\/]package" --define "buildroot %\{_topdir\}" --define "_binary_payload w9\.xzdio" ".+specfile\.spec"$/,
+            );
+            // the package is moved from the directory of its architecture, whichever that is
+            expect(commands.find((command) => command.startsWith('mv'))).toContain('/RPMS/*/*.rpm');
+        },
+    );
 });
 
 describe('the Inno Setup script of the Windows installer', () => {
@@ -136,24 +162,35 @@ describe('the Inno Setup script of the Windows installer', () => {
         return { lines: content.split(/\r?\n/), name: path.basename(packager._dirBuildRoot) };
     }
 
-    it.each([['64', 'x64compatible'], ['ARM64', 'arm64']])('should allow the installer on its own architecture only, and install in 64-bit mode there (%s: %s)', (architecture, identifier) => {
-        const { lines } = script(architecture);
-        expect(lines).toContain(`ArchitecturesAllowed=${identifier}`);
-        expect(lines).toContain(`ArchitecturesInstallIn64BitMode=${identifier}`);
-    });
+    it.each([
+        ['64', 'x64compatible'],
+        ['ARM64', 'arm64'],
+    ])(
+        'should allow the installer on its own architecture only, and install in 64-bit mode there (%s: %s)',
+        (architecture, identifier) => {
+            const { lines } = script(architecture);
+            expect(lines).toContain(`ArchitecturesAllowed=${identifier}`);
+            expect(lines).toContain(`ArchitecturesInstallIn64BitMode=${identifier}`);
+        },
+    );
 
     it('should not use the identifier x64, which Windows 11 on Arm does not match and Inno Setup deprecated', () => {
         for (const architecture of ['64', 'ARM64']) {
-            expect(script(architecture).lines.filter(line => /^;?Architectures\w+=x64$/.test(line))).toEqual([]);
+            expect(
+                script(architecture).lines.filter((line) => /^;?Architectures\w+=x64$/.test(line)),
+            ).toEqual([]);
         }
     });
 
-    it.each(['64', 'ARM64'])('should pack the folder of the package into the installer that the workflow collects (%s)', architecture => {
-        const { lines, name } = script(architecture);
-        expect(lines).toContain(`OutputBaseFilename=${name}`);
-        expect(lines).toContain(`Source: ${name}\\*; DestDir: {app}; Flags: recursesubdirs`);
-        expect(lines).toContain('OutputDir=.');
-    });
+    it.each(['64', 'ARM64'])(
+        'should pack the folder of the package into the installer that the workflow collects (%s)',
+        (architecture) => {
+            const { lines, name } = script(architecture);
+            expect(lines).toContain(`OutputBaseFilename=${name}`);
+            expect(lines).toContain(`Source: ${name}\\*; DestDir: {app}; Flags: recursesubdirs`);
+            expect(lines).toContain('OutputDir=.');
+        },
+    );
 });
 
 describe('the configuration of the packagers', () => {
@@ -191,16 +228,18 @@ describe('the steps that every packager shares', () => {
     // a download that breaks after the first bytes
     function brokenDownload() {
         let sent = false;
-        return new Response(new ReadableStream({
-            pull(controller) {
-                if (sent) {
-                    controller.error(new Error('connection reset'));
-                } else {
-                    sent = true;
-                    controller.enqueue(new Uint8Array([ 1, 2, 3 ]));
-                }
-            }
-        }));
+        return new Response(
+            new ReadableStream({
+                pull(controller) {
+                    if (sent) {
+                        controller.error(new Error('connection reset'));
+                    } else {
+                        sent = true;
+                        controller.enqueue(new Uint8Array([1, 2, 3]));
+                    }
+                },
+            }),
+        );
     }
 
     it('should refuse to build as the base of the packagers', () => {
@@ -210,20 +249,28 @@ describe('the steps that every packager shares', () => {
 
     describe('_getSize', () => {
         function stage(sizes) {
-            sizes.forEach((size, index) => write(path.join('tree', index % 2 ? 'nested' : '.', `file${index}`), Buffer.alloc(size)));
+            sizes.forEach((size, index) =>
+                write(
+                    path.join('tree', index % 2 ? 'nested' : '.', `file${index}`),
+                    Buffer.alloc(size),
+                ),
+            );
             fs.mkdirSync(path.join('tree', 'empty'), { recursive: true });
             return 'tree';
         }
 
         it.each([
-            [ 'a tree without files', [], '0' ],
-            [ 'a single byte', [ 1 ], '1' ],
-            [ 'exactly one KiB', [ 1024 ], '1' ],
-            [ 'one byte more than one KiB', [ 1025 ], '2' ],
-            [ 'files of several folders that add up', [ 600, 600, 600 ], '2' ]
-        ])('should report %s in KiB, rounded up, as a string', async (description, sizes, expected) => {
-            await expect(shared().packager._getSize(stage(sizes))).resolves.toBe(expected);
-        });
+            ['a tree without files', [], '0'],
+            ['a single byte', [1], '1'],
+            ['exactly one KiB', [1024], '1'],
+            ['one byte more than one KiB', [1025], '2'],
+            ['files of several folders that add up', [600, 600, 600], '2'],
+        ])(
+            'should report %s in KiB, rounded up, as a string',
+            async (description, sizes, expected) => {
+                await expect(shared().packager._getSize(stage(sizes))).resolves.toBe(expected);
+            },
+        );
 
         it('should count the files below the folder it is given and nothing beside it', async () => {
             write(path.join('root', 'usr', 'bin', 'app'), Buffer.alloc(3000));
@@ -242,9 +289,9 @@ describe('the steps that every packager shares', () => {
         it('should write text as UTF-8 and bytes as they are', () => {
             const { packager } = shared();
             packager._saveFile('text', 'ünï ✓ 日本', false);
-            packager._saveFile('bytes', Buffer.from([ 0, 255, 128, 10, 13 ]), false);
+            packager._saveFile('bytes', Buffer.from([0, 255, 128, 10, 13]), false);
             expect(fs.readFileSync('text')).toEqual(Buffer.from('ünï ✓ 日本', 'utf8'));
-            expect(fs.readFileSync('bytes')).toEqual(Buffer.from([ 0, 255, 128, 10, 13 ]));
+            expect(fs.readFileSync('bytes')).toEqual(Buffer.from([0, 255, 128, 10, 13]));
         });
 
         it('should compress with the highest level when it is asked to', () => {
@@ -252,30 +299,42 @@ describe('the steps that every packager shares', () => {
             const bytes = fs.readFileSync('page.gz');
             expect(zlib.gunzipSync(bytes).toString('utf8')).toBe('manual '.repeat(100));
             // RFC 1952: the extra flags say "maximum compression" for the level 9
-            expect([ bytes[0], bytes[1], bytes[8] ]).toEqual([ 0x1f, 0x8b, 2 ]);
+            expect([bytes[0], bytes[1], bytes[8]]).toEqual([0x1f, 0x8b, 2]);
         });
     });
 
     describe('_extractArchive', () => {
         it.each([
-            [ 'win32', 'tar -xf "pkg.zip" -C "out"' ],
-            [ 'linux', 'unzip "pkg.zip" -d "out"' ],
-            [ 'darwin', 'unzip "pkg.zip" -d "out"' ]
+            ['win32', 'tar -xf "pkg.zip" -C "out"'],
+            ['linux', 'unzip "pkg.zip" -d "out"'],
+            ['darwin', 'unzip "pkg.zip" -d "out"'],
         ])('should use the archiver of the platform (%s)', async (platform, command) => {
             const { packager, runner } = shared({ platform });
             await packager._extractArchive('pkg.zip', 'out');
-            expect(runner.commands).toEqual([ command ]);
+            expect(runner.commands).toEqual([command]);
         });
     });
 
     describe('_compressArchive', () => {
         // GNU tar of a Linux host cannot write a ZIP, bsdtar can; Windows and macOS ship bsdtar as `tar`
-        it.each([ [ 'linux', 'bsdtar' ], [ 'darwin', 'tar' ], [ 'win32', 'tar' ] ])('should pack the folder next to its own name with the tool of the platform (%s: %s)', async (platform, tool) => {
-            const { packager, runner } = shared({ platform });
-            expect(packager._zipTool).toBe(tool);
-            await packager._compressArchive(path.join('build', 'pkg_1.0.0'), path.join('build', 'pkg_1.0.0.zip'));
-            expect(runner.commands).toEqual([ `${tool} -a -c -f "${path.join('build', 'pkg_1.0.0.zip')}" -C "build" "pkg_1.0.0"` ]);
-        });
+        it.each([
+            ['linux', 'bsdtar'],
+            ['darwin', 'tar'],
+            ['win32', 'tar'],
+        ])(
+            'should pack the folder next to its own name with the tool of the platform (%s: %s)',
+            async (platform, tool) => {
+                const { packager, runner } = shared({ platform });
+                expect(packager._zipTool).toBe(tool);
+                await packager._compressArchive(
+                    path.join('build', 'pkg_1.0.0'),
+                    path.join('build', 'pkg_1.0.0.zip'),
+                );
+                expect(runner.commands).toEqual([
+                    `${tool} -a -c -f "${path.join('build', 'pkg_1.0.0.zip')}" -C "build" "pkg_1.0.0"`,
+                ]);
+            },
+        );
     });
 
     describe('_executeCommand', () => {
@@ -283,7 +342,7 @@ describe('the steps that every packager shares', () => {
             const { packager, runner, output } = shared();
             runner.respond = () => ({ stdout: 'built', stderr: 'a warning' });
             await expect(packager._executeCommand('make all')).resolves.toBe('built');
-            expect(output.lines()).toEqual([ '> make all', 'built', 'a warning' ]);
+            expect(output.lines()).toEqual(['> make all', 'built', 'a warning']);
         });
 
         it('should print nothing when it is silent', async () => {
@@ -295,9 +354,13 @@ describe('the steps that every packager shares', () => {
 
         it('should fail with the error of the command, after it printed what the command wrote', async () => {
             const { packager, runner, output } = shared();
-            runner.respond = () => ({ error: new Error('exit code 2'), stdout: 'partial', stderr: 'no space left' });
+            runner.respond = () => ({
+                error: new Error('exit code 2'),
+                stdout: 'partial',
+                stderr: 'no space left',
+            });
             await expect(packager._executeCommand('make')).rejects.toThrow('exit code 2');
-            expect(output.lines()).toEqual([ '> make', 'partial', 'no space left' ]);
+            expect(output.lines()).toEqual(['> make', 'partial', 'no space left']);
         });
     });
 
@@ -305,16 +368,19 @@ describe('the steps that every packager shares', () => {
         it('should run every command silently and in order', async () => {
             const { packager, runner, output } = shared();
             await packager._validateCommands('a --version', 'b --version', 'c --version');
-            expect(runner.commands).toEqual([ 'a --version', 'b --version', 'c --version' ]);
+            expect(runner.commands).toEqual(['a --version', 'b --version', 'c --version']);
             expect(output.lines()).toEqual([]);
         });
 
         it('should name the first command that fails and not run the others', async () => {
             const { packager, runner } = shared();
-            runner.respond = command => command === 'b --version' ? new Error('not found') : '';
-            await expect(packager._validateCommands('a --version', 'b --version', 'c --version'))
-                .rejects.toThrow("Failed to run command 'b --version', make sure it is correctly installed!");
-            expect(runner.commands).toEqual([ 'a --version', 'b --version' ]);
+            runner.respond = (command) => (command === 'b --version' ? new Error('not found') : '');
+            await expect(
+                packager._validateCommands('a --version', 'b --version', 'c --version'),
+            ).rejects.toThrow(
+                "Failed to run command 'b --version', make sure it is correctly installed!",
+            );
+            expect(runner.commands).toEqual(['a --version', 'b --version']);
         });
     });
 
@@ -323,7 +389,7 @@ describe('the steps that every packager shares', () => {
         const file = path.join('redist', 'electron.zip');
 
         it('should store what the server sends, whatever the bytes are, and follow redirects', async () => {
-            const bytes = Buffer.from([ 0, 255, 128, 10, 13, 0x50, 0x4b ]);
+            const bytes = Buffer.from([0, 255, 128, 10, 13, 0x50, 0x4b]);
             const fetch = vi.fn(async () => new Response(bytes));
             await shared({ fetch }).packager._download(uri, file);
             expect(fs.readFileSync(file)).toEqual(bytes);
@@ -332,8 +398,12 @@ describe('the steps that every packager shares', () => {
         });
 
         it('should fail with the status and the address when the server refuses, and write nothing', async () => {
-            const { packager } = shared({ fetch: async () => new Response('missing', { status: 404 }) });
-            await expect(packager._download(uri, file)).rejects.toThrow(`Failed to download electron client (404 ${uri})!`);
+            const { packager } = shared({
+                fetch: async () => new Response('missing', { status: 404 }),
+            });
+            await expect(packager._download(uri, file)).rejects.toThrow(
+                `Failed to download electron client (404 ${uri})!`,
+            );
             expect(fs.existsSync('redist')).toBe(false);
         });
 
@@ -351,17 +421,17 @@ describe('the steps that every packager shares', () => {
                 pull(controller) {
                     seen.push(fs.existsSync(file));
                     if (chunks < 3) {
-                        controller.enqueue(new Uint8Array([ ++chunks ]));
+                        controller.enqueue(new Uint8Array([++chunks]));
                     } else {
                         controller.close();
                     }
-                }
+                },
             });
             await shared({ fetch: async () => new Response(body) }).packager._download(uri, file);
             expect(seen.length).toBeGreaterThan(1);
-            expect(seen.every(exists => !exists)).toBe(true);
-            expect(fs.readFileSync(file)).toEqual(Buffer.from([ 1, 2, 3 ]));
-            expect(fs.readdirSync('redist')).toEqual([ 'electron.zip' ]);
+            expect(seen.every((exists) => !exists)).toBe(true);
+            expect(fs.readFileSync(file)).toEqual(Buffer.from([1, 2, 3]));
+            expect(fs.readdirSync('redist')).toEqual(['electron.zip']);
         });
     });
 
@@ -374,8 +444,15 @@ describe('the steps that every packager shares', () => {
         function extractor(packager) {
             const extracted = [];
             packager._extractArchive = async (zip, directory) => {
-                extracted.push([ zip, directory ]);
-                for (const name of [ 'electron', 'libffmpeg.so', 'version', 'LICENSE', 'LICENSES.chromium.html', 'chrome_crashpad_handler' ]) {
+                extracted.push([zip, directory]);
+                for (const name of [
+                    'electron',
+                    'libffmpeg.so',
+                    'version',
+                    'LICENSE',
+                    'LICENSES.chromium.html',
+                    'chrome_crashpad_handler',
+                ]) {
                     fs.writeFileSync(path.join(directory, name), name);
                 }
             };
@@ -387,9 +464,12 @@ describe('the steps that every packager shares', () => {
             const { packager } = shared({ fetch });
             const extracted = extractor(packager);
             await packager._downloadElectron('44.7.0', 'linux-x64', target);
-            expect(fetch).toHaveBeenCalledWith('https://github.com/electron/electron/releases/download/v44.7.0/electron-v44.7.0-linux-x64.zip', { redirect: 'follow' });
+            expect(fetch).toHaveBeenCalledWith(
+                'https://github.com/electron/electron/releases/download/v44.7.0/electron-v44.7.0-linux-x64.zip',
+                { redirect: 'follow' },
+            );
             expect(fs.readFileSync(archive, 'utf8')).toBe('zip bytes');
-            expect(extracted).toEqual([ [ archive, target ] ]);
+            expect(extracted).toEqual([[archive, target]]);
         });
 
         it('should not download an archive that is cached in redist', async () => {
@@ -400,7 +480,7 @@ describe('the steps that every packager shares', () => {
             await packager._downloadElectron('44.7.0', 'linux-x64', target);
             expect(fetch).not.toHaveBeenCalled();
             expect(fs.readFileSync(archive, 'utf8')).toBe('cached bytes');
-            expect(extracted).toEqual([ [ archive, target ] ]);
+            expect(extracted).toEqual([[archive, target]]);
         });
 
         it('should drop the files of the archive that are not part of the package, the crash handler of Linux included', async () => {
@@ -408,20 +488,38 @@ describe('the steps that every packager shares', () => {
             const { packager } = shared();
             extractor(packager);
             await packager._downloadElectron('44.7.0', 'linux-x64', target);
-            expect(fs.readdirSync(target).sort()).toEqual([ 'electron', 'libffmpeg.so' ]);
+            expect(fs.readdirSync(target).sort()).toEqual(['electron', 'libffmpeg.so']);
         });
 
         it('should drop the shader compiler of WebGPU from the archive of Windows, and nothing that the application loads', async () => {
             write(path.join('redist', 'electron-v44.7.0-win32-x64.zip'), 'cached bytes');
             const { packager } = shared();
             packager._extractArchive = async (zip, directory) => {
-                for (const name of [ 'electron.exe', 'ffmpeg.dll', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'vk_swiftshader.dll', 'vulkan-1.dll', 'version', 'LICENSE', 'chrome_crashpad_handler' ]) {
+                for (const name of [
+                    'electron.exe',
+                    'ffmpeg.dll',
+                    'd3dcompiler_47.dll',
+                    'dxcompiler.dll',
+                    'dxil.dll',
+                    'vk_swiftshader.dll',
+                    'vulkan-1.dll',
+                    'version',
+                    'LICENSE',
+                    'chrome_crashpad_handler',
+                ]) {
                     fs.writeFileSync(path.join(directory, name), name);
                 }
             };
             await packager._downloadElectron('44.7.0', 'win32-x64', target);
             // the crash handler is only dropped on Linux: on Windows it is part of the executable, the file here is made up
-            expect(fs.readdirSync(target).sort()).toEqual([ 'chrome_crashpad_handler', 'd3dcompiler_47.dll', 'electron.exe', 'ffmpeg.dll', 'vk_swiftshader.dll', 'vulkan-1.dll' ]);
+            expect(fs.readdirSync(target).sort()).toEqual([
+                'chrome_crashpad_handler',
+                'd3dcompiler_47.dll',
+                'electron.exe',
+                'ffmpeg.dll',
+                'vk_swiftshader.dll',
+                'vulkan-1.dll',
+            ]);
         });
 
         it('should drop only the licence texts and the version from the archive of macOS', async () => {
@@ -429,18 +527,20 @@ describe('the steps that every packager shares', () => {
             const { packager } = shared();
             packager._extractArchive = async (zip, directory) => {
                 fs.mkdirSync(path.join(directory, 'Electron.app'));
-                for (const name of [ 'version', 'LICENSE', 'LICENSES.chromium.html' ]) {
+                for (const name of ['version', 'LICENSE', 'LICENSES.chromium.html']) {
                     fs.writeFileSync(path.join(directory, name), name);
                 }
             };
             await packager._downloadElectron('44.7.0', 'darwin-arm64', target);
-            expect(fs.readdirSync(target)).toEqual([ 'Electron.app' ]);
+            expect(fs.readdirSync(target)).toEqual(['Electron.app']);
         });
 
         it('should not extract anything when the download fails', async () => {
             const { packager } = shared({ fetch: async () => new Response('', { status: 503 }) });
             const extracted = extractor(packager);
-            await expect(packager._downloadElectron('44.7.0', 'linux-x64', target)).rejects.toThrow('Failed to download electron client (503 https://github.com/electron/electron/releases/download/v44.7.0/electron-v44.7.0-linux-x64.zip)!');
+            await expect(packager._downloadElectron('44.7.0', 'linux-x64', target)).rejects.toThrow(
+                'Failed to download electron client (503 https://github.com/electron/electron/releases/download/v44.7.0/electron-v44.7.0-linux-x64.zip)!',
+            );
             expect(extracted).toEqual([]);
             expect(fs.existsSync(target)).toBe(false);
         });
@@ -448,23 +548,39 @@ describe('the steps that every packager shares', () => {
 
     describe('_bundleWebPart', () => {
         it.each([
-            [ 'does not exist', () => undefined ],
-            [ 'holds no index.html', () => write(path.join('build', 'web', 'js', 'app.js'), 'x') ]
-        ])('should refuse a web part that %s, and say how to build it', async (description, prepare) => {
-            prepare();
-            const { packager } = shared();
-            await expect(packager._bundleWebPart('resources'))
-                .rejects.toThrow(`The web part is missing in "${path.join('build', 'web')}", run 'pnpm run build:web' first!`);
-            expect(fs.existsSync(path.join('resources', 'web'))).toBe(false);
-        });
+            ['does not exist', () => undefined],
+            ['holds no index.html', () => write(path.join('build', 'web', 'js', 'app.js'), 'x')],
+        ])(
+            'should refuse a web part that %s, and say how to build it',
+            async (description, prepare) => {
+                prepare();
+                const { packager } = shared();
+                await expect(packager._bundleWebPart('resources')).rejects.toThrow(
+                    `The web part is missing in "${path.join('build', 'web')}", run 'pnpm run build:web' first!`,
+                );
+                expect(fs.existsSync(path.join('resources', 'web'))).toBe(false);
+            },
+        );
 
         it('should copy the whole web part into the folder `web` next to app.asar', async () => {
             writeSources();
-            write(path.join('build', 'web', 'img', 'tray', 'logo.png'), Buffer.from([ 137, 80, 78, 71 ]));
+            write(
+                path.join('build', 'web', 'img', 'tray', 'logo.png'),
+                Buffer.from([137, 80, 78, 71]),
+            );
             await shared().packager._bundleWebPart('resources');
-            expect(fs.readFileSync(path.join('resources', 'web', 'index.html'), 'utf8')).toBe('<html>web part</html>');
-            expect(fs.readFileSync(path.join('resources', 'web', 'mjs', 'engine', 'Engine.mjs'), 'utf8')).toBe('export default {};');
-            expect(fs.readFileSync(path.join('resources', 'web', 'img', 'tray', 'logo.png'))).toEqual(Buffer.from([ 137, 80, 78, 71 ]));
+            expect(fs.readFileSync(path.join('resources', 'web', 'index.html'), 'utf8')).toBe(
+                '<html>web part</html>',
+            );
+            expect(
+                fs.readFileSync(
+                    path.join('resources', 'web', 'mjs', 'engine', 'Engine.mjs'),
+                    'utf8',
+                ),
+            ).toBe('export default {};');
+            expect(
+                fs.readFileSync(path.join('resources', 'web', 'img', 'tray', 'logo.png')),
+            ).toEqual(Buffer.from([137, 80, 78, 71]));
             // the web part itself stays where it is
             expect(fs.existsSync(path.join('build', 'web', 'index.html'))).toBe(true);
         });
@@ -475,59 +591,97 @@ describe('the steps that every packager shares', () => {
     // runs through pnpm (`node build-app.js` in a shell without node_modules/.bin fails here). Unsure whether the check is meant to show
     // that the dependencies are installed (the script cannot even be loaded without them)
     it.each([
-        [ 'the DEB', 'ElectronPackagerLinux', 'buildDEB', [ 'unzip --help', 'fakeroot --version', 'dpkg --version', 'lintian --version' ] ],
-        [ 'the RPM', 'ElectronPackagerLinux', 'buildRPM', [ 'unzip --help', 'fakeroot --version', 'rpm --version' ] ],
-        [ 'the installer of Windows', 'ElectronPackagerWindows', 'buildIS', [ 'tar --version', 'where innosetup-compiler' ] ],
-        [ 'the archive of Windows', 'ElectronPackagerWindows', 'buildZIP', [ 'bsdtar --version' ] ]
-    ])('should check that the tools of %s exist before it builds it, and no others (asar is a library, not a command)', async (description, Packager, method, tools) => {
-        const app = loadBuildApp({ platform: 'linux' });
-        const packager = new app[Packager](config);
-        let checked = null;
-        packager._validateCommands = async (...commands) => {
-            checked = commands;
-            throw new Error('stop after the check');
-        };
-        await expect(packager[method]('64')).rejects.toThrow('stop after the check');
-        expect(checked).toEqual(tools);
-    });
+        [
+            'the DEB',
+            'ElectronPackagerLinux',
+            'buildDEB',
+            ['unzip --help', 'fakeroot --version', 'dpkg --version', 'lintian --version'],
+        ],
+        [
+            'the RPM',
+            'ElectronPackagerLinux',
+            'buildRPM',
+            ['unzip --help', 'fakeroot --version', 'rpm --version'],
+        ],
+        [
+            'the installer of Windows',
+            'ElectronPackagerWindows',
+            'buildIS',
+            ['tar --version', 'where innosetup-compiler'],
+        ],
+        ['the archive of Windows', 'ElectronPackagerWindows', 'buildZIP', ['bsdtar --version']],
+    ])(
+        'should check that the tools of %s exist before it builds it, and no others (asar is a library, not a command)',
+        async (description, Packager, method, tools) => {
+            const app = loadBuildApp({ platform: 'linux' });
+            const packager = new app[Packager](config);
+            let checked = null;
+            packager._validateCommands = async (...commands) => {
+                checked = commands;
+                throw new Error('stop after the check');
+            };
+            await expect(packager[method]('64')).rejects.toThrow('stop after the check');
+            expect(checked).toEqual(tools);
+        },
+    );
 
     describe('_applyFuses', () => {
         it.each([
             // RunAsNode, EnableNodeOptionsEnvironmentVariable and EnableNodeCliInspectArguments off, OnlyLoadAppFromAsar on;
             // the other fuses keep the state they have
-            [ 'stock Electron', STOCK_FUSES, '000001011' ],
-            [ 'a binary with every fuse enabled', '111111111', '010011111' ],
-            [ 'a binary with every fuse disabled', '000000000', '000001000' ]
-        ])('should harden %s and leave the other fuses alone', async (description, stock, hardened) => {
-            write('binary', electronExecutable(stock));
-            const before = fs.readFileSync('binary');
-            await shared().packager._applyFuses('binary');
-            expect(readFuseWire('binary')).toBe(hardened);
-            // nothing but the wire changed
-            const after = fs.readFileSync('binary');
-            expect(after.length).toBe(before.length);
-            expect(after.toString('latin1').replace(hardened, '')).toBe(before.toString('latin1').replace(stock, ''));
-        });
+            ['stock Electron', STOCK_FUSES, '000001011'],
+            ['a binary with every fuse enabled', '111111111', '010011111'],
+            ['a binary with every fuse disabled', '000000000', '000001000'],
+        ])(
+            'should harden %s and leave the other fuses alone',
+            async (description, stock, hardened) => {
+                write('binary', electronExecutable(stock));
+                const before = fs.readFileSync('binary');
+                await shared().packager._applyFuses('binary');
+                expect(readFuseWire('binary')).toBe(hardened);
+                // nothing but the wire changed
+                const after = fs.readFileSync('binary');
+                expect(after.length).toBe(before.length);
+                expect(after.toString('latin1').replace(hardened, '')).toBe(
+                    before.toString('latin1').replace(stock, ''),
+                );
+            },
+        );
 
         it.each([
-            [ 'does not hold a fuse wire', Buffer.from('not an electron binary'), /Could not find sentinel/ ],
-            [ 'has a wire that is too short for the fuses', electronExecutable('101'), /not long enough/ ]
-        ])('should fail the build for a binary that %s, which must not ship unhardened', async (description, bytes, message) => {
-            write('binary', bytes);
-            await expect(shared().packager._applyFuses('binary')).rejects.toThrow(message);
-        });
+            [
+                'does not hold a fuse wire',
+                Buffer.from('not an electron binary'),
+                /Could not find sentinel/,
+            ],
+            [
+                'has a wire that is too short for the fuses',
+                electronExecutable('101'),
+                /not long enough/,
+            ],
+        ])(
+            'should fail the build for a binary that %s, which must not ship unhardened',
+            async (description, bytes, message) => {
+                write('binary', bytes);
+                await expect(shared().packager._applyFuses('binary')).rejects.toThrow(message);
+            },
+        );
 
         describe('read back', () => {
             function packagerWith(wire) {
                 const flipFuses = vi.fn(async () => 1);
-                const fuses = { ...require('@electron/fuses'), flipFuses, getCurrentFuseWire: async () => ({ version: FuseVersion.V1, ...wire }) };
+                const fuses = {
+                    ...require('@electron/fuses'),
+                    flipFuses,
+                    getCurrentFuseWire: async () => ({ version: FuseVersion.V1, ...wire }),
+                };
                 return { flipFuses, ...shared({ modules: { '@electron/fuses': fuses } }) };
             }
             const hardened = {
                 [FuseV1Options.RunAsNode]: FuseState.DISABLE,
                 [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: FuseState.DISABLE,
                 [FuseV1Options.EnableNodeCliInspectArguments]: FuseState.DISABLE,
-                [FuseV1Options.OnlyLoadAppFromAsar]: FuseState.ENABLE
+                [FuseV1Options.OnlyLoadAppFromAsar]: FuseState.ENABLE,
             };
 
             it('should ask for exactly the four fuses of the hardening, in the first version of the wire', async () => {
@@ -539,24 +693,51 @@ describe('the steps that every packager shares', () => {
                     [FuseV1Options.RunAsNode]: false,
                     [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
                     [FuseV1Options.EnableNodeCliInspectArguments]: false,
-                    [FuseV1Options.OnlyLoadAppFromAsar]: true
+                    [FuseV1Options.OnlyLoadAppFromAsar]: true,
                 });
             });
 
             it.each([
-                [ 'RunAsNode', FuseV1Options.RunAsNode, FuseState.ENABLE, 'ENABLE', 'DISABLE' ],
-                [ 'EnableNodeOptionsEnvironmentVariable', FuseV1Options.EnableNodeOptionsEnvironmentVariable, FuseState.ENABLE, 'ENABLE', 'DISABLE' ],
-                [ 'EnableNodeCliInspectArguments', FuseV1Options.EnableNodeCliInspectArguments, FuseState.REMOVED, 'REMOVED', 'DISABLE' ],
-                [ 'OnlyLoadAppFromAsar', FuseV1Options.OnlyLoadAppFromAsar, FuseState.DISABLE, 'DISABLE', 'ENABLE' ]
-            ])('should fail when the binary still has %s in the wrong state', async (name, fuse, found, foundName, expectedName) => {
-                const { packager } = packagerWith({ ...hardened, [fuse]: found });
-                await expect(packager._applyFuses('the-binary')).rejects.toThrow(`Fuse ${name} of "the-binary" is ${foundName}, expected ${expectedName}!`);
-            });
+                ['RunAsNode', FuseV1Options.RunAsNode, FuseState.ENABLE, 'ENABLE', 'DISABLE'],
+                [
+                    'EnableNodeOptionsEnvironmentVariable',
+                    FuseV1Options.EnableNodeOptionsEnvironmentVariable,
+                    FuseState.ENABLE,
+                    'ENABLE',
+                    'DISABLE',
+                ],
+                [
+                    'EnableNodeCliInspectArguments',
+                    FuseV1Options.EnableNodeCliInspectArguments,
+                    FuseState.REMOVED,
+                    'REMOVED',
+                    'DISABLE',
+                ],
+                [
+                    'OnlyLoadAppFromAsar',
+                    FuseV1Options.OnlyLoadAppFromAsar,
+                    FuseState.DISABLE,
+                    'DISABLE',
+                    'ENABLE',
+                ],
+            ])(
+                'should fail when the binary still has %s in the wrong state',
+                async (name, fuse, found, foundName, expectedName) => {
+                    const { packager } = packagerWith({ ...hardened, [fuse]: found });
+                    await expect(packager._applyFuses('the-binary')).rejects.toThrow(
+                        `Fuse ${name} of "the-binary" is ${foundName}, expected ${expectedName}!`,
+                    );
+                },
+            );
 
             it('should fail when the wire has no state for a fuse at all', async () => {
                 const partial = { ...hardened };
                 delete partial[FuseV1Options.OnlyLoadAppFromAsar];
-                await expect(packagerWith(partial).packager._applyFuses('the-binary')).rejects.toThrow('Fuse OnlyLoadAppFromAsar of "the-binary" is undefined, expected ENABLE!');
+                await expect(
+                    packagerWith(partial).packager._applyFuses('the-binary'),
+                ).rejects.toThrow(
+                    'Fuse OnlyLoadAppFromAsar of "the-binary" is undefined, expected ENABLE!',
+                );
             });
         });
     });
@@ -573,26 +754,47 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
         return { ...app, packager };
     }
 
-    const lines = file => fs.readFileSync(file, 'utf8').split(/\r?\n/);
-    const gunzippedLines = file => zlib.gunzipSync(fs.readFileSync(file)).toString('utf8').split(/\r?\n/);
+    const lines = (file) => fs.readFileSync(file, 'utf8').split(/\r?\n/);
+    const gunzippedLines = (file) =>
+        zlib.gunzipSync(fs.readFileSync(file)).toString('utf8').split(/\r?\n/);
 
     it('should name each architecture the way that Debian, rpm, Electron and the names of the packages need', () => {
         expect(new ElectronPackagerLinux(config).architectures).toEqual({
-            '64': { name: 'amd64', rpm: 'x86_64', suffix: 'linux_amd64', platform: 'linux-x64' },
-            'ARM64': { name: 'arm64', rpm: 'aarch64', suffix: 'linux_arm64', platform: 'linux-arm64' }
+            64: { name: 'amd64', rpm: 'x86_64', suffix: 'linux_amd64', platform: 'linux-x64' },
+            ARM64: {
+                name: 'arm64',
+                rpm: 'aarch64',
+                suffix: 'linux_arm64',
+                platform: 'linux-arm64',
+            },
         });
     });
 
     it('should stage the package in a folder named after the package, its version and its architecture', () => {
         const { packager } = linuxApp('ARM64');
-        expect(packager._dirBuildRoot).toBe(path.join('build', `${config.name.package}_${config.version}_linux_arm64`));
-        expect(packager._stagingExecutableDirectory).toBe(path.join(packager._dirBuildRoot, 'usr', 'lib', config.name.package));
+        expect(packager._dirBuildRoot).toBe(
+            path.join('build', `${config.name.package}_${config.version}_linux_arm64`),
+        );
+        expect(packager._stagingExecutableDirectory).toBe(
+            path.join(packager._dirBuildRoot, 'usr', 'lib', config.name.package),
+        );
     });
 
     it('should write the manual page as gzip, in the folder of section 1', () => {
         const { packager } = linuxApp();
         packager._createManpage();
-        expect(gunzippedLines(path.join(packager._dirBuildRoot, 'usr', 'share', 'man', 'man1', `${config.name.package}.1.gz`))).toEqual([
+        expect(
+            gunzippedLines(
+                path.join(
+                    packager._dirBuildRoot,
+                    'usr',
+                    'share',
+                    'man',
+                    'man1',
+                    `${config.name.package}.1.gz`,
+                ),
+            ),
+        ).toEqual([
             `.TH ${config.name.package} 1 "" ""`,
             '',
             '.SH NAME',
@@ -602,20 +804,41 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
             config.name.package,
             '',
             '.SH DESCRIPTION',
-            config.description.long
+            config.description.long,
         ]);
     });
 
     it('should write the changelog as gzip, in the folder of the documentation of the package', () => {
         const { packager } = linuxApp();
         packager._createChangelog();
-        expect(gunzippedLines(path.join(packager._dirBuildRoot, 'usr', 'share', 'doc', config.name.package, 'changelog.gz'))).toEqual([ '-' ]);
+        expect(
+            gunzippedLines(
+                path.join(
+                    packager._dirBuildRoot,
+                    'usr',
+                    'share',
+                    'doc',
+                    config.name.package,
+                    'changelog.gz',
+                ),
+            ),
+        ).toEqual(['-']);
     });
 
     it('should write the desktop entry that starts the installed binary under the name of the product', () => {
         const { packager } = linuxApp();
         packager._createDesktopShortcut();
-        expect(lines(path.join(packager._dirBuildRoot, 'usr', 'share', 'applications', `${config.name.package}.desktop`))).toEqual([
+        expect(
+            lines(
+                path.join(
+                    packager._dirBuildRoot,
+                    'usr',
+                    'share',
+                    'applications',
+                    `${config.name.package}.desktop`,
+                ),
+            ),
+        ).toEqual([
             '[Desktop Entry]',
             'Version=1.0',
             'Type=Application',
@@ -623,14 +846,28 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
             `GenericName=${config.description.short}`,
             `Exec=/usr/lib/${config.name.package}/${config.binary.linux}`,
             `Icon=${config.name.package}`,
-            'Categories=Network;FileTransfer;'
+            'Categories=Network;FileTransfer;',
         ]);
     });
 
-    it.each([ 'deb', 'rpm' ])('should find the icon that the desktop entry names in the skeleton of the %s', flavour => {
-        const icon = path.join(REPOSITORY, 'redist', flavour, 'usr', 'share', 'icons', 'hicolor', '256x256', 'apps', `${config.name.package}.png`);
-        expect(fs.existsSync(icon)).toBe(true);
-    });
+    it.each(['deb', 'rpm'])(
+        'should find the icon that the desktop entry names in the skeleton of the %s',
+        (flavour) => {
+            const icon = path.join(
+                REPOSITORY,
+                'redist',
+                flavour,
+                'usr',
+                'share',
+                'icons',
+                'hicolor',
+                '256x256',
+                'apps',
+                `${config.name.package}.png`,
+            );
+            expect(fs.existsSync(icon)).toBe(true);
+        },
+    );
 
     describe('the control file of the DEB', () => {
         async function control(architecture) {
@@ -644,24 +881,30 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
             return lines(path.join(root, 'DEBIAN', 'control'));
         }
 
-        it.each([ [ '64', 'amd64' ], [ 'ARM64', 'arm64' ] ])('should describe the package, with the size of its files and the architecture of Debian (%s: %s)', async (architecture, debian) => {
-            expect(await control(architecture)).toEqual([
-                `Package: ${config.name.package}`,
-                `Version: ${config.version}`,
-                'Section: net',
-                `Architecture: ${debian}`,
-                'Installed-Size: 3',
-                `Depends: ${config.meta.dependencies.deb}`,
-                `Maintainer: ${config.author}`,
-                'Priority: optional',
-                `Homepage: ${config.url}`,
-                `Description: ${config.description.short}`,
-                // a line of the long description starts with a space
-                ` ${config.description.long}`,
-                // and the file ends with a line break
-                ''
-            ]);
-        });
+        it.each([
+            ['64', 'amd64'],
+            ['ARM64', 'arm64'],
+        ])(
+            'should describe the package, with the size of its files and the architecture of Debian (%s: %s)',
+            async (architecture, debian) => {
+                expect(await control(architecture)).toEqual([
+                    `Package: ${config.name.package}`,
+                    `Version: ${config.version}`,
+                    'Section: net',
+                    `Architecture: ${debian}`,
+                    'Installed-Size: 3',
+                    `Depends: ${config.meta.dependencies.deb}`,
+                    `Maintainer: ${config.author}`,
+                    'Priority: optional',
+                    `Homepage: ${config.url}`,
+                    `Description: ${config.description.short}`,
+                    // a line of the long description starts with a space
+                    ` ${config.description.long}`,
+                    // and the file ends with a line break
+                    '',
+                ]);
+            },
+        );
     });
 
     // The umask of these tests is 077 (see beforeEach): the user of a hardened system, or a runner that shares nothing. What goes into the
@@ -688,7 +931,7 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
             path.join(root, 'usr', 'share', 'man', 'man1', `${config.name.package}.1.gz`),
             path.join(root, 'usr', 'share', 'doc', config.name.package, 'changelog.gz'),
             path.join(root, 'usr', 'share', 'applications', `${config.name.package}.desktop`),
-            path.join(root, 'DEBIAN', 'control')
+            path.join(root, 'DEBIAN', 'control'),
         ]) {
             expect(fs.statSync(file).mode & 0o777).toBe(0o644);
         }
@@ -697,15 +940,21 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
     it('should list the files of the usr tree in the checksums, relative to the folder of the package', async () => {
         const { packager, runner } = linuxApp();
         await packager._createChecksumsDEB();
-        expect(runner.commands).toEqual([ `cd "${packager._dirBuildRoot}" && find usr -type f -print0 | xargs -0 md5sum > "DEBIAN/md5sums"` ]);
+        expect(runner.commands).toEqual([
+            `cd "${packager._dirBuildRoot}" && find usr -type f -print0 | xargs -0 md5sum > "DEBIAN/md5sums"`,
+        ]);
     });
 
     describe('the specification of the RPM', () => {
-        const files = [ '/usr/lib/rakkomik/rakkomik', '/usr/lib/rakkomik/resources/app.asar', '/usr/share/applications/rakkomik.desktop' ];
+        const files = [
+            '/usr/lib/rakkomik/rakkomik',
+            '/usr/lib/rakkomik/resources/app.asar',
+            '/usr/share/applications/rakkomik.desktop',
+        ];
 
         async function specification(architecture = '64') {
             const { packager, runner } = linuxApp(architecture);
-            runner.respond = () => files.map(file => `${file}\n`).join('');
+            runner.respond = () => files.map((file) => `${file}\n`).join('');
             const file = await packager._createSpecsRPM();
             return { file, runner, packager, lines: lines(file) };
         }
@@ -731,10 +980,10 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
                 '',
                 'Autoreq: no',
                 'AutoReqProv: no',
-                ''
+                '',
             ]);
             // the files of the package come from the find in the staging folder, in the order of the sections of a specification
-            expect(spec.slice(11).filter(line => line !== '')).toEqual([
+            expect(spec.slice(11).filter((line) => line !== '')).toEqual([
                 '%description',
                 config.description.long,
                 '%files',
@@ -743,13 +992,15 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
                 '%post',
                 `if [ ! -f ${symbolic} ] ; then ln -s ${binary} ${symbolic} ; fi`,
                 '%postun',
-                `if [ -f ${symbolic} ] ; then rm -f ${symbolic} ; fi`
+                `if [ -f ${symbolic} ] ; then rm -f ${symbolic} ; fi`,
             ]);
         });
 
         it('should ask the staging folder for the absolute names of its files', async () => {
             const { runner, packager } = await specification();
-            expect(runner.commands).toEqual([ `cd "${packager._dirBuildRoot}" && find usr -type f -exec echo /{} \\;` ]);
+            expect(runner.commands).toEqual([
+                `cd "${packager._dirBuildRoot}" && find usr -type f -exec echo /{} \\;`,
+            ]);
         });
     });
 
@@ -757,35 +1008,75 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
         const { packager, runner } = linuxApp();
         runner.respond = () => '';
         // /usr/lib/rakkomik, as the staging folder says it
-        const installed = '/' + path.relative(packager._dirBuildRoot, packager._stagingExecutableDirectory).split(path.sep).join('/');
+        const installed =
+            '/' +
+            path
+                .relative(packager._dirBuildRoot, packager._stagingExecutableDirectory)
+                .split(path.sep)
+                .join('/');
         packager._createDesktopShortcut();
         packager._createPostScript('postinst');
         const specification = lines(await packager._createSpecsRPM());
-        expect(lines(path.join(packager._dirBuildRoot, 'usr', 'share', 'applications', `${config.name.package}.desktop`))).toContain(`Exec=${installed}/${config.binary.linux}`);
-        expect(fs.readFileSync(path.join(packager._dirBuildRoot, 'DEBIAN', 'postinst'), 'utf8')).toContain(`ln -s ${installed}/${config.binary.linux} /usr/bin/${config.name.package} ;`);
+        expect(
+            lines(
+                path.join(
+                    packager._dirBuildRoot,
+                    'usr',
+                    'share',
+                    'applications',
+                    `${config.name.package}.desktop`,
+                ),
+            ),
+        ).toContain(`Exec=${installed}/${config.binary.linux}`);
+        expect(
+            fs.readFileSync(path.join(packager._dirBuildRoot, 'DEBIAN', 'postinst'), 'utf8'),
+        ).toContain(`ln -s ${installed}/${config.binary.linux} /usr/bin/${config.name.package} ;`);
         expect(specification).toContain(`%dir ${installed}/`);
     });
 
     it('should build the DEB and then the RPM of the architecture it is given', async () => {
         const { packager } = linuxApp();
         const calls = [];
-        packager.buildDEB = async architecture => calls.push([ 'deb', architecture ]);
-        packager.buildRPM = async architecture => calls.push([ 'rpm', architecture ]);
+        packager.buildDEB = async (architecture) => calls.push(['deb', architecture]);
+        packager.buildRPM = async (architecture) => calls.push(['rpm', architecture]);
         await packager.build('ARM64');
-        expect(calls).toEqual([ [ 'deb', 'ARM64' ], [ 'rpm', 'ARM64' ] ]);
+        expect(calls).toEqual([
+            ['deb', 'ARM64'],
+            ['rpm', 'ARM64'],
+        ]);
     });
 
     describe('a build', () => {
-        const listing = root => fs.readdirSync(root, { recursive: true, withFileTypes: true })
-            .filter(entry => entry.isFile())
-            .map(entry => path.relative(root, path.join(entry.parentPath, entry.name)).split(path.sep).join('/'))
-            .sort();
+        const listing = (root) =>
+            fs
+                .readdirSync(root, { recursive: true, withFileTypes: true })
+                .filter((entry) => entry.isFile())
+                .map((entry) =>
+                    path
+                        .relative(root, path.join(entry.parentPath, entry.name))
+                        .split(path.sep)
+                        .join('/'),
+                )
+                .sort();
 
         // the skeletons that redist/ holds, the archive of Electron, the sources of the application and the web part
         function stage(packager) {
             writeSources();
-            for (const flavour of [ 'deb', 'rpm' ]) {
-                write(path.join('redist', flavour, 'usr', 'share', 'icons', 'hicolor', '16x16', 'apps', `${config.name.package}.png`), 'icon');
+            for (const flavour of ['deb', 'rpm']) {
+                write(
+                    path.join(
+                        'redist',
+                        flavour,
+                        'usr',
+                        'share',
+                        'icons',
+                        'hicolor',
+                        '16x16',
+                        'apps',
+                        `${config.name.package}.png`,
+                    ),
+                    'icon',
+                );
             }
             const downloads = [];
             packager._downloadElectron = async (version, platform, folder) => {
@@ -807,10 +1098,13 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
             `usr/share/applications/${name}.desktop`,
             `usr/share/doc/${name}/changelog.gz`,
             `usr/share/icons/hicolor/16x16/apps/${name}.png`,
-            `usr/share/man/man1/${name}.1.gz`
+            `usr/share/man/man1/${name}.1.gz`,
         ];
 
-        describe.each([ [ '64', 'amd64', 'linux-x64' ], [ 'ARM64', 'arm64', 'linux-arm64' ] ])('of the DEB (%s)', (architecture, debian, electron) => {
+        describe.each([
+            ['64', 'amd64', 'linux-x64'],
+            ['ARM64', 'arm64', 'linux-arm64'],
+        ])('of the DEB (%s)', (architecture, debian, electron) => {
             it('should assemble the package from the skeleton, Electron, the application and the web part, and pack it last', async () => {
                 const { packager, runner } = linuxApp(architecture);
                 const downloads = stage(packager);
@@ -820,7 +1114,7 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
                 write(path.join(root, 'stale.txt'), 'left over');
                 write(`${root}.deb`, 'package of an earlier build');
                 const stagedWhenChecksummed = [];
-                runner.respond = command => {
+                runner.respond = (command) => {
                     if (command.includes('md5sum')) {
                         stagedWhenChecksummed.push(...listing(root));
                     }
@@ -829,16 +1123,28 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
 
                 await packager.buildDEB(architecture);
 
-                expect(downloads).toEqual([ { version: config.electron, platform: electron, folder } ]);
+                expect(downloads).toEqual([
+                    { version: config.electron, platform: electron, folder },
+                ]);
                 expect(runner.commands).toEqual([
-                    'unzip --help', 'fakeroot --version', 'dpkg --version', 'lintian --version',
+                    'unzip --help',
+                    'fakeroot --version',
+                    'dpkg --version',
+                    'lintian --version',
                     `find "${folder}" -type f -iname "*.so" -exec chmod -x {} \\;`,
                     `cd "${root}" && find usr -type f -print0 | xargs -0 md5sum > "DEBIAN/md5sums"`,
                     `fakeroot dpkg-deb -v -Zxz -z9 -b "${root}" "${root}.deb"`,
-                    `lintian --profile debian "${root}.deb" || true`
+                    `lintian --profile debian "${root}.deb" || true`,
                 ]);
                 // the checksums are made when everything that they cover, and the control files, are in place
-                expect(stagedWhenChecksummed).toEqual(expect.arrayContaining([ ...staged, 'DEBIAN/control', 'DEBIAN/postinst', 'DEBIAN/postrm' ]));
+                expect(stagedWhenChecksummed).toEqual(
+                    expect.arrayContaining([
+                        ...staged,
+                        'DEBIAN/control',
+                        'DEBIAN/postinst',
+                        'DEBIAN/postrm',
+                    ]),
+                );
                 const files = listing(root);
                 expect(files).toEqual(expect.arrayContaining(staged));
                 expect(files).not.toContain('stale.txt');
@@ -846,7 +1152,9 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
                 expect(files).not.toContain(`usr/lib/${name}/resources/default_app.asar`);
                 // the old package is gone before dpkg-deb writes the new one (the shell here does not)
                 expect(fs.existsSync(`${root}.deb`)).toBe(false);
-                expect(lines(path.join(root, 'DEBIAN', 'control'))).toContain(`Architecture: ${debian}`);
+                expect(lines(path.join(root, 'DEBIAN', 'control'))).toContain(
+                    `Architecture: ${debian}`,
+                );
             });
 
             it('should harden the binary, pack the application and make the sandbox helper setuid', async () => {
@@ -855,7 +1163,11 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
                 await packager.buildDEB(architecture);
                 const folder = packager._stagingExecutableDirectory;
                 expect(readFuseWire(path.join(folder, name))).toBe('000001011');
-                const packed = (await asar.listPackage(path.join(folder, 'resources', 'app.asar'), { isPack: false })).map(entry => entry.split(path.sep).join('/'));
+                const packed = (
+                    await asar.listPackage(path.join(folder, 'resources', 'app.asar'), {
+                        isPack: false,
+                    })
+                ).map((entry) => entry.split(path.sep).join('/'));
                 expect(packed).toEqual(expect.arrayContaining(PACKED));
                 expect(packed).not.toEqual(expect.arrayContaining(NOT_PACKED));
                 // https://github.com/electron/electron/issues/17972
@@ -863,7 +1175,10 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
             });
         });
 
-        describe.each([ [ '64', 'x86_64', 'linux-x64' ], [ 'ARM64', 'aarch64', 'linux-arm64' ] ])('of the RPM (%s)', (architecture, target, electron) => {
+        describe.each([
+            ['64', 'x86_64', 'linux-x64'],
+            ['ARM64', 'aarch64', 'linux-arm64'],
+        ])('of the RPM (%s)', (architecture, target, electron) => {
             it('should assemble the package, describe it in a specification that exists while rpmbuild runs, and clean up after it', async () => {
                 const { packager, runner } = linuxApp(architecture);
                 const downloads = stage(packager);
@@ -872,22 +1187,29 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
                 write(path.join(root, 'stale.txt'), 'left over');
                 write(`${root}.rpm`, 'package of an earlier build');
                 let specificationWhileBuilding = null;
-                runner.respond = command => {
+                runner.respond = (command) => {
                     if (command.startsWith('rpmbuild')) {
-                        specificationWhileBuilding = fs.readFileSync(path.join('build', 'specfile.spec'), 'utf8');
+                        specificationWhileBuilding = fs.readFileSync(
+                            path.join('build', 'specfile.spec'),
+                            'utf8',
+                        );
                     }
                     return command.includes('find usr') ? `/usr/lib/${name}/${name}\n` : '';
                 };
 
                 await packager.buildRPM(architecture);
 
-                expect(downloads).toEqual([ { version: config.electron, platform: electron, folder } ]);
+                expect(downloads).toEqual([
+                    { version: config.electron, platform: electron, folder },
+                ]);
                 expect(runner.commands).toEqual([
-                    'unzip --help', 'fakeroot --version', 'rpm --version',
+                    'unzip --help',
+                    'fakeroot --version',
+                    'rpm --version',
                     `find "${folder}" -type f -iname "*.so" -exec chmod -x {} \\;`,
                     `cd "${root}" && find usr -type f -exec echo /{} \\;`,
                     `rpmbuild -bb --noclean --target ${target} --define "_topdir $(pwd)/${root}" --define "buildroot %{_topdir}" --define "_binary_payload w9.xzdio" "${path.join('build', 'specfile.spec')}"`,
-                    `mv -f ${root}/RPMS/*/*.rpm ${root}.rpm`
+                    `mv -f ${root}/RPMS/*/*.rpm ${root}.rpm`,
                 ]);
                 expect(specificationWhileBuilding).toContain(`Name: ${name}`);
                 expect(listing(root)).toEqual(expect.arrayContaining(staged));

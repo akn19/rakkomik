@@ -5,7 +5,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const config = require('../../../build-app.config');
 const { electronExecutable, readFuseWire, write } = require('./support/buildAppHarness');
-const { createConsole, loadToolScript, useTemporaryWorkingDirectory } = require('./support/toolScripts');
+const {
+    createConsole,
+    loadToolScript,
+    useTemporaryWorkingDirectory,
+} = require('./support/toolScripts');
 
 const REPOSITORY = path.resolve(__dirname, '..', '..', '..');
 const SCRIPT = path.join(REPOSITORY, 'scripts', 'test-package.js');
@@ -19,7 +23,14 @@ useTemporaryWorkingDirectory();
  * The script, as if it were in `scripts/` of the working directory, with a Playwright that records how it is started
  * and answers with `status`.
  */
-function load({ platform = 'linux', arch = 'x64', env = { DISPLAY: ':0' }, status = 0, error, entry = false } = {}) {
+function load({
+    platform = 'linux',
+    arch = 'x64',
+    env = { DISPLAY: ':0' },
+    status = 0,
+    error,
+    entry = false,
+} = {}) {
     const starts = [];
     const exits = [];
     const output = createConsole();
@@ -30,14 +41,20 @@ function load({ platform = 'linux', arch = 'x64', env = { DISPLAY: ':0' }, statu
                 spawnSync: (command, args, options) => {
                     starts.push({ command, args, options });
                     return error ? { error } : { status };
-                }
-            }
+                },
+            },
         },
         globals: {
-            process: { platform, arch, env, execPath: '/usr/bin/node', exit: code => exits.push(code) },
-            console: output
+            process: {
+                platform,
+                arch,
+                env,
+                execPath: '/usr/bin/node',
+                exit: (code) => exits.push(code),
+            },
+            console: output,
         },
-        entry
+        entry,
     });
     return { ...module.exports, starts, exits, output };
 }
@@ -47,17 +64,37 @@ function writePackage(platform, architecture = 'amd64') {
     const executable = electronExecutable(platform === 'darwin' ? '101100011' : PACKAGED);
     // the staging directory, the folder of the application in it and the executable in that folder
     const layouts = {
-        linux: [ `linux_${architecture}`, path.join('usr', 'lib', config.name.package), config.binary.linux ],
-        win32: [ `windows-portable_${architecture}`, '', config.binary.windows ],
-        darwin: [ `macos_${architecture}`, `${config.name.product}.app`, path.join('Contents', 'MacOS', config.binary.darwin) ]
+        linux: [
+            `linux_${architecture}`,
+            path.join('usr', 'lib', config.name.package),
+            config.binary.linux,
+        ],
+        win32: [`windows-portable_${architecture}`, '', config.binary.windows],
+        darwin: [
+            `macos_${architecture}`,
+            `${config.name.product}.app`,
+            path.join('Contents', 'MacOS', config.binary.darwin),
+        ],
     };
-    const [ suffix, inner, binary ] = layouts[platform];
+    const [suffix, inner, binary] = layouts[platform];
     const root = path.join('build', `${config.name.package}_${config.version}_${suffix}`);
     const folder = path.join(root, inner);
     write(path.join(folder, binary), executable);
-    write(path.join(folder, platform === 'darwin' ? path.join('Contents', 'Resources', 'app.asar') : path.join('resources', 'app.asar')), 'the application');
+    write(
+        path.join(
+            folder,
+            platform === 'darwin'
+                ? path.join('Contents', 'Resources', 'app.asar')
+                : path.join('resources', 'app.asar'),
+        ),
+        'the application',
+    );
     // the copy keeps the place of the application in its package
-    return { folder, binary: path.join(folder, binary), copy: path.join('build', 'test-package', path.basename(root), inner) };
+    return {
+        folder,
+        binary: path.join(folder, binary),
+        copy: path.join('build', 'test-package', path.basename(root), inner),
+    };
 }
 
 describe('the test of a package', () => {
@@ -68,12 +105,24 @@ describe('the test of a package', () => {
         const tested = path.resolve(copy, config.binary.linux);
         expect(readFuseWire(tested)).toBe(INSPECTABLE);
         expect(readFuseWire(binary)).toBe(PACKAGED);
-        expect(fs.readFileSync(path.join(copy, 'resources', 'app.asar'), 'utf8')).toBe('the application');
-        expect(starts).toEqual([ {
-            command: '/usr/bin/node',
-            args: [ path.resolve('node_modules', '@playwright', 'test', 'cli.js'), 'test', '--project=ui' ],
-            options: { cwd: process.cwd(), stdio: 'inherit', env: { DISPLAY: ':0', E2E_ELECTRON: tested } }
-        } ]);
+        expect(fs.readFileSync(path.join(copy, 'resources', 'app.asar'), 'utf8')).toBe(
+            'the application',
+        );
+        expect(starts).toEqual([
+            {
+                command: '/usr/bin/node',
+                args: [
+                    path.resolve('node_modules', '@playwright', 'test', 'cli.js'),
+                    'test',
+                    '--project=ui',
+                ],
+                options: {
+                    cwd: process.cwd(),
+                    stdio: 'inherit',
+                    env: { DISPLAY: ':0', E2E_ELECTRON: tested },
+                },
+            },
+        ]);
         expect(fs.existsSync(path.join(folder, config.binary.linux))).toBe(true);
     });
 
@@ -82,14 +131,25 @@ describe('the test of a package', () => {
         const { main, starts } = load({ env: {} });
         await main();
         expect(starts[0].command).toBe('xvfb-run');
-        expect(starts[0].args).toEqual([ '-a', '/usr/bin/node', path.resolve('node_modules', '@playwright', 'test', 'cli.js'), 'test', '--project=ui' ]);
+        expect(starts[0].args).toEqual([
+            '-a',
+            '/usr/bin/node',
+            path.resolve('node_modules', '@playwright', 'test', 'cli.js'),
+            'test',
+            '--project=ui',
+        ]);
     });
 
     it('should report the failures as annotations as well on GitHub Actions', async () => {
         writePackage('linux');
         const { main, starts } = load({ env: { DISPLAY: ':0', GITHUB_ACTIONS: 'true' } });
         await main();
-        expect(starts[0].args).toEqual([ path.resolve('node_modules', '@playwright', 'test', 'cli.js'), 'test', '--project=ui', '--reporter=list,github' ]);
+        expect(starts[0].args).toEqual([
+            path.resolve('node_modules', '@playwright', 'test', 'cli.js'),
+            'test',
+            '--project=ui',
+            '--reporter=list,github',
+        ]);
     });
 
     it('should take a Wayland display for a display', async () => {
@@ -139,25 +199,39 @@ describe('the test of a package', () => {
 
     it('should fail when Playwright cannot be started', async () => {
         writePackage('linux');
-        await expect(load({ error: new Error('spawn failed') }).main()).rejects.toThrow('spawn failed');
+        await expect(load({ error: new Error('spawn failed') }).main()).rejects.toThrow(
+            'spawn failed',
+        );
     });
 
     it('should keep the copies of the packages apart by their names, so the copy of Linux names its architecture', async () => {
         writePackage('linux');
         const { main, starts } = load();
         await main();
-        expect(starts[0].options.env.E2E_ELECTRON).toBe(path.resolve('build', 'test-package', `${config.name.package}_${config.version}_linux_amd64`, 'usr', 'lib', config.name.package, config.binary.linux));
+        expect(starts[0].options.env.E2E_ELECTRON).toBe(
+            path.resolve(
+                'build',
+                'test-package',
+                `${config.name.package}_${config.version}_linux_amd64`,
+                'usr',
+                'lib',
+                config.name.package,
+                config.binary.linux,
+            ),
+        );
     });
 
     it('should ask for a build when there is no package', async () => {
         const { main, starts } = load();
-        await expect(main()).rejects.toThrow(`There is no package in "${path.resolve('build', `${config.name.package}_${config.version}_linux_amd64`, 'usr', 'lib', config.name.package)}", run 'pnpm run build:app' first!`);
+        await expect(main()).rejects.toThrow(
+            `There is no package in "${path.resolve('build', `${config.name.package}_${config.version}_linux_amd64`, 'usr', 'lib', config.name.package)}", run 'pnpm run build:app' first!`,
+        );
         expect(starts).toEqual([]);
     });
 
     it.each([
-        [ 'linux', 'ia32', 'No package is built for the architecture "ia32"!' ],
-        [ 'freebsd', 'x64', 'No package is built for the platform "freebsd"!' ]
+        ['linux', 'ia32', 'No package is built for the architecture "ia32"!'],
+        ['freebsd', 'x64', 'No package is built for the platform "freebsd"!'],
     ])('should refuse a machine without a package (%s %s)', async (platform, arch, message) => {
         await expect(load({ platform, arch }).main()).rejects.toThrow(message);
     });
@@ -165,12 +239,14 @@ describe('the test of a package', () => {
     it('should exit with the status of the tests when it is run as a command', async () => {
         writePackage('linux');
         const { exits } = load({ status: 2, entry: true });
-        await vi.waitFor(() => expect(exits).toEqual([ 2 ]));
+        await vi.waitFor(() => expect(exits).toEqual([2]));
     });
 
     it('should report a failure and exit with 1 when it is run as a command', async () => {
         const { exits, output } = load({ entry: true });
-        await vi.waitFor(() => expect(exits).toEqual([ 1 ]));
-        expect(output.entries.map(entry => entry.text).join('\n')).toContain('There is no package in');
+        await vi.waitFor(() => expect(exits).toEqual([1]));
+        expect(output.entries.map((entry) => entry.text).join('\n')).toContain(
+            'There is no package in',
+        );
     });
 });

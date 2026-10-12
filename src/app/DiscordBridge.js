@@ -13,7 +13,6 @@ const discordPresenceId = '726702836775256094';
  * application never offered.
  */
 module.exports = class DiscordBridge {
-
     constructor(logger) {
         this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
         this._client = null;
@@ -57,7 +56,9 @@ module.exports = class DiscordBridge {
             this._client = client;
             return true;
         } catch (error) {
-            this._logger.warn('DiscordPresence - could not start (' + (error && error.message) + ')');
+            this._logger.warn(
+                'DiscordPresence - could not start (' + (error && error.message) + ')',
+            );
             this._client = null;
             return false;
         }
@@ -71,7 +72,9 @@ module.exports = class DiscordBridge {
             await this._client.user.setActivity(status);
             return true;
         } catch (error) {
-            this._logger.warn('DiscordPresence - setActivity failed (' + (error && error.message) + ')');
+            this._logger.warn(
+                'DiscordPresence - setActivity failed (' + (error && error.message) + ')',
+            );
             return false;
         }
     }
@@ -85,12 +88,16 @@ module.exports = class DiscordBridge {
                 await this._client.user.clearActivity();
             }
         } catch (error) {
-            this._logger.warn('DiscordPresence - clearActivity failed (' + (error && error.message) + ')');
+            this._logger.warn(
+                'DiscordPresence - clearActivity failed (' + (error && error.message) + ')',
+            );
         }
         try {
             await this._client.destroy();
         } catch (error) {
-            this._logger.warn('DiscordPresence - destroy failed (' + (error && error.message) + ')');
+            this._logger.warn(
+                'DiscordPresence - destroy failed (' + (error && error.message) + ')',
+            );
         }
         this._client = null;
         return true;

@@ -3,7 +3,14 @@
 import React from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from '@tanstack/react-router';
+import {
+    createMemoryHistory,
+    createRootRoute,
+    createRoute,
+    createRouter,
+    Outlet,
+    RouterProvider,
+} from '@tanstack/react-router';
 import { queryClient } from '../../queries.js';
 import { ToastProvider } from '../../notify.jsx';
 import { SelectionProvider } from '../../selection.jsx';
@@ -28,7 +35,10 @@ function Providers({ children, selection }) {
  * Render a component in the providers of the application (query cache, toasts and, unless asked not to, the selection).
  */
 export function renderWithProviders(ui, { selection = true, ...options } = {}) {
-    return render(ui, { wrapper: ({ children }) => <Providers selection={selection}>{children}</Providers>, ...options });
+    return render(ui, {
+        wrapper: ({ children }) => <Providers selection={selection}>{children}</Providers>,
+        ...options,
+    });
 }
 
 /**
@@ -47,21 +57,23 @@ export async function renderRouted(ui, { url = '/', selection = true, routes = [
             <Providers selection={selection}>
                 <Outlet />
             </Providers>
-        )
+        ),
     });
     const children = [
         createRoute({ getParentRoute: () => rootRoute, path: '/', component: () => ui }),
-        ...routes.map(route => createRoute({
-            getParentRoute: () => rootRoute,
-            path: route.path,
-            // the search parameters pass through untouched, as strings
-            validateSearch: search => ({ ...search }),
-            component: () => route.element
-        }))
+        ...routes.map((route) =>
+            createRoute({
+                getParentRoute: () => rootRoute,
+                path: route.path,
+                // the search parameters pass through untouched, as strings
+                validateSearch: (search) => ({ ...search }),
+                component: () => route.element,
+            }),
+        ),
     ];
     const router = createRouter({
         routeTree: rootRoute.addChildren(children),
-        history: createMemoryHistory({ initialEntries: [url] })
+        history: createMemoryHistory({ initialEntries: [url] }),
     });
     await router.load();
     let utils = null;

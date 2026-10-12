@@ -15,33 +15,32 @@ export function SelectionProvider({ children }) {
     // getFilteredAndSortedList): the reader steps through this order.
     const [chapterOrder, setChapterOrder] = React.useState([]);
 
-    const selectConnector = React.useCallback(id => {
+    const selectConnector = React.useCallback((id) => {
         setConnectorId(id);
         setManga(null);
         setChapter(null);
     }, []);
 
-    const selectManga = React.useCallback(entry => {
+    const selectManga = React.useCallback((entry) => {
         setManga(entry);
         setChapter(null);
     }, []);
 
-    const value = React.useMemo(() => ({
-        connectorId,
-        selectConnector,
-        manga,
-        selectManga,
-        chapter,
-        setChapter,
-        chapterOrder,
-        setChapterOrder
-    }), [connectorId, selectConnector, manga, selectManga, chapter, chapterOrder]);
-
-    return (
-        <SelectionContext.Provider value={value}>
-            {children}
-        </SelectionContext.Provider>
+    const value = React.useMemo(
+        () => ({
+            connectorId,
+            selectConnector,
+            manga,
+            selectManga,
+            chapter,
+            setChapter,
+            chapterOrder,
+            setChapterOrder,
+        }),
+        [connectorId, selectConnector, manga, selectManga, chapter, chapterOrder],
     );
+
+    return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;
 }
 
 export function useSelection() {

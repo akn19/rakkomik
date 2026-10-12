@@ -89,17 +89,21 @@ async function main() {
         queries.push({ name, version, declaredIn: info.declaredIn });
     }
     if (missing.length > 0) {
-        console.error(`FAIL: ${missing.length} package(s) not installed (run install first): ${missing.join(', ')}`);
+        console.error(
+            `FAIL: ${missing.length} package(s) not installed (run install first): ${missing.join(', ')}`,
+        );
         process.exit(1);
     }
 
-    const results = await Promise.all(queries.map(async q => {
-        try {
-            return { ...q, deprecated: await registryDeprecated(q.name, q.version) };
-        } catch (error) {
-            return { ...q, error: error.message };
-        }
-    }));
+    const results = await Promise.all(
+        queries.map(async (q) => {
+            try {
+                return { ...q, deprecated: await registryDeprecated(q.name, q.version) };
+            } catch (error) {
+                return { ...q, error: error.message };
+            }
+        }),
+    );
 
     let violations = 0;
     let allowlisted = 0;
@@ -115,7 +119,9 @@ async function main() {
         }
         if (ALLOWLIST.has(r.name)) {
             allowlisted++;
-            console.log(`  ~ ${r.name}@${r.version}: deprecated but allowlisted — ${ALLOWLIST.get(r.name)}`);
+            console.log(
+                `  ~ ${r.name}@${r.version}: deprecated but allowlisted — ${ALLOWLIST.get(r.name)}`,
+            );
             console.log(`    upstream note: ${r.deprecated}`);
             continue;
         }
@@ -123,18 +129,22 @@ async function main() {
         console.log(`  X ${r.name}@${r.version} (${r.declaredIn}): DEPRECATED — ${r.deprecated}`);
     }
     if (errors > 0) {
-        console.error(`\nFAIL: ${errors} registry check(s) errored (network required for this gate).`);
+        console.error(
+            `\nFAIL: ${errors} registry check(s) errored (network required for this gate).`,
+        );
         process.exit(1);
     }
     if (violations > 0) {
         console.error(`\nFAIL: ${violations} deprecated package(s) without recorded exception.`);
-        console.error('Add a replacement, or record an exception in scripts/check-deprecated.js ALLOWLIST.');
+        console.error(
+            'Add a replacement, or record an exception in scripts/check-deprecated.js ALLOWLIST.',
+        );
         process.exit(1);
     }
     console.log(`\nOK: no unrecorded deprecated packages (${allowlisted} allowlisted).`);
 }
 
-main().catch(error => {
+main().catch((error) => {
     console.error(`FAIL: ${error.message}`);
     process.exit(1);
 });

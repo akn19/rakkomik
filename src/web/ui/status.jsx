@@ -9,7 +9,12 @@ export default function StatusLine({ message, busy, busyTitle }) {
     return (
         <div className="flex items-center gap-[0.25em]">
             {busy && (
-                <span title={busyTitle} role="img" aria-label={busyTitle || 'Busy'} className="rk-icon">
+                <span
+                    title={busyTitle}
+                    role="img"
+                    aria-label={busyTitle || 'Busy'}
+                    className="rk-icon"
+                >
                     <Icon name="spinner" size={12} spin />
                 </span>
             )}

@@ -10,7 +10,7 @@ import {
     isChapterMarked,
     showChapterFolder,
     subscribeChapterStatus,
-    cancelChapterDownload
+    cancelChapterDownload,
 } from './engine.js';
 import { fetchChapterList, addChapterDownloads } from './queries.js';
 import { useSelection } from './selection.jsx';
@@ -32,52 +32,59 @@ const STATUS = {
         color: '',
         text: 'text-(--status-unavailable-color)',
         tooltip: 'Chapter is not available',
-        label: 'not available'
+        label: 'not available',
     },
     offline: {
         icon: 'folderClosed',
         color: 'text-(--chapter-button-offline-color)',
         text: '',
         tooltip: 'OFFLINE\nThe chapter is only accessable from the manga directory',
-        label: 'offline, only in the manga directory'
+        label: 'offline, only in the manga directory',
     },
     available: {
         icon: 'cloud',
         color: 'text-(--chapter-button-available-color)',
         text: 'text-(--status-available-color)',
         tooltip: 'AVAILABLE\nClick to download chapter',
-        label: 'available, download the chapter'
+        label: 'available, download the chapter',
     },
     queued: {
         icon: 'cloudDownload',
         color: 'text-(--chapter-button-queued-color)',
         text: 'text-(--status-queued-color)',
         tooltip: 'QUEUED\nClick to cancel the download',
-        label: 'queued, cancel the download'
+        label: 'queued, cancel the download',
     },
     downloading: {
         icon: 'cloudDownload',
         color: 'text-(--chapter-button-downloading-color)',
         text: 'text-(--status-downloading-color)',
         tooltip: 'DOWNLOADING\nClick to cancel the download',
-        label: 'downloading, cancel the download'
+        label: 'downloading, cancel the download',
     },
     completed: {
         icon: 'folder',
         color: 'text-(--chapter-button-completed-color)',
         text: 'text-(--status-completed-color)',
         tooltip: 'DOWNLOADED\nClick to delete and re-download chapter',
-        label: 'downloaded, delete and download again'
+        label: 'downloaded, delete and download again',
     },
     failed: {
         icon: 'warning',
         color: 'text-(--chapter-button-failed-color)',
         text: '',
-        tooltip: 'DOWNLOAD FAILED\nCheck the exclamation mark in the joblist for details\nClick to delete and re-download the chapter',
-        label: 'download failed, download again'
-    }
+        tooltip:
+            'DOWNLOAD FAILED\nCheck the exclamation mark in the joblist for details\nClick to delete and re-download the chapter',
+        label: 'download failed, download again',
+    },
 };
-const UNKNOWN_STATUS = { icon: 'warning', color: '', text: '', tooltip: 'No tooltip available!', label: 'unknown status' };
+const UNKNOWN_STATUS = {
+    icon: 'warning',
+    color: '',
+    text: '',
+    tooltip: 'No tooltip available!',
+    label: 'unknown status',
+};
 
 const SORT_ICON = { none: 'sort', asc: 'sortAlphaDown', desc: 'sortAlphaUp' };
 const SORT_NAME = { none: 'as listed', asc: 'A to Z', desc: 'Z to A' };
@@ -111,7 +118,11 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
  */
 export default function ChaptersPanel({ readerEnabled }) {
     const navigate = useNavigate();
-    const { connector: openConnectorId, manga: openMangaId, chapter: openChapterId } = useSearch({ strict: false });
+    const {
+        connector: openConnectorId,
+        manga: openMangaId,
+        chapter: openChapterId,
+    } = useSearch({ strict: false });
     const { connectorId, manga, setChapterOrder } = useSelection();
     const [pattern, setPattern] = React.useState('');
     const [language, setLanguage] = React.useState('');
@@ -126,7 +137,7 @@ export default function ChaptersPanel({ readerEnabled }) {
         // the key of the reader is made from the address, which holds text: ids that are numbers must make the same key
         queryKey: ['chapters', connectorId, manga && String(manga.id)],
         queryFn: () => fetchChapterList(manga),
-        enabled: !!manga
+        enabled: !!manga,
     });
     const chapters = React.useMemo(() => chaptersQuery.data || [], [chaptersQuery.data]);
     // a list that cannot be loaded would only look empty
@@ -138,26 +149,31 @@ export default function ChaptersPanel({ readerEnabled }) {
 
     // A download changes the status of its chapter in place (queued, downloading, completed), which React cannot see:
     // a query that re-reads the list returns the same objects and keeps its old data. So redraw the rows on the event.
-    const [, redraw] = React.useReducer(count => count + 1, 0);
+    const [, redraw] = React.useReducer((count) => count + 1, 0);
     React.useEffect(() => subscribeChapterStatus(redraw), []);
 
-    const markedChapter = React.useSyncExternalStore(
-        subscribeChaptermarks,
-        () => (manga ? getChaptermark(manga) : null)
+    const markedChapter = React.useSyncExternalStore(subscribeChaptermarks, () =>
+        manga ? getChaptermark(manga) : null,
     );
 
     const languages = React.useMemo(
-        () => Array.from(new Set(chapters.map(chapter => chapter.language).filter(Boolean))).sort(),
-        [chapters]
+        () =>
+            Array.from(new Set(chapters.map((chapter) => chapter.language).filter(Boolean))).sort(),
+        [chapters],
     );
 
     // A new manga resets the language filter (classic onSelectedMangaChanged).
     React.useEffect(() => setLanguage(''), [manga]);
 
     const visible = React.useMemo(() => {
-        let list = chapters.filter(chapter => {
-            const chapterLanguage = chapter.language ? chapter.language.toLowerCase() : chapter.language;
-            return matchTitle(chapter.title, pattern) && (!language || language.toLowerCase() === chapterLanguage);
+        let list = chapters.filter((chapter) => {
+            const chapterLanguage = chapter.language
+                ? chapter.language.toLowerCase()
+                : chapter.language;
+            return (
+                matchTitle(chapter.title, pattern) &&
+                (!language || language.toLowerCase() === chapterLanguage)
+            );
         });
         if (sort === 'asc') {
             list = list.slice().sort((a, b) => collator.compare(a.title, b.title));
@@ -174,7 +190,10 @@ export default function ChaptersPanel({ readerEnabled }) {
     }, [visible, setChapterOrder]);
 
     // The marked chapter vanished from the list: classic shows a removable stub row.
-    const markedRemoved = !!markedChapter && chapters.length > 0 && !chapters.some(chapter => isChapterMarked(chapter, markedChapter));
+    const markedRemoved =
+        !!markedChapter &&
+        chapters.length > 0 &&
+        !chapters.some((chapter) => isChapterMarked(chapter, markedChapter));
 
     // The cell that Tab reaches (one for the whole grid); `focusCursor` asks for the focus to be moved there once it is
     // drawn, and while the focus is in the grid its row stays drawn, wherever the list is scrolled to.
@@ -185,33 +204,38 @@ export default function ChaptersPanel({ readerEnabled }) {
     const cursorRow = clamp(cursor.row, 0, Math.max(0, visible.length - 1));
     const cursorColumn = clamp(cursor.column, 0, columns - 1);
 
-    const rangeExtractor = React.useCallback(range => {
-        const start = Math.max(range.startIndex - range.overscan, 0);
-        const end = Math.min(range.endIndex + range.overscan, range.count - 1);
-        const indexes = [];
-        for (let index = start; index <= end; index++) {
-            indexes.push(index);
-        }
-        if (focusWithin && cursorRow < range.count && (cursorRow < start || cursorRow > end)) {
-            indexes.push(cursorRow);
-            indexes.sort((a, b) => a - b);
-        }
-        return indexes;
-    }, [focusWithin, cursorRow]);
+    const rangeExtractor = React.useCallback(
+        (range) => {
+            const start = Math.max(range.startIndex - range.overscan, 0);
+            const end = Math.min(range.endIndex + range.overscan, range.count - 1);
+            const indexes = [];
+            for (let index = start; index <= end; index++) {
+                indexes.push(index);
+            }
+            if (focusWithin && cursorRow < range.count && (cursorRow < start || cursorRow > end)) {
+                indexes.push(cursorRow);
+                indexes.sort((a, b) => a - b);
+            }
+            return indexes;
+        },
+        [focusWithin, cursorRow],
+    );
 
     const virtualizer = useVirtualizer({
         count: visible.length,
         getScrollElement: () => scrollRef.current,
         estimateSize: () => ROW_HEIGHT,
         overscan: 20,
-        rangeExtractor
+        rangeExtractor,
     });
 
     React.useEffect(() => {
         if (!focusCursor.current || !scrollRef.current) {
             return;
         }
-        const element = scrollRef.current.querySelector(`[data-cell="${cursorRow}:${cursorColumn}"]`);
+        const element = scrollRef.current.querySelector(
+            `[data-cell="${cursorRow}:${cursorColumn}"]`,
+        );
         if (element) {
             focusCursor.current = false;
             element.focus();
@@ -222,14 +246,20 @@ export default function ChaptersPanel({ readerEnabled }) {
     const cell = (row, column) => ({
         tabIndex: tabIndexOf(row, column),
         'data-cell': `${row}:${column}`,
-        onFocus: () => setCursor(current => (current.row === row && current.column === column ? current : { row, column }))
+        onFocus: () =>
+            setCursor((current) =>
+                current.row === row && current.column === column ? current : { row, column },
+            ),
     });
 
-    const onGridKeyDown = event => {
+    const onGridKeyDown = (event) => {
         if (visible.length === 0) {
             return;
         }
-        const screen = Math.max(1, Math.floor((scrollRef.current ? scrollRef.current.clientHeight : 0) / ROW_HEIGHT) - 1);
+        const screen = Math.max(
+            1,
+            Math.floor((scrollRef.current ? scrollRef.current.clientHeight : 0) / ROW_HEIGHT) - 1,
+        );
         let row = cursorRow;
         let column = cursorColumn;
         switch (event.key) {
@@ -270,15 +300,19 @@ export default function ChaptersPanel({ readerEnabled }) {
         virtualizer.scrollToIndex(row);
     };
 
-    const openReader = chapter => {
+    const openReader = (chapter) => {
         navigate({
             to: '/reader',
             // some connectors hand over numbers as ids: the route of the reader only takes text
-            search: { connector: connectorId, manga: String(manga.id), chapter: String(chapter.id) }
+            search: {
+                connector: connectorId,
+                manga: String(manga.id),
+                chapter: String(chapter.id),
+            },
         });
     };
 
-    const openFolder = chapter => {
+    const openFolder = (chapter) => {
         try {
             showChapterFolder(chapter);
         } catch (error) {
@@ -287,22 +321,22 @@ export default function ChaptersPanel({ readerEnabled }) {
     };
 
     const cycleSort = () => {
-        setSort(current => (current === 'none' ? 'asc' : current === 'asc' ? 'desc' : 'none'));
+        setSort((current) => (current === 'none' ? 'asc' : current === 'asc' ? 'desc' : 'none'));
     };
 
-    const queue = list => {
+    const queue = (list) => {
         addChapterDownloads(list);
         notify(`Queued ${list.length} chapter(s).`, 'success');
     };
 
     const onDownloadAll = () => {
-        const available = visible.filter(chapter => chapter.status === 'available');
+        const available = visible.filter((chapter) => chapter.status === 'available');
         if (available.length > 0) {
             setConfirmAll(available);
         }
     };
 
-    const cancelChapter = chapter => {
+    const cancelChapter = (chapter) => {
         try {
             if (cancelChapterDownload(chapter)) {
                 notify(`Canceled "${chapter.title}".`, 'success');
@@ -314,7 +348,7 @@ export default function ChaptersPanel({ readerEnabled }) {
         }
     };
 
-    const processChapter = chapter => {
+    const processChapter = (chapter) => {
         switch (chapter.status) {
             case 'available':
             case 'failed':
@@ -342,7 +376,9 @@ export default function ChaptersPanel({ readerEnabled }) {
             }
         >
             <div className="rk-separator flex items-center gap-[0.25em] p-[0.25em] text-[1.25em] font-bold">
-                <h2 id={headingId} className="flex-1">Chapter List</h2>
+                <h2 id={headingId} className="flex-1">
+                    Chapter List
+                </h2>
                 <button
                     type="button"
                     onClick={cycleSort}
@@ -366,21 +402,23 @@ export default function ChaptersPanel({ readerEnabled }) {
                 <Icon name="language" size={14} className="rk-icon" />
                 <select
                     value={language}
-                    onChange={event => setLanguage(event.target.value)}
+                    onChange={(event) => setLanguage(event.target.value)}
                     title="Select a language to filter the chapter list"
                     aria-label="Language of the chapters"
                     className="rk-field rk-field-select w-[calc(100%-0.5em)]"
                 >
                     <option value="">*</option>
-                    {languages.map(entry => (
-                        <option key={entry} value={entry}>{entry}</option>
+                    {languages.map((entry) => (
+                        <option key={entry} value={entry}>
+                            {entry}
+                        </option>
                     ))}
                 </select>
                 <Icon name="search" size={14} className="rk-icon" />
                 <input
                     type="text"
                     value={pattern}
-                    onChange={event => setPattern(event.target.value)}
+                    onChange={(event) => setPattern(event.target.value)}
                     title="Enter a pattern (regex support e.g. '/ch 001/i') to filter the chapter list by their titles"
                     aria-label="Filter the chapters by title"
                     className="rk-field w-[calc(100%-0.5em)]"
@@ -412,7 +450,9 @@ export default function ChaptersPanel({ readerEnabled }) {
                     </div>
                 )}
                 {/* what Enter does on the title of a chapter, for a screen reader */}
-                <span id={`${headingId}-folder`} className="sr-only">Double-click, or press Enter, to open the folder of the chapter</span>
+                <span id={`${headingId}-folder`} className="sr-only">
+                    Double-click, or press Enter, to open the folder of the chapter
+                </span>
                 <div
                     role="grid"
                     aria-label="Chapters"
@@ -421,14 +461,18 @@ export default function ChaptersPanel({ readerEnabled }) {
                     tabIndex={-1}
                     onKeyDown={onGridKeyDown}
                     onFocus={() => setFocusWithin(true)}
-                    onBlur={event => {
+                    onBlur={(event) => {
                         if (!event.currentTarget.contains(event.relatedTarget)) {
                             setFocusWithin(false);
                         }
                     }}
                 >
-                    <div role="rowgroup" className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-                        {virtualizer.getVirtualItems().map(virtual => {
+                    <div
+                        role="rowgroup"
+                        className="relative w-full"
+                        style={{ height: virtualizer.getTotalSize() }}
+                    >
+                        {virtualizer.getVirtualItems().map((virtual) => {
                             const chapter = visible[virtual.index];
                             if (!chapter) {
                                 return null;
@@ -436,7 +480,10 @@ export default function ChaptersPanel({ readerEnabled }) {
                             const status = STATUS[chapter.status] || UNKNOWN_STATUS;
                             const marked = isChapterMarked(chapter, markedChapter);
                             // the chapter that is open in the reader: the id of a chapter of another manga can be the same
-                            const open = openChapterId === String(chapter.id) && openMangaId === String(manga.id) && openConnectorId === connectorId;
+                            const open =
+                                openChapterId === String(chapter.id) &&
+                                openMangaId === String(manga.id) &&
+                                openConnectorId === connectorId;
                             const row = virtual.index;
                             return (
                                 <div
@@ -446,9 +493,14 @@ export default function ChaptersPanel({ readerEnabled }) {
                                     // the padding keeps the icons clear of the mark of the row that is open
                                     className={
                                         'absolute top-0 left-0 flex w-full items-center gap-[0.25em] pl-[0.5em] ' +
-                                        (open ? 'rk-selected bg-(--list-selected)' : 'hover:bg-(--list-highlighted)')
+                                        (open
+                                            ? 'rk-selected bg-(--list-selected)'
+                                            : 'hover:bg-(--list-highlighted)')
                                     }
-                                    style={{ height: virtual.size, transform: `translateY(${virtual.start}px)` }}
+                                    style={{
+                                        height: virtual.size,
+                                        transform: `translateY(${virtual.start}px)`,
+                                    }}
                                 >
                                     <span role="gridcell" className="w-6 shrink-0">
                                         <button
@@ -457,9 +509,15 @@ export default function ChaptersPanel({ readerEnabled }) {
                                             title={status.tooltip}
                                             aria-label={`${chapter.title}: ${status.label}`}
                                             onClick={() => processChapter(chapter)}
-                                            className={'rk-icon w-full cursor-pointer ' + status.color}
+                                            className={
+                                                'rk-icon w-full cursor-pointer ' + status.color
+                                            }
                                         >
-                                            <Icon name={status.icon} size={14} className="mx-auto" />
+                                            <Icon
+                                                name={status.icon}
+                                                size={14}
+                                                className="mx-auto"
+                                            />
                                         </button>
                                     </span>
                                     {readerEnabled && (
@@ -487,24 +545,36 @@ export default function ChaptersPanel({ readerEnabled }) {
                                             }
                                             aria-label={`${chapter.title}: ${marked ? 'remove the "recently read" marker' : 'mark as "recently read"'}`}
                                             aria-pressed={marked}
-                                            onClick={() => toggleChaptermark(chapter, markedChapter)}
+                                            onClick={() =>
+                                                toggleChaptermark(chapter, markedChapter)
+                                            }
                                             className={
                                                 'w-full cursor-pointer ' +
-                                                (marked ? 'text-(--chapter-marker-active-color)' : 'text-(--chapter-marker-inactive-color)')
+                                                (marked
+                                                    ? 'text-(--chapter-marker-active-color)'
+                                                    : 'text-(--chapter-marker-inactive-color)')
                                             }
                                         >
-                                            <Icon name="bookmark" size={14} filled={marked} className="mx-auto" />
+                                            <Icon
+                                                name="bookmark"
+                                                size={14}
+                                                filled={marked}
+                                                className="mx-auto"
+                                            />
                                         </button>
                                     </span>
                                     <span
                                         role="gridcell"
                                         {...cell(row, columns - 1)}
                                         tabIndex={tabIndexOf(row, columns - 1)}
-                                        className={'cursor-default overflow-hidden text-ellipsis select-none ' + status.text}
+                                        className={
+                                            'cursor-default overflow-hidden text-ellipsis select-none ' +
+                                            status.text
+                                        }
                                         title={`${chapter.title}\nDoubleclick to open the folder with your file manager`}
                                         aria-describedby={`${headingId}-folder`}
                                         onDoubleClick={() => openFolder(chapter)}
-                                        onKeyDown={event => {
+                                        onKeyDown={(event) => {
                                             if (event.key === 'Enter') {
                                                 event.preventDefault();
                                                 openFolder(chapter);
@@ -539,7 +609,11 @@ export default function ChaptersPanel({ readerEnabled }) {
             />
             <ConfirmDialog
                 open={confirmAll !== null}
-                title={confirmAll ? `Download ${confirmAll.length} new chapter(s) from the current chapter list?` : ''}
+                title={
+                    confirmAll
+                        ? `Download ${confirmAll.length} new chapter(s) from the current chapter list?`
+                        : ''
+                }
                 confirmLabel="Download"
                 onConfirm={() => {
                     if (confirmAll) {

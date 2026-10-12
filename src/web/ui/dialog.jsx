@@ -4,7 +4,9 @@ import React from 'react';
 const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]';
 
 function focusable(dialog) {
-    return [...dialog.querySelectorAll(FOCUSABLE)].filter(element => !element.disabled && element.tabIndex >= 0 && !element.hidden);
+    return [...dialog.querySelectorAll(FOCUSABLE)].filter(
+        (element) => !element.disabled && element.tabIndex >= 0 && !element.hidden,
+    );
 }
 
 /**
@@ -33,7 +35,7 @@ export function useDialog({ open, onClose, initialFocus }) {
         if (first && typeof first.focus === 'function') {
             first.focus();
         }
-        const onKeyDown = event => {
+        const onKeyDown = (event) => {
             if (event.key === 'Escape') {
                 onCloseRef.current();
                 return;
@@ -74,7 +76,15 @@ export function useDialog({ open, onClose, initialFocus }) {
  * Rendered inline where needed; overlay blocks interaction while open. The cancel button has the focus to begin with,
  * so that Enter does nothing that cannot be undone.
  */
-export function ConfirmDialog({ open, title, message, confirmLabel, cancelLabel, onConfirm, onCancel }) {
+export function ConfirmDialog({
+    open,
+    title,
+    message,
+    confirmLabel,
+    cancelLabel,
+    onConfirm,
+    onCancel,
+}) {
     const id = React.useId();
     const cancelRef = React.useRef(null);
     const ref = useDialog({ open, onClose: onCancel, initialFocus: cancelRef });
@@ -92,9 +102,19 @@ export function ConfirmDialog({ open, title, message, confirmLabel, cancelLabel,
                 tabIndex={-1}
                 className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
             >
-                <h2 id={`${id}-title`} className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{title}</h2>
+                <h2
+                    id={`${id}-title`}
+                    className="text-base font-semibold text-zinc-900 dark:text-zinc-100"
+                >
+                    {title}
+                </h2>
                 {message && (
-                    <p id={`${id}-message`} className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
+                    <p
+                        id={`${id}-message`}
+                        className="mt-2 text-sm text-zinc-600 dark:text-zinc-400"
+                    >
+                        {message}
+                    </p>
                 )}
                 <div className="mt-4 flex justify-end gap-2">
                     <button

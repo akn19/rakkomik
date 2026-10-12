@@ -5,16 +5,18 @@ const UpdatePackageInfo = require('./UpdatePackageInfo');
 const REQUEST_TIMEOUT = 60000;
 
 module.exports = class UpdateServerManager {
-
     constructor(applicationUpdateURL, logger) {
         this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
         // an unusable URL simply disables the updater: `DISABLED` on purpose (packaged applications bring their own
         // web part), anything else is a mistake that is worth a warning
-        if(URL.canParse(applicationUpdateURL)) {
+        if (URL.canParse(applicationUpdateURL)) {
             this._applicationUpdateURL = applicationUpdateURL;
         } else {
-            if(applicationUpdateURL !== 'DISABLED') {
-                this._logger.warn('Initialization of "UpdateServerManager" failed!', new Error(`Invalid update URL: ${applicationUpdateURL}`));
+            if (applicationUpdateURL !== 'DISABLED') {
+                this._logger.warn(
+                    'Initialization of "UpdateServerManager" failed!',
+                    new Error(`Invalid update URL: ${applicationUpdateURL}`),
+                );
             }
             this._applicationUpdateURL = undefined;
         }
@@ -33,17 +35,20 @@ module.exports = class UpdateServerManager {
      * @returns {Promise<Uint8Array>}
      */
     async _request(uri) {
-        if(!uri) {
+        if (!uri) {
             throw new Error('Invalid request for connection to the update server!');
         }
         let response;
         try {
-            response = await fetch(uri, { redirect: 'follow', signal: AbortSignal.timeout(REQUEST_TIMEOUT) });
-        } catch(error) {
+            response = await fetch(uri, {
+                redirect: 'follow',
+                signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+            });
+        } catch (error) {
             // surface the underlying failure (e.g. ECONNREFUSED, Invalid URL) instead of the generic "fetch failed"
             throw error.cause instanceof Error ? error.cause : error;
         }
-        if(response.status !== 200) {
+        if (response.status !== 200) {
             throw new Error('Status: ' + response.status);
         }
         return new Uint8Array(await response.arrayBuffer());
@@ -56,7 +61,11 @@ module.exports = class UpdateServerManager {
         let data = await this._request(this._applicationUpdateURL);
         let link = new TextDecoder().decode(data).trim();
         let resolved = new URL(link, this._applicationUpdateURL);
-        return new UpdatePackageInfo(link.split('.')[0], resolved.searchParams.get('signature'), resolved.href);
+        return new UpdatePackageInfo(
+            link.split('.')[0],
+            resolved.searchParams.get('signature'),
+            resolved.href,
+        );
     }
 
     /**

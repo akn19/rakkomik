@@ -27,18 +27,37 @@ const { pathToFileURL } = require('node:url');
  * @param {string[]} [options.expose] names of top-level bindings of the script that `exposed` returns
  * @returns {{ module: { exports: any }, exposed: any }}
  */
-function loadToolScript(file, { modules = {}, resolve = {}, globals = {}, dirname = path.dirname(file), entry = false, onEntry, expose = [] } = {}) {
+function loadToolScript(
+    file,
+    {
+        modules = {},
+        resolve = {},
+        globals = {},
+        dirname = path.dirname(file),
+        entry = false,
+        onEntry,
+        expose = [],
+    } = {},
+) {
     const realRequire = createRequire(file);
-    const module = { exports: {}, filename: file, id: file, loaded: false, children: [], paths: [] };
-    const fakeRequire = id => Object.hasOwn(modules, id) ? modules[id] : realRequire(id);
-    fakeRequire.resolve = (id, options) => Object.hasOwn(resolve, id) ? resolve[id] : realRequire.resolve(id, options);
+    const module = {
+        exports: {},
+        filename: file,
+        id: file,
+        loaded: false,
+        children: [],
+        paths: [],
+    };
+    const fakeRequire = (id) => (Object.hasOwn(modules, id) ? modules[id] : realRequire(id));
+    fakeRequire.resolve = (id, options) =>
+        Object.hasOwn(resolve, id) ? resolve[id] : realRequire.resolve(id, options);
     Object.defineProperty(fakeRequire, 'main', {
         get() {
             if (entry && onEntry) {
                 onEntry(module);
             }
             return entry ? module : undefined;
-        }
+        },
     });
     const scope = { ...globals };
     let source = fs.readFileSync(file, 'utf8');
@@ -48,14 +67,31 @@ function loadToolScript(file, { modules = {}, resolve = {}, globals = {}, dirnam
         // calls a loader of its own instead, under a name of the same length, so that the offsets of the coverage stay
         // those of the file. Relative specifiers are relative to the script.
         source = source.replace(/\bimport\((?!\?)/g, '__load(');
-        scope.__load = specifier => import(/^\.{1,2}\//.test(specifier) ? new URL(specifier, pathToFileURL(file)).href : specifier);
+        scope.__load = (specifier) =>
+            import(
+                /^\.{1,2}\//.test(specifier)
+                    ? new URL(specifier, pathToFileURL(file)).href
+                    : specifier
+            );
     }
     source += expose.length > 0 ? `\n;return { ${expose.join(', ')} };` : '';
     const names = Object.keys(scope);
-    const script = vm.compileFunction(source, [ 'exports', 'require', 'module', '__filename', '__dirname', ...names ], {
-        filename: pathToFileURL(file).href
-    });
-    const exposed = script.call(module.exports, module.exports, fakeRequire, module, file, dirname, ...names.map(name => scope[name]));
+    const script = vm.compileFunction(
+        source,
+        ['exports', 'require', 'module', '__filename', '__dirname', ...names],
+        {
+            filename: pathToFileURL(file).href,
+        },
+    );
+    const exposed = script.call(
+        module.exports,
+        module.exports,
+        fakeRequire,
+        module,
+        file,
+        dirname,
+        ...names.map((name) => scope[name]),
+    );
     module.loaded = true;
     return { module, exposed };
 }
@@ -75,9 +111,16 @@ function importFile(file) {
  */
 function createConsole() {
     const entries = [];
-    const record = stream => (...args) => {
-        entries.push({ stream, text: args.map(arg => typeof arg === 'string' ? arg : util.inspect(arg)).join(' ') });
-    };
+    const record =
+        (stream) =>
+        (...args) => {
+            entries.push({
+                stream,
+                text: args
+                    .map((arg) => (typeof arg === 'string' ? arg : util.inspect(arg)))
+                    .join(' '),
+            });
+        };
     return {
         log: record('log'),
         info: record('info'),
@@ -85,7 +128,10 @@ function createConsole() {
         error: record('error'),
         entries,
         /** the printed lines of one stream (all of them without an argument) */
-        lines: stream => entries.filter(entry => !stream || entry.stream === stream).map(entry => entry.text)
+        lines: (stream) =>
+            entries
+                .filter((entry) => !stream || entry.stream === stream)
+                .map((entry) => entry.text),
     };
 }
 
@@ -94,7 +140,7 @@ function createConsole() {
  * loop. Fake timers do not touch it.
  */
 function settle() {
-    return new Promise(resolve => nextTurn(resolve));
+    return new Promise((resolve) => nextTurn(resolve));
 }
 
 /**
@@ -117,4 +163,10 @@ function useTemporaryWorkingDirectory() {
     });
 }
 
-module.exports = { loadToolScript, importFile, createConsole, settle, useTemporaryWorkingDirectory };
+module.exports = {
+    loadToolScript,
+    importFile,
+    createConsole,
+    settle,
+    useTemporaryWorkingDirectory,
+};

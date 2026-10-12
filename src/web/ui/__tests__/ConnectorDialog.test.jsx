@@ -19,24 +19,44 @@ let observers = [];
 // the system connectors and four websites. The labels and the urls are chosen so that a pattern can match one field only
 function createConnectors() {
     return [
-        createUpdatableConnector({ id: 'bookmarks', label: ' 【Bookmarks】', url: undefined, tags: [] }),
-        createUpdatableConnector({ id: 'clipboard', label: ' 【Clipboard】', url: undefined, tags: [] }),
+        createUpdatableConnector({
+            id: 'bookmarks',
+            label: ' 【Bookmarks】',
+            url: undefined,
+            tags: [],
+        }),
+        createUpdatableConnector({
+            id: 'clipboard',
+            label: ' 【Clipboard】',
+            url: undefined,
+            tags: [],
+        }),
         createUpdatableConnector({
             id: 'mangadex',
             label: 'MangaDex',
             url: 'https://mangadex.org',
             tags: ['manga', 'multi-lingual'],
-            links: { login: 'https://mangadex.org/login', donation: 'https://mangadex.org/donate' }
+            links: { login: 'https://mangadex.org/login', donation: 'https://mangadex.org/donate' },
         }),
-        createUpdatableConnector({ id: 'webtoons', label: 'Webtoons', url: 'https://webtoons.com', tags: ['webtoon', 'english'] }),
+        createUpdatableConnector({
+            id: 'webtoons',
+            label: 'Webtoons',
+            url: 'https://webtoons.com',
+            tags: ['webtoon', 'english'],
+        }),
         createUpdatableConnector({
             id: 'toptoon',
             label: 'TOPTOON (탑툰)',
             url: 'https://toptoon.com',
             tags: ['webtoon', 'korean'],
-            links: { login: 'https://toptoon.com/login' }
+            links: { login: 'https://toptoon.com/login' },
         }),
-        createUpdatableConnector({ id: 'kakaopage', label: '카카오페이지', url: 'https://page.kakao.com', tags: ['webtoon', 'korean', 'novel'] })
+        createUpdatableConnector({
+            id: 'kakaopage',
+            label: '카카오페이지',
+            url: 'https://page.kakao.com',
+            tags: ['webtoon', 'korean', 'novel'],
+        }),
     ];
 }
 
@@ -75,7 +95,9 @@ class RecordingObserver {
 function resizeTo(width) {
     setLayout({ width, height: 600 });
     act(() => {
-        observers.filter(observer => observer.observed.size).forEach(observer => observer.callback([]));
+        observers
+            .filter((observer) => observer.observed.size)
+            .forEach((observer) => observer.callback([]));
     });
 }
 
@@ -89,15 +111,20 @@ const listbox = () => {
 };
 const cards = () => [...listbox().querySelectorAll('[role="listitem"]')];
 // the button of a card that carries the name of the website: the keyboard selects with it
-const nameButtonOf = card => within(card).getByTitle('Show the mangas of this website');
-const selectedCardIds = () => cards().filter(card => card.querySelector('[aria-current="true"]')).map(idOf);
-const idOf = card => /\nID: (.*)\n/.exec(card.getAttribute('title'))[1];
+const nameButtonOf = (card) => within(card).getByTitle('Show the mangas of this website');
+const selectedCardIds = () =>
+    cards()
+        .filter((card) => card.querySelector('[aria-current="true"]'))
+        .map(idOf);
+const idOf = (card) => /\nID: (.*)\n/.exec(card.getAttribute('title'))[1];
 const cardIds = () => cards().map(idOf);
-const cardOf = id => cards().find(card => idOf(card) === id);
+const cardOf = (id) => cards().find((card) => idOf(card) === id);
 // how many cards are in each row of the grid
 const cardsPerRow = () => {
     const counts = new Map();
-    cards().forEach(card => counts.set(card.parentElement, (counts.get(card.parentElement) || 0) + 1));
+    cards().forEach((card) =>
+        counts.set(card.parentElement, (counts.get(card.parentElement) || 0) + 1),
+    );
     return [...counts.values()];
 };
 const nameField = () => screen.getByTitle(/with a name that matches/);
@@ -105,17 +132,19 @@ const mangaField = () => screen.getByTitle(/with a manga that matches/);
 const clearButton = () => screen.getByTitle('Reset all filters');
 const counter = () => screen.getByText(/ websites/).textContent;
 // the tags in the list of the filter: the buttons of the group under the heading "Tags", the cards show theirs as plain text
-const tagButtons = () => within(screen.getByRole('group', { name: 'Tags' })).queryAllByRole('button');
-const tagNames = () => tagButtons().map(button => button.textContent);
-const tagButton = name => tagButtons().find(button => button.textContent === name);
-const refreshOf = id => within(cardOf(id)).getByTitle(/^Synchronize local manga list/);
-const spins = button => button.querySelector('svg').classList.contains('animate-spin');
-const toastOf = text => screen.getByText(text).closest('.pointer-events-auto');
+const tagButtons = () =>
+    within(screen.getByRole('group', { name: 'Tags' })).queryAllByRole('button');
+const tagNames = () => tagButtons().map((button) => button.textContent);
+const tagButton = (name) => tagButtons().find((button) => button.textContent === name);
+const refreshOf = (id) => within(cardOf(id)).getByTitle(/^Synchronize local manga list/);
+const spins = (button) => button.querySelector('svg').classList.contains('animate-spin');
+const toastOf = (text) => screen.getByText(text).closest('.pointer-events-auto');
 // no layout and no style sheet: the check of `pointer-events` has nothing to find, and the pauses between the keys only slow the tests
 const typist = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
-const tick = ms => act(() => {
-    vi.advanceTimersByTime(ms);
-});
+const tick = (ms) =>
+    act(() => {
+        vi.advanceTimersByTime(ms);
+    });
 
 beforeEach(() => {
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -133,7 +162,7 @@ beforeEach(() => {
 // React reports act() problems and failed effects through console.error: none may pass unnoticed. The assertion is soft, so
 // that a failure does not keep the hooks of the setup file and of the renderer from cleaning up
 afterEach(() => {
-    const noise = consoleError.mock.calls.map(call => call.map(String).join(' '));
+    const noise = consoleError.mock.calls.map((call) => call.map(String).join(' '));
     consoleError.mockRestore();
     openWindow.mockRestore();
     vi.unstubAllGlobals();
@@ -266,7 +295,7 @@ describe('the cards', () => {
         expect(within(card).getByText('webtoon')).toBeTruthy();
         expect(within(card).getByText('korean')).toBeTruthy();
         expect(card.getAttribute('title')).toBe(
-            'Click to show mangas from this website\n\nLabel: TOPTOON (탑툰)\nID: toptoon\nURL: https://toptoon.com'
+            'Click to show mangas from this website\n\nLabel: TOPTOON (탑툰)\nID: toptoon\nURL: https://toptoon.com',
         );
         // a connector that has no tags shows its name only
         expect(cardOf('bookmarks').textContent).toBe(' 【Bookmarks】');
@@ -274,11 +303,23 @@ describe('the cards', () => {
 
     it('should list a connector that has no tags, and no links, and leave it out when a tag is selected', async () => {
         const user = typist();
-        const plain = createUpdatableConnector({ id: 'plain', label: 'Plain Site', tags: undefined, links: undefined });
+        const plain = createUpdatableConnector({
+            id: 'plain',
+            label: 'Plain Site',
+            tags: undefined,
+            links: undefined,
+        });
         connectors.push(plain);
         mountDialog();
         expect(cardIds()).toContain('plain');
-        expect(tagNames()).toEqual(['english', 'korean', 'manga', 'multi-lingual', 'novel', 'webtoon']);
+        expect(tagNames()).toEqual([
+            'english',
+            'korean',
+            'manga',
+            'multi-lingual',
+            'novel',
+            'webtoon',
+        ]);
         for (const title of ['Click to open the login page', 'Click to open the donation page']) {
             expect(within(cardOf('plain')).getByTitle(title).disabled).toBe(true);
         }
@@ -303,15 +344,21 @@ describe('the cards', () => {
         expect(onClose).not.toHaveBeenCalled();
     });
 
-    it.each([['Enter', '{Enter}'], ['Space', ' ']])('should select the website whose name has the focus when %s is pressed', async (name, key) => {
-        const user = typist();
-        mountDialog();
-        const button = nameButtonOf(cardOf('toptoon'));
-        expect(button.textContent).toBe('TOPTOON (탑툰)');
-        button.focus();
-        await user.keyboard(key);
-        expect(onSelect).toHaveBeenCalledExactlyOnceWith('toptoon');
-    });
+    it.each([
+        ['Enter', '{Enter}'],
+        ['Space', ' '],
+    ])(
+        'should select the website whose name has the focus when %s is pressed',
+        async (name, key) => {
+            const user = typist();
+            mountDialog();
+            const button = nameButtonOf(cardOf('toptoon'));
+            expect(button.textContent).toBe('TOPTOON (탑툰)');
+            button.focus();
+            await user.keyboard(key);
+            expect(onSelect).toHaveBeenCalledExactlyOnceWith('toptoon');
+        },
+    );
 
     it('should not select anything for the other keys', async () => {
         const user = typist();
@@ -327,7 +374,9 @@ describe('the cards', () => {
         expect(image.getAttribute('src')).toBe('/img/connectors/mangadex');
         fireEvent.error(image);
         expect(image.getAttribute('src')).toBe('/img/connectors/default');
-        expect(cardOf('webtoons').querySelector('img').getAttribute('src')).toBe('/img/connectors/webtoons');
+        expect(cardOf('webtoons').querySelector('img').getAttribute('src')).toBe(
+            '/img/connectors/webtoons',
+        );
     });
 });
 
@@ -336,39 +385,51 @@ describe('the buttons of a card', () => {
         ['mangadex', true, true, true],
         ['toptoon', true, false, true],
         ['webtoons', false, false, true],
-        ['bookmarks', false, false, false]
-    ])('should enable the buttons of %s for the links that exist: login %s, donation %s, website %s', (id, login, donation, website) => {
-        mountDialog();
-        const card = within(cardOf(id));
-        expect(!card.getByTitle('Click to open the login page').disabled).toBe(login);
-        expect(!card.getByTitle('Click to open the donation page').disabled).toBe(donation);
-        expect(!card.getByTitle(/^Click to open the website in a new window/).disabled).toBe(website);
-    });
+        ['bookmarks', false, false, false],
+    ])(
+        'should enable the buttons of %s for the links that exist: login %s, donation %s, website %s',
+        (id, login, donation, website) => {
+            mountDialog();
+            const card = within(cardOf(id));
+            expect(!card.getByTitle('Click to open the login page').disabled).toBe(login);
+            expect(!card.getByTitle('Click to open the donation page').disabled).toBe(donation);
+            expect(!card.getByTitle(/^Click to open the website in a new window/).disabled).toBe(
+                website,
+            );
+        },
+    );
 
     it.each([
         ['Click to open the login page', 'https://mangadex.org/login'],
         ['Click to open the donation page', 'https://mangadex.org/donate'],
-        [/^Click to open the website in a new window/, 'https://mangadex.org']
-    ])('should open the link of the button "%s" in a new window, and not select the card', async (title, url) => {
-        const user = typist();
-        mountDialog();
-        await user.click(within(cardOf('mangadex')).getByTitle(title));
-        expect(openWindow).toHaveBeenCalledExactlyOnceWith(url, '_blank', 'nodeIntegration=no');
-        expect(onSelect).not.toHaveBeenCalled();
-    });
+        [/^Click to open the website in a new window/, 'https://mangadex.org'],
+    ])(
+        'should open the link of the button "%s" in a new window, and not select the card',
+        async (title, url) => {
+            const user = typist();
+            mountDialog();
+            await user.click(within(cardOf('mangadex')).getByTitle(title));
+            expect(openWindow).toHaveBeenCalledExactlyOnceWith(url, '_blank', 'nodeIntegration=no');
+            expect(onSelect).not.toHaveBeenCalled();
+        },
+    );
 
     it('should open nothing when a button without a link is clicked, and not select the card', async () => {
         const user = typist();
         mountDialog();
         await user.click(within(cardOf('webtoons')).getByTitle('Click to open the login page'));
-        await user.click(within(cardOf('bookmarks')).getByTitle(/^Click to open the website in a new window/));
+        await user.click(
+            within(cardOf('bookmarks')).getByTitle(/^Click to open the website in a new window/),
+        );
         expect(openWindow).not.toHaveBeenCalled();
         expect(onSelect).not.toHaveBeenCalled();
     });
 
     it('should not select the card when Enter is pressed on one of its buttons', () => {
         mountDialog();
-        fireEvent.keyDown(within(cardOf('mangadex')).getByTitle('Click to open the login page'), { key: 'Enter' });
+        fireEvent.keyDown(within(cardOf('mangadex')).getByTitle('Click to open the login page'), {
+            key: 'Enter',
+        });
         expect(onSelect).not.toHaveBeenCalled();
     });
 });
@@ -382,7 +443,7 @@ describe('the name filter', () => {
         ['a part of the label', 'toon', ['webtoons', 'toptoon']],
         ['the label of a system connector', 'bookmarks', ['bookmarks']],
         ['nothing', 'no such website', []],
-        ['an empty pattern', '', ALL_IDS]
+        ['an empty pattern', '', ALL_IDS],
     ])('should match %s: "%s"', async (_what, pattern, expected) => {
         const user = typist();
         mountDialog();
@@ -413,7 +474,14 @@ describe('the name filter', () => {
 describe('the tags', () => {
     it('should list every tag once, in alphabetical order', () => {
         mountDialog();
-        expect(tagNames()).toEqual(['english', 'korean', 'manga', 'multi-lingual', 'novel', 'webtoon']);
+        expect(tagNames()).toEqual([
+            'english',
+            'korean',
+            'manga',
+            'multi-lingual',
+            'novel',
+            'webtoon',
+        ]);
     });
 
     it('should show only the websites that have the tag that is selected, and all of them again when it is selected again', async () => {
@@ -467,24 +535,37 @@ describe('the tags', () => {
     it('should list a tag of a website that registers while the dialog is open', () => {
         mountDialog();
         act(() => {
-            connectors.push(createUpdatableConnector({ id: 'newcomer', label: 'Newcomer', tags: ['yaoi'] }));
+            connectors.push(
+                createUpdatableConnector({ id: 'newcomer', label: 'Newcomer', tags: ['yaoi'] }),
+            );
             engine.ConnectorRegistry.emit('registered');
         });
-        expect(tagNames()).toEqual(['english', 'korean', 'manga', 'multi-lingual', 'novel', 'webtoon', 'yaoi']);
+        expect(tagNames()).toEqual([
+            'english',
+            'korean',
+            'manga',
+            'multi-lingual',
+            'novel',
+            'webtoon',
+            'yaoi',
+        ]);
     });
 });
 
 describe('the manga filter', () => {
     const lists = {
-        mangadex: [{ id: '1', title: 'Berserk' }, { id: '2', title: 'Akira' }],
+        mangadex: [
+            { id: '1', title: 'Berserk' },
+            { id: '2', title: 'Akira' },
+        ],
         webtoons: [{ id: '3', title: 'Tower of God' }],
         toptoon: [{ id: '4', title: 'Berserk of Gluttony' }],
-        kakaopage: []
+        kakaopage: [],
         // the system connectors have no synchronized list: the engine rejects for them
     };
 
     function installLists(held) {
-        const loadMangaList = vi.fn(async id => {
+        const loadMangaList = vi.fn(async (id) => {
             if (held) {
                 await held;
             }
@@ -552,21 +633,24 @@ describe('the manga filter', () => {
         expect(cardIds()).toEqual(['toptoon']);
     });
 
-    it.each([[''], ['   ']])('should clear the search, and search nothing, when Enter is pressed with the pattern "%s"', async blank => {
-        const user = typist();
-        const loadMangaList = installLists();
-        mountDialog();
-        await user.type(mangaField(), 'berserk{Enter}');
-        await waitFor(() => expect(cardIds()).toEqual(['mangadex', 'toptoon']));
-        const searches = loadMangaList.mock.calls.length;
-        await user.clear(mangaField());
-        if (blank) {
-            await user.type(mangaField(), blank);
-        }
-        await user.keyboard('{Enter}');
-        expect(cardIds()).toEqual(ALL_IDS);
-        expect(loadMangaList).toHaveBeenCalledTimes(searches);
-    });
+    it.each([[''], ['   ']])(
+        'should clear the search, and search nothing, when Enter is pressed with the pattern "%s"',
+        async (blank) => {
+            const user = typist();
+            const loadMangaList = installLists();
+            mountDialog();
+            await user.type(mangaField(), 'berserk{Enter}');
+            await waitFor(() => expect(cardIds()).toEqual(['mangadex', 'toptoon']));
+            const searches = loadMangaList.mock.calls.length;
+            await user.clear(mangaField());
+            if (blank) {
+                await user.type(mangaField(), blank);
+            }
+            await user.keyboard('{Enter}');
+            expect(cardIds()).toEqual(ALL_IDS);
+            expect(loadMangaList).toHaveBeenCalledTimes(searches);
+        },
+    );
 
     it('should not take the other keys for a search', async () => {
         const user = typist();
@@ -579,9 +663,11 @@ describe('the manga filter', () => {
     it('should not let the field be changed while the search runs, and open it again afterwards', async () => {
         const user = typist();
         let release = null;
-        installLists(new Promise(resolve => {
-            release = resolve;
-        }));
+        installLists(
+            new Promise((resolve) => {
+                release = resolve;
+            }),
+        );
         mountDialog();
         await user.type(mangaField(), 'berserk{Enter}');
         expect(mangaField().disabled).toBe(true);
@@ -602,10 +688,12 @@ describe('the manga filter', () => {
             configurable: true,
             get() {
                 throw new Error('the engine is not there');
-            }
+            },
         });
         await user.type(mangaField(), 'berserk{Enter}');
-        expect(await screen.findByText('Manga search failed: the engine is not there')).toBeTruthy();
+        expect(
+            await screen.findByText('Manga search failed: the engine is not there'),
+        ).toBeTruthy();
         expect(toastOf('Manga search failed: the engine is not there').className).toMatch(/red/);
         expect(mangaField().disabled).toBe(false);
         expect(cardIds()).toEqual(['webtoons', 'toptoon']);
@@ -614,9 +702,11 @@ describe('the manga filter', () => {
     it('should not apply the result of a search to a list whose filters were reset meanwhile', async () => {
         const user = typist();
         let release = null;
-        installLists(new Promise(resolve => {
-            release = resolve;
-        }));
+        installLists(
+            new Promise((resolve) => {
+                release = resolve;
+            }),
+        );
         mountDialog();
         await user.type(mangaField(), 'berserk{Enter}');
         await user.click(clearButton());
@@ -633,7 +723,13 @@ describe('the reset button', () => {
         const user = typist();
         engine = installEngine({
             connectors,
-            engine: { Storage: { loadMangaList: vi.fn(async id => (id === 'toptoon' ? [{ id: '4', title: 'Berserk' }] : [])) } }
+            engine: {
+                Storage: {
+                    loadMangaList: vi.fn(async (id) =>
+                        id === 'toptoon' ? [{ id: '4', title: 'Berserk' }] : [],
+                    ),
+                },
+            },
         });
         mountDialog();
         await user.type(nameField(), 'toon');
@@ -695,10 +791,12 @@ describe('the counter', () => {
 
 describe('the grid of cards', () => {
     function manyConnectors(count) {
-        const list = Array.from({ length: count }, (_, index) => createUpdatableConnector({
-            id: `site-${String(index + 1).padStart(3, '0')}`,
-            label: `Site ${index + 1}`
-        }));
+        const list = Array.from({ length: count }, (_, index) =>
+            createUpdatableConnector({
+                id: `site-${String(index + 1).padStart(3, '0')}`,
+                label: `Site ${index + 1}`,
+            }),
+        );
         engine = installEngine({ connectors: list });
         return list;
     }
@@ -711,7 +809,7 @@ describe('the grid of cards', () => {
         [800, [2, 2, 2, 1]],
         [1250, [3, 3, 1]],
         [1600, [4, 3]],
-        [2800, [7]]
+        [2800, [7]],
     ])('should put the cards in rows as wide as the list allows: %i pixels', (width, expected) => {
         manyConnectors(7);
         setLayout({ width, height: 600 });
@@ -725,7 +823,7 @@ describe('the grid of cards', () => {
         setLayout({ width: 1250, height: 600 });
         mountDialog();
         expect(cardIds()).toEqual(['site-001', 'site-002', 'site-003', 'site-004', 'site-005']);
-        expect(cards().map(card => card.parentElement.children.length)).toEqual([3, 3, 3, 2, 2]);
+        expect(cards().map((card) => card.parentElement.children.length)).toEqual([3, 3, 3, 2, 2]);
     });
 
     it('should follow the width of the list when it changes', () => {
@@ -754,13 +852,13 @@ describe('the grid of cards', () => {
     it('should let go of the list that it observes when it closes and when it is gone', () => {
         vi.stubGlobal('ResizeObserver', RecordingObserver);
         const { rerender, unmount } = mountDialog();
-        expect(observers.some(observer => observer.observed.has(listbox()))).toBe(true);
+        expect(observers.some((observer) => observer.observed.has(listbox()))).toBe(true);
         rerender(dialog({ open: false }));
-        expect(observers.every(observer => observer.observed.size === 0)).toBe(true);
+        expect(observers.every((observer) => observer.observed.size === 0)).toBe(true);
         rerender(dialog());
-        expect(observers.some(observer => observer.observed.size > 0)).toBe(true);
+        expect(observers.some((observer) => observer.observed.size > 0)).toBe(true);
         unmount();
-        expect(observers.every(observer => observer.observed.size === 0)).toBe(true);
+        expect(observers.every((observer) => observer.observed.size === 0)).toBe(true);
     });
 
     it('should show one column, and fail on nothing, where the browser cannot tell when the list changes its size', () => {
@@ -806,7 +904,7 @@ describe('the refresh button of a card', () => {
         expect(spins(button)).toBe(false);
         await user.click(button);
         expect(connectors[2].updateMangas).toHaveBeenCalledTimes(1);
-        for (const other of connectors.filter(connector => connector.id !== 'mangadex')) {
+        for (const other of connectors.filter((connector) => connector.id !== 'mangadex')) {
             expect(other.updateMangas).not.toHaveBeenCalled();
         }
         expect(spins(refreshOf('mangadex'))).toBe(true);
@@ -836,7 +934,9 @@ describe('the refresh button of a card', () => {
         });
         expect(await screen.findByText('Updated MangaDex (2 titles).')).toBeTruthy();
         expect(toastOf('Updated MangaDex (2 titles).').className).toMatch(/green/);
-        expect(queryClient.getQueryData(['mangas', 'mangadex']).map(manga => manga.title)).toEqual(['Akira', 'Berserk']);
+        expect(
+            queryClient.getQueryData(['mangas', 'mangadex']).map((manga) => manga.title),
+        ).toEqual(['Akira', 'Berserk']);
         expect(queryClient.getQueryData(['mangas', 'webtoons'])).toBeUndefined();
         // the card is ready for the next update, and shows its tags again
         tick(500);
@@ -847,25 +947,36 @@ describe('the refresh button of a card', () => {
     });
 
     it.each([
-        ['with the reason of the engine', new Error('HTTP 503'), 'Failed to update manga list for MangaDex\nHTTP 503'],
-        ['without a reason', undefined, 'Failed to update manga list for MangaDex\nFailed to update manga list for "MangaDex"!']
-    ])('should tell that the update failed, %s, and be ready for another try', async (_name, error, message) => {
-        const user = typist();
-        mountDialog();
-        await user.click(refreshOf('mangadex'));
-        await act(async () => {
-            connectors[2].failUpdate(error);
-        });
-        const toast = await screen.findByText(/^Failed to update manga list for MangaDex/);
-        expect(toast.textContent).toBe(message);
-        expect(toastOf(/^Failed to update manga list for MangaDex/).className).toMatch(/red/);
-        expect(queryClient.getQueryData(['mangas', 'mangadex'])).toBeUndefined();
-        tick(500);
-        expect(refreshOf('mangadex').disabled).toBe(false);
-        expect(spins(refreshOf('mangadex'))).toBe(false);
-        await user.click(refreshOf('mangadex'));
-        expect(connectors[2].updateMangas).toHaveBeenCalledTimes(2);
-    });
+        [
+            'with the reason of the engine',
+            new Error('HTTP 503'),
+            'Failed to update manga list for MangaDex\nHTTP 503',
+        ],
+        [
+            'without a reason',
+            undefined,
+            'Failed to update manga list for MangaDex\nFailed to update manga list for "MangaDex"!',
+        ],
+    ])(
+        'should tell that the update failed, %s, and be ready for another try',
+        async (_name, error, message) => {
+            const user = typist();
+            mountDialog();
+            await user.click(refreshOf('mangadex'));
+            await act(async () => {
+                connectors[2].failUpdate(error);
+            });
+            const toast = await screen.findByText(/^Failed to update manga list for MangaDex/);
+            expect(toast.textContent).toBe(message);
+            expect(toastOf(/^Failed to update manga list for MangaDex/).className).toMatch(/red/);
+            expect(queryClient.getQueryData(['mangas', 'mangadex'])).toBeUndefined();
+            tick(500);
+            expect(refreshOf('mangadex').disabled).toBe(false);
+            expect(spins(refreshOf('mangadex'))).toBe(false);
+            await user.click(refreshOf('mangadex'));
+            expect(connectors[2].updateMangas).toHaveBeenCalledTimes(2);
+        },
+    );
 
     it('should run an update once, however often the button is clicked', async () => {
         const user = typist();
@@ -915,23 +1026,26 @@ describe('the refresh button of a card', () => {
 
     it.each([
         [1, 5, 'Updating… 1 request · 0:05'],
-        [0, 5, 'Updating… 0:05']
-    ])('should show an update that was started elsewhere, %i requests after %i seconds, and not allow another', (requests, seconds, message) => {
-        connectors[3].updateProgress = { requests, startedAt: Date.now() - seconds * 1000 };
-        mountDialog();
-        expect(within(cardOf('webtoons')).getByText(message)).toBeTruthy();
-        expect(spins(refreshOf('webtoons'))).toBe(true);
-        expect(refreshOf('webtoons').disabled).toBe(true);
-        expect(spins(refreshOf('mangadex'))).toBe(false);
-        fireEvent.click(refreshOf('webtoons'));
-        expect(connectors[3].updateMangas).not.toHaveBeenCalled();
-        // and its end is noticed
-        connectors[3].updateProgress = undefined;
-        tick(500);
-        expect(spins(refreshOf('webtoons'))).toBe(false);
-        expect(refreshOf('webtoons').disabled).toBe(false);
-        expect(within(cardOf('webtoons')).getByText('webtoon')).toBeTruthy();
-    });
+        [0, 5, 'Updating… 0:05'],
+    ])(
+        'should show an update that was started elsewhere, %i requests after %i seconds, and not allow another',
+        (requests, seconds, message) => {
+            connectors[3].updateProgress = { requests, startedAt: Date.now() - seconds * 1000 };
+            mountDialog();
+            expect(within(cardOf('webtoons')).getByText(message)).toBeTruthy();
+            expect(spins(refreshOf('webtoons'))).toBe(true);
+            expect(refreshOf('webtoons').disabled).toBe(true);
+            expect(spins(refreshOf('mangadex'))).toBe(false);
+            fireEvent.click(refreshOf('webtoons'));
+            expect(connectors[3].updateMangas).not.toHaveBeenCalled();
+            // and its end is noticed
+            connectors[3].updateProgress = undefined;
+            tick(500);
+            expect(spins(refreshOf('webtoons'))).toBe(false);
+            expect(refreshOf('webtoons').disabled).toBe(false);
+            expect(within(cardOf('webtoons')).getByText('webtoon')).toBeTruthy();
+        },
+    );
 
     it('should go on, and tell the result, when the dialog is closed meanwhile', async () => {
         const user = typist();
@@ -974,7 +1088,9 @@ describe('the dialog for the keyboard and the screen reader', () => {
         expect(dialog.getAttribute('aria-modal')).toBe('true');
         expect(screen.getByLabelText('Website')).toBe(nameField());
         expect(screen.getByLabelText('Manga')).toBe(mangaField());
-        expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Tags', 'Connectors']);
+        expect(
+            screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+        ).toEqual(['Tags', 'Connectors']);
         expect(screen.getByRole('group', { name: 'Tags' })).toBeTruthy();
         expect(screen.getByRole('list', { name: 'Connectors' })).toBe(listbox());
         expect(screen.getByRole('button', { name: 'Close the website selection' })).toBeTruthy();
@@ -996,9 +1112,17 @@ describe('the dialog for the keyboard and the screen reader', () => {
         expect(card.getByRole('button', { name: 'Login page of MangaDex' })).toBeTruthy();
         expect(card.getByRole('button', { name: 'Donation page of MangaDex' })).toBeTruthy();
         expect(card.getByRole('button', { name: 'Open MangaDex in a new window' })).toBeTruthy();
-        expect(card.getByRole('button', { name: 'Update the manga list of MangaDex' })).toBeTruthy();
-        expect(card.getByRole('button', { name: 'MangaDex' }).getAttribute('aria-current')).toBe('true');
-        expect(within(cardOf('webtoons')).getByRole('button', { name: 'Webtoons' }).getAttribute('aria-current')).toBeNull();
+        expect(
+            card.getByRole('button', { name: 'Update the manga list of MangaDex' }),
+        ).toBeTruthy();
+        expect(card.getByRole('button', { name: 'MangaDex' }).getAttribute('aria-current')).toBe(
+            'true',
+        );
+        expect(
+            within(cardOf('webtoons'))
+                .getByRole('button', { name: 'Webtoons' })
+                .getAttribute('aria-current'),
+        ).toBeNull();
     });
 
     it('should keep Tab inside, and give the focus back to the element that opened it when it closes', async () => {
@@ -1012,11 +1136,17 @@ describe('the dialog for the keyboard and the screen reader', () => {
         // the close button comes first in the dialog; from there Shift+Tab goes round to the last control, the refresh
         // button of the last card, and Tab from that one comes back to the close button
         await user.tab({ shift: true });
-        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close the website selection' }));
+        expect(document.activeElement).toBe(
+            screen.getByRole('button', { name: 'Close the website selection' }),
+        );
         await user.tab({ shift: true });
-        expect(document.activeElement).toBe(within(cardOf('kakaopage')).getByTitle(/^Synchronize local manga list/));
+        expect(document.activeElement).toBe(
+            within(cardOf('kakaopage')).getByTitle(/^Synchronize local manga list/),
+        );
         await user.tab();
-        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close the website selection' }));
+        expect(document.activeElement).toBe(
+            screen.getByRole('button', { name: 'Close the website selection' }),
+        );
         rerender(dialog({ open: false }));
         expect(document.activeElement).toBe(opener);
         opener.remove();

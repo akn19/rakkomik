@@ -24,7 +24,7 @@ export default defineConfig({
                 'scripts/**/*.{js,mjs}',
                 'build-app.js',
                 'deploy-web.js',
-                'vite.web-bundle.mjs'
+                'vite.web-bundle.mjs',
             ],
             exclude: [
                 '**/__tests__/**',
@@ -35,8 +35,8 @@ export default defineConfig({
                 'src/web/mjs/VersionInfo.mjs',
                 'src/web/mjs/engine/HistoryWorker.mjs',
                 'src/web/ui/dist/**',
-                'src/app/main.js'
-            ]
+                'src/app/main.js',
+            ],
         },
         projects: [
             {
@@ -44,16 +44,16 @@ export default defineConfig({
                     name: 'app',
                     globals: true,
                     environment: 'node',
-                    include: ['src/app/**/*.test.js']
-                }
+                    include: ['src/app/**/*.test.js'],
+                },
             },
             {
                 test: {
                     name: 'web',
                     globals: true,
                     environment: 'node',
-                    include: ['src/web/**/*.test.js']
-                }
+                    include: ['src/web/**/*.test.js'],
+                },
             },
             {
                 plugins: [react()],
@@ -63,12 +63,19 @@ export default defineConfig({
                     environment: 'happy-dom',
                     // a test never goes to the network: the page of an iframe or a window that a markup holds is not loaded
                     environmentOptions: {
-                        happyDOM: { settings: { navigation: { disableChildFrameNavigation: true, disableChildPageNavigation: true } } }
+                        happyDOM: {
+                            settings: {
+                                navigation: {
+                                    disableChildFrameNavigation: true,
+                                    disableChildPageNavigation: true,
+                                },
+                            },
+                        },
                     },
                     include: ['src/web/ui/__tests__/**/*.test.jsx'],
-                    setupFiles: ['src/web/ui/__tests__/support/setup.js']
-                }
-            }
-        ]
-    }
+                    setupFiles: ['src/web/ui/__tests__/support/setup.js'],
+                },
+            },
+        ],
+    },
 });

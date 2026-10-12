@@ -48,15 +48,19 @@ function deferred() {
 
 // lets everything that waits for resolved promises run
 function settle() {
-    return new Promise(resolve => setImmediate(resolve));
+    return new Promise((resolve) => setImmediate(resolve));
 }
 
 function updateMangas(connector) {
-    return new Promise(resolve => connector.updateMangas((error, mangas) => resolve({ error, mangas })));
+    return new Promise((resolve) =>
+        connector.updateMangas((error, mangas) => resolve({ error, mangas })),
+    );
 }
 
 function getMangas(connector) {
-    return new Promise(resolve => connector.getMangas((error, mangas) => resolve({ error, mangas })));
+    return new Promise((resolve) =>
+        connector.getMangas((error, mangas) => resolve({ error, mangas })),
+    );
 }
 
 function stored(...mangas) {
@@ -64,13 +68,20 @@ function stored(...mangas) {
 }
 
 function titles(mangas) {
-    return mangas.map(manga => manga.title);
+    return mangas.map((manga) => manga.title);
 }
 
 describe('a connector', () => {
     it('should start idle, without mangas and not initialized', () => {
         const connector = new Connector();
-        expect(connector).toMatchObject({ label: '', tags: [], isLocked: false, initialized: false, isUpdating: false, existingMangas: [] });
+        expect(connector).toMatchObject({
+            label: '',
+            tags: [],
+            isLocked: false,
+            initialized: false,
+            isUpdating: false,
+            existingMangas: [],
+        });
         expect(connector.updateProgress).toBeUndefined();
         expect(connector.mangaCache).toBeUndefined();
     });
@@ -83,10 +94,17 @@ describe('a connector', () => {
 
     it('should ask for what a browser asks for', () => {
         const { requestOptions } = new Connector();
-        expect(requestOptions).toMatchObject({ method: 'GET', mode: 'cors', redirect: 'follow', credentials: 'same-origin' });
+        expect(requestOptions).toMatchObject({
+            method: 'GET',
+            mode: 'cors',
+            redirect: 'follow',
+            credentials: 'same-origin',
+        });
         expect(requestOptions.headers).toBeInstanceOf(Headers);
         // what a browser asks for when it navigates
-        expect(requestOptions.headers.get('accept')).toBe('text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9');
+        expect(requestOptions.headers.get('accept')).toBe(
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        );
     });
 
     it('should not share its request options, tags and directory with other connectors', () => {
@@ -104,19 +122,19 @@ describe('a connector', () => {
         expect(connector.icon).toBe('/img/connectors/site');
     });
 
-    it.each([
-        'https://site.test/manga/1?page=2',
-        'https://site.test/'
-    ])('should handle the address %s', address => {
-        expect(createSite().canHandleURI(new URL(address))).toBe(true);
-    });
+    it.each(['https://site.test/manga/1?page=2', 'https://site.test/'])(
+        'should handle the address %s',
+        (address) => {
+            expect(createSite().canHandleURI(new URL(address))).toBe(true);
+        },
+    );
 
     it.each([
         'http://site.test/manga/1',
         'https://www.site.test/manga/1',
         'https://site.test:8443/manga/1',
-        'https://other.test/manga/1'
-    ])('should not handle the address %s, which has another origin', address => {
+        'https://other.test/manga/1',
+    ])('should not handle the address %s, which has another origin', (address) => {
         expect(createSite().canHandleURI(new URL(address))).toBe(false);
     });
 
@@ -147,8 +165,13 @@ describe('initialize', () => {
     it('should fail with the error of the initialization and try again the next time', async () => {
         const connector = createSite();
         connector.initialized = false;
-        const failure = new Error('Failed to load "https://site.test/" within the given timeout of 60 seconds!');
-        connector._initializeConnector = vi.fn().mockRejectedValueOnce(failure).mockResolvedValueOnce(undefined);
+        const failure = new Error(
+            'Failed to load "https://site.test/" within the given timeout of 60 seconds!',
+        );
+        connector._initializeConnector = vi
+            .fn()
+            .mockRejectedValueOnce(failure)
+            .mockResolvedValueOnce(undefined);
         await expect(connector.initialize()).rejects.toBe(failure);
         expect(connector.initialized).toBe(false);
         await connector.initialize();
@@ -161,7 +184,10 @@ describe('initialize', () => {
         connector.initialized = false;
         const offline = new Error('offline');
         offline.stack = 'ERR_INTERNET_DISCONNECTED https://site.test/';
-        connector._initializeConnector = vi.fn().mockRejectedValueOnce(offline).mockResolvedValueOnce(undefined);
+        connector._initializeConnector = vi
+            .fn()
+            .mockRejectedValueOnce(offline)
+            .mockResolvedValueOnce(undefined);
         await expect(connector.initialize()).resolves.toBeUndefined();
         expect(connector.initialized).toBe(false);
         await connector.initialize();
@@ -172,7 +198,9 @@ describe('initialize', () => {
         const connector = createSite();
         connector.initialized = false;
         connector._initializeConnector = async () => {
-            throw new Error('Error invoking remote method \'rakkomik:fetch\': Error: ERR_INTERNET_DISCONNECTED https://site.test/');
+            throw new Error(
+                "Error invoking remote method 'rakkomik:fetch': Error: ERR_INTERNET_DISCONNECTED https://site.test/",
+            );
         };
         await expect(connector.initialize()).resolves.toBeUndefined();
     });
@@ -252,9 +280,19 @@ describe('wait', () => {
 
 describe('findMatchingManga', () => {
     it('should find the first manga of the list that has the text in its title, whatever the case', async () => {
-        await stored({ id: '/1', title: 'Bleach' }, { id: '/2', title: 'Naruto Shippuden' }, { id: '/3', title: 'Naruto' });
-        await expect(createSite().findMatchingManga('NARUTO')).resolves.toEqual({ id: '/2', title: 'Naruto Shippuden' });
-        await expect(createSite().findMatchingManga('lea')).resolves.toEqual({ id: '/1', title: 'Bleach' });
+        await stored(
+            { id: '/1', title: 'Bleach' },
+            { id: '/2', title: 'Naruto Shippuden' },
+            { id: '/3', title: 'Naruto' },
+        );
+        await expect(createSite().findMatchingManga('NARUTO')).resolves.toEqual({
+            id: '/2',
+            title: 'Naruto Shippuden',
+        });
+        await expect(createSite().findMatchingManga('lea')).resolves.toEqual({
+            id: '/1',
+            title: 'Bleach',
+        });
     });
 
     it('should find nothing when no title has the text', async () => {
@@ -273,7 +311,10 @@ describe('findMatchingManga', () => {
 
     it('should find a title that has unicode or special characters', async () => {
         await stored({ id: '/1', title: '漫画 (2nd season) [v2]' });
-        await expect(createSite().findMatchingManga('(2nd season) [v2]')).resolves.toEqual({ id: '/1', title: '漫画 (2nd season) [v2]' });
+        await expect(createSite().findMatchingManga('(2nd season) [v2]')).resolves.toEqual({
+            id: '/1',
+            title: '漫画 (2nd season) [v2]',
+        });
     });
 });
 
@@ -288,7 +329,10 @@ describe('getMangas', () => {
             expect(manga).toBeInstanceOf(Manga);
             expect(manga.connector).toBe(connector);
         }
-        expect(mangas.map(manga => [manga.id, manga.title])).toEqual([['/1', 'Bleach'], ['/2', 'Naruto']]);
+        expect(mangas.map((manga) => [manga.id, manga.title])).toEqual([
+            ['/1', 'Bleach'],
+            ['/2', 'Naruto'],
+        ]);
         expect(connector.mangaCache).toBe(mangas);
     });
 
@@ -339,7 +383,7 @@ describe('getMangas', () => {
         await stored({ id: '/1', title: 'Bleach' });
         const { error, mangas } = await getMangas(createSite());
         expect(error).toBeNull();
-        expect(mangas.map(manga => manga.status)).toEqual(['available']);
+        expect(mangas.map((manga) => manga.status)).toEqual(['available']);
     });
 
     it('should be empty, and warn, when no list was ever saved', async () => {
@@ -348,7 +392,10 @@ describe('getMangas', () => {
         expect(error).toBeNull();
         expect(mangas).toEqual([]);
         expect(connector.mangaCache).toBeUndefined();
-        expect(console.warn).toHaveBeenCalledWith('_getUpdatedMangasFromFile', expect.objectContaining({ code: 'ENOENT' }));
+        expect(console.warn).toHaveBeenCalledWith(
+            '_getUpdatedMangasFromFile',
+            expect.objectContaining({ code: 'ENOENT' }),
+        );
     });
 
     it('should be empty when the saved list is not a list', async () => {
@@ -360,22 +407,33 @@ describe('getMangas', () => {
 
     it('should report the error, with the list that it has, when the status of a manga cannot be told', async () => {
         const connector = createSite();
-        const broken = { updateStatus: () => {
-            throw new Error('broken manga');
-        } };
+        const broken = {
+            updateStatus: () => {
+                throw new Error('broken manga');
+            },
+        };
         connector.mangaCache = [broken];
         const callback = vi.fn();
         await expect(connector.getMangas(callback)).rejects.toThrow('broken manga');
-        expect(console.warn).toHaveBeenCalledWith('getMangas', expect.objectContaining({ message: 'broken manga' }));
+        expect(console.warn).toHaveBeenCalledWith(
+            'getMangas',
+            expect.objectContaining({ message: 'broken manga' }),
+        );
         expect(callback).toHaveBeenCalledTimes(1);
-        expect(callback).toHaveBeenCalledWith(expect.objectContaining({ message: 'broken manga' }), [broken]);
+        expect(callback).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'broken manga' }),
+            [broken],
+        );
     });
 
     it('should know which of the mangas have a directory on the device', async () => {
         engine.Storage.existingMangas = directoryListing('Naruto');
         await stored({ id: '/1', title: 'Bleach' }, { id: '/2', title: 'Naruto' });
         const { mangas } = await getMangas(createSite());
-        expect(mangas.map(manga => [manga.title, manga.status])).toEqual([['Bleach', 'available'], ['Naruto', 'completed']]);
+        expect(mangas.map((manga) => [manga.title, manga.status])).toEqual([
+            ['Bleach', 'available'],
+            ['Naruto', 'completed'],
+        ]);
     });
 
     it('should know about the directories that appeared since the list was loaded', async () => {
@@ -384,12 +442,19 @@ describe('getMangas', () => {
         await getMangas(connector);
         engine.Storage.existingMangas = directoryListing('Naruto');
         const { mangas } = await getMangas(connector);
-        expect(mangas.map(manga => [manga.title, manga.status])).toEqual([['Bleach', 'available'], ['Naruto', 'completed']]);
+        expect(mangas.map((manga) => [manga.title, manga.status])).toEqual([
+            ['Bleach', 'available'],
+            ['Naruto', 'completed'],
+        ]);
     });
 });
 
 describe('updateMangas', () => {
-    const LIST = [{ id: '/b', title: 'banana' }, { id: '/a', title: 'Apple' }, { id: '/c', title: 'Cherry' }];
+    const LIST = [
+        { id: '/b', title: 'banana' },
+        { id: '/a', title: 'Apple' },
+        { id: '/c', title: 'Cherry' },
+    ];
 
     function websiteWith(connector, mangas) {
         connector._getMangas = vi.fn(async () => mangas);
@@ -400,23 +465,42 @@ describe('updateMangas', () => {
         const connector = websiteWith(createSite(), LIST);
         const { error, mangas } = await updateMangas(connector);
         expect(error).toBeNull();
-        expect(engine.Storage.saveMangaList).toHaveBeenCalledWith('site', [{ id: '/a', title: 'Apple' }, { id: '/b', title: 'banana' }, { id: '/c', title: 'Cherry' }]);
-        expect(mangas.map(manga => [manga.id, manga.title])).toEqual([['/a', 'Apple'], ['/b', 'banana'], ['/c', 'Cherry']]);
+        expect(engine.Storage.saveMangaList).toHaveBeenCalledWith('site', [
+            { id: '/a', title: 'Apple' },
+            { id: '/b', title: 'banana' },
+            { id: '/c', title: 'Cherry' },
+        ]);
+        expect(mangas.map((manga) => [manga.id, manga.title])).toEqual([
+            ['/a', 'Apple'],
+            ['/b', 'banana'],
+            ['/c', 'Cherry'],
+        ]);
         expect(mangas[0]).toBeInstanceOf(Manga);
         expect(connector.mangaCache).toBe(mangas);
     });
 
     it('should keep the first of the mangas that have the same id', async () => {
-        const connector = websiteWith(createSite(), [{ id: '/b', title: 'banana' }, { id: '/a', title: 'Apple' }, { id: '/b', title: 'banana (again)' }, { id: '/a', title: 'Apple' }]);
+        const connector = websiteWith(createSite(), [
+            { id: '/b', title: 'banana' },
+            { id: '/a', title: 'Apple' },
+            { id: '/b', title: 'banana (again)' },
+            { id: '/a', title: 'Apple' },
+        ]);
         const { mangas } = await updateMangas(connector);
-        expect(mangas.map(manga => [manga.id, manga.title])).toEqual([['/a', 'Apple'], ['/b', 'banana']]);
+        expect(mangas.map((manga) => [manga.id, manga.title])).toEqual([
+            ['/a', 'Apple'],
+            ['/b', 'banana'],
+        ]);
         expect(engine.Storage.saveMangaList.mock.calls[0][1]).toHaveLength(2);
     });
 
     it('should keep mangas that have the same title but not the same id', async () => {
-        const connector = websiteWith(createSite(), [{ id: '/1', title: 'Love' }, { id: '/2', title: 'Love' }]);
+        const connector = websiteWith(createSite(), [
+            { id: '/1', title: 'Love' },
+            { id: '/2', title: 'Love' },
+        ]);
         const { mangas } = await updateMangas(connector);
-        expect(mangas.map(manga => manga.id).sort()).toEqual(['/1', '/2']);
+        expect(mangas.map((manga) => manga.id).sort()).toEqual(['/1', '/2']);
     });
 
     it('should replace the list that the connector kept', async () => {
@@ -436,22 +520,27 @@ describe('updateMangas', () => {
         const { error, mangas } = await updateMangas(connector);
         expect(error).toBeNull();
         expect(mangas).toBeUndefined();
-        await expect(engine.Storage.loadMangaList('site')).resolves.toEqual([{ id: '/old', title: 'Old' }]);
+        await expect(engine.Storage.loadMangaList('site')).resolves.toEqual([
+            { id: '/old', title: 'Old' },
+        ]);
         expect(connector.mangaCache).toBe(kept);
         expect(connector.isUpdating).toBe(false);
     });
 
     it.each([
-        [ 'undefined', undefined ],
-        [ 'null', null ]
-    ])('should leave the saved list alone when the website offers %s as the list', async (name, list) => {
-        const connector = websiteWith(createSite(), list);
-        const { error, mangas } = await updateMangas(connector);
-        expect(error).toBeNull();
-        expect(mangas).toBeUndefined();
-        expect(engine.Storage.saveMangaList).not.toHaveBeenCalled();
-        expect(connector.isUpdating).toBe(false);
-    });
+        ['undefined', undefined],
+        ['null', null],
+    ])(
+        'should leave the saved list alone when the website offers %s as the list',
+        async (name, list) => {
+            const connector = websiteWith(createSite(), list);
+            const { error, mangas } = await updateMangas(connector);
+            expect(error).toBeNull();
+            expect(mangas).toBeUndefined();
+            expect(engine.Storage.saveMangaList).not.toHaveBeenCalled();
+            expect(connector.isUpdating).toBe(false);
+        },
+    );
 
     it('should report the error of the website and save nothing', async () => {
         const connector = createSite();
@@ -500,7 +589,7 @@ describe('updateMangas', () => {
 
     it('should use the callback style of the connectors that have not been rewritten', async () => {
         const connector = createSite();
-        connector._getMangaList = vi.fn(callback => callback(null, LIST));
+        connector._getMangaList = vi.fn((callback) => callback(null, LIST));
         const { error, mangas } = await updateMangas(connector);
         expect(error).toBeNull();
         expect(titles(mangas)).toEqual(['Apple', 'banana', 'Cherry']);
@@ -526,7 +615,10 @@ describe('updateMangas', () => {
         const callback = vi.fn();
         connector.updateMangas(callback);
         await settle();
-        expect(callback).toHaveBeenCalledWith(expect.objectContaining({ message: 'broken connector' }), undefined);
+        expect(callback).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'broken connector' }),
+            undefined,
+        );
         expect(connector.isUpdating).toBe(false);
     });
 
@@ -537,12 +629,18 @@ describe('updateMangas', () => {
         const empty = websiteWith(createSite(), []);
         const seen = [];
         for (const connector of [succeeded, failed, empty]) {
-            await new Promise(resolve => connector.updateMangas(() => {
-                seen.push([connector.isUpdating, connector.updateProgress]);
-                resolve();
-            }));
+            await new Promise((resolve) =>
+                connector.updateMangas(() => {
+                    seen.push([connector.isUpdating, connector.updateProgress]);
+                    resolve();
+                }),
+            );
         }
-        expect(seen).toEqual([[false, undefined], [false, undefined], [false, undefined]]);
+        expect(seen).toEqual([
+            [false, undefined],
+            [false, undefined],
+            [false, undefined],
+        ]);
     });
 
     it('should report that it is running from the moment it is asked for until it is over', async () => {
@@ -556,7 +654,10 @@ describe('updateMangas', () => {
         });
         const done = updateMangas(connector);
         expect(connector.isUpdating).toBe(true);
-        expect(connector.updateProgress).toEqual({ requests: 0, startedAt: Date.UTC(2030, 0, 1, 12) });
+        expect(connector.updateProgress).toEqual({
+            requests: 0,
+            startedAt: Date.UTC(2030, 0, 1, 12),
+        });
         await settle();
         expect(connector.isUpdating).toBe(true);
         release.resolve();
@@ -639,7 +740,7 @@ describe('updateMangas', () => {
                 reads++;
                 return '/manga/' + index;
             },
-            title: 'Title ' + index
+            title: 'Title ' + index,
         }));
         let readsAtSave = Infinity;
         engine.Storage.saveMangaList = vi.fn(async () => {
@@ -657,12 +758,15 @@ describe('getMangaFromURI', () => {
         const order = [];
         connector._initializeConnector = vi.fn(async () => order.push('initialize'));
         const manga = { title: 'From the website' };
-        connector._getMangaFromURI = vi.fn(async uri => {
+        connector._getMangaFromURI = vi.fn(async (uri) => {
             order.push('manga');
             return { ...manga, id: uri.pathname };
         });
         const uri = new URL('https://site.test/manga/1');
-        await expect(connector.getMangaFromURI(uri)).resolves.toEqual({ id: '/manga/1', title: 'From the website' });
+        await expect(connector.getMangaFromURI(uri)).resolves.toEqual({
+            id: '/manga/1',
+            title: 'From the website',
+        });
         expect(connector._getMangaFromURI).toHaveBeenCalledWith(uri);
         expect(order).toEqual(['initialize', 'manga']);
     });
@@ -672,13 +776,17 @@ describe('getMangaFromURI', () => {
         connector.initialized = false;
         connector._initializeConnector = vi.fn().mockRejectedValue(new Error('no window'));
         connector._getMangaFromURI = vi.fn();
-        await expect(connector.getMangaFromURI(new URL('https://site.test/manga/1'))).rejects.toThrow('no window');
+        await expect(
+            connector.getMangaFromURI(new URL('https://site.test/manga/1')),
+        ).rejects.toThrow('no window');
         expect(connector._getMangaFromURI).not.toHaveBeenCalled();
     });
 
     it('should make a manga of the path and the query of the address, if the connector knows no better', async () => {
         const connector = createSite();
-        const manga = await connector.getMangaFromURI(new URL('https://site.test/manga/1?lang=en#top'));
+        const manga = await connector.getMangaFromURI(
+            new URL('https://site.test/manga/1?lang=en#top'),
+        );
         expect(manga).toBeInstanceOf(Manga);
         expect(manga.connector).toBe(connector);
         expect(manga.id).toBe('/manga/1?lang=en');
@@ -686,10 +794,10 @@ describe('getMangaFromURI', () => {
 
     // The title names the directory of the manga on the device: it must stay what it was
     it.each([
-        [ 'https://site.test/manga/1', 'Manga #2E1' ],
-        [ 'https://site.test/manga/2', 'Manga #2E2' ],
-        [ 'https://site.test/manga/1?x=2', 'Manga #462' ],
-        [ 'https://site.test/', 'Manga #31' ]
+        ['https://site.test/manga/1', 'Manga #2E1'],
+        ['https://site.test/manga/2', 'Manga #2E2'],
+        ['https://site.test/manga/1?x=2', 'Manga #462'],
+        ['https://site.test/', 'Manga #31'],
     ])('should title the manga of %s as %s', async (address, title) => {
         const manga = await createSite().getMangaFromURI(new URL(address));
         expect(manga.title).toBe(title);
@@ -697,9 +805,19 @@ describe('getMangaFromURI', () => {
 
     it('should title the same address alike and different addresses differently', async () => {
         const connector = createSite();
-        const addresses = ['https://site.test/manga/1', 'https://site.test/manga/2', 'https://site.test/manga/10', 'https://site.test/manga/1?page=2', 'https://site.test/漫画/第1話'];
-        const first = await Promise.all(addresses.map(address => connector.getMangaFromURI(new URL(address))));
-        const again = await Promise.all(addresses.map(address => connector.getMangaFromURI(new URL(address))));
+        const addresses = [
+            'https://site.test/manga/1',
+            'https://site.test/manga/2',
+            'https://site.test/manga/10',
+            'https://site.test/manga/1?page=2',
+            'https://site.test/漫画/第1話',
+        ];
+        const first = await Promise.all(
+            addresses.map((address) => connector.getMangaFromURI(new URL(address))),
+        );
+        const again = await Promise.all(
+            addresses.map((address) => connector.getMangaFromURI(new URL(address))),
+        );
         expect(titles(again)).toEqual(titles(first));
         expect(new Set(titles(first)).size).toBe(addresses.length);
         for (const title of titles(first)) {
@@ -709,16 +827,19 @@ describe('getMangaFromURI', () => {
 
     it('should not look at the website or the fragment of the address for the title', async () => {
         const connector = createSite();
-        const [a, b] = await Promise.all([connector.getMangaFromURI(new URL('https://site.test/manga/1#a')), connector.getMangaFromURI(new URL('https://other.test/manga/1#b'))]);
+        const [a, b] = await Promise.all([
+            connector.getMangaFromURI(new URL('https://site.test/manga/1#a')),
+            connector.getMangaFromURI(new URL('https://other.test/manga/1#b')),
+        ]);
         expect(a.title).toBe(b.title);
     });
 });
 
 describe('the interface that connectors implement', () => {
     it.each([
-        [ '_getMangas', connector => connector._getMangas() ],
-        [ '_getChapters', connector => connector._getChapters({ id: '/manga/1' }) ],
-        [ '_getPages', connector => connector._getPages({ id: '/chapter/1' }) ]
+        ['_getMangas', (connector) => connector._getMangas()],
+        ['_getChapters', (connector) => connector._getChapters({ id: '/manga/1' })],
+        ['_getPages', (connector) => connector._getPages({ id: '/chapter/1' })],
     ])('should demand an implementation of %s', async (name, call) => {
         await expect(call(createSite())).rejects.toThrow(exactly('Not implemented!'));
     });
@@ -754,18 +875,30 @@ describe('the interface that connectors implement', () => {
         });
 
         it.each([
-            [ '_getMangaList', (connector, callback) => connector._getMangaList(callback) ],
-            [ '_getChapterList', (connector, callback) => connector._getChapterList({ id: '/manga/1' }, callback) ],
-            [ '_getPageList', (connector, callback) => connector._getPageList({ id: '/manga/1' }, { id: '/chapter/1' }, callback) ]
-        ])('should hand out the error of the new interface, and log it, in %s', async (name, call) => {
-            const connector = createSite();
-            const callback = vi.fn();
-            await call(connector, callback);
-            expect(callback).toHaveBeenCalledTimes(1);
-            expect(callback.mock.calls[0][0]).toEqual(expect.objectContaining({ message: 'Not implemented!' }));
-            expect(callback.mock.calls[0][1]).toBeUndefined();
-            expect(console.error).toHaveBeenCalledTimes(1);
-        });
+            ['_getMangaList', (connector, callback) => connector._getMangaList(callback)],
+            [
+                '_getChapterList',
+                (connector, callback) => connector._getChapterList({ id: '/manga/1' }, callback),
+            ],
+            [
+                '_getPageList',
+                (connector, callback) =>
+                    connector._getPageList({ id: '/manga/1' }, { id: '/chapter/1' }, callback),
+            ],
+        ])(
+            'should hand out the error of the new interface, and log it, in %s',
+            async (name, call) => {
+                const connector = createSite();
+                const callback = vi.fn();
+                await call(connector, callback);
+                expect(callback).toHaveBeenCalledTimes(1);
+                expect(callback.mock.calls[0][0]).toEqual(
+                    expect.objectContaining({ message: 'Not implemented!' }),
+                );
+                expect(callback.mock.calls[0][1]).toBeUndefined();
+                expect(console.error).toHaveBeenCalledTimes(1);
+            },
+        );
 
         it('should hand out the error of the website', async () => {
             const connector = createSite();
@@ -781,41 +914,53 @@ describe('the interface that connectors implement', () => {
 describe('getAbsolutePath', () => {
     // [reference, base, the address]
     it.each([
-        [ '/a/b?c=1#d', 'https://site.test/x/y', 'https://site.test/a/b?c=1#d' ],
-        [ 'z', 'https://site.test/x/y', 'https://site.test/x/z' ],
-        [ 'z', 'https://site.test/x/y/', 'https://site.test/x/y/z' ],
-        [ '../z', 'https://site.test/x/y/', 'https://site.test/x/z' ],
-        [ '//cdn.test/i.png', 'https://site.test/', 'https://cdn.test/i.png' ],
-        [ 'https://other.test/p', 'https://site.test/', 'https://other.test/p' ],
-        [ '?page=2', 'https://site.test/list?page=1', 'https://site.test/list?page=2' ],
-        [ '#top', 'https://site.test/list?page=1', 'https://site.test/list?page=1#top' ],
-        [ '', 'https://site.test/a', 'https://site.test/a' ],
-        [ '/漫画/第1 話', 'https://site.test/', 'https://site.test/%E6%BC%AB%E7%94%BB/%E7%AC%AC1%20%E8%A9%B1' ]
+        ['/a/b?c=1#d', 'https://site.test/x/y', 'https://site.test/a/b?c=1#d'],
+        ['z', 'https://site.test/x/y', 'https://site.test/x/z'],
+        ['z', 'https://site.test/x/y/', 'https://site.test/x/y/z'],
+        ['../z', 'https://site.test/x/y/', 'https://site.test/x/z'],
+        ['//cdn.test/i.png', 'https://site.test/', 'https://cdn.test/i.png'],
+        ['https://other.test/p', 'https://site.test/', 'https://other.test/p'],
+        ['?page=2', 'https://site.test/list?page=1', 'https://site.test/list?page=2'],
+        ['#top', 'https://site.test/list?page=1', 'https://site.test/list?page=1#top'],
+        ['', 'https://site.test/a', 'https://site.test/a'],
+        [
+            '/漫画/第1 話',
+            'https://site.test/',
+            'https://site.test/%E6%BC%AB%E7%94%BB/%E7%AC%AC1%20%E8%A9%B1',
+        ],
     ])('should resolve "%s" against "%s" as "%s"', (reference, base, expected) => {
         expect(createSite().getAbsolutePath(reference, base)).toBe(expected);
     });
 
     it('should accept the base and the reference as addresses', () => {
         const connector = createSite();
-        expect(connector.getAbsolutePath('rel', new URL('https://site.test/dir/'))).toBe('https://site.test/dir/rel');
-        expect(connector.getAbsolutePath(new URL('https://u.test/q'), 'https://site.test/')).toBe('https://u.test/q');
+        expect(connector.getAbsolutePath('rel', new URL('https://site.test/dir/'))).toBe(
+            'https://site.test/dir/rel',
+        );
+        expect(connector.getAbsolutePath(new URL('https://u.test/q'), 'https://site.test/')).toBe(
+            'https://u.test/q',
+        );
     });
 
     it.each([
-        [ 'undefined', undefined ],
-        [ 'null', null ],
-        [ 'a number', 42 ],
-        [ 'an object', {} ]
+        ['undefined', undefined],
+        ['null', null],
+        ['a number', 42],
+        ['an object', {}],
     ])('should refuse %s as the base', (name, base) => {
-        expect(() => createSite().getAbsolutePath('/a', base)).toThrow(exactly('Failed to extract relative link (parameter "base" is invalid)!'));
+        expect(() => createSite().getAbsolutePath('/a', base)).toThrow(
+            exactly('Failed to extract relative link (parameter "base" is invalid)!'),
+        );
     });
 
     it.each([
-        [ 'a number', 42 ],
-        [ 'an object without a link', {} ],
-        [ 'an object with an empty link', { href: undefined } ]
+        ['a number', 42],
+        ['an object without a link', {}],
+        ['an object with an empty link', { href: undefined }],
     ])('should refuse %s as the reference', (name, reference) => {
-        expect(() => createSite().getAbsolutePath(reference, 'https://site.test/')).toThrow(exactly('Failed to extract relative link (parameter "reference" is invalid)!'));
+        expect(() => createSite().getAbsolutePath(reference, 'https://site.test/')).toThrow(
+            exactly('Failed to extract relative link (parameter "reference" is invalid)!'),
+        );
     });
 
     it('should refuse a base that is not an address', () => {
@@ -823,43 +968,55 @@ describe('getAbsolutePath', () => {
     });
 
     it.each([
-        [ 'undefined', undefined ],
-        [ 'null', null ]
+        ['undefined', undefined],
+        ['null', null],
     ])('should refuse %s as the reference, and say so', (name, reference) => {
-        expect(() => createSite().getAbsolutePath(reference, 'https://site.test/')).toThrow(exactly('Failed to extract relative link (parameter "reference" is invalid)!'));
+        expect(() => createSite().getAbsolutePath(reference, 'https://site.test/')).toThrow(
+            exactly('Failed to extract relative link (parameter "reference" is invalid)!'),
+        );
     });
 });
 
 describe('getRootRelativeOrAbsoluteLink', () => {
     // [reference, base, the link]: a path for the website of the base, an address for any other
     it.each([
-        [ '/manga/1', 'https://site.test/', '/manga/1' ],
-        [ 'chapter-2', 'https://site.test/manga/1', '/manga/chapter-2' ],
-        [ 'https://site.test/manga/1?lang=en#top', 'https://site.test/', '/manga/1?lang=en#top' ],
-        [ 'https://other.test/manga/1', 'https://site.test/', 'https://other.test/manga/1' ],
-        [ 'https://www.site.test/manga/1', 'https://site.test/', 'https://www.site.test/manga/1' ],
-        [ '//cdn.test/i.png?x=1', 'https://site.test/', 'https://cdn.test/i.png?x=1' ]
+        ['/manga/1', 'https://site.test/', '/manga/1'],
+        ['chapter-2', 'https://site.test/manga/1', '/manga/chapter-2'],
+        ['https://site.test/manga/1?lang=en#top', 'https://site.test/', '/manga/1?lang=en#top'],
+        ['https://other.test/manga/1', 'https://site.test/', 'https://other.test/manga/1'],
+        ['https://www.site.test/manga/1', 'https://site.test/', 'https://www.site.test/manga/1'],
+        ['//cdn.test/i.png?x=1', 'https://site.test/', 'https://cdn.test/i.png?x=1'],
     ])('should turn "%s" on "%s" into "%s"', (reference, base, expected) => {
         expect(createSite().getRootRelativeOrAbsoluteLink(reference, base)).toBe(expected);
     });
 
     it('should take the base as an address as well', () => {
-        expect(createSite().getRootRelativeOrAbsoluteLink('/manga/1', new URL('https://site.test/list'))).toBe('/manga/1');
+        expect(
+            createSite().getRootRelativeOrAbsoluteLink(
+                '/manga/1',
+                new URL('https://site.test/list'),
+            ),
+        ).toBe('/manga/1');
     });
 
     it('should refuse what getAbsolutePath refuses', () => {
-        expect(() => createSite().getRootRelativeOrAbsoluteLink('/a', undefined)).toThrow('parameter "base" is invalid');
+        expect(() => createSite().getRootRelativeOrAbsoluteLink('/a', undefined)).toThrow(
+            'parameter "base" is invalid',
+        );
     });
 });
 
 describe('the connector:// address of an image', () => {
     const PAYLOADS = [
-        [ 'a link', 'https://cdn.test/a b/1.jpg?token=1&x=2#f' ],
-        [ 'an object', { url: 'https://cdn.test/1.jpg', headers: { referer: 'https://site.test/' }, index: 3 } ],
-        [ 'text that turns into base64 with + and /', '>>>???~~~' ],
-        [ 'unicode', 'Ünïcödé 漫画 \u{1F600}' ],
-        [ 'a very long link', 'https://cdn.test/' + 'x'.repeat(100000) ],
-        [ 'an empty text', '' ]
+        ['a link', 'https://cdn.test/a b/1.jpg?token=1&x=2#f'],
+        [
+            'an object',
+            { url: 'https://cdn.test/1.jpg', headers: { referer: 'https://site.test/' }, index: 3 },
+        ],
+        ['text that turns into base64 with + and /', '>>>???~~~'],
+        ['unicode', 'Ünïcödé 漫画 \u{1F600}'],
+        ['a very long link', 'https://cdn.test/' + 'x'.repeat(100000)],
+        ['an empty text', ''],
     ];
 
     it.each(PAYLOADS)('should carry %s to the connector', async (name, payload) => {
@@ -871,29 +1028,36 @@ describe('the connector:// address of an image', () => {
         expect(connector._handleConnectorURI.mock.calls[0][0]).toEqual(payload);
     });
 
-    it.each(['site', 'line_manga_jp', 'mangaindoMe', 'site-2'])('should name the connector %s in the host of the address', id => {
-        const connector = createSite();
-        connector.id = id;
-        const address = new URL(connector.createConnectorURI('https://cdn.test/1.jpg'));
-        expect(address.protocol).toBe('connector:');
-        expect(address.hostname).toBe(id);
-        expect(address.searchParams.has('payload')).toBe(true);
-    });
+    it.each(['site', 'line_manga_jp', 'mangaindoMe', 'site-2'])(
+        'should name the connector %s in the host of the address',
+        (id) => {
+            const connector = createSite();
+            connector.id = id;
+            const address = new URL(connector.createConnectorURI('https://cdn.test/1.jpg'));
+            expect(address.protocol).toBe('connector:');
+            expect(address.hostname).toBe(id);
+            expect(address.searchParams.has('payload')).toBe(true);
+        },
+    );
 
     it('should be a different address for a different payload', () => {
         const connector = createSite();
-        expect(connector.createConnectorURI('https://cdn.test/1.jpg')).not.toBe(connector.createConnectorURI('https://cdn.test/2.jpg'));
+        expect(connector.createConnectorURI('https://cdn.test/1.jpg')).not.toBe(
+            connector.createConnectorURI('https://cdn.test/2.jpg'),
+        );
     });
 
     it.each([
-        [ 'is missing', 'connector://site' ],
-        [ 'is empty', 'connector://site?payload=' ],
-        [ 'is not base64', 'connector://site?payload=!!!' ],
-        [ 'is not JSON', 'connector://site?payload=bm90IGpzb24%3D' ]
+        ['is missing', 'connector://site'],
+        ['is empty', 'connector://site?payload='],
+        ['is not base64', 'connector://site?payload=!!!'],
+        ['is not JSON', 'connector://site?payload=bm90IGpzb24%3D'],
     ])('should refuse an address of which the payload %s', async (name, address) => {
         const connector = createSite();
         connector._handleConnectorURI = vi.fn();
-        await expect((async () => connector.handleConnectorURI(new URL(address)))()).rejects.toThrow();
+        await expect(
+            (async () => connector.handleConnectorURI(new URL(address)))(),
+        ).rejects.toThrow();
         expect(connector._handleConnectorURI).not.toHaveBeenCalled();
     });
 
@@ -901,51 +1065,76 @@ describe('the connector:// address of an image', () => {
         const connector = createSite();
         const answer = { mimeType: 'image/png', data: new Uint8Array([1, 2, 3]) };
         connector._handleConnectorURI = vi.fn().mockResolvedValue(answer);
-        await expect(connector.handleConnectorURI(new URL(connector.createConnectorURI('https://cdn.test/1.png')))).resolves.toBe(answer);
+        await expect(
+            connector.handleConnectorURI(
+                new URL(connector.createConnectorURI('https://cdn.test/1.png')),
+            ),
+        ).resolves.toBe(answer);
     });
 
     it('should fail with the failure of the connector', async () => {
         const connector = createSite();
         connector._handleConnectorURI = vi.fn().mockRejectedValue(new Error('404'));
-        await expect(connector.handleConnectorURI(new URL(connector.createConnectorURI('x')))).rejects.toThrow('404');
+        await expect(
+            connector.handleConnectorURI(new URL(connector.createConnectorURI('x'))),
+        ).rejects.toThrow('404');
     });
 });
 
 describe('the mime type of an image', () => {
     const SIGNATURES = {
-        'image/webp': [0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50],
-        'image/jpeg': [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10],
-        'image/png': [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+        'image/webp': [
+            0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50,
+        ],
+        'image/jpeg': [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10],
+        'image/png': [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
         'image/gif': [0x47, 0x49, 0x46, 0x38, 0x39, 0x61],
-        'image/bmp': [0x42, 0x4D, 0x36, 0x00]
+        'image/bmp': [0x42, 0x4d, 0x36, 0x00],
     };
 
-    it.each(Object.keys(SIGNATURES))('should be %s for data that starts like that, whatever the server says', real => {
-        // another image type, a type of a page, an empty type and the one that servers give to what they do not know
-        const said = [...Object.keys(SIGNATURES).filter(other => other !== real), 'text/html', '', 'application/octet-stream'];
-        for (const mimeType of said) {
-            console.warn.mockClear();
-            const data = { mimeType, data: new Uint8Array(SIGNATURES[real]) };
-            createSite()._applyRealMime(data);
-            expect(data.mimeType).toBe(real);
-            expect(console.warn).toHaveBeenCalledTimes(1);
-            expect(console.warn).toHaveBeenCalledWith(`Provided mime type "${mimeType}" does not match the file signature and was replaced by "${real}"!`);
-        }
-    });
+    it.each(Object.keys(SIGNATURES))(
+        'should be %s for data that starts like that, whatever the server says',
+        (real) => {
+            // another image type, a type of a page, an empty type and the one that servers give to what they do not know
+            const said = [
+                ...Object.keys(SIGNATURES).filter((other) => other !== real),
+                'text/html',
+                '',
+                'application/octet-stream',
+            ];
+            for (const mimeType of said) {
+                console.warn.mockClear();
+                const data = { mimeType, data: new Uint8Array(SIGNATURES[real]) };
+                createSite()._applyRealMime(data);
+                expect(data.mimeType).toBe(real);
+                expect(console.warn).toHaveBeenCalledTimes(1);
+                expect(console.warn).toHaveBeenCalledWith(
+                    `Provided mime type "${mimeType}" does not match the file signature and was replaced by "${real}"!`,
+                );
+            }
+        },
+    );
 
-    it.each(Object.keys(SIGNATURES))('should stay %s for data that starts like that, without a warning', mimeType => {
-        const data = { mimeType, data: new Uint8Array(SIGNATURES[mimeType]) };
-        createSite()._applyRealMime(data);
-        expect(data.mimeType).toBe(mimeType);
-        expect(console.warn).not.toHaveBeenCalled();
-    });
+    it.each(Object.keys(SIGNATURES))(
+        'should stay %s for data that starts like that, without a warning',
+        (mimeType) => {
+            const data = { mimeType, data: new Uint8Array(SIGNATURES[mimeType]) };
+            createSite()._applyRealMime(data);
+            expect(data.mimeType).toBe(mimeType);
+            expect(console.warn).not.toHaveBeenCalled();
+        },
+    );
 
     it.each([
-        [ 'a page', 'text/html', Array.from('<html>', character => character.charCodeAt(0)) ],
-        [ 'no data', 'image/png', [] ],
-        [ 'one byte of a JPEG', 'image/png', [0xFF] ],
-        [ 'a truncated WEBP', 'image/png', [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45] ],
-        [ 'an image of a type that is not known', 'image/avif', [0x00, 0x00, 0x00, 0x1C, 0x66, 0x74, 0x79, 0x70] ]
+        ['a page', 'text/html', Array.from('<html>', (character) => character.charCodeAt(0))],
+        ['no data', 'image/png', []],
+        ['one byte of a JPEG', 'image/png', [0xff]],
+        ['a truncated WEBP', 'image/png', [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45]],
+        [
+            'an image of a type that is not known',
+            'image/avif',
+            [0x00, 0x00, 0x00, 0x1c, 0x66, 0x74, 0x79, 0x70],
+        ],
     ])('should stay what the server says for %s', (name, mimeType, bytes) => {
         const data = { mimeType, data: new Uint8Array(bytes) };
         createSite()._applyRealMime(data);
@@ -975,44 +1164,44 @@ describe('the mime type of an image', () => {
 
 describe('the patterns for the titles of chapters', () => {
     it.each([
-        [ 'Chapter 12', '12' ],
-        [ 'chapter 12', '12' ],
-        [ 'Ch.12', '12' ],
-        [ 'ch. 12.5', '12.5' ],
-        [ 'Chap 3', '3' ],
-        [ 'Chapitre 4', '4' ],
-        [ 'Bölüm 5', '5' ],
-        [ 'Kapitel 8', '8' ],
-        [ 'Capitolo 9', '9' ],
-        [ 'Rozdział 10', '10' ],
-        [ 'Глава 11', '11' ],
-        [ 'Capítulo 12', '12' ],
-        [ 'Épisode 15', '15' ],
-        [ 'Ep. 17', '17' ],
-        [ 'Page 18', '18' ],
-        [ 'N°19', '19' ],
-        [ 'DAY 21', '21' ],
-        [ '#22', '22' ],
-        [ '23 - Title', '23' ],
-        [ 'Chapter 12-13', '12-13' ],
-        [ 'Chapter 12v2', '12v2' ],
-        [ 'Chapter 100: The End', '100' ],
-        [ 'No numbers', null ],
-        [ 'Chapter', null ]
+        ['Chapter 12', '12'],
+        ['chapter 12', '12'],
+        ['Ch.12', '12'],
+        ['ch. 12.5', '12.5'],
+        ['Chap 3', '3'],
+        ['Chapitre 4', '4'],
+        ['Bölüm 5', '5'],
+        ['Kapitel 8', '8'],
+        ['Capitolo 9', '9'],
+        ['Rozdział 10', '10'],
+        ['Глава 11', '11'],
+        ['Capítulo 12', '12'],
+        ['Épisode 15', '15'],
+        ['Ep. 17', '17'],
+        ['Page 18', '18'],
+        ['N°19', '19'],
+        ['DAY 21', '21'],
+        ['#22', '22'],
+        ['23 - Title', '23'],
+        ['Chapter 12-13', '12-13'],
+        ['Chapter 12v2', '12v2'],
+        ['Chapter 100: The End', '100'],
+        ['No numbers', null],
+        ['Chapter', null],
     ])('should read the chapter of "%s" as %s', (title, expected) => {
         const match = title.match(createSite().getFormatRegex().chapterRegex);
         expect(match ? match[1] : null).toBe(expected);
     });
 
     it.each([
-        [ 'Vol.2 Chapter 15', '2' ],
-        [ 'Volume 12', '12' ],
-        [ 'vol 3', '3' ],
-        [ 'Tome 5', '5' ],
-        [ 'Band 6', '6' ],
-        [ 'Том 7', '7' ],
-        [ 'Chapter 1', null ],
-        [ 'Volume', null ]
+        ['Vol.2 Chapter 15', '2'],
+        ['Volume 12', '12'],
+        ['vol 3', '3'],
+        ['Tome 5', '5'],
+        ['Band 6', '6'],
+        ['Том 7', '7'],
+        ['Chapter 1', null],
+        ['Volume', null],
     ])('should read the volume of "%s" as %s', (title, expected) => {
         const match = title.match(createSite().getFormatRegex().volumeRegex);
         expect(match ? match[1] : null).toBe(expected);
@@ -1020,6 +1209,8 @@ describe('the patterns for the titles of chapters', () => {
 
     it('should be made new for every call, so that nobody inherits the state of a pattern', () => {
         const connector = createSite();
-        expect(connector.getFormatRegex().chapterRegex).not.toBe(connector.getFormatRegex().chapterRegex);
+        expect(connector.getFormatRegex().chapterRegex).not.toBe(
+            connector.getFormatRegex().chapterRegex,
+        );
     });
 });

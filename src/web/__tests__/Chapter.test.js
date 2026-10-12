@@ -49,7 +49,7 @@ function createChapter({ site = createSite(), title = 'Chapter 1', status = 'ava
 }
 
 function getPages(chapter) {
-    return new Promise(resolve => chapter.getPages((error, pages) => resolve({ error, pages })));
+    return new Promise((resolve) => chapter.getPages((error, pages) => resolve({ error, pages })));
 }
 
 describe('a chapter', () => {
@@ -57,20 +57,31 @@ describe('a chapter', () => {
         const manga = new Manga(createSite(), '/manga/1', 'Manga', 'available');
         const chapter = new Chapter(manga, '/chapter/1', 'Chapter 1', 'fr', 'available');
         expect(chapter).toBeInstanceOf(EventTarget);
-        expect(chapter).toMatchObject({ manga, id: '/chapter/1', title: 'Chapter 1', language: 'fr', status: 'available', pageProcess: false });
+        expect(chapter).toMatchObject({
+            manga,
+            id: '/chapter/1',
+            title: 'Chapter 1',
+            language: 'fr',
+            status: 'available',
+            pageProcess: false,
+        });
         expect(chapter.pageCache).toBeUndefined();
     });
 
     // the file name is made like Storage makes the names of the files and the directories, for the platform of the user
     it.each([
-        [ 'Vol 1/Chapter 2: Hi?', 'Vol 1Chapter 2: Hi?', 'linux' ],
-        [ 'Vol 1/Chapter 2: Hi?', 'Vol 1Chapter 2 Hi?', 'darwin' ],
-        [ 'Vol 1/Chapter 2: Hi?', 'Vol 1Chapter 2 Hi', 'win32' ],
-        [ 'The end...  ', 'The end', 'linux' ]
+        ['Vol 1/Chapter 2: Hi?', 'Vol 1Chapter 2: Hi?', 'linux'],
+        ['Vol 1/Chapter 2: Hi?', 'Vol 1Chapter 2 Hi?', 'darwin'],
+        ['Vol 1/Chapter 2: Hi?', 'Vol 1Chapter 2 Hi', 'win32'],
+        ['The end...  ', 'The end', 'linux'],
     ])('should store the title "%s" in a file called "%s" on %s', (title, name, platform) => {
         engine = createEngine({ Storage, platform, chapterFormat: '.cbz' });
         vi.stubGlobal('Engine', engine);
-        expect(createChapter({ title }).file).toMatchObject({ name, extension: '.cbz', full: name + '.cbz' });
+        expect(createChapter({ title }).file).toMatchObject({
+            name,
+            extension: '.cbz',
+            full: name + '.cbz',
+        });
     });
 });
 
@@ -95,13 +106,16 @@ describe('the status of a chapter', () => {
         expect(page.events).toEqual([]);
     });
 
-    it.each(['queued', 'downloading', 'failed', 'offline'])('should stay %s when the status is updated', status => {
-        const chapter = createChapter({ status });
-        chapter.manga.existingChapters = Object.assign([], { 'Chapter 1.cbz': true });
-        chapter.updateStatus();
-        expect(chapter.status).toBe(status);
-        expect(page.events).toEqual([]);
-    });
+    it.each(['queued', 'downloading', 'failed', 'offline'])(
+        'should stay %s when the status is updated',
+        (status) => {
+            const chapter = createChapter({ status });
+            chapter.manga.existingChapters = Object.assign([], { 'Chapter 1.cbz': true });
+            chapter.updateStatus();
+            expect(chapter.status).toBe(status);
+            expect(page.events).toEqual([]);
+        },
+    );
 
     it('should be announced to the chapter and the page when it changes, and only then', () => {
         const chapter = createChapter();
@@ -126,7 +140,7 @@ describe('the pages of a chapter', () => {
         const chapter = createChapter({ site });
         let events = null;
         site._getPages.mockImplementation(async () => {
-            events = page.events.map(event => event.type);
+            events = page.events.map((event) => event.type);
             return ['https://cdn.test/1.jpg'];
         });
         await getPages(chapter);
@@ -139,23 +153,29 @@ describe('the pages of a chapter', () => {
         for (const status of ['available', 'completed', 'offline']) {
             page.events.length = 0;
             await getPages(createChapter({ status }));
-            expect(page.events.map(event => event.type)).toContain('onSelectChapter');
+            expect(page.events.map((event) => event.type)).toContain('onSelectChapter');
         }
     });
 
     describe('of a chapter on the device', () => {
-        it.each(['completed', 'offline'])('should be read from its files when it is %s', async status => {
-            const site = createSite();
-            site.initialize = vi.fn();
-            const chapter = createChapter({ site, status });
-            engine.Storage.loadChapterPages.mockResolvedValue(['file:///data/1.jpg', 'file:///data/2.jpg']);
-            const { error, pages } = await getPages(chapter);
-            expect(error).toBeNull();
-            expect(pages).toEqual(['file:///data/1.jpg', 'file:///data/2.jpg']);
-            expect(engine.Storage.loadChapterPages).toHaveBeenCalledWith(chapter);
-            expect(site._getPages).not.toHaveBeenCalled();
-            expect(site.initialize).not.toHaveBeenCalled();
-        });
+        it.each(['completed', 'offline'])(
+            'should be read from its files when it is %s',
+            async (status) => {
+                const site = createSite();
+                site.initialize = vi.fn();
+                const chapter = createChapter({ site, status });
+                engine.Storage.loadChapterPages.mockResolvedValue([
+                    'file:///data/1.jpg',
+                    'file:///data/2.jpg',
+                ]);
+                const { error, pages } = await getPages(chapter);
+                expect(error).toBeNull();
+                expect(pages).toEqual(['file:///data/1.jpg', 'file:///data/2.jpg']);
+                expect(engine.Storage.loadChapterPages).toHaveBeenCalledWith(chapter);
+                expect(site._getPages).not.toHaveBeenCalled();
+                expect(site.initialize).not.toHaveBeenCalled();
+            },
+        );
 
         it('should be reported with the error when the files cannot be read', async () => {
             const chapter = createChapter({ status: 'completed' });
@@ -181,10 +201,10 @@ describe('the pages of a chapter', () => {
 
     describe('of a chapter that is on the website', () => {
         it.each([
-            [ 'without a status', undefined ],
-            [ 'that is available', 'available' ],
-            [ 'that is queued for a download', 'queued' ],
-            [ 'of which the download failed', 'failed' ]
+            ['without a status', undefined],
+            ['that is available', 'available'],
+            ['that is queued for a download', 'queued'],
+            ['of which the download failed', 'failed'],
         ])('should ask the connector for the pages of a chapter %s', async (name, status) => {
             const site = createSite(['https://cdn.test/a.jpg']);
             const chapter = createChapter({ site, status });
@@ -220,11 +240,11 @@ describe('the pages of a chapter', () => {
 
         // the images of the image CDN of WordPress are loaded from the site that they belong to
         it.each([
-            [ 'https://i0.wp.com/cdn.test/a.jpg', 'https://cdn.test/a.jpg' ],
-            [ 'https://i12.wp.com/cdn.test/a.jpg?w=500', 'https://cdn.test/a.jpg?w=500' ],
-            [ 'https://cdn.test/a.jpg', 'https://cdn.test/a.jpg' ],
-            [ 'https://wp.com/a.jpg', 'https://wp.com/a.jpg' ],
-            [ 'https://cdn.test/imgi0.wp.com/a.jpg', 'https://cdn.test/imgi0.wp.com/a.jpg' ]
+            ['https://i0.wp.com/cdn.test/a.jpg', 'https://cdn.test/a.jpg'],
+            ['https://i12.wp.com/cdn.test/a.jpg?w=500', 'https://cdn.test/a.jpg?w=500'],
+            ['https://cdn.test/a.jpg', 'https://cdn.test/a.jpg'],
+            ['https://wp.com/a.jpg', 'https://wp.com/a.jpg'],
+            ['https://cdn.test/imgi0.wp.com/a.jpg', 'https://cdn.test/imgi0.wp.com/a.jpg'],
         ])('should turn the page "%s" into "%s"', async (address, expected) => {
             const { pages } = await getPages(createChapter({ site: createSite([address]) }));
             expect(pages).toEqual([expected]);
@@ -232,7 +252,9 @@ describe('the pages of a chapter', () => {
 
         it('should hand out the pages of a connector that still hands them out through a callback', async () => {
             const site = createSite();
-            site._getPageList = vi.fn((manga, chapter, callback) => callback(null, ['https://cdn.test/old.jpg']));
+            site._getPageList = vi.fn((manga, chapter, callback) =>
+                callback(null, ['https://cdn.test/old.jpg']),
+            );
             const chapter = createChapter({ site });
             const { error, pages } = await getPages(chapter);
             expect(error).toBeNull();
@@ -241,7 +263,9 @@ describe('the pages of a chapter', () => {
         });
 
         it('should hand out content that is not a list as it is', async () => {
-            const { error, pages } = await getPages(createChapter({ site: createSite('https://cdn.test/video.mp4') }));
+            const { error, pages } = await getPages(
+                createChapter({ site: createSite('https://cdn.test/video.mp4') }),
+            );
             expect(error).toBeNull();
             expect(pages).toBe('https://cdn.test/video.mp4');
         });
@@ -250,7 +274,12 @@ describe('the pages of a chapter', () => {
             const site = createSite([]);
             const chapter = createChapter({ site, title: 'Chapter 7' });
             const first = await getPages(chapter);
-            expect(first.error).toEqual(expect.objectContaining({ message: 'There was no content found for \'Chapter 7\', make sure it is accessible (login, purchase, ...)!' }));
+            expect(first.error).toEqual(
+                expect.objectContaining({
+                    message:
+                        "There was no content found for 'Chapter 7', make sure it is accessible (login, purchase, ...)!",
+                }),
+            );
             expect(first.pages).toEqual([]);
             expect(chapter.pageCache).toEqual([]);
 

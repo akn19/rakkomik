@@ -31,7 +31,12 @@ function createSite() {
 function answer(status, body = '', { type, statusText } = {}) {
     // a response with these statuses has no body
     const empty = [204, 205, 304].includes(status);
-    return () => new Response(empty ? null : body, { status, statusText, headers: type ? { 'content-type': type } : {} });
+    return () =>
+        new Response(empty ? null : body, {
+            status,
+            statusText,
+            headers: type ? { 'content-type': type } : {},
+        });
 }
 
 function json(value, status = 200) {
@@ -52,7 +57,10 @@ function sent(fetch, call = 0) {
 describe('fetchJSON', () => {
     it('should hand out the JSON of the answer', async () => {
         stubFetch(json({ mangas: [{ id: 1 }, { id: 2 }], total: 2 }));
-        await expect(createSite().fetchJSON('https://site.test/api/mangas')).resolves.toEqual({ mangas: [{ id: 1 }, { id: 2 }], total: 2 });
+        await expect(createSite().fetchJSON('https://site.test/api/mangas')).resolves.toEqual({
+            mangas: [{ id: 1 }, { id: 2 }],
+            total: 2,
+        });
     });
 
     it('should send a request with the options of the connector', async () => {
@@ -62,7 +70,13 @@ describe('fetchJSON', () => {
         await connector.fetchJSON('https://site.test/api');
         const request = sent(fetch);
         expect(request).toBeInstanceOf(Request);
-        expect(request).toMatchObject({ url: 'https://site.test/api', method: 'GET', mode: 'cors', credentials: 'same-origin', redirect: 'follow' });
+        expect(request).toMatchObject({
+            url: 'https://site.test/api',
+            method: 'GET',
+            mode: 'cors',
+            credentials: 'same-origin',
+            redirect: 'follow',
+        });
         expect(request.headers.get('x-referer')).toBe('https://site.test/');
         expect(request.headers.get('accept')).toContain('text/html');
     });
@@ -78,7 +92,11 @@ describe('fetchJSON', () => {
     // a copy of the request is sent, because a request with a body can be sent once and may have to be sent again
     it('should send the request that it is given: its method, address, headers and body', async () => {
         const fetch = stubFetch(json({}));
-        const request = new Request('https://site.test/api', { method: 'POST', headers: { authorization: 'Bearer x' }, body: '{"a":1}' });
+        const request = new Request('https://site.test/api', {
+            method: 'POST',
+            headers: { authorization: 'Bearer x' },
+            body: '{"a":1}',
+        });
         await createSite().fetchJSON(request);
         const request_ = sent(fetch);
         expect(request_.method).toBe('POST');
@@ -89,14 +107,23 @@ describe('fetchJSON', () => {
         expect(request.bodyUsed).toBe(false);
     });
 
-    it.each([ 201, 204, 301, 400, 401, 403, 404, 429, 500, 503 ])('should fail for the status %i, which is not 200', async status => {
-        stubFetch(answer(status, '{}', { type: 'application/json', statusText: 'Because' }));
-        await expect(createSite().fetchJSON('https://site.test/api')).rejects.toThrow(exactly(`Failed to receive content from "https://site.test/api" (status: ${status}) - Because`));
-    });
+    it.each([201, 204, 301, 400, 401, 403, 404, 429, 500, 503])(
+        'should fail for the status %i, which is not 200',
+        async (status) => {
+            stubFetch(answer(status, '{}', { type: 'application/json', statusText: 'Because' }));
+            await expect(createSite().fetchJSON('https://site.test/api')).rejects.toThrow(
+                exactly(
+                    `Failed to receive content from "https://site.test/api" (status: ${status}) - Because`,
+                ),
+            );
+        },
+    );
 
     it('should fail when the answer is not JSON', async () => {
         stubFetch(answer(200, '<html>Maintenance</html>', { type: 'text/html' }));
-        await expect(createSite().fetchJSON('https://site.test/api')).rejects.toBeInstanceOf(SyntaxError);
+        await expect(createSite().fetchJSON('https://site.test/api')).rejects.toBeInstanceOf(
+            SyntaxError,
+        );
     });
 
     it('should fail with the error of the connection', async () => {
@@ -108,14 +135,18 @@ describe('fetchJSON', () => {
     describe('on a server error', () => {
         it('should not try again unless it is told to', async () => {
             const fetch = stubFetch(answer(503));
-            await expect(createSite().fetchJSON('https://site.test/api')).rejects.toThrow('(status: 503)');
+            await expect(createSite().fetchJSON('https://site.test/api')).rejects.toThrow(
+                '(status: 503)',
+            );
             expect(fetch).toHaveBeenCalledTimes(1);
         });
 
         it('should wait and try again, as often as it is told to, and hand out the answer that works', async () => {
             const fetch = stubFetch(answer(503), answer(500), json({ ok: true }));
             const connector = createSite();
-            await expect(connector.fetchJSON('https://site.test/api', 2)).resolves.toEqual({ ok: true });
+            await expect(connector.fetchJSON('https://site.test/api', 2)).resolves.toEqual({
+                ok: true,
+            });
             expect(fetch).toHaveBeenCalledTimes(3);
             expect(connector.wait).toHaveBeenCalledTimes(2);
             // long enough to give the server time, short enough to keep the user waiting
@@ -124,26 +155,40 @@ describe('fetchJSON', () => {
         });
 
         it('should give up after the last attempt with the status of the last answer', async () => {
-            const fetch = stubFetch(answer(500, '', { statusText: 'first' }), answer(502, '', { statusText: 'second' }), answer(503, '', { statusText: 'third' }));
-            await expect(createSite().fetchJSON('https://site.test/api', 2)).rejects.toThrow('(status: 503) - third');
+            const fetch = stubFetch(
+                answer(500, '', { statusText: 'first' }),
+                answer(502, '', { statusText: 'second' }),
+                answer(503, '', { statusText: 'third' }),
+            );
+            await expect(createSite().fetchJSON('https://site.test/api', 2)).rejects.toThrow(
+                '(status: 503) - third',
+            );
             expect(fetch).toHaveBeenCalledTimes(3);
         });
 
-        it.each([ 400, 403, 404, 429 ])('should not try again when the status is %i', async status => {
-            const fetch = stubFetch(answer(status), json({ ok: true }));
-            await expect(createSite().fetchJSON('https://site.test/api', 3)).rejects.toThrow(`(status: ${status})`);
-            expect(fetch).toHaveBeenCalledTimes(1);
-        });
+        it.each([400, 403, 404, 429])(
+            'should not try again when the status is %i',
+            async (status) => {
+                const fetch = stubFetch(answer(status), json({ ok: true }));
+                await expect(createSite().fetchJSON('https://site.test/api', 3)).rejects.toThrow(
+                    `(status: ${status})`,
+                );
+                expect(fetch).toHaveBeenCalledTimes(1);
+            },
+        );
 
         it('should ask again only after the wait is over', async () => {
             const fetch = stubFetch(answer(503), json({ ok: true }));
             const connector = createSite();
             let over = null;
-            connector.wait = vi.fn(() => new Promise(resolve => {
-                over = resolve;
-            }));
+            connector.wait = vi.fn(
+                () =>
+                    new Promise((resolve) => {
+                        over = resolve;
+                    }),
+            );
             const pending = connector.fetchJSON('https://site.test/api', 1);
-            await new Promise(resolve => setTimeout(resolve, 0));
+            await new Promise((resolve) => setTimeout(resolve, 0));
             expect(fetch).toHaveBeenCalledTimes(1);
             over();
             await expect(pending).resolves.toEqual({ ok: true });
@@ -158,44 +203,67 @@ describe('fetchJSON', () => {
 
         it('should try again with a request that has a body', async () => {
             // like the real fetch(), this one uses up the body of the request
-            const fetch = vi.fn(async request => {
+            const fetch = vi.fn(async (request) => {
                 await request.text();
                 return fetch.mock.calls.length === 1 ? answer(503)() : json({ ok: true })();
             });
             vi.stubGlobal('fetch', fetch);
-            const request = new Request('https://site.test/api', { method: 'POST', body: JSON.stringify({ query: 'x' }) });
+            const request = new Request('https://site.test/api', {
+                method: 'POST',
+                body: JSON.stringify({ query: 'x' }),
+            });
             await expect(createSite().fetchJSON(request, 1)).resolves.toEqual({ ok: true });
         });
     });
 });
 
 describe('fetchGraphQL', () => {
-    const OPERATION = ['Mangas', 'query Mangas($page: Int) { mangas(page: $page) { id } }', { page: 2 }];
+    const OPERATION = [
+        'Mangas',
+        'query Mangas($page: Int) { mangas(page: $page) { id } }',
+        { page: 2 },
+    ];
 
     it('should post the operation as JSON and hand out the data of the answer', async () => {
         const fetch = stubFetch(json({ data: { mangas: [{ id: 1 }] } }));
         const data = await createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION);
         expect(data).toEqual({ mangas: [{ id: 1 }] });
         const request = sent(fetch);
-        expect(request).toMatchObject({ url: 'https://site.test/graphql', method: 'POST', mode: 'cors', credentials: 'same-origin', redirect: 'follow' });
+        expect(request).toMatchObject({
+            url: 'https://site.test/graphql',
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'same-origin',
+            redirect: 'follow',
+        });
         expect(request.headers.get('content-type')).toBe('application/json');
-        await expect(request.json()).resolves.toEqual({ operationName: 'Mangas', query: OPERATION[1], variables: { page: 2 } });
+        await expect(request.json()).resolves.toEqual({
+            operationName: 'Mangas',
+            query: OPERATION[1],
+            variables: { page: 2 },
+        });
     });
 
     it('should leave out the variables that are not there', async () => {
         const fetch = stubFetch(json({ data: {} }));
         await createSite().fetchGraphQL('https://site.test/graphql', 'Ping', '{ ping }');
-        await expect(sent(fetch).json()).resolves.toEqual({ operationName: 'Ping', query: '{ ping }' });
+        await expect(sent(fetch).json()).resolves.toEqual({
+            operationName: 'Ping',
+            query: '{ ping }',
+        });
     });
 
     it.each([
-        [ 'an address', () => new URL('https://site.test/graphql?lang=en') ],
-        [ 'a string', () => 'https://site.test/graphql?lang=en' ],
-        [ 'a request', () => new Request('https://site.test/graphql?lang=en') ]
+        ['an address', () => new URL('https://site.test/graphql?lang=en')],
+        ['a string', () => 'https://site.test/graphql?lang=en'],
+        ['a request', () => new Request('https://site.test/graphql?lang=en')],
     ])('should take %s for the endpoint', async (name, endpoint) => {
         const fetch = stubFetch(json({ data: {} }));
         await createSite().fetchGraphQL(endpoint(), ...OPERATION);
-        expect(sent(fetch)).toMatchObject({ url: 'https://site.test/graphql?lang=en', method: 'POST' });
+        expect(sent(fetch)).toMatchObject({
+            url: 'https://site.test/graphql?lang=en',
+            method: 'POST',
+        });
     });
 
     it('should send the headers of the connector and leave them as they are', async () => {
@@ -210,28 +278,44 @@ describe('fetchGraphQL', () => {
     });
 
     it('should fail with the messages of the errors that the answer reports', async () => {
-        stubFetch(json({ data: null, errors: [{ message: 'Not found' }, { message: 'Rate limited' }] }));
-        await expect(createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION)).rejects.toThrow(exactly('Site errors: Not found\nRate limited'));
+        stubFetch(
+            json({ data: null, errors: [{ message: 'Not found' }, { message: 'Rate limited' }] }),
+        );
+        await expect(
+            createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION),
+        ).rejects.toThrow(exactly('Site errors: Not found\nRate limited'));
     });
 
     it('should fail when the answer reports errors beside the data', async () => {
         stubFetch(json({ data: { mangas: [] }, errors: [{ message: 'Partial failure' }] }));
-        await expect(createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION)).rejects.toThrow('Partial failure');
+        await expect(
+            createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION),
+        ).rejects.toThrow('Partial failure');
     });
 
     it('should fail when the answer holds no data', async () => {
         stubFetch(json({}));
-        await expect(createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION)).rejects.toThrow(/^Site\W*No data available!$/);
+        await expect(
+            createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION),
+        ).rejects.toThrow(/^Site\W*No data available!$/);
     });
 
     it('should separate the name of the website from the message about the missing data', async () => {
         stubFetch(json({}));
-        await expect(createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION)).rejects.toThrow(/^Site\W+No data available!$/);
+        await expect(
+            createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION),
+        ).rejects.toThrow(/^Site\W+No data available!$/);
     });
 
     it('should fail with the status of the answer that is not 200', async () => {
         stubFetch(answer(502, 'Bad Gateway', { statusText: 'Bad Gateway' }));
-        await expect(createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION)).rejects.toThrow(exactly('Failed to receive content from "https://site.test/graphql" (status: 502) - Bad Gateway'));
+        await expect(
+            createSite().fetchGraphQL('https://site.test/graphql', ...OPERATION),
+        ).rejects.toThrow(
+            exactly(
+                'Failed to receive content from "https://site.test/graphql" (status: 502) - Bad Gateway',
+            ),
+        );
     });
 });
 
@@ -240,12 +324,16 @@ describe('fetchRegex', () => {
 
     it('should collect the first group of every match, in the order of the text', async () => {
         stubFetch(answer(200, TEXT, { type: 'text/plain' }));
-        await expect(createSite().fetchRegex('https://site.test/list', /chapter-(\d+)/g)).resolves.toEqual(['1', '22', '333']);
+        await expect(
+            createSite().fetchRegex('https://site.test/list', /chapter-(\d+)/g),
+        ).resolves.toEqual(['1', '22', '333']);
     });
 
     it('should find nothing when nothing matches', async () => {
         stubFetch(answer(200, TEXT));
-        await expect(createSite().fetchRegex('https://site.test/list', /volume-(\d+)/g)).resolves.toEqual([]);
+        await expect(
+            createSite().fetchRegex('https://site.test/list', /volume-(\d+)/g),
+        ).resolves.toEqual([]);
     });
 
     it('should ask for the request that it is given', async () => {
@@ -265,28 +353,49 @@ describe('fetchRegex', () => {
         expect(first).toHaveLength(3);
     });
 
-    it.each([ 'g', 'gi', 'gm', 'gs', 'gu', 'ig', 'mgi' ])('should take a pattern with the flags %s', async flags => {
-        stubFetch(answer(200, 'a1 A2'));
-        await expect(createSite().fetchRegex('https://site.test/', new RegExp('a(\\d)', flags))).resolves.not.toHaveLength(0);
-    });
+    it.each(['g', 'gi', 'gm', 'gs', 'gu', 'ig', 'mgi'])(
+        'should take a pattern with the flags %s',
+        async (flags) => {
+            stubFetch(answer(200, 'a1 A2'));
+            await expect(
+                createSite().fetchRegex('https://site.test/', new RegExp('a(\\d)', flags)),
+            ).resolves.not.toHaveLength(0);
+        },
+    );
 
-    it.each([ '', 'i', 'm', 'y', 'iy' ])('should refuse, and send nothing, for a pattern without the global flag (flags: "%s")', async flags => {
-        const fetch = stubFetch(answer(200, TEXT));
-        await expect(createSite().fetchRegex('https://site.test/list', new RegExp('chapter-(\\d+)', flags))).rejects.toThrow(exactly('The provided RegExp must contain the global "g" modifier!'));
-        expect(fetch).not.toHaveBeenCalled();
-    });
+    it.each(['', 'i', 'm', 'y', 'iy'])(
+        'should refuse, and send nothing, for a pattern without the global flag (flags: "%s")',
+        async (flags) => {
+            const fetch = stubFetch(answer(200, TEXT));
+            await expect(
+                createSite().fetchRegex(
+                    'https://site.test/list',
+                    new RegExp('chapter-(\\d+)', flags),
+                ),
+            ).rejects.toThrow(exactly('The provided RegExp must contain the global "g" modifier!'));
+            expect(fetch).not.toHaveBeenCalled();
+        },
+    );
 
-    it.each([ 'gd', 'dg', 'gv', 'vg' ])('should take a global pattern with the flags %s', async flags => {
-        stubFetch(answer(200, TEXT));
-        await expect(createSite().fetchRegex('https://site.test/list', new RegExp('chapter-(\\d+)', flags))).resolves.toEqual(['1', '22', '333']);
-    });
+    it.each(['gd', 'dg', 'gv', 'vg'])(
+        'should take a global pattern with the flags %s',
+        async (flags) => {
+            stubFetch(answer(200, TEXT));
+            await expect(
+                createSite().fetchRegex(
+                    'https://site.test/list',
+                    new RegExp('chapter-(\\d+)', flags),
+                ),
+            ).resolves.toEqual(['1', '22', '333']);
+        },
+    );
 
     it('should end for a pattern that can match nothing', async () => {
         stubFetch(answer(200, 'a1 b2'));
         const pattern = /(\d*)/g;
         const exec = pattern.exec.bind(pattern);
         let attempts = 0;
-        pattern.exec = text => {
+        pattern.exec = (text) => {
             if (++attempts > 1000) {
                 throw new Error('the loop does not end');
             }
@@ -297,7 +406,8 @@ describe('fetchRegex', () => {
 });
 
 describe('fetchPROTO', () => {
-    const SCHEMA = 'syntax = "proto3"; package rk; message Manga { string id = 1; string title = 2; repeated uint32 pages = 3; }';
+    const SCHEMA =
+        'syntax = "proto3"; package rk; message Manga { string id = 1; string title = 2; repeated uint32 pages = 3; }';
 
     function library(root) {
         globalThis.protobuf = { load: vi.fn(async () => root) };
@@ -307,20 +417,34 @@ describe('fetchPROTO', () => {
     it('should decode the answer as the message of the root type', async () => {
         const root = protobufjs.parse(SCHEMA).root;
         const lib = library(root);
-        const bytes = root.lookupType('rk.Manga').encode({ id: '/manga/1', title: '漫画 🙂', pages: [1, 2, 300] }).finish();
+        const bytes = root
+            .lookupType('rk.Manga')
+            .encode({ id: '/manga/1', title: '漫画 🙂', pages: [1, 2, 300] })
+            .finish();
         const fetch = stubFetch(() => new Response(bytes));
-        const result = await createSite().fetchPROTO('https://site.test/api', 'https://site.test/types.proto', 'rk.Manga');
+        const result = await createSite().fetchPROTO(
+            'https://site.test/api',
+            'https://site.test/types.proto',
+            'rk.Manga',
+        );
         expect(result).toEqual({ id: '/manga/1', title: '漫画 🙂', pages: [1, 2, 300] });
         expect(lib.load).toHaveBeenCalledWith('https://site.test/types.proto');
         expect(sent(fetch)).toBe('https://site.test/api');
     });
 
     it('should hand the bytes of the answer to the type and the message that it makes to its conversion', async () => {
-        const type = { decode: vi.fn(bytes => ({ decodedFrom: bytes })), toObject: vi.fn(message => ({ object: message })) };
+        const type = {
+            decode: vi.fn((bytes) => ({ decodedFrom: bytes })),
+            toObject: vi.fn((message) => ({ object: message })),
+        };
         const lookupType = vi.fn(() => type);
         globalThis.protobuf = { load: vi.fn(async () => ({ lookupType })) };
         stubFetch(() => new Response(new Uint8Array([1, 2, 3])));
-        const result = await createSite().fetchPROTO('https://site.test/api', 'types.proto', 'pkg.Root');
+        const result = await createSite().fetchPROTO(
+            'https://site.test/api',
+            'types.proto',
+            'pkg.Root',
+        );
         expect(lookupType).toHaveBeenCalledWith('pkg.Root');
         expect(type.decode).toHaveBeenCalledTimes(1);
         const bytes = type.decode.mock.calls[0][0];
@@ -334,13 +458,17 @@ describe('fetchPROTO', () => {
         const root = protobufjs.parse(SCHEMA).root;
         library(root);
         stubFetch(answer(200, '<html>Maintenance</html>', { type: 'text/html' }));
-        await expect(createSite().fetchPROTO('https://site.test/api', 'types.proto', 'rk.Manga')).rejects.toThrow();
+        await expect(
+            createSite().fetchPROTO('https://site.test/api', 'types.proto', 'rk.Manga'),
+        ).rejects.toThrow();
     });
 
     it('should fail, and ask for nothing, when the types cannot be loaded', async () => {
         globalThis.protobuf = { load: vi.fn().mockRejectedValue(new Error('HTTP 404')) };
         const fetch = stubFetch(answer(200));
-        await expect(createSite().fetchPROTO('https://site.test/api', 'types.proto', 'rk.Manga')).rejects.toThrow('HTTP 404');
+        await expect(
+            createSite().fetchPROTO('https://site.test/api', 'types.proto', 'rk.Manga'),
+        ).rejects.toThrow('HTTP 404');
         expect(fetch).not.toHaveBeenCalled();
     });
 
@@ -348,7 +476,9 @@ describe('fetchPROTO', () => {
         const root = protobufjs.parse(SCHEMA).root;
         library(root);
         const fetch = stubFetch(answer(200));
-        await expect(createSite().fetchPROTO('https://site.test/api', 'types.proto', 'rk.Unknown')).rejects.toThrow();
+        await expect(
+            createSite().fetchPROTO('https://site.test/api', 'types.proto', 'rk.Unknown'),
+        ).rejects.toThrow();
         expect(fetch).not.toHaveBeenCalled();
     });
 
@@ -356,13 +486,17 @@ describe('fetchPROTO', () => {
         const scripts = [];
         vi.stubGlobal('document', {
             createElement: () => ({ remove: vi.fn() }),
-            head: { append: script => {
-                scripts.push(script);
-                queueMicrotask(() => script.onerror());
-            } }
+            head: {
+                append: (script) => {
+                    scripts.push(script);
+                    queueMicrotask(() => script.onerror());
+                },
+            },
         });
         const fetch = stubFetch(answer(200));
-        await expect(createSite().fetchPROTO('https://site.test/api', 'types.proto', 'rk.Manga')).rejects.toThrow(exactly('Failed to load the protobuf library!'));
+        await expect(
+            createSite().fetchPROTO('https://site.test/api', 'types.proto', 'rk.Manga'),
+        ).rejects.toThrow(exactly('Failed to load the protobuf library!'));
         expect(scripts).toHaveLength(1);
         expect(fetch).not.toHaveBeenCalled();
     });
@@ -411,10 +545,16 @@ describe('the initialization through a fetch window', () => {
 
     it('should fail with the error of the window, and be done again the next time', async () => {
         const fetchUI = windows();
-        fetchUI.mockRejectedValueOnce(new Error('Failed to load "https://site.test/" within the given timeout of 60 seconds!'));
+        fetchUI.mockRejectedValueOnce(
+            new Error(
+                'Failed to load "https://site.test/" within the given timeout of 60 seconds!',
+            ),
+        );
         const connector = createSite();
         connector.initialized = false;
-        await expect(connector.initialize()).rejects.toThrow('within the given timeout of 60 seconds!');
+        await expect(connector.initialize()).rejects.toThrow(
+            'within the given timeout of 60 seconds!',
+        );
         expect(connector.initialized).toBe(false);
         await connector.initialize();
         expect(fetchUI).toHaveBeenCalledTimes(2);
@@ -432,10 +572,12 @@ describe('the initialization through a fetch window', () => {
 });
 
 describe('the images behind a connector:// address', () => {
-    const PNG = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0]);
+    const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
 
     it('should be fetched with the options of the connector and served with their type', async () => {
-        const fetch = stubFetch(() => new Response(PNG, { headers: { 'content-type': 'image/png' } }));
+        const fetch = stubFetch(
+            () => new Response(PNG, { headers: { 'content-type': 'image/png' } }),
+        );
         const connector = createSite();
         connector.requestOptions.headers.set('x-referer', 'https://site.test/manga/1');
         const image = await connector._handleConnectorURI('https://cdn.test/1.png');
@@ -447,7 +589,9 @@ describe('the images behind a connector:// address', () => {
     });
 
     it('should be served with the type that the data has, when the website says another one', async () => {
-        stubFetch(() => new Response(PNG, { headers: { 'content-type': 'application/octet-stream' } }));
+        stubFetch(
+            () => new Response(PNG, { headers: { 'content-type': 'application/octet-stream' } }),
+        );
         vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         const image = await createSite()._handleConnectorURI('https://cdn.test/1.png');
         expect(image.mimeType).toBe('image/png');
@@ -463,13 +607,17 @@ describe('the images behind a connector:// address', () => {
 
     it('should fail with the error of the connection', async () => {
         vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
-        await expect(createSite()._handleConnectorURI('https://cdn.test/1.png')).rejects.toThrow('fetch failed');
+        await expect(createSite()._handleConnectorURI('https://cdn.test/1.png')).rejects.toThrow(
+            'fetch failed',
+        );
     });
 
     it('should be reached through the address that the connector makes', async () => {
         stubFetch(() => new Response(PNG, { headers: { 'content-type': 'image/png' } }));
         const connector = createSite();
-        const image = await connector.handleConnectorURI(new URL(connector.createConnectorURI('https://cdn.test/a b.png?token=x&y=1')));
+        const image = await connector.handleConnectorURI(
+            new URL(connector.createConnectorURI('https://cdn.test/a b.png?token=x&y=1')),
+        );
         expect(image.mimeType).toBe('image/png');
         expect(fetch.mock.calls[0][0].url).toBe('https://cdn.test/a%20b.png?token=x&y=1');
     });
@@ -478,9 +626,15 @@ describe('the images behind a connector:// address', () => {
 describe('the requests that are counted for an update', () => {
     it('should not fail for a request that completes after the update is over', async () => {
         let complete = null;
-        vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => {
-            complete = () => resolve(json({})());
-        })));
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(
+                () =>
+                    new Promise((resolve) => {
+                        complete = () => resolve(json({})());
+                    }),
+            ),
+        );
         const connector = createSite();
         connector.isUpdating = true;
         const pending = connector.fetchJSON('https://site.test/api');
@@ -495,7 +649,11 @@ describe('the requests that are counted for an update', () => {
         const [first, second] = [createSite(), createSite()];
         first.isUpdating = true;
         second.isUpdating = true;
-        await Promise.all([first.fetchJSON('https://site.test/a'), first.fetchJSON('https://site.test/b'), second.fetchJSON('https://site.test/c')]);
+        await Promise.all([
+            first.fetchJSON('https://site.test/a'),
+            first.fetchJSON('https://site.test/b'),
+            second.fetchJSON('https://site.test/c'),
+        ]);
         expect(first.updateProgress.requests).toBe(2);
         expect(second.updateProgress.requests).toBe(1);
     });

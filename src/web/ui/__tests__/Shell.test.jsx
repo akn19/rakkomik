@@ -1,6 +1,13 @@
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import Shell from '../shell.jsx';
-import { addChapter, addManga, createConnector, createDownloadJob, installBridge, installEngine } from './support/fakeEngine.js';
+import {
+    addChapter,
+    addManga,
+    createConnector,
+    createDownloadJob,
+    installBridge,
+    installEngine,
+} from './support/fakeEngine.js';
 import { renderRouted } from './support/render.jsx';
 
 let engine = null;
@@ -53,7 +60,10 @@ describe('theme', () => {
         expect(frame().classList.contains('dark')).toBe(false);
     });
 
-    it.each([['dark', true], ['light', false]])('should prefer what was chosen (%s) to the operating system', async (stored, dark) => {
+    it.each([
+        ['dark', true],
+        ['light', false],
+    ])('should prefer what was chosen (%s) to the operating system', async (stored, dark) => {
         vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: !dark });
         window.localStorage.setItem('rakkomik.theme', stored);
         await renderShell();
@@ -81,7 +91,10 @@ describe('theme', () => {
         const blocked = () => {
             throw new Error('storage is blocked');
         };
-        vi.spyOn(window, 'localStorage', 'get').mockReturnValue({ getItem: blocked, setItem: blocked });
+        vi.spyOn(window, 'localStorage', 'get').mockReturnValue({
+            getItem: blocked,
+            setItem: blocked,
+        });
         await renderShell();
         expect(frame().classList.contains('dark')).toBe(true);
         fireEvent.click(screen.getByTitle('Toggle theme'));
@@ -116,7 +129,7 @@ describe('window buttons', () => {
         bridge.window.minimize.mockRejectedValueOnce(new Error('window is gone'));
         await renderShell();
         fireEvent.click(screen.getByTitle('Minimize window'));
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         process.off('unhandledRejection', unhandled);
         expect(unhandled).not.toHaveBeenCalled();
     });
@@ -261,7 +274,9 @@ describe('names and landmarks for the screen reader', () => {
         expect(button.getAttribute('aria-expanded')).toBe('false');
         fireEvent.click(button);
         expect(button.getAttribute('aria-expanded')).toBe('true');
-        expect(screen.getByRole('dialog', { name: 'Menu' }).id).toBe(button.getAttribute('aria-controls'));
+        expect(screen.getByRole('dialog', { name: 'Menu' }).id).toBe(
+            button.getAttribute('aria-controls'),
+        );
     });
 
     it('should make what the menu covers inert while it is open: the panels, the download bar and its own button', async () => {
@@ -269,13 +284,25 @@ describe('names and landmarks for the screen reader', () => {
         const covered = () => [
             screen.getByRole('navigation', { name: 'Application menu' }),
             screen.getByRole('region', { name: 'Manga List' }).parentElement,
-            screen.getByRole('region', { name: 'Downloads' })
+            screen.getByRole('region', { name: 'Downloads' }),
         ];
-        expect(covered().map(element => element.hasAttribute('inert'))).toEqual([false, false, false]);
+        expect(covered().map((element) => element.hasAttribute('inert'))).toEqual([
+            false,
+            false,
+            false,
+        ]);
         fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
-        expect(covered().map(element => element.hasAttribute('inert'))).toEqual([true, true, true]);
+        expect(covered().map((element) => element.hasAttribute('inert'))).toEqual([
+            true,
+            true,
+            true,
+        ]);
         fireEvent.keyDown(window, { key: 'Escape' });
-        expect(covered().map(element => element.hasAttribute('inert'))).toEqual([false, false, false]);
+        expect(covered().map((element) => element.hasAttribute('inert'))).toEqual([
+            false,
+            false,
+            false,
+        ]);
     });
 
     it('should give the menu the focus when it opens, and the focus back to its button when it closes', async () => {
@@ -297,6 +324,8 @@ describe('names and landmarks for the screen reader', () => {
         expect(screen.getByRole('region', { name: 'Chapter List' })).toBeTruthy();
         expect(screen.getByRole('region', { name: 'Downloads' })).toBeTruthy();
         expect(screen.getByRole('main')).toBeTruthy();
-        expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Manga List', 'Chapter List']);
+        expect(
+            screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+        ).toEqual(['Manga List', 'Chapter List']);
     });
 });

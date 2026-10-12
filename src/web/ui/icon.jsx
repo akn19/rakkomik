@@ -54,7 +54,7 @@ import {
     SquareArrowOutUpRight,
     Tags,
     ZoomIn,
-    ZoomOut
+    ZoomOut,
 } from 'lucide-react';
 
 /**
@@ -120,7 +120,7 @@ const ICONS = {
     star: Star,
     streetView: PersonStanding,
     sun: Sun,
-    warning: TriangleAlert
+    warning: TriangleAlert,
 };
 
 export default function Icon({ name, size, filled, spin, className }) {

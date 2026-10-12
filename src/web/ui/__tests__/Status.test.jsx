@@ -9,7 +9,9 @@ describe('status line', () => {
     });
 
     it('should show a spinner, which names the running task in its tooltip, while it is busy', () => {
-        const { container } = render(<StatusLine message="Updating…" busy busyTitle="Loading manga list (Site)" />);
+        const { container } = render(
+            <StatusLine message="Updating…" busy busyTitle="Loading manga list (Site)" />,
+        );
         expect(screen.getByText('Updating…')).toBeTruthy();
         expect(screen.getByTitle('Loading manga list (Site)')).toBeTruthy();
         expect(container.querySelector('svg').classList.contains('animate-spin')).toBe(true);

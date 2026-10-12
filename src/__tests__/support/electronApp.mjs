@@ -19,17 +19,29 @@ export const SEED_TITLES = 10389;
 function seedProfile(userDirectory) {
     const mangas = path.join(userDirectory, 'mangas');
     fs.mkdirSync(mangas, { recursive: true });
-    fs.writeFileSync(path.join(userDirectory, 'hakuneko.settings'), JSON.stringify({
-        baseDirectory: mangas,
-        bookmarkDirectory: userDirectory
-    }));
-    const titles = ['The Father and the Daughter', 'One Piece', 'Solo Leveling', 'Tower of God', 'Omniscient Reader', 'Kimetsu no Yaiba', 'Jujutsu Kaisen', 'Chainsaw Man'];
+    fs.writeFileSync(
+        path.join(userDirectory, 'hakuneko.settings'),
+        JSON.stringify({
+            baseDirectory: mangas,
+            bookmarkDirectory: userDirectory,
+        }),
+    );
+    const titles = [
+        'The Father and the Daughter',
+        'One Piece',
+        'Solo Leveling',
+        'Tower of God',
+        'Omniscient Reader',
+        'Kimetsu no Yaiba',
+        'Jujutsu Kaisen',
+        'Chainsaw Man',
+    ];
     for (let index = 1; titles.length < SEED_TITLES; index++) {
         titles.push(`Sample Manga ${String(index).padStart(5, '0')}`);
     }
     fs.writeFileSync(
         path.join(userDirectory, `hakuneko.mangas.${SEED_CONNECTOR}`),
-        JSON.stringify(titles.map((title, index) => ({ id: `/manga/${index}`, title })))
+        JSON.stringify(titles.map((title, index) => ({ id: `/manga/${index}`, title }))),
     );
 }
 
@@ -39,17 +51,20 @@ async function startApplication(web) {
     const electronApp = await electron.launch({
         executablePath: packagedExecutable || electronPath,
         args: [
-            ...(packagedExecutable ? [] : [ '.' ]),
+            ...(packagedExecutable ? [] : ['.']),
             '--update-url=DISABLED',
             `--cache-directory=${web}`,
-            `--user-directory=${userDirectory}`
+            `--user-directory=${userDirectory}`,
         ],
-        cwd: root
+        cwd: root,
     });
     const page = await electronApp.firstWindow();
     const external = [];
-    page.on('request', request => {
-        if (!/^(hakuneko|connector|data|blob|devtools|chrome-extension):/.test(request.url()) && !/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(request.url())) {
+    page.on('request', (request) => {
+        if (
+            !/^(hakuneko|connector|data|blob|devtools|chrome-extension):/.test(request.url()) &&
+            !/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(request.url())
+        ) {
             external.push(request.url());
         }
     });
@@ -61,8 +76,11 @@ async function startApplication(web) {
 
 async function stopApplication({ electronApp, userDirectory }) {
     // the window only quits once the UI answers the close request: do not hang on a broken UI
-    const closed = electronApp.close().then(() => true, () => true);
-    const forced = new Promise(resolve => setTimeout(() => resolve(false), 8000));
+    const closed = electronApp.close().then(
+        () => true,
+        () => true,
+    );
+    const forced = new Promise((resolve) => setTimeout(() => resolve(false), 8000));
     if (!(await Promise.race([closed, forced]))) {
         electronApp.process().kill('SIGKILL');
     }
@@ -71,11 +89,14 @@ async function stopApplication({ electronApp, userDirectory }) {
 
 export const test = base.extend({
     // One application per worker: the Electron start is the expensive part.
-    app: [async ({}, use) => {
-        const app = await startApplication(webDirectory);
-        await use(app);
-        await stopApplication(app);
-    }, { scope: 'worker' }],
+    app: [
+        async ({}, use) => {
+            const app = await startApplication(webDirectory);
+            await use(app);
+            await stopApplication(app);
+        },
+        { scope: 'worker' },
+    ],
 
     // For tests that change files under a running window: an application of its own, on its own copy of the web part.
     isolatedApp: async ({}, use) => {
@@ -89,7 +110,7 @@ export const test = base.extend({
 
     page: async ({ app }, use) => {
         await use(app.page);
-    }
+    },
 });
 
 /**

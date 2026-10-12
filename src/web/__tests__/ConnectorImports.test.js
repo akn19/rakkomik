@@ -8,7 +8,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..', 'mjs');
 
 function walk(directory) {
-    return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
         const full = path.join(directory, entry.name);
         return entry.isDirectory() ? walk(full) : full.endsWith('.mjs') ? [full] : [];
     });
@@ -30,7 +30,7 @@ describe('connector and engine imports', () => {
     it('should resolve every relative import with its exact spelling', () => {
         const broken = [];
         // `@Samples.mjs` is a copy-and-paste template: its imports are relative to the connectors folder it is copied to
-        for (const file of walk(root).filter(entry => path.basename(entry) !== '@Samples.mjs')) {
+        for (const file of walk(root).filter((entry) => path.basename(entry) !== '@Samples.mjs')) {
             const source = fs.readFileSync(file, 'utf8');
             for (const match of source.matchAll(/^\s*import\s[^;]*?from\s+['"](\.[^'"]+)['"]/gm)) {
                 const target = path.resolve(path.dirname(file), match[1]);

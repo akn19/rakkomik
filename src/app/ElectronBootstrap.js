@@ -11,7 +11,6 @@ const trayTooltipMinimize = 'RakKomik\nClick to hide window';
 const trayTooltipRestore = 'RakKomik\nClick to show window';
 
 module.exports = class ElectronBootstrap {
-
     constructor(configuration, logger) {
         this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
         this._configuration = configuration;
@@ -25,8 +24,8 @@ module.exports = class ElectronBootstrap {
                     secure: true,
                     standard: true,
                     supportFetchAPI: true,
-                    corsEnabled: true
-                }
+                    corsEnabled: true,
+                },
             },
             // NOTE: connector:// needs secure:true — fetch() from the secure
             // app scheme to a non-secure scheme is blocked as mixed content.
@@ -36,13 +35,13 @@ module.exports = class ElectronBootstrap {
                     secure: true,
                     standard: true,
                     supportFetchAPI: true,
-                    corsEnabled: true
-                }
-            }
+                    corsEnabled: true,
+                },
+            },
         ];
         this._directoryMap = {
-            'cache': this._configuration.applicationCacheDirectory,
-            'plugins': this._configuration.applicationUserPluginsDirectory
+            cache: this._configuration.applicationCacheDirectory,
+            plugins: this._configuration.applicationUserPluginsDirectory,
         };
         this._appIcon;
         this._minimizeToTray = false; // only supported when tray is shown
@@ -63,8 +62,13 @@ module.exports = class ElectronBootstrap {
         // One user agent for everything (renderer fetch(), hidden fetch windows, navigator.userAgent):
         // Chromium's own, without the Electron and application product tokens that websites do not
         // know. Cookies granted by anti-bot interstitials are bound to the user agent that earned them.
-        const products = [ 'Electron', electron.app.name ].map(name => RegExp.escape(name)).join('|');
-        electron.app.userAgentFallback = electron.app.userAgentFallback.replace(new RegExp(` (?:${products})/\\S+`, 'g'), '');
+        const products = ['Electron', electron.app.name]
+            .map((name) => RegExp.escape(name))
+            .join('|');
+        electron.app.userAgentFallback = electron.app.userAgentFallback.replace(
+            new RegExp(` (?:${products})/\\S+`, 'g'),
+            '',
+        );
 
         // update userdata path (e.g. for portable version)
         electron.app.setPath('userData', this._configuration.applicationUserDataDirectory);
@@ -83,7 +87,7 @@ module.exports = class ElectronBootstrap {
         electron.app.on('login', (event, webContents, request, authInfo, callback) => {
             event.preventDefault();
             this._provideLoginCredentials(authInfo)
-                .then(credentials => credentials ? callback(...credentials) : callback())
+                .then((credentials) => (credentials ? callback(...credentials) : callback()))
                 .catch(() => callback());
         });
         electron.app.on('activate', this._createWindow.bind(this));
@@ -91,7 +95,14 @@ module.exports = class ElectronBootstrap {
         electron.app.on('certificate-error', this._certificateErrorHandler.bind(this));
 
         await electron.app.whenReady();
-        this._appIcon = electron.nativeImage.createFromPath(path.join(this._configuration.applicationCacheDirectory, 'img', 'tray', process.platform === 'win32' ? 'logo.ico' : 'logo.png'));
+        this._appIcon = electron.nativeImage.createFromPath(
+            path.join(
+                this._configuration.applicationCacheDirectory,
+                'img',
+                'tray',
+                process.platform === 'win32' ? 'logo.ico' : 'logo.png',
+            ),
+        );
         this._registerCacheProtocol();
         this._registerConnectorProtocol();
         this._registerPermissionHandler();
@@ -104,43 +115,43 @@ module.exports = class ElectronBootstrap {
     // Extensionless connector icons fall back to application/octet-stream
     // (still rendered by <img>).
     _mimeType(file) {
-        if(file.endsWith('.mjs') || file.endsWith('.js')) {
+        if (file.endsWith('.mjs') || file.endsWith('.js')) {
             return 'text/javascript';
         }
-        if(file.endsWith('.html')) {
+        if (file.endsWith('.html')) {
             return 'text/html';
         }
-        if(file.endsWith('.css')) {
+        if (file.endsWith('.css')) {
             return 'text/css';
         }
-        if(file.endsWith('.json') || file.endsWith('.map')) {
+        if (file.endsWith('.json') || file.endsWith('.map')) {
             return 'application/json';
         }
-        if(file.endsWith('.png')) {
+        if (file.endsWith('.png')) {
             return 'image/png';
         }
-        if(file.endsWith('.jpg') || file.endsWith('.jpeg')) {
+        if (file.endsWith('.jpg') || file.endsWith('.jpeg')) {
             return 'image/jpeg';
         }
-        if(file.endsWith('.gif')) {
+        if (file.endsWith('.gif')) {
             return 'image/gif';
         }
-        if(file.endsWith('.webp')) {
+        if (file.endsWith('.webp')) {
             return 'image/webp';
         }
-        if(file.endsWith('.avif')) {
+        if (file.endsWith('.avif')) {
             return 'image/avif';
         }
-        if(file.endsWith('.bmp')) {
+        if (file.endsWith('.bmp')) {
             return 'image/bmp';
         }
-        if(file.endsWith('.svg')) {
+        if (file.endsWith('.svg')) {
             return 'image/svg+xml';
         }
-        if(file.endsWith('.ico')) {
+        if (file.endsWith('.ico')) {
             return 'image/x-icon';
         }
-        if(file.endsWith('.woff2')) {
+        if (file.endsWith('.woff2')) {
             return 'font/woff2';
         }
         return 'application/octet-stream';
@@ -150,7 +161,7 @@ module.exports = class ElectronBootstrap {
      *
      */
     _registerCacheProtocol() {
-        electron.protocol.handle(this._configuration.applicationProtocol, async request => {
+        electron.protocol.handle(this._configuration.applicationProtocol, async (request) => {
             try {
                 let uri = new URL(request.url);
                 // the file is named by the decoded path (a space is `%20` in the URL). It is decoded before it is normalized,
@@ -161,26 +172,33 @@ module.exports = class ElectronBootstrap {
                 } catch {
                     return new Response('Bad Request', { status: 400 });
                 }
-                let endpoint = path.join(this._directoryMap[uri.hostname], path.normalize(pathname));
+                let endpoint = path.join(
+                    this._directoryMap[uri.hostname],
+                    path.normalize(pathname),
+                );
                 // NOTE: cross-scheme consumers (connector:// images, fetch windows)
                 // require explicit CORS headers on modern Chromium.
                 let cors = { 'Access-Control-Allow-Origin': '*' };
                 let stats = null;
                 try {
                     stats = await fs.promises.stat(endpoint);
-                } catch(error) {
-                    if(error.code === 'ENOENT' || error.code === 'ENOTDIR') {
+                } catch (error) {
+                    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
                         return new Response('Not Found', { status: 404 });
                     }
                     throw error;
                 }
-                if(stats.isDirectory()) {
+                if (stats.isDirectory()) {
                     let buffer = Buffer.from(JSON.stringify(await fs.promises.readdir(endpoint)));
-                    return new Response(buffer, { headers: { ...cors, 'Content-Type': 'application/json' } });
+                    return new Response(buffer, {
+                        headers: { ...cors, 'Content-Type': 'application/json' },
+                    });
                 }
                 let buffer = await fs.promises.readFile(endpoint);
-                return new Response(buffer, { headers: { ...cors, 'Content-Type': this._mimeType(endpoint) } });
-            } catch(error) {
+                return new Response(buffer, {
+                    headers: { ...cors, 'Content-Type': this._mimeType(endpoint) },
+                });
+            } catch (error) {
                 this._logger.warn(error);
                 return new Response('Internal Error', { status: 500 });
             }
@@ -188,17 +206,24 @@ module.exports = class ElectronBootstrap {
     }
 
     _registerConnectorProtocol() {
-        electron.protocol.handle(this._configuration.connectorProtocol, async request => {
+        electron.protocol.handle(this._configuration.connectorProtocol, async (request) => {
             try {
                 // Only the URL is serializable (the legacy handler received the
                 // whole request object via remote); the renderer only uses it.
-                let result = await this._ipcSend('on-connector-protocol-handler', { url: request.url });
+                let result = await this._ipcSend('on-connector-protocol-handler', {
+                    url: request.url,
+                });
                 let cors = { 'Access-Control-Allow-Origin': '*' };
-                if(!result || !result.data) {
+                if (!result || !result.data) {
                     return new Response('Not Found', { status: 404, headers: cors });
                 }
-                return new Response(result.data, { headers: { ...cors, 'Content-Type': result.mimeType || 'application/octet-stream' } });
-            } catch(error) {
+                return new Response(result.data, {
+                    headers: {
+                        ...cors,
+                        'Content-Type': result.mimeType || 'application/octet-stream',
+                    },
+                });
+            } catch (error) {
                 this._logger.warn(error);
                 return new Response('Not Found', { status: 404 });
             }
@@ -211,9 +236,11 @@ module.exports = class ElectronBootstrap {
      * a text copied to the clipboard
      */
     _registerPermissionHandler() {
-        electron.session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-            callback(permissionsGranted.includes(permission));
-        });
+        electron.session.defaultSession.setPermissionRequestHandler(
+            (webContents, permission, callback) => {
+                callback(permissionsGranted.includes(permission));
+            },
+        );
     }
 
     /**
@@ -223,7 +250,7 @@ module.exports = class ElectronBootstrap {
     async _provideLoginCredentials(authInfo) {
         try {
             return await this._ipcSend('login', authInfo);
-        } catch(error) {
+        } catch (error) {
             this._logger.warn(error);
             return null;
         }
@@ -248,15 +275,15 @@ module.exports = class ElectronBootstrap {
                     { role: 'togglefullscreen' },
                     {
                         role: 'toggleDevTools',
-                        accelerator: 'F12'
+                        accelerator: 'F12',
                     },
                     { type: 'separator' },
                     // the size of the text (WCAG 1.4.4): Control + and - zoom the window, Control 0 resets it; the
                     // reader takes the keys while it reads (it spaces its pages with them)
                     { role: 'zoomIn' },
                     { role: 'zoomOut' },
-                    { role: 'resetZoom' }
-                ]
+                    { role: 'resetZoom' },
+                ],
             },
             {
                 role: 'editMenu',
@@ -272,18 +299,18 @@ module.exports = class ElectronBootstrap {
                     {
                         label: 'Copy URL',
                         accelerator: 'Shift+C',
-                        click: this._copyURL.bind(this)
+                        click: this._copyURL.bind(this),
                     },
                     {
                         label: 'Paste URL',
                         accelerator: 'Shift+V',
-                        click: this._pasteURL.bind(this)
-                    }
-                ]
-            }
+                        click: this._pasteURL.bind(this),
+                    },
+                ],
+            },
         ];
 
-        if(process.platform === 'darwin') {
+        if (process.platform === 'darwin') {
             menu[0].submenu.push({ type: 'separator' });
             menu[0].submenu.push({ role: 'quit' });
         }
@@ -295,7 +322,7 @@ module.exports = class ElectronBootstrap {
      *
      */
     _copyURL(menu, window) {
-        if(window !== this._window) {
+        if (window !== this._window) {
             electron.clipboard.writeText(window.webContents.getURL());
         }
     }
@@ -304,7 +331,7 @@ module.exports = class ElectronBootstrap {
      *
      */
     _pasteURL(menu, window) {
-        if(window !== this._window) {
+        if (window !== this._window) {
             window.webContents.loadURL(electron.clipboard.readText());
         }
     }
@@ -321,33 +348,33 @@ module.exports = class ElectronBootstrap {
      * @param {bool} showTray
      */
     _setupTray(showTray) {
-        if(showTray) {
+        if (showTray) {
             let menu = [
                 {
                     label: 'Minimize to Tray',
                     //enabled: true,
                     click: () => {
-                        if(process.platform === 'darwin') {
+                        if (process.platform === 'darwin') {
                             electron.app.dock.hide();
                         }
                         this._window.hide();
                         //item.enabled = false;
-                    }
+                    },
                 },
                 {
                     label: 'Restore from Tray',
                     //enabled: false,
                     click: () => {
-                        if(process.platform === 'darwin') {
+                        if (process.platform === 'darwin') {
                             electron.app.dock.show();
                         }
                         this._window.show();
                         //item.enabled = false;
-                    }
+                    },
                 },
                 {
                     role: 'quit',
-                }
+                },
             ];
             this._tray = new electron.Tray(this._appIcon);
             this._tray.setContextMenu(electron.Menu.buildFromTemplate(menu));
@@ -362,10 +389,22 @@ module.exports = class ElectronBootstrap {
      */
     _rendererBootstrap() {
         const paths = {};
-        for(const name of [ 'home', 'appData', 'userData', 'sessionData', 'temp', 'desktop', 'documents', 'downloads', 'music', 'pictures', 'videos' ]) {
+        for (const name of [
+            'home',
+            'appData',
+            'userData',
+            'sessionData',
+            'temp',
+            'desktop',
+            'documents',
+            'downloads',
+            'music',
+            'pictures',
+            'videos',
+        ]) {
             try {
                 paths[name] = electron.app.getPath(name);
-            } catch(error) {
+            } catch (error) {
                 // e.g. no documents directory on some systems (Settings falls back)
                 this._logger.warn(error);
             }
@@ -375,7 +414,7 @@ module.exports = class ElectronBootstrap {
             // the engine reads the portable flag under this key of the bridge's `env`
             env: { HAKUNEKO_PORTABLE: process.env.RAKKOMIK_PORTABLE },
             tmpdir: os.tmpdir(),
-            paths
+            paths,
         };
     }
 
@@ -383,7 +422,7 @@ module.exports = class ElectronBootstrap {
      *
      */
     _createWindow() {
-        if(this._window) {
+        if (this._window) {
             return;
         }
 
@@ -399,10 +438,13 @@ module.exports = class ElectronBootstrap {
                 nodeIntegration: false,
                 contextIsolation: true, // the renderer is de-privileged: the preload bridge is all it has
                 preload: path.join(__dirname, 'preload.js'),
-                additionalArguments: [ '--rakkomik-bootstrap=' + encodeURIComponent(JSON.stringify(this._rendererBootstrap())) ],
-                webSecurity: false // required to open local images in browser
+                additionalArguments: [
+                    '--rakkomik-bootstrap=' +
+                        encodeURIComponent(JSON.stringify(this._rendererBootstrap())),
+                ],
+                webSecurity: false, // required to open local images in browser
             },
-            frame: false
+            frame: false,
         });
 
         this._setupBeforeSendHeaders();
@@ -445,7 +487,7 @@ module.exports = class ElectronBootstrap {
      * @param {*} evt
      */
     _mainWindowNavigateHandler(evt) {
-        if(!evt.url.startsWith(this._configuration.applicationProtocol + ':')) {
+        if (!evt.url.startsWith(this._configuration.applicationProtocol + ':')) {
             evt.preventDefault();
         }
     }
@@ -464,7 +506,7 @@ module.exports = class ElectronBootstrap {
      */
     _mainWindowQuitHandler() {
         // a second quit (the renderer sends it twice) finds the window gone
-        if(!this._window) {
+        if (!this._window) {
             return;
         }
         this._tray && this._tray.destroy();
@@ -481,7 +523,7 @@ module.exports = class ElectronBootstrap {
      */
     _mainWindowClosedHandler() {
         // close all existing windows
-        electron.BrowserWindow.getAllWindows().forEach(window => window.close());
+        electron.BrowserWindow.getAllWindows().forEach((window) => window.close());
         this._window = null;
     }
 
@@ -489,7 +531,7 @@ module.exports = class ElectronBootstrap {
      *
      */
     _mainWindowRestoreHandler() {
-        if(this._tray && this._showTray) {
+        if (this._tray && this._showTray) {
             this._tray.setToolTip(trayTooltipMinimize);
         }
     }
@@ -499,9 +541,9 @@ module.exports = class ElectronBootstrap {
      * @param {*} evt
      */
     _mainWindowMinimizeHandler(evt) {
-        if(this._tray && this._showTray) {
+        if (this._tray && this._showTray) {
             this._tray.setToolTip(trayTooltipRestore);
-            if(this._minimizeToTray) {
+            if (this._minimizeToTray) {
                 this._window.hide();
                 evt.preventDefault();
             }
@@ -513,18 +555,20 @@ module.exports = class ElectronBootstrap {
          * inject javascript: looks stupid, but is a working solution to call a function which returns data
          * directly within the render process (without dealing with ipcRenderer)
          */
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
             /*
              * prevent from injecting javascript into the webpage while the webcontent is not yet ready
              * => required for loading initial page over http protocol (e.g. local hosted test page)
              */
-            if(this._window && this._window.webContents && !this._window.webContents.isLoading()) {
+            if (this._window && this._window.webContents && !this._window.webContents.isLoading()) {
                 let responseChannelID = '' + Date.now() + Math.random();
                 this._window.webContents.send(channel, responseChannelID, payload);
                 // TODO: set timeout and remove listener in case no answer is received ...
                 electron.ipcMain.once(responseChannelID, (event, data) => resolve(data));
             } else {
-                throw new Error(`Cannot call remote channel "${channel}" while web-application is not yet ready!`);
+                throw new Error(
+                    `Cannot call remote channel "${channel}" while web-application is not yet ready!`,
+                );
             }
         });
     }
@@ -535,41 +579,53 @@ module.exports = class ElectronBootstrap {
         // Electron an async webRequest listener hangs every request before
         // the hook even fires (verified live on Electron 44).
         const surgery = new HeaderSurgery(electron.app.userAgentFallback);
-        electron.session.defaultSession.webRequest.onBeforeSendHeaders(urlFilterAll, (details, callback) => {
-            try {
-                callback({
-                    cancel: false,
-                    requestHeaders: surgery.applyBeforeSendHeaders(details.url, details.requestHeaders)
-                });
-            } catch(error) {
-                this._logger.warn(error);
-                callback({
-                    cancel: false,
-                    requestHeaders: details.requestHeaders
-                });
-            }
-        });
+        electron.session.defaultSession.webRequest.onBeforeSendHeaders(
+            urlFilterAll,
+            (details, callback) => {
+                try {
+                    callback({
+                        cancel: false,
+                        requestHeaders: surgery.applyBeforeSendHeaders(
+                            details.url,
+                            details.requestHeaders,
+                        ),
+                    });
+                } catch (error) {
+                    this._logger.warn(error);
+                    callback({
+                        cancel: false,
+                        requestHeaders: details.requestHeaders,
+                    });
+                }
+            },
+        );
         this._headerSurgery = surgery;
     }
 
     _setupHeadersReceived() {
         // See _setupBeforeSendHeaders for why this stays synchronous.
         const surgery = this._headerSurgery || new HeaderSurgery(electron.app.userAgentFallback);
-        electron.session.defaultSession.webRequest.onHeadersReceived(urlFilterAll, (details, callback) => {
-            try {
-                callback({
-                    cancel: false,
-                    responseHeaders: surgery.applyHeadersReceived(details.url, details.responseHeaders)
-                    // statusLine
-                });
-            } catch(error) {
-                this._logger.warn(error);
-                callback({
-                    cancel: false,
-                    responseHeaders: details.responseHeaders
-                    // statusLine
-                });
-            }
-        });
+        electron.session.defaultSession.webRequest.onHeadersReceived(
+            urlFilterAll,
+            (details, callback) => {
+                try {
+                    callback({
+                        cancel: false,
+                        responseHeaders: surgery.applyHeadersReceived(
+                            details.url,
+                            details.responseHeaders,
+                        ),
+                        // statusLine
+                    });
+                } catch (error) {
+                    this._logger.warn(error);
+                    callback({
+                        cancel: false,
+                        responseHeaders: details.responseHeaders,
+                        // statusLine
+                    });
+                }
+            },
+        );
     }
 };

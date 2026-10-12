@@ -7,7 +7,6 @@ const fs = require('node:fs');
  * Uint8Array (structured clone).
  */
 module.exports = class FsBridge {
-
     constructor(logger) {
         this._logger = logger;
     }
@@ -30,16 +29,16 @@ module.exports = class FsBridge {
             return fs.promises.unlink(path).then(() => undefined);
         });
         electron.ipcMain.handle('rakkomik:fs:readFile', (event, path, encoding) => {
-            return fs.promises.readFile(path, encoding || undefined).then(data => {
+            return fs.promises.readFile(path, encoding || undefined).then((data) => {
                 return typeof data === 'string' ? data : new Uint8Array(data);
             });
         });
         electron.ipcMain.handle('rakkomik:fs:stat', (event, path) => {
-            return fs.promises.stat(path).then(stats => {
+            return fs.promises.stat(path).then((stats) => {
                 return {
                     isDirectory: stats.isDirectory(),
                     isFile: stats.isFile(),
-                    size: stats.size
+                    size: stats.size,
                 };
             });
         });

@@ -13,7 +13,10 @@ afterEach(() => {
 });
 
 function html(status, headers, body = '<html></html>') {
-    return new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8', ...headers } });
+    return new Response(body, {
+        status,
+        headers: { 'content-type': 'text/html; charset=utf-8', ...headers },
+    });
 }
 
 /**
@@ -24,11 +27,11 @@ function fakeDocument({ title = '', elements = {}, hostname = 'example.org' } = 
     return {
         title,
         location: { hostname },
-        querySelector: selector => {
-            const wanted = selector.split(',').map(part => part.trim());
-            const key = Object.keys(elements).find(known => wanted.includes(known));
+        querySelector: (selector) => {
+            const wanted = selector.split(',').map((part) => part.trim());
+            const key = Object.keys(elements).find((known) => wanted.includes(known));
             return key === undefined ? null : { textContent: elements[key] };
-        }
+        },
     };
 }
 
@@ -36,58 +39,134 @@ describe('isChallengeResponse', () => {
     const { isChallengeResponse } = () => AntiScraping;
 
     it('should trust the cf-mitigated header whatever else the response says', () => {
-        expect(AntiScraping.isChallengeResponse(new Response('{}', { status: 403, headers: { 'cf-mitigated': 'challenge', 'content-type': 'application/json' } }))).toBe(true);
+        expect(
+            AntiScraping.isChallengeResponse(
+                new Response('{}', {
+                    status: 403,
+                    headers: { 'cf-mitigated': 'challenge', 'content-type': 'application/json' },
+                }),
+            ),
+        ).toBe(true);
     });
 
     it('should recognize challenge-like HTML answers of known services and confirm them with the body', () => {
         expect(AntiScraping.isChallengeResponse(html(503, { server: 'cloudflare' }))).toBe(true);
-        expect(AntiScraping.isChallengeResponse(html(503, { server: 'cloudflare' }), '<div id="challenge-running"></div>')).toBe(true);
-        expect(AntiScraping.isChallengeResponse(html(503, { server: 'cloudflare' }), '<h1>Maintenance</h1>')).toBe(false);
+        expect(
+            AntiScraping.isChallengeResponse(
+                html(503, { server: 'cloudflare' }),
+                '<div id="challenge-running"></div>',
+            ),
+        ).toBe(true);
+        expect(
+            AntiScraping.isChallengeResponse(
+                html(503, { server: 'cloudflare' }),
+                '<h1>Maintenance</h1>',
+            ),
+        ).toBe(false);
         expect(AntiScraping.isChallengeResponse(html(403, { server: 'ddos-guard' }))).toBe(true);
     });
 
     it('should leave ordinary responses alone', () => {
         expect(AntiScraping.isChallengeResponse(html(200, { server: 'cloudflare' }))).toBe(false);
-        expect(AntiScraping.isChallengeResponse(new Response('{}', { status: 403, headers: { server: 'cloudflare', 'content-type': 'application/json' } }))).toBe(false);
+        expect(
+            AntiScraping.isChallengeResponse(
+                new Response('{}', {
+                    status: 403,
+                    headers: { server: 'cloudflare', 'content-type': 'application/json' },
+                }),
+            ),
+        ).toBe(false);
         expect(AntiScraping.isChallengeResponse(html(503, { server: 'nginx' }))).toBe(false);
         expect(AntiScraping.isChallengeResponse(html(404, { server: 'cloudflare' }))).toBe(false);
     });
 });
 
 describe('detectChallengeInPage', () => {
-    const detect = options => AntiScraping.detectChallengeInPage(fakeDocument(options));
+    const detect = (options) => AntiScraping.detectChallengeInPage(fakeDocument(options));
 
     it.each([
-        [ 'a Cloudflare interstitial by title', { title: 'Just a moment...' }, 'automatic', 'cloudflare-challenge' ],
-        [ 'a Cloudflare interstitial by markup', { title: 'Site', elements: { '#challenge-running': '' } }, 'automatic', 'cloudflare-challenge' ],
-        [ 'a DDoS-Guard check', { title: 'DDOS-GUARD' }, 'automatic', 'ddos-guard' ],
-        [ 'a DDoS-Guard captcha', { title: 'DDOS-GUARD', elements: { '#h-captcha': '' } }, 'interactive', 'ddos-guard-captcha' ],
-        [ 'the ReadComicOnline captcha', { elements: { 'form#formVerify[action*="/Special/AreYouHuman"]': '' } }, 'interactive', 'readcomiconline-captcha' ],
-        [ 'a CrunchyScan captcha', { hostname: 'crunchyscan.fr', elements: { '.g-recaptcha': '' } }, 'interactive', 'crunchyscan-captcha' ],
-        [ 'a verification page with a captcha widget', { title: 'Verify you are human', elements: { 'iframe[src*="recaptcha"]': '' } }, 'interactive', 'captcha-gate' ],
-        [ 'a meta refresh', { title: 'Redirecting', elements: { 'meta[http-equiv="refresh"][content*="="]': '' } }, 'automatic', 'meta-refresh' ]
+        [
+            'a Cloudflare interstitial by title',
+            { title: 'Just a moment...' },
+            'automatic',
+            'cloudflare-challenge',
+        ],
+        [
+            'a Cloudflare interstitial by markup',
+            { title: 'Site', elements: { '#challenge-running': '' } },
+            'automatic',
+            'cloudflare-challenge',
+        ],
+        ['a DDoS-Guard check', { title: 'DDOS-GUARD' }, 'automatic', 'ddos-guard'],
+        [
+            'a DDoS-Guard captcha',
+            { title: 'DDOS-GUARD', elements: { '#h-captcha': '' } },
+            'interactive',
+            'ddos-guard-captcha',
+        ],
+        [
+            'the ReadComicOnline captcha',
+            { elements: { 'form#formVerify[action*="/Special/AreYouHuman"]': '' } },
+            'interactive',
+            'readcomiconline-captcha',
+        ],
+        [
+            'a CrunchyScan captcha',
+            { hostname: 'crunchyscan.fr', elements: { '.g-recaptcha': '' } },
+            'interactive',
+            'crunchyscan-captcha',
+        ],
+        [
+            'a verification page with a captcha widget',
+            { title: 'Verify you are human', elements: { 'iframe[src*="recaptcha"]': '' } },
+            'interactive',
+            'captcha-gate',
+        ],
+        [
+            'a meta refresh',
+            { title: 'Redirecting', elements: { 'meta[http-equiv="refresh"][content*="="]': '' } },
+            'automatic',
+            'meta-refresh',
+        ],
     ])('should classify %s', (name, options, redirection, detector) => {
         expect(detect(options)).toEqual({ redirection, detector });
     });
 
     it('should report Cloudflare error and block pages as errors', () => {
-        expect(detect({ elements: { '.cf-error-code': ' 1020 ' } })).toEqual({ redirection: 'error', detector: 'cloudflare-error', message: 'Cloudflare error 1020' });
-        expect(detect({ title: 'Attention Required! | Cloudflare', elements: { '#cf-error-details': '' } })).toMatchObject({ redirection: 'error', detector: 'cloudflare-blocked' });
+        expect(detect({ elements: { '.cf-error-code': ' 1020 ' } })).toEqual({
+            redirection: 'error',
+            detector: 'cloudflare-error',
+            message: 'Cloudflare error 1020',
+        });
+        expect(
+            detect({
+                title: 'Attention Required! | Cloudflare',
+                elements: { '#cf-error-details': '' },
+            }),
+        ).toMatchObject({ redirection: 'error', detector: 'cloudflare-blocked' });
     });
 
     it('should treat a page with the CloudTest captcha as interactive', () => {
         globalThis.CloudTest = () => undefined;
-        expect(detect({ title: 'Site' })).toEqual({ redirection: 'interactive', detector: 'cloudtest-captcha' });
+        expect(detect({ title: 'Site' })).toEqual({
+            redirection: 'interactive',
+            detector: 'cloudtest-captcha',
+        });
     });
 
     it('should not mistake ordinary pages with a comment captcha for a gate', () => {
-        expect(detect({ title: 'One Piece - Chapter 1', elements: { '.g-recaptcha': '' } })).toEqual({ redirection: 'none' });
+        expect(
+            detect({ title: 'One Piece - Chapter 1', elements: { '.g-recaptcha': '' } }),
+        ).toEqual({ redirection: 'none' });
         expect(detect({ title: 'Manga list' })).toEqual({ redirection: 'none' });
     });
 
     it('should ship the same logic as a self-contained script', () => {
         globalThis.document = fakeDocument({ title: 'Just a moment...' });
-        expect(eval(AntiScraping.DETECTION_SCRIPT)).toEqual({ redirection: 'automatic', detector: 'cloudflare-challenge' });
+        expect(eval(AntiScraping.DETECTION_SCRIPT)).toEqual({
+            redirection: 'automatic',
+            detector: 'cloudflare-challenge',
+        });
         expect(AntiScraping.DETECTION_SCRIPT).not.toMatch(/_0x[0-9a-f]{3,}/);
     });
 });
@@ -117,12 +196,14 @@ describe('installChallengeBypass', () => {
         const target = scope(CHALLENGE(), CONTENT());
         const fetchWindows = windows();
         AntiScraping.installChallengeBypass(target, fetchWindows);
-        const request = new Request('https://site.test/manga/1', { headers: { 'x-cookie': 'session=1' } });
+        const request = new Request('https://site.test/manga/1', {
+            headers: { 'x-cookie': 'session=1' },
+        });
         const response = await target.fetch(request);
         expect(await response.text()).toBe('content');
         expect(target.originalFetch).toHaveBeenCalledTimes(2);
         expect(fetchWindows.fetchUI).toHaveBeenCalledTimes(1);
-        const [ windowRequest, script, timeout ] = fetchWindows.fetchUI.mock.calls[0];
+        const [windowRequest, script, timeout] = fetchWindows.fetchUI.mock.calls[0];
         expect(windowRequest.url).toBe('https://site.test/manga/1');
         expect(windowRequest.headers.get('x-cookie')).toBe('session=1');
         expect(script).toBe('true');
@@ -138,21 +219,33 @@ describe('installChallengeBypass', () => {
     });
 
     it('should open one window per origin for concurrent requests', async () => {
-        const target = scope(CHALLENGE(), CHALLENGE(), CHALLENGE(), CHALLENGE(), CONTENT(), CONTENT(), CONTENT(), CONTENT());
+        const target = scope(
+            CHALLENGE(),
+            CHALLENGE(),
+            CHALLENGE(),
+            CHALLENGE(),
+            CONTENT(),
+            CONTENT(),
+            CONTENT(),
+            CONTENT(),
+        );
         const releases = [];
-        const fetchWindows = windows(() => new Promise(resolve => releases.push(resolve)));
+        const fetchWindows = windows(() => new Promise((resolve) => releases.push(resolve)));
         AntiScraping.installChallengeBypass(target, fetchWindows);
         const pending = Promise.all([
             target.fetch('https://site.test/a'),
             target.fetch('https://site.test/b'),
             target.fetch('https://site.test/c'),
-            target.fetch('https://other.test/d')
+            target.fetch('https://other.test/d'),
         ]);
         await vi.waitFor(() => expect(fetchWindows.fetchUI).toHaveBeenCalledTimes(2));
-        expect(fetchWindows.fetchUI.mock.calls.map(call => call[0].url).sort()).toEqual([ 'https://other.test/d', 'https://site.test/a' ]);
-        releases.forEach(release => release(true));
+        expect(fetchWindows.fetchUI.mock.calls.map((call) => call[0].url).sort()).toEqual([
+            'https://other.test/d',
+            'https://site.test/a',
+        ]);
+        releases.forEach((release) => release(true));
         const responses = await pending;
-        expect(responses.map(response => response.status)).toEqual([ 200, 200, 200, 200 ]);
+        expect(responses.map((response) => response.status)).toEqual([200, 200, 200, 200]);
     });
 
     it('should confirm ambiguous answers with the body before opening a window', async () => {
@@ -168,7 +261,12 @@ describe('installChallengeBypass', () => {
     it('should hand back the challenged response when the window could not complete it', async () => {
         vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         const target = scope(CHALLENGE(), CONTENT());
-        AntiScraping.installChallengeBypass(target, windows(async () => { throw new Error('closed'); }));
+        AntiScraping.installChallengeBypass(
+            target,
+            windows(async () => {
+                throw new Error('closed');
+            }),
+        );
         const response = await target.fetch('https://site.test/');
         expect(response.status).toBe(403);
         expect(target.originalFetch).toHaveBeenCalledTimes(1);

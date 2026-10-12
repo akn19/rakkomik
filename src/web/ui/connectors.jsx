@@ -30,7 +30,7 @@ function CardButton({ icon, title, label, enabled, busy, onClick }) {
             title={title}
             aria-label={label}
             disabled={!enabled}
-            onClick={event => {
+            onClick={(event) => {
                 event.stopPropagation();
                 onClick();
             }}
@@ -50,7 +50,7 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
     const progress = useUpdateProgress(connector);
     // the engine knows about updates that were started from the main window as well
     const running = updating || !!progress;
-    const select = event => {
+    const select = (event) => {
         event.stopPropagation();
         onSelect();
     };
@@ -71,7 +71,7 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
                 src={`/img/connectors/${connector.id}`}
                 alt=""
                 loading="lazy"
-                onError={event => {
+                onError={(event) => {
                     event.target.src = '/img/connectors/default';
                 }}
                 className="h-[3.25em] w-[3.25em] shrink-0"
@@ -88,11 +88,25 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
                         {connector.label}
                     </button>
                     <div className="flex shrink-0 items-center gap-[0.25em]">
-                        <CardButton icon="login" title="Click to open the login page" label={`Login page of ${connector.label}`} enabled={!!links.login} onClick={() => openExternalLink(links.login)} />
-                        <CardButton icon="coffee" title="Click to open the donation page" label={`Donation page of ${connector.label}`} enabled={!!links.donation} onClick={() => openExternalLink(links.donation)} />
+                        <CardButton
+                            icon="login"
+                            title="Click to open the login page"
+                            label={`Login page of ${connector.label}`}
+                            enabled={!!links.login}
+                            onClick={() => openExternalLink(links.login)}
+                        />
+                        <CardButton
+                            icon="coffee"
+                            title="Click to open the donation page"
+                            label={`Donation page of ${connector.label}`}
+                            enabled={!!links.donation}
+                            onClick={() => openExternalLink(links.donation)}
+                        />
                         <CardButton
                             icon="external"
-                            title={'Click to open the website in a new window\nThis can be useful to check the status, bypass Cloudflare or unlock captchas'}
+                            title={
+                                'Click to open the website in a new window\nThis can be useful to check the status, bypass Cloudflare or unlock captchas'
+                            }
                             label={`Open ${connector.label} in a new window`}
                             enabled={!!connector.url}
                             onClick={() => openExternalLink(connector.url)}
@@ -108,11 +122,16 @@ function Card({ connector, selected, updating, onSelect, onUpdate }) {
                     </div>
                 </div>
                 {running ? (
-                    <div role="status" className="truncate text-(--connector-tag-color)">{updateMessage(progress)}</div>
+                    <div role="status" className="truncate text-(--connector-tag-color)">
+                        {updateMessage(progress)}
+                    </div>
                 ) : (
                     <div className="flex flex-wrap gap-[0.25em] overflow-hidden">
-                        {(connector.tags || []).map(tag => (
-                            <span key={tag} className="rounded-[0.5em] bg-(--connector-tag-background-color) px-[0.3em] whitespace-nowrap text-(--connector-tag-color)">
+                        {(connector.tags || []).map((tag) => (
+                            <span
+                                key={tag}
+                                className="rounded-[0.5em] bg-(--connector-tag-background-color) px-[0.3em] whitespace-nowrap text-(--connector-tag-color)"
+                            >
                                 {tag}
                             </span>
                         ))}
@@ -150,16 +169,20 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
 
     const allTags = React.useMemo(() => {
         const tags = new Set();
-        connectors.forEach(connector => (connector.tags || []).forEach(tag => tags.add(tag)));
+        connectors.forEach((connector) => (connector.tags || []).forEach((tag) => tags.add(tag)));
         return [...tags].sort();
     }, [connectors]);
 
     const visible = React.useMemo(() => {
         const needle = pattern.toLowerCase();
-        return connectors.filter(connector => {
+        return connectors.filter((connector) => {
             // not every connector has a url (bookmarks, clipboard, folder): it must not be matched as the word "undefined"
-            const patternMatch = !needle || (connector.id + connector.label + (connector.url || '')).toLowerCase().includes(needle);
-            const tagsMatch = selectedTags.every(tag => (connector.tags || []).includes(tag));
+            const patternMatch =
+                !needle ||
+                (connector.id + connector.label + (connector.url || ''))
+                    .toLowerCase()
+                    .includes(needle);
+            const tagsMatch = selectedTags.every((tag) => (connector.tags || []).includes(tag));
             const mangaMatch = !mangaMatches || mangaMatches.includes(connector.id);
             return patternMatch && tagsMatch && mangaMatch;
         });
@@ -171,7 +194,7 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
         count: rows,
         getScrollElement: () => listRef.current,
         estimateSize: () => ROW_HEIGHT,
-        overscan: 4
+        overscan: 4,
     });
 
     // The dialog stays mounted while it is closed, so the name field keeps what was typed: when it opens again the
@@ -194,8 +217,10 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
         return () => observer.disconnect();
     }, [open]);
 
-    const toggleTag = tag => {
-        setSelectedTags(current => current.includes(tag) ? current.filter(entry => entry !== tag) : [...current, tag]);
+    const toggleTag = (tag) => {
+        setSelectedTags((current) =>
+            current.includes(tag) ? current.filter((entry) => entry !== tag) : [...current, tag],
+        );
     };
 
     // a search that still runs when the filters are reset must not apply its result afterwards
@@ -233,11 +258,11 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
         }
     };
 
-    const update = async connector => {
+    const update = async (connector) => {
         if (updating[connector.id]) {
             return;
         }
-        setUpdating(current => ({ ...current, [connector.id]: true }));
+        setUpdating((current) => ({ ...current, [connector.id]: true }));
         try {
             const mangas = await updateMangaList(connector);
             queryClient.setQueryData(['mangas', connector.id], mangas);
@@ -245,7 +270,7 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
         } catch (error) {
             notify(`Failed to update manga list for ${connector.label}\n${error.message}`, 'error');
         } finally {
-            setUpdating(current => ({ ...current, [connector.id]: false }));
+            setUpdating((current) => ({ ...current, [connector.id]: false }));
         }
     };
 
@@ -263,7 +288,13 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
             className="fixed inset-[1em] z-40 flex flex-col bg-(--connector-dialog-background-color) [border:var(--connector-dialog-border)] [box-shadow:var(--connector-dialog-shadow)]"
         >
             <div className="p-[0.5em] text-right">
-                <button type="button" title="Click to cancel the website selection" aria-label="Close the website selection" onClick={onClose} className="rk-button">
+                <button
+                    type="button"
+                    title="Click to cancel the website selection"
+                    aria-label="Close the website selection"
+                    onClick={onClose}
+                    className="rk-button"
+                >
                     <Icon name="closeCircle" size={28} />
                 </button>
             </div>
@@ -275,7 +306,7 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
                         id={`${id}-name`}
                         type="text"
                         value={pattern}
-                        onChange={event => setPattern(event.target.value)}
+                        onChange={(event) => setPattern(event.target.value)}
                         title="Show only websites with a name that matches the entered pattern (case-insensitive)"
                         className="rk-field w-[calc(100%-0.5em)]"
                     />
@@ -285,8 +316,8 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
                         type="text"
                         value={mangaPattern}
                         disabled={searching}
-                        onChange={event => setMangaPattern(event.target.value)}
-                        onKeyUp={event => {
+                        onChange={(event) => setMangaPattern(event.target.value)}
+                        onKeyUp={(event) => {
                             if (event.key === 'Enter') {
                                 searchByManga();
                             }
@@ -295,8 +326,12 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
                         className="rk-field w-[calc(100%-0.5em)]"
                     />
                     <Separator icon="tags" label="Tags" id={`${id}-tags`} />
-                    <div role="group" aria-labelledby={`${id}-tags`} className="flex min-h-0 flex-1 flex-wrap content-start gap-[0.25em] overflow-y-scroll bg-(--connector-tag-list-background-color) p-[0.5em]">
-                        {allTags.map(tag => (
+                    <div
+                        role="group"
+                        aria-labelledby={`${id}-tags`}
+                        className="flex min-h-0 flex-1 flex-wrap content-start gap-[0.25em] overflow-y-scroll bg-(--connector-tag-list-background-color) p-[0.5em]"
+                    >
+                        {allTags.map((tag) => (
                             <button
                                 key={tag}
                                 type="button"
@@ -304,7 +339,9 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
                                 onClick={() => toggleTag(tag)}
                                 className={
                                     'cursor-pointer rounded-[0.5em] px-[0.3em] whitespace-nowrap text-(--connector-tag-color) ' +
-                                    (selectedTags.includes(tag) ? 'rk-selected-ring bg-(--connector-tag-selected)' : 'bg-(--connector-tag-background-color)')
+                                    (selectedTags.includes(tag)
+                                        ? 'rk-selected-ring bg-(--connector-tag-selected)'
+                                        : 'bg-(--connector-tag-background-color)')
                                 }
                             >
                                 {tag}
@@ -314,33 +351,55 @@ export default function ConnectorDialog({ open, selectedId, onSelect, onClose })
                 </div>
                 <div className="m-[0.5em] flex max-h-full min-w-0 flex-1 flex-col">
                     <Separator label="Connectors" id={`${id}-connectors`}>
-                        <button type="button" title="Reset all filters" aria-label="Reset all filters" onClick={clearFilters} className="cursor-pointer text-(--connector-button-clear-color)">
+                        <button
+                            type="button"
+                            title="Reset all filters"
+                            aria-label="Reset all filters"
+                            onClick={clearFilters}
+                            className="cursor-pointer text-(--connector-button-clear-color)"
+                        >
                             <Icon name="close" size={14} />
                         </button>
                     </Separator>
-                    <div role="status" className="py-[0.25em]">{visible.length} / {connectors.length} websites{ready ? '' : ' (still loading …)'}</div>
-                    <div ref={listRef} role="list" aria-label="Connectors" className="min-h-0 flex-1 overflow-y-scroll">
-                        <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-                            {virtualizer.getVirtualItems().map(virtual => (
+                    <div role="status" className="py-[0.25em]">
+                        {visible.length} / {connectors.length} websites
+                        {ready ? '' : ' (still loading …)'}
+                    </div>
+                    <div
+                        ref={listRef}
+                        role="list"
+                        aria-label="Connectors"
+                        className="min-h-0 flex-1 overflow-y-scroll"
+                    >
+                        <div
+                            className="relative w-full"
+                            style={{ height: virtualizer.getTotalSize() }}
+                        >
+                            {virtualizer.getVirtualItems().map((virtual) => (
                                 <div
                                     key={virtual.key}
                                     className="absolute top-0 left-0 grid w-full gap-[0.5em] p-[0.25em]"
                                     style={{
                                         height: virtual.size,
                                         transform: `translateY(${virtual.start}px)`,
-                                        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`
+                                        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                                     }}
                                 >
-                                    {visible.slice(virtual.index * columns, (virtual.index + 1) * columns).map(connector => (
-                                        <Card
-                                            key={connector.id}
-                                            connector={connector}
-                                            selected={connector.id === selectedId}
-                                            updating={!!updating[connector.id]}
-                                            onSelect={() => onSelect(connector.id)}
-                                            onUpdate={() => update(connector)}
-                                        />
-                                    ))}
+                                    {visible
+                                        .slice(
+                                            virtual.index * columns,
+                                            (virtual.index + 1) * columns,
+                                        )
+                                        .map((connector) => (
+                                            <Card
+                                                key={connector.id}
+                                                connector={connector}
+                                                selected={connector.id === selectedId}
+                                                updating={!!updating[connector.id]}
+                                                onSelect={() => onSelect(connector.id)}
+                                                onUpdate={() => update(connector)}
+                                            />
+                                        ))}
                                 </div>
                             ))}
                         </div>

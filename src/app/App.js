@@ -31,13 +31,18 @@ const loadingPage = `
 `;
 
 module.exports = class App {
-
     constructor(logger) {
         this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
         this._extractor = new CommandlineArgumentExtractor(process.argv);
         this._configuration = this._getConfiguration(this._extractor.options);
-        let serverManager = new UpdateServerManager(this._configuration.applicationUpdateURL, this._logger);
-        let cacheManager = new CacheDirectoryManager(this._configuration.applicationCacheDirectory, this._logger);
+        let serverManager = new UpdateServerManager(
+            this._configuration.applicationUpdateURL,
+            this._logger,
+        );
+        let cacheManager = new CacheDirectoryManager(
+            this._configuration.applicationCacheDirectory,
+            this._logger,
+        );
         this._updater = new Updater(serverManager, cacheManager, this._logger);
         this._electron = new ElectronBootstrap(this._configuration, this._logger);
         new IpcBridge(this._logger).register();
@@ -51,23 +56,23 @@ module.exports = class App {
     _getConfiguration(options) {
         // A web part that ships with the application is used and not updated, each unless the command line says otherwise.
         const bundled = Configuration.bundledWebDirectory;
-        if(bundled) {
+        if (bundled) {
             options = {
                 ...options,
                 applicationCacheDirectory: options.applicationCacheDirectory || bundled,
-                applicationUpdateURL: options.applicationUpdateURL || 'DISABLED'
+                applicationUpdateURL: options.applicationUpdateURL || 'DISABLED',
             };
         }
-        if(Configuration.isPortableMode) {
+        if (Configuration.isPortableMode) {
             return new Configuration(options);
         }
-        if(process.platform === 'linux') {
+        if (process.platform === 'linux') {
             return new ConfigurationLinux(options);
         }
-        if(process.platform === 'darwin') {
+        if (process.platform === 'darwin') {
             return new ConfigurationDarwin(options);
         }
-        if(process.platform === 'win32') {
+        if (process.platform === 'win32') {
             return new ConfigurationWindows(options);
         }
     }
@@ -77,7 +82,7 @@ module.exports = class App {
         console.log('');
         console.log(separator);
         console.log('Framework Info');
-        console.log(separator );
+        console.log(separator);
         console.log('Electron :', process.versions.electron);
         console.log('Chrome   :', process.versions.chrome);
         console.log('Node     :', process.versions.node);
@@ -90,7 +95,7 @@ module.exports = class App {
             this.printInfo();
             this._configuration.printInfo();
             // add the portable mode as environment variable to be easily available in render process
-            if(Configuration.isPortableMode) {
+            if (Configuration.isPortableMode) {
                 process.env.RAKKOMIK_PORTABLE = 'TRUE';
             } else {
                 delete process.env.RAKKOMIK_PORTABLE;
@@ -99,7 +104,7 @@ module.exports = class App {
             await this._electron.loadHTML(loadingPage);
             await this._updater.updateCache(this._configuration.publicKey);
             this._electron.loadURL(this._configuration.applicationStartupURL);
-        } catch(error) {
+        } catch (error) {
             this._logger.error('Failed to start application!', error);
         }
     }

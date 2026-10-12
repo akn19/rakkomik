@@ -1,6 +1,12 @@
 import React from 'react';
 import { Outlet, useLocation } from '@tanstack/react-router';
-import { hasActiveDownloads, subscribeAppClose, quitApp, isReaderEnabled, subscribeSettings } from './engine.js';
+import {
+    hasActiveDownloads,
+    subscribeAppClose,
+    quitApp,
+    isReaderEnabled,
+    subscribeSettings,
+} from './engine.js';
 import { SelectionProvider } from './selection.jsx';
 import { ConfirmDialog } from './dialog.jsx';
 import MangaPanel from './MangaPanel.jsx';
@@ -21,14 +27,17 @@ function initialDark() {
     } catch {
         // storage can be unavailable; fall through to the OS preference
     }
-    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return (
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches
+    );
 }
 
 const WINDOW_BUTTON = 'rk-icon rounded px-1.5 py-0.5 hover:bg-black/20';
 
 function Titlebar({ dark, onToggleTheme }) {
     const bridge = typeof window !== 'undefined' ? window.hakuneko : undefined;
-    const act = fn => () => {
+    const act = (fn) => () => {
         if (bridge) {
             fn(bridge).catch?.(() => undefined);
         }
@@ -55,7 +64,7 @@ function Titlebar({ dark, onToggleTheme }) {
                     type="button"
                     title="Minimize window"
                     aria-label="Minimize window"
-                    onClick={act(h => h.window.minimize())}
+                    onClick={act((h) => h.window.minimize())}
                     className={WINDOW_BUTTON}
                 >
                     <Icon name="minimize" size={14} />
@@ -64,7 +73,7 @@ function Titlebar({ dark, onToggleTheme }) {
                     type="button"
                     title="Maximize window"
                     aria-label="Maximize or restore window"
-                    onClick={act(async h => {
+                    onClick={act(async (h) => {
                         if (await h.window.isMaximized()) {
                             await h.window.unmaximize();
                         } else {
@@ -79,7 +88,7 @@ function Titlebar({ dark, onToggleTheme }) {
                     type="button"
                     title="Close window"
                     aria-label="Close window"
-                    onClick={act(h => h.window.close())}
+                    onClick={act((h) => h.window.close())}
                     className="rk-icon rounded px-1.5 py-0.5 hover:bg-red-500 hover:text-white"
                 >
                     <Icon name="close" size={14} />
@@ -98,13 +107,17 @@ export default function Shell() {
     // The page viewer fills the whole content pane; other views keep a gutter.
     const onReader = useLocation().pathname === '/reader';
     // Classic jobs.html parity: confirm when downloads are still running.
-    React.useEffect(() => subscribeAppClose(() => {
-        if (hasActiveDownloads()) {
-            setConfirmQuit(true);
-        } else {
-            quitApp();
-        }
-    }), []);
+    React.useEffect(
+        () =>
+            subscribeAppClose(() => {
+                if (hasActiveDownloads()) {
+                    setConfirmQuit(true);
+                } else {
+                    quitApp();
+                }
+            }),
+        [],
+    );
 
     const toggleTheme = () => {
         const next = !dark;
@@ -118,7 +131,11 @@ export default function Shell() {
 
     return (
         <SelectionProvider>
-            <div className={'flex h-full flex-col text-[10pt] text-(--text-color) ' + (dark ? 'dark' : '')}>
+            <div
+                className={
+                    'flex h-full flex-col text-[10pt] text-(--text-color) ' + (dark ? 'dark' : '')
+                }
+            >
                 <Titlebar dark={dark} onToggleTheme={toggleTheme} />
                 {/* The reading mode of the reader covers this whole row, everything below the titlebar. Its panels stay
                     mounted but are hidden meanwhile: no shadow leaks onto the titlebar and the keyboard cannot reach them. */}
@@ -131,7 +148,11 @@ export default function Shell() {
                         }
                     >
                         {/* the menu covers the column: what is under it is inert while it is open (it is modal) */}
-                        <nav aria-label="Application menu" inert={menuOpen || undefined} className="flex items-center bg-(--menu-control-background-color)">
+                        <nav
+                            aria-label="Application menu"
+                            inert={menuOpen || undefined}
+                            className="flex items-center bg-(--menu-control-background-color)"
+                        >
                             <button
                                 type="button"
                                 title="Toggle menu"
@@ -139,22 +160,32 @@ export default function Shell() {
                                 aria-haspopup="dialog"
                                 aria-expanded={menuOpen}
                                 aria-controls={menuOpen ? menuId : undefined}
-                                onClick={() => setMenuOpen(open => !open)}
+                                onClick={() => setMenuOpen((open) => !open)}
                                 className="rk-button m-[0.25em]"
                             >
                                 <Icon name="menu" size={28} />
                             </button>
-                            <span className="text-[1.5em] font-bold text-(--menu-control-title-color)">RakKomik</span>
+                            <span className="text-[1.5em] font-bold text-(--menu-control-title-color)">
+                                RakKomik
+                            </span>
                         </nav>
                         {menuOpen && <MenuPopup id={menuId} onClose={() => setMenuOpen(false)} />}
-                        <div inert={menuOpen || undefined} className="flex min-h-0 flex-1 [border-top:var(--app-control-border)] [border-bottom:var(--app-control-border)]">
+                        <div
+                            inert={menuOpen || undefined}
+                            className="flex min-h-0 flex-1 [border-top:var(--app-control-border)] [border-bottom:var(--app-control-border)]"
+                        >
                             <MangaPanel readerEnabled={readerEnabled} />
                             <ChaptersPanel readerEnabled={readerEnabled} />
                         </div>
                         <JobsBar inert={menuOpen} />
                     </div>
                     {readerEnabled && (
-                        <main className={'rk-content-bg min-w-0 flex-1 overflow-x-hidden overflow-y-auto ' + (onReader ? '' : 'p-4')}>
+                        <main
+                            className={
+                                'rk-content-bg min-w-0 flex-1 overflow-x-hidden overflow-y-auto ' +
+                                (onReader ? '' : 'p-4')
+                            }
+                        >
                             <Outlet />
                         </main>
                     )}

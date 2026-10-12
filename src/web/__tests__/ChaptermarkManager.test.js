@@ -11,10 +11,10 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function once(target, type) {
-    return new Promise(resolve => target.addEventListener(type, resolve, { once: true }));
+    return new Promise((resolve) => target.addEventListener(type, resolve, { once: true }));
 }
 
 // the bookmark storage keeps JSON files: whatever is saved or loaded is a copy
@@ -25,12 +25,12 @@ function storage(files = {}) {
         saveBookmarks: vi.fn(async (key, value) => {
             stored.set(key, JSON.parse(JSON.stringify(value)));
         }),
-        loadBookmarks: vi.fn(async key => {
+        loadBookmarks: vi.fn(async (key) => {
             if (!stored.has(key)) {
                 throw new Error(`ENOENT: no such file or directory, open '${key}'`);
             }
             return JSON.parse(JSON.stringify(stored.get(key)));
-        })
+        }),
     };
 }
 
@@ -42,11 +42,22 @@ function setup(files) {
 }
 
 function chapter(id = '/c/1', title = 'Chapter 1', mangaId = '/m/1', connectorId = 'site') {
-    return { id, title, file: { full: `${title}.cbz` }, manga: { id: mangaId, title: 'Manga', connector: { id: connectorId } } };
+    return {
+        id,
+        title,
+        file: { full: `${title}.cbz` },
+        manga: { id: mangaId, title: 'Manga', connector: { id: connectorId } },
+    };
 }
 
 function mark(overrides = {}) {
-    return { connectorID: 'site', mangaID: '/m/1', chapterID: '/c/1', chapterTitle: 'Chapter 1', ...overrides };
+    return {
+        connectorID: 'site',
+        mangaID: '/m/1',
+        chapterID: '/c/1',
+        chapterTitle: 'Chapter 1',
+        ...overrides,
+    };
 }
 
 describe('addChaptermark', () => {
@@ -76,7 +87,7 @@ describe('addChaptermark', () => {
         await flush();
         expect(manager.chaptermarks).toEqual([
             mark({ chapterID: '/c/2', chapterTitle: 'Chapter 2' }),
-            mark({ mangaID: '/m/2', chapterID: '/c/9', chapterTitle: 'Chapter 9' })
+            mark({ mangaID: '/m/2', chapterID: '/c/9', chapterTitle: 'Chapter 9' }),
         ]);
     });
 
@@ -84,14 +95,17 @@ describe('addChaptermark', () => {
         const { manager } = setup();
         manager.addChaptermark(chapter('/c/1', 'Chapter 1', '/m/1', 'site-a'));
         manager.addChaptermark(chapter('/c/1', 'Chapter 1', '/m/1', 'site-b'));
-        expect(manager.chaptermarks.map(entry => entry.connectorID)).toEqual(['site-a', 'site-b']);
+        expect(manager.chaptermarks.map((entry) => entry.connectorID)).toEqual([
+            'site-a',
+            'site-b',
+        ]);
     });
 
     it.each([
         ['nothing', undefined],
         ['null', null],
         ['a chapter without a manga', { id: '/c/1', title: 'Chapter 1' }],
-        ['a manga without a connector', { id: '/c/1', title: 'Chapter 1', manga: { id: '/m/1' } }]
+        ['a manga without a connector', { id: '/c/1', title: 'Chapter 1', manga: { id: '/m/1' } }],
     ])('should ignore %s', async (name, value) => {
         const { manager, storage: files } = setup();
         const changed = vi.fn();
@@ -107,22 +121,32 @@ describe('addChaptermark', () => {
         const { manager, storage: files } = setup();
         manager.addChaptermark(chapter('/c/1', 'Chapter 1: 日本語'));
         await flush();
-        expect(JSON.stringify(files.stored.get('chaptermarks'))).toBe('[{"connectorID":"site","mangaID":"/m/1","chapterID":"/c/1","chapterTitle":"Chapter 1: 日本語"}]');
+        expect(JSON.stringify(files.stored.get('chaptermarks'))).toBe(
+            '[{"connectorID":"site","mangaID":"/m/1","chapterID":"/c/1","chapterTitle":"Chapter 1: 日本語"}]',
+        );
     });
 });
 
 describe('getChaptermark', () => {
     it('should find the mark of a manga for its connector', () => {
         const { manager } = setup();
-        manager.chaptermarks = [mark(), mark({ mangaID: '/m/2', chapterID: '/c/5' }), mark({ connectorID: 'other', chapterID: '/c/7' })];
-        expect(manager.getChaptermark({ id: '/m/2', connector: { id: 'site' } }).chapterID).toBe('/c/5');
-        expect(manager.getChaptermark({ id: '/m/1', connector: { id: 'other' } }).chapterID).toBe('/c/7');
+        manager.chaptermarks = [
+            mark(),
+            mark({ mangaID: '/m/2', chapterID: '/c/5' }),
+            mark({ connectorID: 'other', chapterID: '/c/7' }),
+        ];
+        expect(manager.getChaptermark({ id: '/m/2', connector: { id: 'site' } }).chapterID).toBe(
+            '/c/5',
+        );
+        expect(manager.getChaptermark({ id: '/m/1', connector: { id: 'other' } }).chapterID).toBe(
+            '/c/7',
+        );
     });
 
     it.each([
         ['nothing', undefined],
         ['a manga that has no mark', { id: '/m/404', connector: { id: 'site' } }],
-        ['the manga of another connector', { id: '/m/1', connector: { id: 'elsewhere' } }]
+        ['the manga of another connector', { id: '/m/1', connector: { id: 'elsewhere' } }],
     ])('should find no mark for %s', (name, manga) => {
         const { manager } = setup();
         manager.chaptermarks = [mark()];
@@ -132,13 +156,17 @@ describe('getChaptermark', () => {
     it('should give a mark of the old files, which have no title, a title to show', () => {
         const { manager } = setup();
         manager.chaptermarks = [{ connectorID: 'site', mangaID: '/m/1', chapterID: '/c/1' }];
-        expect(manager.getChaptermark({ id: '/m/1', connector: { id: 'site' } }).chapterTitle).toBe('Chapter Title Unavailable');
+        expect(manager.getChaptermark({ id: '/m/1', connector: { id: 'site' } }).chapterTitle).toBe(
+            'Chapter Title Unavailable',
+        );
     });
 
     it('should leave the title of a mark that has one', () => {
         const { manager } = setup();
         manager.chaptermarks = [mark()];
-        expect(manager.getChaptermark({ id: '/m/1', connector: { id: 'site' } }).chapterTitle).toBe('Chapter 1');
+        expect(manager.getChaptermark({ id: '/m/1', connector: { id: 'site' } }).chapterTitle).toBe(
+            'Chapter 1',
+        );
     });
 });
 
@@ -146,12 +174,20 @@ describe('isChapterMarked', () => {
     it.each([
         ['has the id of the mark', chapter('/c/1', 'Other title'), true],
         ['has the hash of its id in the mark', chapter({ hash: '/c/1' }, 'Other title'), true],
-        ['has the file name of the mark as the id, like a chapter that is only on the device', { ...chapter('/c/77', 'Other title'), file: { full: '/c/1' } }, true],
+        [
+            'has the file name of the mark as the id, like a chapter that is only on the device',
+            { ...chapter('/c/77', 'Other title'), file: { full: '/c/1' } },
+            true,
+        ],
         // NOTE: the title is a way to recognise a mark when a site renumbered its chapters, so chapters that share a title are all marked
         ['has the title of the mark, whatever its id', chapter('/c/99', 'Chapter 1'), true],
         ['has nothing of the mark but the manga', chapter('/c/99', 'Chapter 99'), false],
         ['is the same chapter of another manga', chapter('/c/1', 'Chapter 1', '/m/2'), false],
-        ['is the same chapter of the manga of another connector', chapter('/c/1', 'Chapter 1', '/m/1', 'other'), false]
+        [
+            'is the same chapter of the manga of another connector',
+            chapter('/c/1', 'Chapter 1', '/m/1', 'other'),
+            false,
+        ],
     ])('should tell whether a chapter that %s is the marked one', (name, candidate, marked) => {
         const { manager } = setup();
         expect(Boolean(manager.isChapterMarked(candidate, mark()))).toBe(marked);
@@ -161,7 +197,7 @@ describe('isChapterMarked', () => {
         ['no mark', chapter(), undefined],
         ['a null mark', chapter(), null],
         ['no chapter', undefined, mark()],
-        ['a null chapter', null, mark()]
+        ['a null chapter', null, mark()],
     ])('should not call anything marked for %s', (name, candidate, markedChapter) => {
         const { manager } = setup();
         expect(manager.isChapterMarked(candidate, markedChapter)).toBeFalsy();
@@ -172,7 +208,9 @@ describe('isChapterMarked', () => {
         const hashed = chapter({ hash: 'h-1', url: 'https://site.test/1' });
         manager.addChaptermark(hashed);
         expect(manager.isChapterMarked(hashed, manager.getChaptermark(hashed.manga))).toBeTruthy();
-        expect(manager.isChapterMarked(chapter({ hash: 'h-2' }, 'Chapter 2'), manager.chaptermarks[0])).toBeFalsy();
+        expect(
+            manager.isChapterMarked(chapter({ hash: 'h-2' }, 'Chapter 2'), manager.chaptermarks[0]),
+        ).toBeFalsy();
     });
 });
 
@@ -183,7 +221,11 @@ describe('deleteChaptermark', () => {
         const saved = once(manager, 'changed');
         manager.deleteChaptermark(mark({ chapterID: '/c/other', chapterTitle: 'Another' }));
         expect(manager.chaptermarks).toEqual([mark({ mangaID: '/m/2' })]);
-        expect(files.saveBookmarks).toHaveBeenCalledWith('chaptermarks', [mark({ mangaID: '/m/2' })], 2);
+        expect(files.saveBookmarks).toHaveBeenCalledWith(
+            'chaptermarks',
+            [mark({ mangaID: '/m/2' })],
+            2,
+        );
         expect((await saved).detail).toBe(manager.chaptermarks);
     });
 
@@ -206,13 +248,22 @@ describe('mergeChaptermarks', () => {
         const { manager, storage: files } = setup();
         manager.chaptermarks = [mark({ chapterID: '/c/mine' })];
         const saved = once(manager, 'changed');
-        manager.mergeChaptermarks([mark({ chapterID: '/c/theirs' }), mark({ mangaID: '/m/2', chapterID: '/c/2' })]);
+        manager.mergeChaptermarks([
+            mark({ chapterID: '/c/theirs' }),
+            mark({ mangaID: '/m/2', chapterID: '/c/2' }),
+        ]);
         await saved;
-        expect(manager.chaptermarks).toEqual([mark({ chapterID: '/c/mine' }), mark({ mangaID: '/m/2', chapterID: '/c/2' })]);
+        expect(manager.chaptermarks).toEqual([
+            mark({ chapterID: '/c/mine' }),
+            mark({ mangaID: '/m/2', chapterID: '/c/2' }),
+        ]);
         expect(files.stored.get('chaptermarks')).toEqual(manager.chaptermarks);
     });
 
-    it.each([['nothing', undefined], ['null', null]])('should ignore %s', async (name, value) => {
+    it.each([
+        ['nothing', undefined],
+        ['null', null],
+    ])('should ignore %s', async (name, value) => {
         const { manager, storage: files } = setup();
         manager.mergeChaptermarks(value);
         await flush();
@@ -221,19 +272,33 @@ describe('mergeChaptermarks', () => {
 
     it('should add one mark for a manga that two of the merged marks belong to, the first one', async () => {
         const { manager } = setup();
-        manager.mergeChaptermarks([mark({ chapterID: '/c/1' }), mark({ mangaID: '/m/2', chapterID: '/c/7' }), mark({ chapterID: '/c/2' })]);
+        manager.mergeChaptermarks([
+            mark({ chapterID: '/c/1' }),
+            mark({ mangaID: '/m/2', chapterID: '/c/7' }),
+            mark({ chapterID: '/c/2' }),
+        ]);
         await flush();
-        expect(manager.chaptermarks).toEqual([mark({ chapterID: '/c/1' }), mark({ mangaID: '/m/2', chapterID: '/c/7' })]);
+        expect(manager.chaptermarks).toEqual([
+            mark({ chapterID: '/c/1' }),
+            mark({ mangaID: '/m/2', chapterID: '/c/7' }),
+        ]);
         // a mark that is deleted does not come back from a second one that was left behind
         manager.deleteChaptermark(mark());
-        expect(manager.chaptermarks.filter(entry => entry.mangaID === '/m/1')).toEqual([]);
+        expect(manager.chaptermarks.filter((entry) => entry.mangaID === '/m/1')).toEqual([]);
     });
 
     it('should keep the marks of one manga of two connectors apart when it merges them', async () => {
         const { manager } = setup();
-        manager.mergeChaptermarks([mark({ connectorID: 'site-a' }), mark({ connectorID: 'site-b' }), mark({ connectorID: 'site-a', chapterID: '/c/2' })]);
+        manager.mergeChaptermarks([
+            mark({ connectorID: 'site-a' }),
+            mark({ connectorID: 'site-b' }),
+            mark({ connectorID: 'site-a', chapterID: '/c/2' }),
+        ]);
         await flush();
-        expect(manager.chaptermarks.map(entry => [entry.connectorID, entry.chapterID])).toEqual([['site-a', '/c/1'], ['site-b', '/c/1']]);
+        expect(manager.chaptermarks.map((entry) => [entry.connectorID, entry.chapterID])).toEqual([
+            ['site-a', '/c/1'],
+            ['site-b', '/c/1'],
+        ]);
     });
 });
 
@@ -271,7 +336,10 @@ describe('loadChaptermarks', () => {
         expect(callback).toHaveBeenCalledTimes(1);
         expect(callback.mock.calls[0][0]).toBeInstanceOf(Error);
         expect(callback.mock.calls[0][0].message).toBe('Invalid chaptermark list!');
-        expect(log).toHaveBeenCalledWith('Failed to load chaptermarks:', 'Invalid chaptermark list!');
+        expect(log).toHaveBeenCalledWith(
+            'Failed to load chaptermarks:',
+            'Invalid chaptermark list!',
+        );
         expect(manager.chaptermarks).toEqual([mark()]);
         expect(changed).not.toHaveBeenCalled();
     });
@@ -302,26 +370,31 @@ describe('loadChaptermarks', () => {
         ['an object', { connectorID: 'site' }],
         ['a text', 'chaptermarks'],
         ['a number', 42],
-        ['true', true]
-    ])('should refuse a stored value that is %s, and keep the marks that it has', async (name, stored) => {
-        const { manager } = setup({ chaptermarks: stored });
-        manager.chaptermarks = [mark()];
-        vi.spyOn(console, 'error').mockImplementation(() => undefined);
-        const changed = vi.fn();
-        manager.addEventListener('changed', changed);
-        const callback = vi.fn();
-        manager.loadChaptermarks(callback);
-        await flush();
-        expect(callback.mock.calls[0][0]).toBeInstanceOf(Error);
-        expect(callback.mock.calls[0][0].message).toBe('Invalid chaptermark list!');
-        expect(manager.chaptermarks).toEqual([mark()]);
-        expect(changed).not.toHaveBeenCalled();
-    });
+        ['true', true],
+    ])(
+        'should refuse a stored value that is %s, and keep the marks that it has',
+        async (name, stored) => {
+            const { manager } = setup({ chaptermarks: stored });
+            manager.chaptermarks = [mark()];
+            vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            const changed = vi.fn();
+            manager.addEventListener('changed', changed);
+            const callback = vi.fn();
+            manager.loadChaptermarks(callback);
+            await flush();
+            expect(callback.mock.calls[0][0]).toBeInstanceOf(Error);
+            expect(callback.mock.calls[0][0].message).toBe('Invalid chaptermark list!');
+            expect(manager.chaptermarks).toEqual([mark()]);
+            expect(changed).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('a save that fails', () => {
     it('should bring back the marks of the storage, so the list and the file do not differ', async () => {
-        const { manager, storage: files } = setup({ chaptermarks: [mark({ chapterID: '/c/stored' })] });
+        const { manager, storage: files } = setup({
+            chaptermarks: [mark({ chapterID: '/c/stored' })],
+        });
         manager.chaptermarks = [mark({ chapterID: '/c/stored' })];
         files.saveBookmarks.mockRejectedValueOnce(new Error('disk full'));
         const reloaded = once(manager, 'changed');
@@ -357,7 +430,9 @@ describe('_syncChaptermarks', () => {
     });
 
     it('should call back with the result of bringing the stored marks back when the save fails', async () => {
-        const { manager, storage: files } = setup({ chaptermarks: [mark({ chapterID: '/c/stored' })] });
+        const { manager, storage: files } = setup({
+            chaptermarks: [mark({ chapterID: '/c/stored' })],
+        });
         manager.chaptermarks = [mark({ chapterID: '/c/unsaved' })];
         files.saveBookmarks.mockRejectedValue(new Error('disk full'));
         const callback = vi.fn();

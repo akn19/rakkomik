@@ -3,7 +3,12 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import Settings from '../../mjs/engine/Settings.mjs';
 import MenuPopup from '../menu.jsx';
-import { createConnector, createSettings, installBridge, installEngine } from './support/fakeEngine.js';
+import {
+    createConnector,
+    createSettings,
+    installBridge,
+    installEngine,
+} from './support/fakeEngine.js';
 import { renderRouted } from './support/render.jsx';
 
 let engine = null;
@@ -23,23 +28,51 @@ function group(category, ...settings) {
 
 // one setting of every input type, as the engine has them
 function typedGroups() {
-    return [group(
-        'General',
-        setting({ input: 'text', label: 'Text', description: 'A text', value: 'abc' }),
-        setting({ input: 'password', label: 'Password', description: 'A secret', value: 'hunter2' }),
-        setting({ input: 'numeric', label: 'Quality', description: 'A number', value: 90, min: 50, max: 100 }),
-        setting({
-            input: 'select',
-            label: 'Format',
-            description: 'A choice',
-            value: '.cbz',
-            options: [{ value: 'img', name: 'Folder with Images' }, { value: '.cbz', name: 'Comic Book Archive' }, { value: '.epub', name: 'Ebook Reader' }]
-        }),
-        setting({ input: 'checkbox', label: 'Reader', description: 'A switch', value: true }),
-        setting({ input: 'file', label: 'Key file', description: 'A file', value: '/keys/id' }),
-        setting({ input: 'directory', label: 'Manga Directory', description: 'A directory', value: '/mangas' }),
-        setting({ input: 'disabled', label: 'Bookmarks Directory', description: 'Cannot be changed', value: '/userdata' })
-    )];
+    return [
+        group(
+            'General',
+            setting({ input: 'text', label: 'Text', description: 'A text', value: 'abc' }),
+            setting({
+                input: 'password',
+                label: 'Password',
+                description: 'A secret',
+                value: 'hunter2',
+            }),
+            setting({
+                input: 'numeric',
+                label: 'Quality',
+                description: 'A number',
+                value: 90,
+                min: 50,
+                max: 100,
+            }),
+            setting({
+                input: 'select',
+                label: 'Format',
+                description: 'A choice',
+                value: '.cbz',
+                options: [
+                    { value: 'img', name: 'Folder with Images' },
+                    { value: '.cbz', name: 'Comic Book Archive' },
+                    { value: '.epub', name: 'Ebook Reader' },
+                ],
+            }),
+            setting({ input: 'checkbox', label: 'Reader', description: 'A switch', value: true }),
+            setting({ input: 'file', label: 'Key file', description: 'A file', value: '/keys/id' }),
+            setting({
+                input: 'directory',
+                label: 'Manga Directory',
+                description: 'A directory',
+                value: '/mangas',
+            }),
+            setting({
+                input: 'disabled',
+                label: 'Bookmarks Directory',
+                description: 'Cannot be changed',
+                value: '/userdata',
+            }),
+        ),
+    ];
 }
 
 // The popup as the interface opens it, with a function that is asked to close it. The same element is under every route,
@@ -52,7 +85,7 @@ async function openMenu({ groups = [], ready = true, url = '/', members = {} } =
     const view = await renderRouted(menu, {
         url,
         selection: false,
-        routes: ['/downloads', '/bookmarks'].map(path => ({ path, element: menu }))
+        routes: ['/downloads', '/bookmarks'].map((path) => ({ path, element: menu })),
     });
     return { ...view, settings, onClose };
 }
@@ -66,7 +99,9 @@ async function openLikeTheShell(groups) {
         const [open, setOpen] = React.useState(true);
         return (
             <>
-                <button type="button" onClick={() => setOpen(true)}>Open the menu</button>
+                <button type="button" onClick={() => setOpen(true)}>
+                    Open the menu
+                </button>
                 {open && <MenuPopup onClose={() => setOpen(false)} />}
             </>
         );
@@ -95,7 +130,7 @@ function type(label, value) {
 
 // the headings of the categories and the labels of the settings, in the order they are drawn
 function outline() {
-    return [...document.querySelectorAll('th[colspan], label')].map(node => node.textContent);
+    return [...document.querySelectorAll('th[colspan], label')].map((node) => node.textContent);
 }
 
 function toastOf(message) {
@@ -109,14 +144,30 @@ describe('menu popup', () => {
                 groups: [
                     group('General', setting({ label: 'Name' }), setting({ label: 'Mode' })),
                     group('Site A', setting({ label: 'Throttle' })),
-                    group('Site B', setting({ label: 'Throttle' }), setting({ label: 'Login' }))
-                ]
+                    group('Site B', setting({ label: 'Throttle' }), setting({ label: 'Login' })),
+                ],
             });
-            expect(outline()).toEqual(['General', 'Name', 'Mode', 'Site A', 'Throttle', 'Site B', 'Throttle', 'Login']);
+            expect(outline()).toEqual([
+                'General',
+                'Name',
+                'Mode',
+                'Site A',
+                'Throttle',
+                'Site B',
+                'Throttle',
+                'Login',
+            ]);
         });
 
         it('should show the description of a setting as the tooltip of its label', async () => {
-            await openMenu({ groups: [group('General', setting({ label: 'Name', description: 'What the name is for' }))] });
+            await openMenu({
+                groups: [
+                    group(
+                        'General',
+                        setting({ label: 'Name', description: 'What the name is for' }),
+                    ),
+                ],
+            });
             expect(screen.getByText('Name').getAttribute('title')).toBe('What the name is for');
         });
 
@@ -129,7 +180,9 @@ describe('menu popup', () => {
         });
 
         it('should draw a category that has no settings as a heading only', async () => {
-            await openMenu({ groups: [group('General', setting({ label: 'Name' })), group('Empty Site')] });
+            await openMenu({
+                groups: [group('General', setting({ label: 'Name' })), group('Empty Site')],
+            });
             expect(outline()).toEqual(['General', 'Name', 'Empty Site']);
         });
 
@@ -164,10 +217,12 @@ describe('menu popup', () => {
             it('should draw a choice of the options, with the value selected, for a select setting', () => {
                 const select = controlOf('Format');
                 expect(select.tagName).toBe('SELECT');
-                expect([...select.options].map(option => [option.value, option.textContent])).toEqual([
+                expect(
+                    [...select.options].map((option) => [option.value, option.textContent]),
+                ).toEqual([
                     ['img', 'Folder with Images'],
                     ['.cbz', 'Comic Book Archive'],
-                    ['.epub', 'Ebook Reader']
+                    ['.epub', 'Ebook Reader'],
                 ]);
                 expect(select.value).toBe('.cbz');
             });
@@ -180,14 +235,17 @@ describe('menu popup', () => {
 
             it.each([
                 ['a file', 'Key file', '/keys/id', 'Choose file …'],
-                ['a directory', 'Manga Directory', '/mangas', 'Browse …']
-            ])('should show the path of %s as text that cannot be typed, but read, with a button to browse', (name, label, value, browse) => {
-                const input = controlOf(label);
-                expect(input.value).toBe(value);
-                expect(input.readOnly).toBe(true);
-                expect(input.disabled).toBe(false);
-                expect(within(rowOf(label)).getByTitle(browse)).toBeTruthy();
-            });
+                ['a directory', 'Manga Directory', '/mangas', 'Browse …'],
+            ])(
+                'should show the path of %s as text that cannot be typed, but read, with a button to browse',
+                (name, label, value, browse) => {
+                    const input = controlOf(label);
+                    expect(input.value).toBe(value);
+                    expect(input.readOnly).toBe(true);
+                    expect(input.disabled).toBe(false);
+                    expect(within(rowOf(label)).getByTitle(browse)).toBeTruthy();
+                },
+            );
 
             it('should show a setting that cannot be changed as a text that cannot be typed, with its value as tooltip', () => {
                 const input = controlOf('Bookmarks Directory');
@@ -199,7 +257,11 @@ describe('menu popup', () => {
         });
 
         it('should draw a text field for an input type that it does not know', async () => {
-            await openMenu({ groups: [group('General', setting({ input: 'colour', label: 'Colour', value: 'red' }))] });
+            await openMenu({
+                groups: [
+                    group('General', setting({ input: 'colour', label: 'Colour', value: 'red' })),
+                ],
+            });
             const input = controlOf('Colour');
             expect(input.type).toBe('text');
             expect(input.value).toBe('red');
@@ -210,14 +272,28 @@ describe('menu popup', () => {
             ['text', undefined],
             ['password', null],
             ['numeric', undefined],
-            ['select', undefined]
-        ])('should draw an empty %s control for a setting without a value', async (input, value) => {
-            await openMenu({ groups: [group('General', setting({ input, label: 'Empty', value, options: [] }))] });
-            expect(controlOf('Empty').value).toBe('');
-        });
+            ['select', undefined],
+        ])(
+            'should draw an empty %s control for a setting without a value',
+            async (input, value) => {
+                await openMenu({
+                    groups: [
+                        group('General', setting({ input, label: 'Empty', value, options: [] })),
+                    ],
+                });
+                expect(controlOf('Empty').value).toBe('');
+            },
+        );
 
         it('should draw an unchecked box for a checkbox setting without a value', async () => {
-            await openMenu({ groups: [group('General', setting({ input: 'checkbox', label: 'Switch', value: undefined }))] });
+            await openMenu({
+                groups: [
+                    group(
+                        'General',
+                        setting({ input: 'checkbox', label: 'Switch', value: undefined }),
+                    ),
+                ],
+            });
             expect(controlOf('Switch').checked).toBe(false);
         });
     });
@@ -239,7 +315,9 @@ describe('menu popup', () => {
             expect(controlOf('Reader').checked).toBe(false);
             // ... but not the engine
             const [text, password, quality, format, reader] = groups[0].settings;
-            expect([text.value, password.value, quality.value, format.value, reader.value]).toEqual(['abc', 'hunter2', 90, '.cbz', true]);
+            expect([text.value, password.value, quality.value, format.value, reader.value]).toEqual(
+                ['abc', 'hunter2', 90, '.cbz', true],
+            );
             expect(settings.save).not.toHaveBeenCalled();
             expect(onClose).not.toHaveBeenCalled();
         });
@@ -250,7 +328,13 @@ describe('menu popup', () => {
             const [text, password, quality, format, reader] = groups[0].settings;
             let seenBySave = null;
             settings.save.mockImplementation(async () => {
-                seenBySave = [text.value, password.value, quality.value, format.value, reader.value];
+                seenBySave = [
+                    text.value,
+                    password.value,
+                    quality.value,
+                    format.value,
+                    reader.value,
+                ];
             });
             type('Text', 'changed');
             type('Password', 'new secret');
@@ -272,7 +356,16 @@ describe('menu popup', () => {
             const { settings, onClose } = await openMenu({ groups });
             fireEvent.click(saveButton());
             await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
-            expect(groups[0].settings.map(entry => entry.value)).toEqual(['abc', 'hunter2', 90, '.cbz', true, '/keys/id', '/mangas', '/userdata']);
+            expect(groups[0].settings.map((entry) => entry.value)).toEqual([
+                'abc',
+                'hunter2',
+                90,
+                '.cbz',
+                true,
+                '/keys/id',
+                '/mangas',
+                '/userdata',
+            ]);
             expect(settings.save).toHaveBeenCalledTimes(1);
         });
 
@@ -281,9 +374,15 @@ describe('menu popup', () => {
             ['at the minimum', 50, 50],
             ['inside the limits', 75, 75],
             ['at the maximum', 100, 100],
-            ['above the maximum', 150, 100]
+            ['above the maximum', 150, 100],
         ])('should save a number %s of its setting as %i', async (name, typed, saved) => {
-            const quality = setting({ input: 'numeric', label: 'Quality', value: 90, min: 50, max: 100 });
+            const quality = setting({
+                input: 'numeric',
+                label: 'Quality',
+                value: 90,
+                min: 50,
+                max: 100,
+            });
             const { onClose } = await openMenu({ groups: [group('General', quality)] });
             type('Quality', String(typed));
             // the field shows what was typed, the limits are applied when it is saved
@@ -294,7 +393,13 @@ describe('menu popup', () => {
         });
 
         it('should save a numeric setting that the engine holds as text as a number, also when it was not touched', async () => {
-            const quality = setting({ input: 'numeric', label: 'Quality', value: '75', min: 50, max: 100 });
+            const quality = setting({
+                input: 'numeric',
+                label: 'Quality',
+                value: '75',
+                min: 50,
+                max: 100,
+            });
             const { onClose } = await openMenu({ groups: [group('General', quality)] });
             expect(controlOf('Quality').value).toBe('75');
             fireEvent.click(saveButton());
@@ -314,8 +419,13 @@ describe('menu popup', () => {
         it('should change only the setting of the category that is edited when two categories have a setting with the same label', async () => {
             const first = setting({ label: 'Throttle', value: 'a' });
             const second = setting({ label: 'Throttle', value: 'b' });
-            const { onClose } = await openMenu({ groups: [group('Site A', first), group('Site B', second)] });
-            fireEvent.change(screen.getAllByText('Throttle')[1].closest('tr').querySelector('input'), { target: { value: 'edited' } });
+            const { onClose } = await openMenu({
+                groups: [group('Site A', first), group('Site B', second)],
+            });
+            fireEvent.change(
+                screen.getAllByText('Throttle')[1].closest('tr').querySelector('input'),
+                { target: { value: 'edited' } },
+            );
             fireEvent.click(saveButton());
             await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
             expect(first.value).toBe('a');
@@ -334,8 +444,15 @@ describe('menu popup', () => {
 
         it('should disable the save button while it saves, and save only once', async () => {
             let finish = null;
-            const { settings, onClose } = await openMenu({ groups: [group('General', setting({ label: 'Name' }))] });
-            settings.save.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+            const { settings, onClose } = await openMenu({
+                groups: [group('General', setting({ label: 'Name' }))],
+            });
+            settings.save.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        finish = resolve;
+                    }),
+            );
             expect(saveButton().disabled).toBe(false);
             fireEvent.click(saveButton());
             expect(saveButton().disabled).toBe(true);
@@ -419,7 +536,11 @@ describe('menu popup', () => {
             const added = add.mock.calls.filter(([type]) => type === 'keydown');
             expect(added).toHaveLength(1);
             unmount();
-            expect(remove.mock.calls.filter(([type]) => type === 'keydown').map(([, listener]) => listener)).toEqual([added[0][1]]);
+            expect(
+                remove.mock.calls
+                    .filter(([type]) => type === 'keydown')
+                    .map(([, listener]) => listener),
+            ).toEqual([added[0][1]]);
             fireEvent.keyDown(window, { key: 'Escape' });
             expect(onClose).not.toHaveBeenCalled();
         });
@@ -432,7 +553,9 @@ describe('menu popup', () => {
                 const [version, setVersion] = React.useState(1);
                 return (
                     <>
-                        <button type="button" onClick={() => setVersion(2)}>Swap</button>
+                        <button type="button" onClick={() => setVersion(2)}>
+                            Swap
+                        </button>
                         <MenuPopup onClose={version === 1 ? first : second} />
                     </>
                 );
@@ -448,12 +571,14 @@ describe('menu popup', () => {
     describe('connectors that are not ready', () => {
         const early = () => [
             group('General', setting({ label: 'Name', value: 'old' })),
-            group('Early Site', setting({ label: 'Early', value: 'e' }))
+            group('Early Site', setting({ label: 'Early', value: 'e' })),
         ];
 
         it('should say that the connectors are loading while they are, and not when they are ready', async () => {
             await openMenu({ groups: early(), ready: false });
-            expect(screen.getByText('Loading connectors … their settings appear below when done.')).toBeTruthy();
+            expect(
+                screen.getByText('Loading connectors … their settings appear below when done.'),
+            ).toBeTruthy();
             expect(outline()).toEqual(['General', 'Name', 'Early Site', 'Early']);
         });
 
@@ -477,7 +602,14 @@ describe('menu popup', () => {
             expect(screen.getByText(/^Loading connectors/)).toBeTruthy();
             engine.ConnectorRegistry.isReady = true;
             act(() => engine.ConnectorRegistry.emit('ready'));
-            expect(outline()).toEqual(['General', 'Name', 'Early Site', 'Early', 'Late Site', 'Late']);
+            expect(outline()).toEqual([
+                'General',
+                'Name',
+                'Early Site',
+                'Early',
+                'Late Site',
+                'Late',
+            ]);
             expect(screen.queryByText(/^Loading connectors/)).toBeNull();
             expect(controlOf('Name').value).toBe('edited');
             expect(controlOf('Early').value).toBe('also edited');
@@ -514,7 +646,7 @@ describe('menu popup', () => {
         it.each([
             ['Downloads', '/', '/downloads'],
             ['Bookmarks', '/', '/bookmarks'],
-            ['Start', '/downloads', '/']
+            ['Start', '/downloads', '/'],
         ])('should close the popup and go to the view %s', async (name, from, to) => {
             const { router, onClose } = await openMenu({ url: from });
             expect(router.state.location.pathname).toBe(from);
@@ -542,7 +674,10 @@ describe('menu popup', () => {
             expect(revision.getAttribute('title')).toBe('Revision History');
             fireEvent.click(revision);
             expect(open).toHaveBeenCalledTimes(1);
-            expect(open.mock.calls[0].slice(0, 2)).toEqual(['https://example.test/revision', '_blank']);
+            expect(open.mock.calls[0].slice(0, 2)).toEqual([
+                'https://example.test/revision',
+                '_blank',
+            ]);
         });
 
         it('should open nothing when the engine knows no link for its revision', async () => {
@@ -560,32 +695,67 @@ describe('menu popup', () => {
         });
 
         it.each([
-            ['the name of the project', () => screen.getByText('RakKomik'), 'https://github.com/akn19/rakkomik'],
-            ['the contributors', () => screen.getByText('Contributors'), 'https://github.com/akn19/rakkomik/graphs/contributors'],
-            ['the homepage', () => screen.getByTitle('Visit the RakKomik Homepage'), 'https://github.com/akn19/rakkomik'],
-            ['the documentation', () => screen.getByTitle('Read the Online Documentation'), 'https://github.com/akn19/rakkomik#readme'],
-            ['the tickets', () => screen.getByTitle('Open a Ticket on GitHub'), 'https://github.com/akn19/rakkomik/issues'],
-            ['the geolocation', () => screen.getByTitle('Show your external IP and Geolocation'), 'https://ipinfo.io/json']
-        ])('should open %s in a window of its own, not in the application', async (name, find, url) => {
-            const open = vi.spyOn(window, 'open').mockImplementation(() => null);
-            await openMenu();
-            fireEvent.click(find());
-            expect(open).toHaveBeenCalledTimes(1);
-            expect(open.mock.calls[0].slice(0, 2)).toEqual([url, '_blank']);
-        });
+            [
+                'the name of the project',
+                () => screen.getByText('RakKomik'),
+                'https://github.com/akn19/rakkomik',
+            ],
+            [
+                'the contributors',
+                () => screen.getByText('Contributors'),
+                'https://github.com/akn19/rakkomik/graphs/contributors',
+            ],
+            [
+                'the homepage',
+                () => screen.getByTitle('Visit the RakKomik Homepage'),
+                'https://github.com/akn19/rakkomik',
+            ],
+            [
+                'the documentation',
+                () => screen.getByTitle('Read the Online Documentation'),
+                'https://github.com/akn19/rakkomik#readme',
+            ],
+            [
+                'the tickets',
+                () => screen.getByTitle('Open a Ticket on GitHub'),
+                'https://github.com/akn19/rakkomik/issues',
+            ],
+            [
+                'the geolocation',
+                () => screen.getByTitle('Show your external IP and Geolocation'),
+                'https://ipinfo.io/json',
+            ],
+        ])(
+            'should open %s in a window of its own, not in the application',
+            async (name, find, url) => {
+                const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+                await openMenu();
+                fireEvent.click(find());
+                expect(open).toHaveBeenCalledTimes(1);
+                expect(open.mock.calls[0].slice(0, 2)).toEqual([url, '_blank']);
+            },
+        );
 
         it('should give a link of the project a tooltip that says where it goes', async () => {
             await openMenu();
-            expect(screen.getByText('RakKomik').getAttribute('title')).toBe('https://github.com/akn19/rakkomik');
-            expect(screen.getByText('Contributors').getAttribute('title')).toBe('https://github.com/akn19/rakkomik/graphs/contributors');
+            expect(screen.getByText('RakKomik').getAttribute('title')).toBe(
+                'https://github.com/akn19/rakkomik',
+            );
+            expect(screen.getByText('Contributors').getAttribute('title')).toBe(
+                'https://github.com/akn19/rakkomik/graphs/contributors',
+            );
         });
     });
 
     describe('browsing for a path', () => {
-        const browseButton = label => within(rowOf(label)).getByRole('button');
+        const browseButton = (label) => within(rowOf(label)).getByRole('button');
 
         it('should put the directory that was chosen into the draft, and start the dialog at the one that is in it', async () => {
-            const directory = setting({ input: 'directory', label: 'Manga Directory', value: '/mangas' });
+            const directory = setting({
+                input: 'directory',
+                label: 'Manga Directory',
+                value: '/mangas',
+            });
             const { onClose } = await openMenu({ groups: [group('General', directory)] });
             engine.Storage.folderBrowser.mockResolvedValueOnce('/new/mangas');
             fireEvent.click(browseButton('Manga Directory'));
@@ -606,9 +776,13 @@ describe('menu popup', () => {
         it.each([
             ['cancelled', null],
             ['closed without an answer', undefined],
-            ['answered with an empty path', '']
+            ['answered with an empty path', ''],
         ])('should leave the directory as it was when the dialog is %s', async (name, answer) => {
-            const directory = setting({ input: 'directory', label: 'Manga Directory', value: '/mangas' });
+            const directory = setting({
+                input: 'directory',
+                label: 'Manga Directory',
+                value: '/mangas',
+            });
             await openMenu({ groups: [group('General', directory)] });
             engine.Storage.folderBrowser.mockResolvedValueOnce(answer);
             fireEvent.click(browseButton('Manga Directory'));
@@ -621,10 +795,15 @@ describe('menu popup', () => {
             const bridge = installBridge();
             const file = setting({ input: 'file', label: 'Key file', value: '' });
             const { onClose } = await openMenu({ groups: [group('General', file)] });
-            bridge.dialog.showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: ['/keys/id_ed25519', '/keys/other'] });
+            bridge.dialog.showOpenDialog.mockResolvedValueOnce({
+                canceled: false,
+                filePaths: ['/keys/id_ed25519', '/keys/other'],
+            });
             fireEvent.click(browseButton('Key file'));
             await waitFor(() => expect(controlOf('Key file').value).toBe('/keys/id_ed25519'));
-            expect(bridge.dialog.showOpenDialog).toHaveBeenCalledExactlyOnceWith({ properties: ['openFile'] });
+            expect(bridge.dialog.showOpenDialog).toHaveBeenCalledExactlyOnceWith({
+                properties: ['openFile'],
+            });
             expect(file.value).toBe('');
             fireEvent.click(saveButton());
             await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
@@ -635,10 +814,17 @@ describe('menu popup', () => {
             ['cancelled', { canceled: true, filePaths: ['/keys/ignored'] }],
             ['confirmed without a file', { canceled: false, filePaths: [] }],
             ['answered without a list of files', { canceled: false }],
-            ['answered with nothing', undefined]
+            ['answered with nothing', undefined],
         ])('should leave the file as it was when the dialog is %s', async (name, answer) => {
             const bridge = installBridge();
-            await openMenu({ groups: [group('General', setting({ input: 'file', label: 'Key file', value: '/keys/id' }))] });
+            await openMenu({
+                groups: [
+                    group(
+                        'General',
+                        setting({ input: 'file', label: 'Key file', value: '/keys/id' }),
+                    ),
+                ],
+            });
             bridge.dialog.showOpenDialog.mockResolvedValueOnce(answer);
             fireEvent.click(browseButton('Key file'));
             await waitFor(() => expect(bridge.dialog.showOpenDialog).toHaveBeenCalledTimes(1));
@@ -647,7 +833,11 @@ describe('menu popup', () => {
         });
 
         it('should say so, and leave the directory as it was, when the dialog cannot be shown', async () => {
-            const directory = setting({ input: 'directory', label: 'Manga Directory', value: '/mangas' });
+            const directory = setting({
+                input: 'directory',
+                label: 'Manga Directory',
+                value: '/mangas',
+            });
             await openMenu({ groups: [group('General', directory)] });
             engine.Storage.folderBrowser.mockRejectedValueOnce(new Error('no display'));
             fireEvent.click(browseButton('Manga Directory'));
@@ -657,7 +847,14 @@ describe('menu popup', () => {
 
         it('should say so, and leave the file as it was, when the dialog of the window fails', async () => {
             const bridge = installBridge();
-            await openMenu({ groups: [group('General', setting({ input: 'file', label: 'Key file', value: '/keys/id' }))] });
+            await openMenu({
+                groups: [
+                    group(
+                        'General',
+                        setting({ input: 'file', label: 'Key file', value: '/keys/id' }),
+                    ),
+                ],
+            });
             bridge.dialog.showOpenDialog.mockRejectedValueOnce(new Error('IPC failed'));
             fireEvent.click(browseButton('Key file'));
             expect(await screen.findByText('Failed to choose a path: IPC failed')).toBeTruthy();
@@ -665,7 +862,14 @@ describe('menu popup', () => {
         });
 
         it('should leave the file as it was when the window has no dialog to ask', async () => {
-            await openMenu({ groups: [group('General', setting({ input: 'file', label: 'Key file', value: '/keys/id' }))] });
+            await openMenu({
+                groups: [
+                    group(
+                        'General',
+                        setting({ input: 'file', label: 'Key file', value: '/keys/id' }),
+                    ),
+                ],
+            });
             expect(window.hakuneko).toBeUndefined();
             fireEvent.click(browseButton('Key file'));
             await act(async () => undefined);
@@ -685,7 +889,7 @@ describe('menu popup', () => {
             checkbox: { field: 'checkbox', typed: true, buttons: 0 },
             file: { field: 'text', typed: false, buttons: 1 },
             directory: { field: 'text', typed: false, buttons: 1 },
-            disabled: { field: 'text', typed: false, buttons: 0 }
+            disabled: { field: 'text', typed: false, buttons: 0 },
         };
 
         function realEngine() {
@@ -695,9 +899,21 @@ describe('menu popup', () => {
                 id: 'west',
                 label: 'West',
                 config: {
-                    throttle: { label: 'Throttle Requests', description: 'Milliseconds between two requests', input: 'numeric', min: 0, max: 5000, value: 1000 },
-                    token: { label: 'Access Token', description: 'The token of the account', input: 'password', value: '' }
-                }
+                    throttle: {
+                        label: 'Throttle Requests',
+                        description: 'Milliseconds between two requests',
+                        input: 'numeric',
+                        min: 0,
+                        max: 5000,
+                        value: 1000,
+                    },
+                    token: {
+                        label: 'Access Token',
+                        description: 'The token of the account',
+                        input: 'password',
+                        value: '',
+                    },
+                },
             });
             engine = installEngine({ connectors: [west], engine: { Settings: settings } });
             engine.Storage.saveConfig = vi.fn(async () => undefined);
@@ -709,22 +925,31 @@ describe('menu popup', () => {
             const { settings, west } = realEngine();
             const refs = [...settings, ...Object.values(west.config)];
             expect(refs.length).toBeGreaterThan(10);
-            expect([...new Set(refs.map(ref => ref.input))].filter(input => !(input in DRAWN))).toEqual([]);
+            expect(
+                [...new Set(refs.map((ref) => ref.input))].filter((input) => !(input in DRAWN)),
+            ).toEqual([]);
             await renderRouted(<MenuPopup onClose={vi.fn()} />, { selection: false });
             for (const ref of refs) {
                 const row = rowOf(ref.label);
                 const control = row.querySelector('input, select');
                 const drawn = DRAWN[ref.input];
-                expect(control.tagName === 'SELECT' ? 'select' : control.type, ref.label).toBe(drawn.field);
+                expect(control.tagName === 'SELECT' ? 'select' : control.type, ref.label).toBe(
+                    drawn.field,
+                );
                 expect(!!(control.disabled || control.readOnly), ref.label).toBe(!drawn.typed);
                 expect(row.querySelectorAll('button'), ref.label).toHaveLength(drawn.buttons);
-                expect(screen.getByText(ref.label).getAttribute('title'), ref.label).toBe(ref.description);
+                expect(screen.getByText(ref.label).getAttribute('title'), ref.label).toBe(
+                    ref.description,
+                );
                 if (ref.input === 'numeric') {
                     expect(control.getAttribute('min'), ref.label).toBe(String(ref.min));
                     expect(control.getAttribute('max'), ref.label).toBe(String(ref.max));
                 }
                 if (ref.input === 'select') {
-                    expect([...control.options].map(option => option.textContent), ref.label).toEqual(ref.options.map(option => option.name));
+                    expect(
+                        [...control.options].map((option) => option.textContent),
+                        ref.label,
+                    ).toEqual(ref.options.map((option) => option.name));
                     expect(control.value, ref.label).toBe(ref.value);
                 }
                 if (ref.input === 'checkbox') {
@@ -736,7 +961,9 @@ describe('menu popup', () => {
         it('should draw the settings of the engine in the order of its categories: the general ones, then those of each website', async () => {
             realEngine();
             await renderRouted(<MenuPopup onClose={vi.fn()} />, { selection: false });
-            const headings = [...document.querySelectorAll('th[colspan]')].map(node => node.textContent);
+            const headings = [...document.querySelectorAll('th[colspan]')].map(
+                (node) => node.textContent,
+            );
             expect(headings).toEqual(['General', 'West']);
         });
 
@@ -772,7 +999,8 @@ describe('menu popup', () => {
     });
 
     describe('importing bookmarks', () => {
-        const database = () => new File(['SQLite format 3'], 'favorites.db', { type: 'application/x-sqlite3' });
+        const database = () =>
+            new File(['SQLite format 3'], 'favorites.db', { type: 'application/x-sqlite3' });
 
         it('should open the file chooser that only offers databases when the import button is clicked', async () => {
             await openMenu();
@@ -800,19 +1028,27 @@ describe('menu popup', () => {
             await openMenu();
             const file = database();
             await user.upload(importInput(), file);
-            await waitFor(() => expect(engine.BookmarkManager.importBookmarks).toHaveBeenCalledTimes(1));
+            await waitFor(() =>
+                expect(engine.BookmarkManager.importBookmarks).toHaveBeenCalledTimes(1),
+            );
             await waitFor(() => expect(importInput().files).toHaveLength(0));
             await user.upload(importInput(), file);
-            await waitFor(() => expect(engine.BookmarkManager.importBookmarks).toHaveBeenCalledTimes(2));
+            await waitFor(() =>
+                expect(engine.BookmarkManager.importBookmarks).toHaveBeenCalledTimes(2),
+            );
             expect(engine.BookmarkManager.importBookmarks.mock.calls[1][0]).toBe(file);
         });
 
         it('should show the message of the engine when the import fails, forget the choice, and not say that it worked', async () => {
             const user = userEvent.setup();
             await openMenu();
-            engine.BookmarkManager.importBookmarks.mockRejectedValueOnce(new Error("File type 'text/plain' is not supported!"));
+            engine.BookmarkManager.importBookmarks.mockRejectedValueOnce(
+                new Error("File type 'text/plain' is not supported!"),
+            );
             await user.upload(importInput(), database());
-            expect(await screen.findByText("File type 'text/plain' is not supported!")).toBeTruthy();
+            expect(
+                await screen.findByText("File type 'text/plain' is not supported!"),
+            ).toBeTruthy();
             expect(toastOf("File type 'text/plain' is not supported!").className).toMatch(/red/);
             expect(screen.queryByText('Bookmarks imported.')).toBeNull();
             expect(importInput().files).toHaveLength(0);
@@ -839,14 +1075,24 @@ describe('menu popup for the keyboard and the screen reader', () => {
         await openMenu({ groups: [group('General', setting({ label: 'Name' }))] });
         const dialog = screen.getByRole('dialog', { name: 'Menu' });
         expect(dialog.getAttribute('aria-modal')).toBe('true');
-        expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Views', 'About', 'Settings']);
-        expect(within(screen.getByRole('navigation', { name: 'Views' })).getAllByRole('button').map(button => button.textContent)).toEqual(['Start', 'Downloads', 'Bookmarks']);
+        expect(
+            screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+        ).toEqual(['Views', 'About', 'Settings']);
+        expect(
+            within(screen.getByRole('navigation', { name: 'Views' }))
+                .getAllByRole('button')
+                .map((button) => button.textContent),
+        ).toEqual(['Start', 'Downloads', 'Bookmarks']);
     });
 
     it('should mark the view that is shown as the current one', async () => {
         await openMenu({ url: '/downloads' });
-        expect(screen.getByRole('button', { name: 'Downloads' }).getAttribute('aria-current')).toBe('page');
-        expect(screen.getByRole('button', { name: 'Start' }).getAttribute('aria-current')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Downloads' }).getAttribute('aria-current')).toBe(
+            'page',
+        );
+        expect(
+            screen.getByRole('button', { name: 'Start' }).getAttribute('aria-current'),
+        ).toBeNull();
     });
 
     it('should take the focus when it opens, keep Tab inside, and give the focus back to the button that opened it', async () => {
@@ -867,37 +1113,72 @@ describe('menu popup for the keyboard and the screen reader', () => {
 
     it('should label every setting, and describe it with its tooltip', async () => {
         await openMenu({ groups: typedGroups() });
-        for (const [label, description] of [['Text', 'A text'], ['Password', 'A secret'], ['Quality', 'A number'], ['Format', 'A choice'], ['Reader', 'A switch'], ['Key file', 'A file'], ['Manga Directory', 'A directory'], ['Bookmarks Directory', 'Cannot be changed']]) {
+        for (const [label, description] of [
+            ['Text', 'A text'],
+            ['Password', 'A secret'],
+            ['Quality', 'A number'],
+            ['Format', 'A choice'],
+            ['Reader', 'A switch'],
+            ['Key file', 'A file'],
+            ['Manga Directory', 'A directory'],
+            ['Bookmarks Directory', 'Cannot be changed'],
+        ]) {
             const control = screen.getByLabelText(label);
             expect(control, label).toBe(controlOf(label));
-            expect(document.getElementById(control.getAttribute('aria-describedby')).textContent, label).toBe(description);
+            expect(
+                document.getElementById(control.getAttribute('aria-describedby')).textContent,
+                label,
+            ).toBe(description);
         }
         expect(screen.getByRole('button', { name: 'Choose a file for Key file' })).toBeTruthy();
-        expect(screen.getByRole('button', { name: 'Choose a folder for Manga Directory' })).toBeTruthy();
+        expect(
+            screen.getByRole('button', { name: 'Choose a folder for Manga Directory' }),
+        ).toBeTruthy();
     });
 
     it('should head the table of the settings with the categories', async () => {
-        await openMenu({ groups: [group('General', setting({ label: 'Name' })), group('Site', setting({ label: 'Key' }))] });
-        expect([...document.querySelectorAll('th[scope="rowgroup"]')].map(heading => heading.textContent)).toEqual(['General', 'Site']);
+        await openMenu({
+            groups: [
+                group('General', setting({ label: 'Name' })),
+                group('Site', setting({ label: 'Key' })),
+            ],
+        });
+        expect(
+            [...document.querySelectorAll('th[scope="rowgroup"]')].map(
+                (heading) => heading.textContent,
+            ),
+        ).toEqual(['General', 'Site']);
         // each category is a group of rows of its own
-        expect(screen.getByText('General').closest('table').querySelectorAll('tbody')).toHaveLength(2);
+        expect(screen.getByText('General').closest('table').querySelectorAll('tbody')).toHaveLength(
+            2,
+        );
     });
 
     it('should make the links of the credits real links that the keyboard reaches, and still open them outside', async () => {
         const open = vi.spyOn(window, 'open').mockImplementation(() => null);
         await openMenu();
         const link = screen.getByRole('link', { name: 'Contributors' });
-        expect(link.getAttribute('href')).toBe('https://github.com/akn19/rakkomik/graphs/contributors');
+        expect(link.getAttribute('href')).toBe(
+            'https://github.com/akn19/rakkomik/graphs/contributors',
+        );
         const notPrevented = fireEvent.click(link);
         expect(notPrevented).toBe(false);
-        expect(open).toHaveBeenCalledExactlyOnceWith('https://github.com/akn19/rakkomik/graphs/contributors', '_blank', 'nodeIntegration=no');
+        expect(open).toHaveBeenCalledExactlyOnceWith(
+            'https://github.com/akn19/rakkomik/graphs/contributors',
+            '_blank',
+            'nodeIntegration=no',
+        );
     });
 
     it('should name the buttons that import, save and close', async () => {
         await openMenu();
         expect(screen.getByRole('button', { name: 'Import bookmarks' })).toBe(importButton());
-        expect(screen.getByRole('button', { name: 'Save settings and close menu' })).toBe(saveButton());
-        expect(screen.getByRole('button', { name: 'Close menu without saving settings' })).toBe(closeButton());
+        expect(screen.getByRole('button', { name: 'Save settings and close menu' })).toBe(
+            saveButton(),
+        );
+        expect(screen.getByRole('button', { name: 'Close menu without saving settings' })).toBe(
+            closeButton(),
+        );
         expect(screen.getByRole('button', { name: 'Open a Ticket on GitHub' })).toBeTruthy();
     });
 });

@@ -8,7 +8,13 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { createNovelPage } from '../../mjs/engine/Novel.mjs';
 import { useSelection } from '../selection.jsx';
 import ReaderView from '../views/Reader.jsx';
-import { addChapter, addManga, createConnector, createSettings, installEngine } from './support/fakeEngine.js';
+import {
+    addChapter,
+    addManga,
+    createConnector,
+    createSettings,
+    installEngine,
+} from './support/fakeEngine.js';
 import { renderRouted } from './support/render.jsx';
 
 // the router and the queries answer in their own time: a failure may take longer to show than a success needs on a busy machine
@@ -38,7 +44,7 @@ const DEFAULT_WIDTH = { key: '/', code: 'Slash' };
 const FIT_WIDTH = { key: '*', code: 'NumpadMultiply' };
 const SPACE = { key: ' ', code: 'Space' };
 
-const imagesOf = id => [1, 2, 3].map(number => `https://img.example/${id}/${number}.jpg`);
+const imagesOf = (id) => [1, 2, 3].map((number) => `https://img.example/${id}/${number}.jpg`);
 
 /**
  * Presses a key anywhere in the window.
@@ -58,19 +64,29 @@ function press(key, init = {}, target = document.body) {
 function createLibrary({ ids = ['c3', 'c2', 'c1'], pagesOf = imagesOf, engine = {} } = {}) {
     const connector = createConnector({ id: 'site', label: 'Site' });
     const manga = addManga(connector, { id: 'm1', title: 'Manga One' });
-    const chapters = ids.map(id => addChapter(manga, {
-        id,
-        title: `Chapter ${id.replace(/^c/, '')}`,
-        getPages: vi.fn(callback => callback(null, pagesOf(id)))
-    }));
-    return { connector, manga, chapters, engine: installEngine({ connectors: [connector], engine }) };
+    const chapters = ids.map((id) =>
+        addChapter(manga, {
+            id,
+            title: `Chapter ${id.replace(/^c/, '')}`,
+            getPages: vi.fn((callback) => callback(null, pagesOf(id))),
+        }),
+    );
+    return {
+        connector,
+        manga,
+        chapters,
+        engine: installEngine({ connectors: [connector], engine }),
+    };
 }
 
 /**
  * Renders the reader under the route that the application gives it, the start page under the root. `selection.current` is the
  * selection that the panels share with the reader. A test that does not make its own engine gets the library of createLibrary.
  */
-async function renderReader(url = DEFAULT_URL, { extra = null, library = true, strict = false } = {}) {
+async function renderReader(
+    url = DEFAULT_URL,
+    { extra = null, library = true, strict = false } = {},
+) {
     if (library && !window.Engine) {
         createLibrary();
     }
@@ -79,10 +95,27 @@ async function renderReader(url = DEFAULT_URL, { extra = null, library = true, s
         selection.current = useSelection();
         return null;
     }
-    const reader = strict ? <StrictMode><ReaderView /></StrictMode> : <ReaderView />;
+    const reader = strict ? (
+        <StrictMode>
+            <ReaderView />
+        </StrictMode>
+    ) : (
+        <ReaderView />
+    );
     const view = await renderRouted(<p>{START}</p>, {
         url,
-        routes: [{ path: '/reader', element: <>{reader}<SelectionProbe />{extra}</> }]
+        routes: [
+            {
+                path: '/reader',
+                element: (
+                    <>
+                        {reader}
+                        <SelectionProbe />
+                        {extra}
+                    </>
+                ),
+            },
+        ],
     });
     return { ...view, selection, user: userEvent.setup() };
 }
@@ -110,13 +143,15 @@ const readingContainer = () => document.getElementById('rk-page-0').parentElemen
 const thumbnailContainer = () => screen.getByTitle('Page 1').parentElement;
 // the first element of the toolbar is the title of the chapter
 const shownTitle = () => screen.getByTitle(CLOSE).parentElement.querySelector('span').textContent;
-const titleIs = title => waitFor(() => expect(shownTitle()).toBe(title));
+const titleIs = (title) => waitFor(() => expect(shownTitle()).toBe(title));
 const shownWidth = () => screen.getByText(/^Image Width:/).textContent;
 
 /** Collects the frames that the reader asks for, `flush` runs them (each may ask for the next one). */
 function captureFrames() {
     const queue = [];
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => queue.push(callback));
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) =>
+        queue.push(callback),
+    );
     return () => {
         while (queue.length) {
             queue.shift()(0);
@@ -130,14 +165,23 @@ function layOut(rectangles, height = 1000) {
     const pages = images();
     pages.forEach((page, index) => {
         const { top, bottom } = rectangles[index];
-        vi.spyOn(page, 'getBoundingClientRect').mockReturnValue({ top, bottom, left: 0, right: 0, x: 0, y: top, width: 0, height: bottom - top });
+        vi.spyOn(page, 'getBoundingClientRect').mockReturnValue({
+            top,
+            bottom,
+            left: 0,
+            right: 0,
+            x: 0,
+            y: top,
+            width: 0,
+            height: bottom - top,
+        });
     });
     return pages;
 }
 
 /** What `scrollIntoView` was called on, as the ids of the elements. */
 function scrolledTo(spy) {
-    return spy.mock.contexts.map(element => element.id);
+    return spy.mock.contexts.map((element) => element.id);
 }
 
 const viewport = window.innerHeight;
@@ -161,7 +205,12 @@ describe('the chapter of the address', () => {
     it('should say that it resolves the chapter until the list of chapters is there', async () => {
         const answers = [];
         const connector = createConnector({ id: 'site' });
-        const manga = addManga(connector, { id: 'm1', getChapters: vi.fn(callback => { answers.push(callback); }) });
+        const manga = addManga(connector, {
+            id: 'm1',
+            getChapters: vi.fn((callback) => {
+                answers.push(callback);
+            }),
+        });
         addChapter(manga, { id: 'c1', title: 'Chapter 1' });
         installEngine({ connectors: [connector] });
         await renderReader('/reader?connector=site&manga=m1&chapter=c1');
@@ -178,28 +227,34 @@ describe('the chapter of the address', () => {
         ['an unknown manga', '/reader?connector=site&manga=nowhere&chapter=c2'],
         ['an unknown chapter', '/reader?connector=site&manga=m1&chapter=nowhere'],
         ['a chapter that belongs to another manga', '/reader?connector=site&manga=m2&chapter=c2'],
-        ['no parameters at all', '/reader']
-    ])('should say that the chapter is not found for %s, and offer the way out', async (name, url) => {
-        const { connector, chapters, engine } = createLibrary();
-        addManga(connector, { id: 'm2', title: 'Manga Two' });
-        const { user } = await renderReader(url);
-        expect(await screen.findByText(NOT_FOUND)).toBeTruthy();
-        expect(chapters[1].getPages).not.toHaveBeenCalled();
-        await user.click(screen.getByRole('button', { name: 'Close' }));
-        expect(await screen.findByText(START)).toBeTruthy();
-        expect(engine.ChaptermarkManager.addChaptermark).not.toHaveBeenCalled();
-    });
+        ['no parameters at all', '/reader'],
+    ])(
+        'should say that the chapter is not found for %s, and offer the way out',
+        async (name, url) => {
+            const { connector, chapters, engine } = createLibrary();
+            addManga(connector, { id: 'm2', title: 'Manga Two' });
+            const { user } = await renderReader(url);
+            expect(await screen.findByText(NOT_FOUND)).toBeTruthy();
+            expect(chapters[1].getPages).not.toHaveBeenCalled();
+            await user.click(screen.getByRole('button', { name: 'Close' }));
+            expect(await screen.findByText(START)).toBeTruthy();
+            expect(engine.ChaptermarkManager.addChaptermark).not.toHaveBeenCalled();
+        },
+    );
 
     it.each([
-        ['an error', callback => callback(new Error('The manga folder is gone'), [])],
-        ['no list at all', callback => callback(null, undefined)]
-    ])('should say that the chapter is not found when the engine answers the chapter list with %s', async (name, answer) => {
-        const connector = createConnector({ id: 'site' });
-        addManga(connector, { id: 'm1', getChapters: vi.fn(answer) });
-        installEngine({ connectors: [connector] });
-        await renderReader('/reader?connector=site&manga=m1&chapter=c1');
-        expect(await screen.findByText(NOT_FOUND)).toBeTruthy();
-    });
+        ['an error', (callback) => callback(new Error('The manga folder is gone'), [])],
+        ['no list at all', (callback) => callback(null, undefined)],
+    ])(
+        'should say that the chapter is not found when the engine answers the chapter list with %s',
+        async (name, answer) => {
+            const connector = createConnector({ id: 'site' });
+            addManga(connector, { id: 'm1', getChapters: vi.fn(answer) });
+            installEngine({ connectors: [connector] });
+            await renderReader('/reader?connector=site&manga=m1&chapter=c1');
+            expect(await screen.findByText(NOT_FOUND)).toBeTruthy();
+        },
+    );
 
     it('should say that the chapter is not found when there is no engine, instead of failing', async () => {
         await renderReader('/reader?connector=site&manga=m1&chapter=c1', { library: false });
@@ -217,10 +272,16 @@ describe('the chapter of the address', () => {
     it('should wait for the connectors of the engine when it is opened by a deep link, instead of calling the chapter missing', async () => {
         const connectors = [];
         let registered = null;
-        const gate = new Promise(resolve => { registered = resolve; });
+        const gate = new Promise((resolve) => {
+            registered = resolve;
+        });
         const connector = createConnector({ id: 'site' });
         const manga = addManga(connector, { id: 'm1' });
-        addChapter(manga, { id: 'c1', title: 'Chapter 1', getPages: vi.fn(callback => callback(null, imagesOf('c1'))) });
+        addChapter(manga, {
+            id: 'c1',
+            title: 'Chapter 1',
+            getPages: vi.fn((callback) => callback(null, imagesOf('c1'))),
+        });
         installEngine({ connectors, ready: false, engine: { ConnectorsReady: gate } });
         await renderReader('/reader?connector=site&manga=m1&chapter=c1');
         expect(await screen.findByText(RESOLVING)).toBeTruthy();
@@ -259,7 +320,9 @@ describe('the pages of the chapter', () => {
     it('should show the title and the way out while the engine collects the pages, then the thumbnails', async () => {
         const answers = [];
         const { chapters } = createLibrary();
-        chapters[1].getPages = vi.fn(callback => { answers.push(callback); });
+        chapters[1].getPages = vi.fn((callback) => {
+            answers.push(callback);
+        });
         await renderReader();
         expect(await screen.findByText(LOADING)).toBeTruthy();
         expect(shownTitle()).toBe('Chapter 2');
@@ -272,14 +335,30 @@ describe('the pages of the chapter', () => {
     });
 
     it.each([
-        ['the error of the engine', callback => callback(new Error('The site is down'), undefined), 'The site is down'],
-        ['an engine that throws', () => { throw new Error('No connection'); }, 'No connection'],
-        ['no pages and no error', callback => callback(null, undefined), 'Failed to load pages for "Chapter 2"!']
+        [
+            'the error of the engine',
+            (callback) => callback(new Error('The site is down'), undefined),
+            'The site is down',
+        ],
+        [
+            'an engine that throws',
+            () => {
+                throw new Error('No connection');
+            },
+            'No connection',
+        ],
+        [
+            'no pages and no error',
+            (callback) => callback(null, undefined),
+            'Failed to load pages for "Chapter 2"!',
+        ],
     ])('should say why the pages are missing: %s', async (name, getPages, reason) => {
         const { chapters } = createLibrary();
         chapters[1].getPages = vi.fn(getPages);
         await renderReader();
-        expect(await screen.findByText(`Failed to load pages for this chapter: ${reason}`)).toBeTruthy();
+        expect(
+            await screen.findByText(`Failed to load pages for this chapter: ${reason}`),
+        ).toBeTruthy();
         expect(screen.queryByText(LOADING)).toBeNull();
         expect(screen.queryAllByTitle(/^Page \d+$/)).toHaveLength(0);
         // the way out is still there
@@ -292,17 +371,19 @@ describe('the pages of the chapter', () => {
     // chapter on a site into an error (Chapter.getPages), so this is a chapter that was downloaded without any page.
     it.each([
         ['an empty page list', []],
-        ['something that is no list', 'https://img.example/1.jpg']
+        ['something that is no list', 'https://img.example/1.jpg'],
     ])('should show nothing but the toolbar for %s', async (name, pages) => {
         const { chapters } = createLibrary();
-        chapters[1].getPages = vi.fn(callback => callback(null, pages));
+        chapters[1].getPages = vi.fn((callback) => callback(null, pages));
         await renderReader();
         await screen.findByText('Chapter 2');
         await waitFor(() => expect(screen.queryByText(LOADING)).toBeNull());
         expect(screen.queryByText(/^Failed to load pages/)).toBeNull();
         expect(screen.queryAllByTitle(/^Page \d+$/)).toHaveLength(0);
         // the wheel over the toolbar has nothing to scroll
-        fireEvent.wheel(screen.getByTitle('Close the preview (ESC)').parentElement, { deltaY: 100 });
+        fireEvent.wheel(screen.getByTitle('Close the preview (ESC)').parentElement, {
+            deltaY: 100,
+        });
         press(ESCAPE);
         expect(await screen.findByText(START)).toBeTruthy();
     });
@@ -313,7 +394,10 @@ describe('the pages of the chapter', () => {
         press(ESCAPE);
         await screen.findByText(START);
         await act(async () => {
-            await router.navigate({ to: '/reader', search: { connector: 'site', manga: 'm1', chapter: 'c2' } });
+            await router.navigate({
+                to: '/reader',
+                search: { connector: 'site', manga: 'm1', chapter: 'c2' },
+            });
         });
         expect(thumbnails()).toHaveLength(3);
         expect(chapters[1].getPages).toHaveBeenCalledTimes(1);
@@ -321,14 +405,20 @@ describe('the pages of the chapter', () => {
 
     it('should ask for the pages again when the chapter is opened again after a failure', async () => {
         const { chapters } = createLibrary();
-        const answers = [callback => callback(new Error('The site is down')), callback => callback(null, imagesOf('c2'))];
-        chapters[1].getPages = vi.fn(callback => answers.shift()(callback));
+        const answers = [
+            (callback) => callback(new Error('The site is down')),
+            (callback) => callback(null, imagesOf('c2')),
+        ];
+        chapters[1].getPages = vi.fn((callback) => answers.shift()(callback));
         const { router } = await renderReader();
         await screen.findByText('Failed to load pages for this chapter: The site is down');
         press(ESCAPE);
         await screen.findByText(START);
         await act(async () => {
-            await router.navigate({ to: '/reader', search: { connector: 'site', manga: 'm1', chapter: 'c2' } });
+            await router.navigate({
+                to: '/reader',
+                search: { connector: 'site', manga: 'm1', chapter: 'c2' },
+            });
         });
         expect(await screen.findByTitle('Page 1')).toBeTruthy();
         expect(chapters[1].getPages).toHaveBeenCalledTimes(2);
@@ -339,9 +429,15 @@ describe('the thumbnails', () => {
     it('should show one thumbnail for each page, in the order of the pages, with the page as its picture', async () => {
         await openThumbnails();
         const shown = thumbnails();
-        expect(shown.map(thumbnail => thumbnail.getAttribute('title'))).toEqual(['Page 1', 'Page 2', 'Page 3']);
+        expect(shown.map((thumbnail) => thumbnail.getAttribute('title'))).toEqual([
+            'Page 1',
+            'Page 2',
+            'Page 3',
+        ]);
         shown.forEach((thumbnail, index) => {
-            expect(thumbnail.style.backgroundImage).toContain(`https://img.example/c2/${index + 1}.jpg`);
+            expect(thumbnail.style.backgroundImage).toContain(
+                `https://img.example/c2/${index + 1}.jpg`,
+            );
         });
         expect(isReading()).toBe(false);
         expect(screen.queryAllByAltText(/^Page \d+$/)).toHaveLength(0);
@@ -351,7 +447,9 @@ describe('the thumbnails', () => {
     // address and the browser drops the whole picture
     it('should keep an apostrophe of a page address inside of the picture', async () => {
         const { chapters } = createLibrary();
-        chapters[1].getPages = vi.fn(callback => callback(null, ["file:///home/me/Manga/Don't%20Toy/Chapter%201/001.jpg"]));
+        chapters[1].getPages = vi.fn((callback) =>
+            callback(null, ["file:///home/me/Manga/Don't%20Toy/Chapter%201/001.jpg"]),
+        );
         await renderReader();
         const thumbnail = await screen.findByTitle('Page 1');
         expect(thumbnail.style.backgroundImage).toContain('Toy/Chapter%201/001.jpg');
@@ -360,7 +458,7 @@ describe('the thumbnails', () => {
     it('should show a page every time the chapter lists it', async () => {
         const { chapters } = createLibrary();
         const page = imagesOf('c2')[0];
-        chapters[1].getPages = vi.fn(callback => callback(null, [page, page]));
+        chapters[1].getPages = vi.fn((callback) => callback(null, [page, page]));
         await renderReader();
         await screen.findByTitle('Page 1');
         expect(thumbnails()).toHaveLength(2);
@@ -371,7 +469,7 @@ describe('the thumbnails', () => {
         const { chapters } = createLibrary();
         const first = createNovelPage('<h1>The Beginning</h1><p>It was a dark night.</p>');
         const second = createNovelPage('<p>Rain fell on <em>the roofs</em>.</p>');
-        chapters[1].getPages = vi.fn(callback => callback(null, [first, second]));
+        chapters[1].getPages = vi.fn((callback) => callback(null, [first, second]));
         await renderReader();
         const shown = await screen.findAllByTitle(/^Page \d+$/);
         expect(shown).toHaveLength(2);
@@ -385,11 +483,13 @@ describe('the thumbnails', () => {
 
     it('should open reading at the page that was clicked, and put that page in view', async () => {
         const { user } = await openThumbnails();
-        const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => undefined);
+        const scroll = vi
+            .spyOn(Element.prototype, 'scrollIntoView')
+            .mockImplementation(() => undefined);
         await user.click(screen.getByTitle('Page 3'));
         expect(isReading()).toBe(true);
         expect(screen.queryAllByTitle(/^Page \d+$/)).toHaveLength(0);
-        expect(images().map(image => image.getAttribute('src'))).toEqual(imagesOf('c2'));
+        expect(images().map((image) => image.getAttribute('src'))).toEqual(imagesOf('c2'));
         expect(scrolledTo(scroll)).toEqual(['rk-page-2']);
     });
 
@@ -397,7 +497,13 @@ describe('the thumbnails', () => {
         await openThumbnails();
         expect(shownTitle()).toBe('Chapter 2');
         expect(screen.getByTitle('Close the preview (ESC)')).toBeTruthy();
-        for (const title of ['Zoom In (+)', 'Zoom Out (-)', 'Next Chapter (ArrowRight)', 'Previous Chapter (ArrowLeft)', 'Magic Scroll Down (SPACEBAR)']) {
+        for (const title of [
+            'Zoom In (+)',
+            'Zoom Out (-)',
+            'Next Chapter (ArrowRight)',
+            'Previous Chapter (ArrowLeft)',
+            'Magic Scroll Down (SPACEBAR)',
+        ]) {
             expect(screen.queryByTitle(title)).toBeNull();
         }
         expect(screen.queryByText(/^Image Width:/)).toBeNull();
@@ -405,13 +511,16 @@ describe('the thumbnails', () => {
 
     it.each([
         ['the Escape key', async () => press(ESCAPE)],
-        ['the button', async user => user.click(screen.getByTitle('Close the preview (ESC)'))]
-    ])('should leave for the start page with %s, without marking the chapter as read', async (name, close) => {
-        const { user } = await openThumbnails();
-        await close(user);
-        expect(await screen.findByText(START)).toBeTruthy();
-        expect(window.Engine.ChaptermarkManager.addChaptermark).not.toHaveBeenCalled();
-    });
+        ['the button', async (user) => user.click(screen.getByTitle('Close the preview (ESC)'))],
+    ])(
+        'should leave for the start page with %s, without marking the chapter as read',
+        async (name, close) => {
+            const { user } = await openThumbnails();
+            await close(user);
+            expect(await screen.findByText(START)).toBeTruthy();
+            expect(window.Engine.ChaptermarkManager.addChaptermark).not.toHaveBeenCalled();
+        },
+    );
 
     it.each([
         ['ArrowRight', ARROW_RIGHT],
@@ -424,7 +533,7 @@ describe('the thumbnails', () => {
         ['-', ZOOM_OUT],
         ['*', FIT_WIDTH],
         ['/', DEFAULT_WIDTH],
-        ['Space', SPACE]
+        ['Space', SPACE],
     ])('should leave the key %s alone while only the thumbnails show', async (name, key) => {
         const { router } = await openThumbnails();
         thumbnailContainer().scrollBy = vi.fn();
@@ -444,9 +553,13 @@ describe('reading', () => {
     it('should show the pages as images that fill three quarters of the width, one below the other', async () => {
         await openReading();
         expect(isReading()).toBe(true);
-        expect(images().map(image => image.getAttribute('alt'))).toEqual(['Page 1', 'Page 2', 'Page 3']);
-        expect(images().map(image => image.getAttribute('src'))).toEqual(imagesOf('c2'));
-        expect(images().map(image => image.id)).toEqual(['rk-page-0', 'rk-page-1', 'rk-page-2']);
+        expect(images().map((image) => image.getAttribute('alt'))).toEqual([
+            'Page 1',
+            'Page 2',
+            'Page 3',
+        ]);
+        expect(images().map((image) => image.getAttribute('src'))).toEqual(imagesOf('c2'));
+        expect(images().map((image) => image.id)).toEqual(['rk-page-0', 'rk-page-1', 'rk-page-2']);
         expect(widthOf()).toBe('75%');
         expect(shownWidth()).toBe('Image Width: 75%');
     });
@@ -464,7 +577,7 @@ describe('reading', () => {
             'Default Image Width (/)',
             'Zoom to Fit Window (*)',
             'Magic Scroll Down (SPACEBAR)',
-            'Close (ESC)'
+            'Close (ESC)',
         ]) {
             expect(screen.getAllByTitle(title)).toHaveLength(1);
         }
@@ -473,20 +586,23 @@ describe('reading', () => {
 
     it.each([
         ['the Escape key', async () => press(ESCAPE)],
-        ['the button', async user => user.click(screen.getByTitle('Close (ESC)'))]
-    ])('should go back to the thumbnails with %s, and mark the chapter as read', async (name, close) => {
-        const { user } = await openReading();
-        const marker = window.Engine.ChaptermarkManager;
-        expect(marker.addChaptermark).not.toHaveBeenCalled();
-        await close(user);
-        expect(isReading()).toBe(false);
-        expect(thumbnails()).toHaveLength(3);
-        expect(marker.addChaptermark).toHaveBeenCalledTimes(1);
-        expect(marker.addChaptermark.mock.calls[0][0].id).toBe('c2');
-        expect(marker.chaptermarks.map(mark => mark.chapterID)).toEqual(['c2']);
-        // the reader itself stays: the page is only left by a second close
-        expect(screen.queryByText(START)).toBeNull();
-    });
+        ['the button', async (user) => user.click(screen.getByTitle('Close (ESC)'))],
+    ])(
+        'should go back to the thumbnails with %s, and mark the chapter as read',
+        async (name, close) => {
+            const { user } = await openReading();
+            const marker = window.Engine.ChaptermarkManager;
+            expect(marker.addChaptermark).not.toHaveBeenCalled();
+            await close(user);
+            expect(isReading()).toBe(false);
+            expect(thumbnails()).toHaveLength(3);
+            expect(marker.addChaptermark).toHaveBeenCalledTimes(1);
+            expect(marker.addChaptermark.mock.calls[0][0].id).toBe('c2');
+            expect(marker.chaptermarks.map((mark) => mark.chapterID)).toEqual(['c2']);
+            // the reader itself stays: the page is only left by a second close
+            expect(screen.queryByText(START)).toBeNull();
+        },
+    );
 
     it('should mark the chapter that is open when reading is closed, not the one reading started with', async () => {
         const { chapters } = createLibrary();
@@ -504,7 +620,9 @@ describe('reading', () => {
     it('should show the thumbnails of the next chapter when reading is closed while it resolves', async () => {
         await openReading();
         let ready = null;
-        window.Engine.ConnectorsReady = new Promise(resolve => { ready = resolve; });
+        window.Engine.ConnectorsReady = new Promise((resolve) => {
+            ready = resolve;
+        });
         press(ARROW_RIGHT);
         await screen.findByText(RESOLVING);
         press(ESCAPE);
@@ -525,9 +643,25 @@ describe('reading', () => {
     });
 
     it.each([
-        ['the engine fails to mark it', engine => engine.ChaptermarkManager.addChaptermark.mockImplementation(() => { throw new Error('disk full'); })],
-        ['the engine has no chapter marks', engine => { engine.ChaptermarkManager = undefined; }],
-        ['the engine is gone', () => { delete window.Engine; }]
+        [
+            'the engine fails to mark it',
+            (engine) =>
+                engine.ChaptermarkManager.addChaptermark.mockImplementation(() => {
+                    throw new Error('disk full');
+                }),
+        ],
+        [
+            'the engine has no chapter marks',
+            (engine) => {
+                engine.ChaptermarkManager = undefined;
+            },
+        ],
+        [
+            'the engine is gone',
+            () => {
+                delete window.Engine;
+            },
+        ],
     ])('should go back to the thumbnails all the same when %s', async (name, sabotage) => {
         await openReading();
         sabotage(window.Engine);
@@ -539,7 +673,10 @@ describe('reading', () => {
     it('should hand the wheel over the toolbar on to the pages, which lie below it', async () => {
         await openReading();
         readingContainer().scrollBy = vi.fn();
-        fireEvent.wheel(screen.getByTitle('Close (ESC)').parentElement, { deltaY: 120, deltaX: -4 });
+        fireEvent.wheel(screen.getByTitle('Close (ESC)').parentElement, {
+            deltaY: 120,
+            deltaX: -4,
+        });
         expect(readingContainer().scrollBy).toHaveBeenCalledTimes(1);
         expect(readingContainer().scrollBy).toHaveBeenCalledWith({ top: 120, left: -4 });
     });
@@ -558,7 +695,7 @@ describe('reading a chapter without pages', () => {
     // NOTE: stepping to a chapter that has no pages leaves the frame of reading with the toolbar only
     async function readEmptyChapter() {
         const { chapters } = createLibrary();
-        chapters[0].getPages = vi.fn(callback => callback(null, []));
+        chapters[0].getPages = vi.fn((callback) => callback(null, []));
         const view = await openReading();
         press(ARROW_RIGHT);
         await titleIs('Chapter 3');
@@ -571,7 +708,7 @@ describe('reading a chapter without pages', () => {
         ['ArrowDown', ARROW_DOWN],
         ['PageUp', PAGE_UP],
         ['PageDown', PAGE_DOWN],
-        ['Space', SPACE]
+        ['Space', SPACE],
     ])('should have nothing to scroll with %s, and go on working', async (name, key) => {
         await readEmptyChapter();
         const frames = captureFrames();
@@ -601,14 +738,17 @@ describe('the keys of the reader', () => {
         ['+', ZOOM_IN, '90%', '2em auto', true],
         ['-', ZOOM_OUT, '60%', '2em auto', true],
         ['Ctrl +', { ...ZOOM_IN, ctrlKey: true }, '75%', '3em auto', false],
-        ['Ctrl -', { ...ZOOM_OUT, ctrlKey: true }, '75%', '1em auto', false]
-    ])('should change the size or the spacing of the pages with %s', async (name, key, width, margin, left) => {
-        await openReading();
-        expect(press(key)).toBe(left);
-        expect(widthOf()).toBe(width);
-        expect(shownWidth()).toBe(`Image Width: ${width}`);
-        expect(marginOf()).toBe(margin);
-    });
+        ['Ctrl -', { ...ZOOM_OUT, ctrlKey: true }, '75%', '1em auto', false],
+    ])(
+        'should change the size or the spacing of the pages with %s',
+        async (name, key, width, margin, left) => {
+            await openReading();
+            expect(press(key)).toBe(left);
+            expect(widthOf()).toBe(width);
+            expect(shownWidth()).toBe(`Image Width: ${width}`);
+            expect(marginOf()).toBe(margin);
+        },
+    );
 
     it('should bring the pages back to the default width with /', async () => {
         await openReading();
@@ -629,7 +769,7 @@ describe('the keys of the reader', () => {
         ['Escape', ESCAPE],
         ['Space', SPACE],
         ['*', FIT_WIDTH],
-        ['/', DEFAULT_WIDTH]
+        ['/', DEFAULT_WIDTH],
     ])('should leave Ctrl+%s to the browser', async (name, key) => {
         const { router } = await openReading();
         readingContainer().scrollBy = vi.fn();
@@ -644,27 +784,32 @@ describe('the keys of the reader', () => {
         expect(window.Engine.ChaptermarkManager.addChaptermark).not.toHaveBeenCalled();
     });
 
-    it.each(['input', 'select', 'textarea'])('should leave the keys to a %s, where they are typed', async field => {
-        const extra = (
-            <>
-                <input aria-label="input" />
-                <select aria-label="select"><option>*</option></select>
-                <textarea aria-label="textarea" />
-            </>
-        );
-        const { router } = await openReading(DEFAULT_URL, { extra });
-        const target = screen.getByLabelText(field);
-        for (const key of [ZOOM_IN, FIT_WIDTH, ARROW_RIGHT, ESCAPE, SPACE]) {
-            expect(press(key, {}, target)).toBe(true);
-        }
-        expect(widthOf()).toBe('75%');
-        expect(isReading()).toBe(true);
-        expect(router.history.location.search).toEqual(expect.stringContaining('chapter=c2'));
-        expect(screen.queryByText(SPACE_AGAIN)).toBeNull();
-        // the same keys work as soon as they are typed somewhere else
-        press(ZOOM_IN, {}, screen.getByTitle('Zoom Out (-)'));
-        expect(widthOf()).toBe('90%');
-    });
+    it.each(['input', 'select', 'textarea'])(
+        'should leave the keys to a %s, where they are typed',
+        async (field) => {
+            const extra = (
+                <>
+                    <input aria-label="input" />
+                    <select aria-label="select">
+                        <option>*</option>
+                    </select>
+                    <textarea aria-label="textarea" />
+                </>
+            );
+            const { router } = await openReading(DEFAULT_URL, { extra });
+            const target = screen.getByLabelText(field);
+            for (const key of [ZOOM_IN, FIT_WIDTH, ARROW_RIGHT, ESCAPE, SPACE]) {
+                expect(press(key, {}, target)).toBe(true);
+            }
+            expect(widthOf()).toBe('75%');
+            expect(isReading()).toBe(true);
+            expect(router.history.location.search).toEqual(expect.stringContaining('chapter=c2'));
+            expect(screen.queryByText(SPACE_AGAIN)).toBeNull();
+            // the same keys work as soon as they are typed somewhere else
+            press(ZOOM_IN, {}, screen.getByTitle('Zoom Out (-)'));
+            expect(widthOf()).toBe('90%');
+        },
+    );
 
     it('should scroll by 64 pixels in small steps with ArrowDown, and take the key over from the browser', async () => {
         await openReading();
@@ -673,7 +818,9 @@ describe('the keys of the reader', () => {
         container.scrollBy = vi.fn();
         expect(press(ARROW_DOWN)).toBe(false);
         flush();
-        expect(container.scrollBy.mock.calls.map(([options]) => options.top)).toEqual([10, 10, 10, 10, 10, 10, 4]);
+        expect(container.scrollBy.mock.calls.map(([options]) => options.top)).toEqual([
+            10, 10, 10, 10, 10, 10, 4,
+        ]);
     });
 
     it('should scroll by 64 pixels in small steps with ArrowUp, and take the key over from the browser', async () => {
@@ -683,12 +830,14 @@ describe('the keys of the reader', () => {
         container.scrollBy = vi.fn();
         expect(press(ARROW_UP)).toBe(false);
         flush();
-        expect(container.scrollBy.mock.calls.map(([options]) => options.top)).toEqual([-10, -10, -10, -10, -10, -10, -4]);
+        expect(container.scrollBy.mock.calls.map(([options]) => options.top)).toEqual([
+            -10, -10, -10, -10, -10, -10, -4,
+        ]);
     });
 
     it.each([
         ['PageDown', PAGE_DOWN, 950],
-        ['PageUp', PAGE_UP, -950]
+        ['PageUp', PAGE_UP, -950],
     ])('should scroll by 95 percent of the window with %s', async (name, key, distance) => {
         await openReading();
         window.innerHeight = 1000;
@@ -707,7 +856,7 @@ describe('the keys of the reader', () => {
         ['Enter', { key: 'Enter', code: 'Enter' }],
         ['Tab', { key: 'Tab', code: 'Tab' }],
         ['F5', { key: 'F5', code: 'F5' }],
-        ['Home', { key: 'Home', code: 'Home' }]
+        ['Home', { key: 'Home', code: 'Home' }],
     ])('should not take %s over from the browser', async (name, key) => {
         await openReading();
         expect(press(key)).toBe(true);
@@ -728,7 +877,7 @@ describe('the keys of the reader', () => {
 
     it.each([
         ['the page', document.body],
-        ['the window itself', window]
+        ['the window itself', window],
     ])('should take Space over from the browser when it comes from %s', async (name, target) => {
         await openReading();
         expect(press(SPACE, {}, target)).toBe(false);
@@ -789,8 +938,12 @@ describe('the size and the spacing of the pages', () => {
         await openReading();
         press(ZOOM_IN);
         press(ZOOM_IN, { ctrlKey: true });
-        expect(images().map(image => image.style.width)).toEqual(['90%', '90%', '90%']);
-        expect(images().map(image => image.style.margin)).toEqual(['3em auto', '3em auto', '3em auto']);
+        expect(images().map((image) => image.style.width)).toEqual(['90%', '90%', '90%']);
+        expect(images().map((image) => image.style.margin)).toEqual([
+            '3em auto',
+            '3em auto',
+            '3em auto',
+        ]);
     });
 
     it.each([
@@ -799,7 +952,7 @@ describe('the size and the spacing of the pages', () => {
         ['Default Image Width (/)', '75%', '2em auto'],
         ['Zoom to Fit Window (*)', '100%', '2em auto'],
         ['Increase spacing between images (CTRL +)', '90%', '3em auto'],
-        ['Decrease spacing between images (CTRL -)', '90%', '1em auto']
+        ['Decrease spacing between images (CTRL -)', '90%', '1em auto'],
     ])('should do what the tooltip says with the button %s', async (title, width, margin) => {
         const { user } = await openReading();
         press(ZOOM_IN);
@@ -815,7 +968,7 @@ describe('the size and the spacing of the pages', () => {
         // the chapter is as tall as its pages are wide
         Object.defineProperty(container, 'scrollHeight', {
             configurable: true,
-            get: () => 1000 * parseFloat(images()[0].style.width) / 75
+            get: () => (1000 * parseFloat(images()[0].style.width)) / 75,
         });
         container.scrollTop = 500;
         press(ZOOM_IN);
@@ -846,7 +999,7 @@ describe('moving between the chapters', () => {
         press(ARROW_LEFT);
         await titleIs('Chapter 1');
         await screen.findByAltText('Page 1');
-        expect(images().map(image => image.getAttribute('src'))).toEqual(imagesOf('c1'));
+        expect(images().map((image) => image.getAttribute('src'))).toEqual(imagesOf('c1'));
         // the lists of the manga and of its chapters are read once, not at every step
         expect(connector.getMangas).toHaveBeenCalledTimes(1);
         expect(manga.getChapters).toHaveBeenCalledTimes(1);
@@ -854,7 +1007,7 @@ describe('moving between the chapters', () => {
 
     it.each([
         ['Next Chapter (ArrowRight)', 'Chapter 3'],
-        ['Previous Chapter (ArrowLeft)', 'Chapter 1']
+        ['Previous Chapter (ArrowLeft)', 'Chapter 1'],
     ])('should open %s with its button', async (title, expected) => {
         const { user } = await openReading();
         await user.click(screen.getByTitle(title));
@@ -866,15 +1019,23 @@ describe('moving between the chapters', () => {
         press(ARROW_RIGHT);
         await titleIs('Chapter 3');
         expect(router.state.location.pathname).toBe('/reader');
-        expect(router.state.location.search).toEqual({ connector: 'site', manga: 'm1', chapter: 'c3' });
+        expect(router.state.location.search).toEqual({
+            connector: 'site',
+            manga: 'm1',
+            chapter: 'c3',
+        });
     });
 
     it('should stay in reading mode, from the first page, and cover the window while the next chapter resolves', async () => {
         await openReading(DEFAULT_URL, { page: 2 });
-        const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => undefined);
+        const scroll = vi
+            .spyOn(Element.prototype, 'scrollIntoView')
+            .mockImplementation(() => undefined);
         // the next chapter is held back until the connectors are ready, which is awaited whenever a chapter is resolved
         let ready = null;
-        window.Engine.ConnectorsReady = new Promise(resolve => { ready = resolve; });
+        window.Engine.ConnectorsReady = new Promise((resolve) => {
+            ready = resolve;
+        });
         const container = readingContainer();
         container.scrollTop = 500;
         press(ARROW_RIGHT);
@@ -905,7 +1066,7 @@ describe('moving between the chapters', () => {
 
     it.each([
         ['the newest chapter has no next one', 'c3', ARROW_RIGHT, 'Chapter 3'],
-        ['the oldest chapter has no previous one', 'c1', ARROW_LEFT, 'Chapter 1']
+        ['the oldest chapter has no previous one', 'c1', ARROW_LEFT, 'Chapter 1'],
     ])('should do nothing at the end of the list: %s', async (name, id, key, title) => {
         const { router } = await openReading(`/reader?connector=site&manga=m1&chapter=${id}`);
         press(key);
@@ -920,7 +1081,7 @@ describe('moving between the chapters', () => {
 
     it.each([
         ['the next button of the newest chapter', 'c3', 'Next Chapter (ArrowRight)'],
-        ['the previous button of the oldest chapter', 'c1', 'Previous Chapter (ArrowLeft)']
+        ['the previous button of the oldest chapter', 'c1', 'Previous Chapter (ArrowLeft)'],
     ])('should do nothing with %s', async (name, id, title) => {
         const { router, user } = await openReading(`/reader?connector=site&manga=m1&chapter=${id}`);
         await user.click(screen.getByTitle(title));
@@ -989,25 +1150,38 @@ describe('moving between the chapters', () => {
         expect(router.history.location.search).toContain('chapter=c2');
     });
 
-    it.each(['12345', '007', '1e3', 'true', 'null', '0', '-5', '1.50', '"quoted"', '/series/x/ch-1?a=1&b=2#frag', 'ünï/çødé'])(
-        'should carry the chapter id %s through the address as the string it is',
-        async id => {
-            createLibrary({ ids: [id, 'c2', 'c1'] });
-            const { router } = await openReading();
-            press(ARROW_RIGHT);
-            await titleIs(`Chapter ${id}`);
-            expect(router.state.location.search.chapter).toBe(id);
-            await screen.findByAltText('Page 1');
-            press(ARROW_LEFT);
-            await titleIs('Chapter 2');
-            expect(router.state.location.search.chapter).toBe('c2');
-        }
-    );
+    it.each([
+        '12345',
+        '007',
+        '1e3',
+        'true',
+        'null',
+        '0',
+        '-5',
+        '1.50',
+        '"quoted"',
+        '/series/x/ch-1?a=1&b=2#frag',
+        'ünï/çødé',
+    ])('should carry the chapter id %s through the address as the string it is', async (id) => {
+        createLibrary({ ids: [id, 'c2', 'c1'] });
+        const { router } = await openReading();
+        press(ARROW_RIGHT);
+        await titleIs(`Chapter ${id}`);
+        expect(router.state.location.search.chapter).toBe(id);
+        await screen.findByAltText('Page 1');
+        press(ARROW_LEFT);
+        await titleIs('Chapter 2');
+        expect(router.state.location.search.chapter).toBe('c2');
+    });
 });
 
 describe('the magic scroll', () => {
     // the pages end at the bottom of the window: the chapter is read to its end
-    const AT_THE_END = [{ top: -3000, bottom: -1000 }, { top: -1000, bottom: 500 }, { top: 500, bottom: 1000 }];
+    const AT_THE_END = [
+        { top: -3000, bottom: -1000 },
+        { top: -1000, bottom: 500 },
+        { top: 500, bottom: 1000 },
+    ];
 
     it('should ask for a second press at the end of the chapter, and open the next chapter with it', async () => {
         const { router } = await openReading();
@@ -1015,7 +1189,9 @@ describe('the magic scroll', () => {
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
         expect(press(SPACE)).toBe(false);
         expect(screen.getByText(SPACE_AGAIN)).toBeTruthy();
-        await act(async () => { vi.advanceTimersByTime(3999); });
+        await act(async () => {
+            vi.advanceTimersByTime(3999);
+        });
         expect(router.history.location.search).toContain('chapter=c2');
         press(SPACE);
         vi.useRealTimers();
@@ -1028,7 +1204,9 @@ describe('the magic scroll', () => {
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
         press(SPACE);
         expect(screen.getAllByText(SPACE_AGAIN)).toHaveLength(1);
-        await act(async () => { vi.advanceTimersByTime(4000); });
+        await act(async () => {
+            vi.advanceTimersByTime(4000);
+        });
         expect(screen.queryByText(SPACE_AGAIN)).toBeNull();
         press(SPACE);
         expect(screen.getAllByText(SPACE_AGAIN)).toHaveLength(1);
@@ -1064,7 +1242,13 @@ describe('the magic scroll', () => {
     it('should follow the order of the panel for chapters whose ids are numbers as well', async () => {
         const connector = createConnector({ id: 'site', label: 'Site' });
         const manga = addManga(connector, { id: 'm1', title: 'Manga One' });
-        const chapters = [30, 20, 10].map(id => addChapter(manga, { id, title: `Chapter ${id}`, getPages: vi.fn(callback => callback(null, imagesOf(String(id)))) }));
+        const chapters = [30, 20, 10].map((id) =>
+            addChapter(manga, {
+                id,
+                title: `Chapter ${id}`,
+                getPages: vi.fn((callback) => callback(null, imagesOf(String(id)))),
+            }),
+        );
         installEngine({ connectors: [connector] });
         // the address as the application writes it: the id is a string, which the quotes keep from being read as a number
         const { selection } = await openReading('/reader?connector=site&manga=m1&chapter=%2220%22');
@@ -1077,10 +1261,17 @@ describe('the magic scroll', () => {
     });
 
     it('should go on to the next page below when the window shows only the gap between two pages', async () => {
-        createLibrary({ pagesOf: id => [...imagesOf(id), `https://img.example/${id}/4.jpg`] });
+        createLibrary({ pagesOf: (id) => [...imagesOf(id), `https://img.example/${id}/4.jpg`] });
         await openReading();
-        const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => undefined);
-        layOut([{ top: -5000, bottom: -3000 }, { top: -2500, bottom: -500 }, { top: 1500, bottom: 3500 }, { top: 4000, bottom: 6000 }]);
+        const scroll = vi
+            .spyOn(Element.prototype, 'scrollIntoView')
+            .mockImplementation(() => undefined);
+        layOut([
+            { top: -5000, bottom: -3000 },
+            { top: -2500, bottom: -500 },
+            { top: 1500, bottom: 3500 },
+            { top: 4000, bottom: 6000 },
+        ]);
         press(SPACE);
         expect(scrolledTo(scroll)).toEqual(['rk-page-2']);
     });
@@ -1116,27 +1307,45 @@ describe('the magic scroll', () => {
     it.each([
         [
             'the top of the next page is in view: scroll to it',
-            [{ top: -900, bottom: 100 }, { top: 100, bottom: 1100 }, { top: 1100, bottom: 2100 }],
-            { into: ['rk-page-1'], by: null }
+            [
+                { top: -900, bottom: 100 },
+                { top: 100, bottom: 1100 },
+                { top: 1100, bottom: 2100 },
+            ],
+            { into: ['rk-page-1'], by: null },
         ],
         [
             'the page is taller than the window: scroll by 80 percent of the window',
-            [{ top: -100, bottom: 1900 }, { top: 1900, bottom: 2900 }, { top: 2900, bottom: 3900 }],
-            { into: [], by: 800 }
+            [
+                { top: -100, bottom: 1900 },
+                { top: 1900, bottom: 2900 },
+                { top: 2900, bottom: 3900 },
+            ],
+            { into: [], by: 800 },
         ],
         [
             'less than a step is left of the page: scroll just that',
-            [{ top: -100, bottom: 1300 }, { top: 1300, bottom: 2300 }, { top: 2300, bottom: 3300 }],
-            { into: [], by: 300 }
+            [
+                { top: -100, bottom: 1300 },
+                { top: 1300, bottom: 2300 },
+                { top: 2300, bottom: 3300 },
+            ],
+            { into: [], by: 300 },
         ],
         [
             'the page is fully in view and the next one is not: scroll to the next page',
-            [{ top: -200, bottom: 900 }, { top: 1100, bottom: 2100 }, { top: 2100, bottom: 3100 }],
-            { into: ['rk-page-1'], by: null }
-        ]
+            [
+                { top: -200, bottom: 900 },
+                { top: 1100, bottom: 2100 },
+                { top: 2100, bottom: 3100 },
+            ],
+            { into: ['rk-page-1'], by: null },
+        ],
     ])('should scroll smoothly when %s', async (name, rectangles, expected) => {
         await openReading();
-        const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => undefined);
+        const scroll = vi
+            .spyOn(Element.prototype, 'scrollIntoView')
+            .mockImplementation(() => undefined);
         layOut(rectangles);
         const container = readingContainer();
         container.scrollBy = vi.fn();
@@ -1147,7 +1356,11 @@ describe('the magic scroll', () => {
             expect(container.scrollBy).not.toHaveBeenCalled();
         } else {
             expect(container.scrollBy).toHaveBeenCalledTimes(1);
-            expect(container.scrollBy).toHaveBeenCalledWith({ top: expected.by, left: 0, behavior: 'smooth' });
+            expect(container.scrollBy).toHaveBeenCalledWith({
+                top: expected.by,
+                left: 0,
+                behavior: 'smooth',
+            });
         }
         expect(screen.queryByText(SPACE_AGAIN)).toBeNull();
     });
@@ -1183,7 +1396,7 @@ describe('the images of the pages', () => {
 
     it('should add the query to an address that has one already with an ampersand', async () => {
         const { chapters } = createLibrary();
-        chapters[1].getPages = vi.fn(callback => callback(null, [`${SOURCE}?token=abc`]));
+        chapters[1].getPages = vi.fn((callback) => callback(null, [`${SOURCE}?token=abc`]));
         await openReading();
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
         vi.setSystemTime(START_TIME);
@@ -1218,7 +1431,9 @@ describe('the images of the pages', () => {
         }
         fireEvent.error(second);
         vi.advanceTimersByTime(1000);
-        expect(second.getAttribute('src')).toBe(`https://img.example/c2/2.jpg?${START_TIME + 4000}`);
+        expect(second.getAttribute('src')).toBe(
+            `https://img.example/c2/2.jpg?${START_TIME + 4000}`,
+        );
     });
 
     it('should leave an image that loads alone', async () => {
@@ -1241,19 +1456,25 @@ describe('the images of the pages', () => {
 
 describe('the pages of a novel', () => {
     const story = createNovelPage('<h1>The Beginning</h1><p>It was a dark night.</p>');
-    const hostile = createNovelPage([
-        '<p onclick="window.pwned = 1">Hello</p>',
-        '<script>window.pwned = 2</script>',
-        '<p><img src="https://cdn.example/a.png" alt="An illustration" onerror="window.pwned = 3" style="width:1px"></p>',
-        '<iframe src="https://tracker.example"></iframe>',
-        '<p><a href="javascript:window.pwned = 4">a link</a></p>'
-    ].join(''));
+    const hostile = createNovelPage(
+        [
+            '<p onclick="window.pwned = 1">Hello</p>',
+            '<script>window.pwned = 2</script>',
+            '<p><img src="https://cdn.example/a.png" alt="An illustration" onerror="window.pwned = 3" style="width:1px"></p>',
+            '<iframe src="https://tracker.example"></iframe>',
+            '<p><a href="javascript:window.pwned = 4">a link</a></p>',
+        ].join(''),
+    );
 
     function novelOf(...pages) {
         const { chapters } = createLibrary({
-            engine: { Settings: createSettings({ NovelColorProfile: () => ({ background: 'black', text: 'white' }) }) }
+            engine: {
+                Settings: createSettings({
+                    NovelColorProfile: () => ({ background: 'black', text: 'white' }),
+                }),
+            },
         });
-        chapters[1].getPages = vi.fn(callback => callback(null, pages));
+        chapters[1].getPages = vi.fn((callback) => callback(null, pages));
     }
 
     afterEach(() => {
@@ -1274,9 +1495,15 @@ describe('the pages of a novel', () => {
 
     it('should show black on white when the colour profile of the settings is gone', async () => {
         const { chapters } = createLibrary({
-            engine: { Settings: createSettings({ NovelColorProfile: () => { throw new TypeError('no such profile'); } }) }
+            engine: {
+                Settings: createSettings({
+                    NovelColorProfile: () => {
+                        throw new TypeError('no such profile');
+                    },
+                }),
+            },
         });
-        chapters[1].getPages = vi.fn(callback => callback(null, [story]));
+        chapters[1].getPages = vi.fn((callback) => callback(null, [story]));
         await openReading();
         const page = document.getElementById('rk-page-0');
         expect(page.style.backgroundColor).toBe('white');
@@ -1311,7 +1538,9 @@ describe('the pages of a novel', () => {
         expect(page.textContent).toContain('Hello');
         expect(page.textContent).toContain('a link');
         expect(page.querySelector('script, iframe, a, style')).toBeNull();
-        const attributes = [...page.querySelectorAll('*')].flatMap(element => element.getAttributeNames());
+        const attributes = [...page.querySelectorAll('*')].flatMap((element) =>
+            element.getAttributeNames(),
+        );
         expect(attributes.sort()).toEqual(['alt', 'src']);
         const illustration = page.querySelector('img');
         expect(illustration.getAttribute('src')).toBe('https://cdn.example/a.png');
@@ -1331,7 +1560,9 @@ describe('the pages of a novel', () => {
     it('should open reading at the page of the novel that was clicked', async () => {
         novelOf(story, story);
         const { user } = await openThumbnails();
-        const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => undefined);
+        const scroll = vi
+            .spyOn(Element.prototype, 'scrollIntoView')
+            .mockImplementation(() => undefined);
         await user.click(screen.getByTitle('Page 2'));
         expect(isReading()).toBe(true);
         expect(scrolledTo(scroll)).toEqual(['rk-page-1']);
@@ -1340,11 +1571,15 @@ describe('the pages of a novel', () => {
 
     it('should show the pages of a chapter in the order they come, texts and images alike', async () => {
         const { chapters } = createLibrary();
-        chapters[1].getPages = vi.fn(callback => callback(null, [story, 'https://img.example/c2/2.jpg']));
+        chapters[1].getPages = vi.fn((callback) =>
+            callback(null, [story, 'https://img.example/c2/2.jpg']),
+        );
         await openReading();
         expect(document.getElementById('rk-page-0').tagName).toBe('ARTICLE');
         expect(document.getElementById('rk-page-1').tagName).toBe('IMG');
-        expect(document.getElementById('rk-page-1').getAttribute('src')).toBe('https://img.example/c2/2.jpg');
+        expect(document.getElementById('rk-page-1').getAttribute('src')).toBe(
+            'https://img.example/c2/2.jpg',
+        );
     });
 });
 
@@ -1372,7 +1607,11 @@ describe('leaving the reader', () => {
         const { router, unmount } = await openThumbnails();
         const [[, listener]] = add.mock.calls.filter(([type]) => type === 'keydown');
         unmount();
-        expect(remove.mock.calls.filter(([type, removed]) => type === 'keydown' && removed === listener)).toHaveLength(1);
+        expect(
+            remove.mock.calls.filter(
+                ([type, removed]) => type === 'keydown' && removed === listener,
+            ),
+        ).toHaveLength(1);
         press(ESCAPE);
         await act(async () => undefined);
         expect(router.history.location.pathname).toBe('/reader');
@@ -1396,14 +1635,19 @@ describe('leaving the reader', () => {
     it('should not fail when the pages arrive after the reader was left, and have them ready the next time', async () => {
         const answers = [];
         const { chapters } = createLibrary();
-        chapters[1].getPages = vi.fn(callback => { answers.push(callback); });
+        chapters[1].getPages = vi.fn((callback) => {
+            answers.push(callback);
+        });
         const { router } = await renderReader();
         await screen.findByText(LOADING);
         press(ESCAPE);
         await screen.findByText(START);
         await act(async () => answers[0](null, imagesOf('c2')));
         await act(async () => {
-            await router.navigate({ to: '/reader', search: { connector: 'site', manga: 'm1', chapter: 'c2' } });
+            await router.navigate({
+                to: '/reader',
+                search: { connector: 'site', manga: 'm1', chapter: 'c2' },
+            });
         });
         expect(await screen.findByTitle('Page 1')).toBeTruthy();
         expect(chapters[1].getPages).toHaveBeenCalledTimes(1);
@@ -1414,21 +1658,31 @@ describe('a change of the address while the pages load', () => {
     it('should not show the pages of the chapter that was left, when they arrive late', async () => {
         const answers = {};
         const { chapters } = createLibrary();
-        chapters[1].getPages = vi.fn(callback => { answers.c2 = callback; });
+        chapters[1].getPages = vi.fn((callback) => {
+            answers.c2 = callback;
+        });
         const { router } = await renderReader();
         await screen.findByText(LOADING);
         await act(async () => {
-            await router.navigate({ to: '/reader', search: { connector: 'site', manga: 'm1', chapter: 'c3' } });
+            await router.navigate({
+                to: '/reader',
+                search: { connector: 'site', manga: 'm1', chapter: 'c3' },
+            });
         });
         await titleIs('Chapter 3');
-        const before = (await screen.findAllByTitle(/^Page \d+$/)).map(thumbnail => thumbnail.style.backgroundImage);
+        const before = (await screen.findAllByTitle(/^Page \d+$/)).map(
+            (thumbnail) => thumbnail.style.backgroundImage,
+        );
         expect(before[0]).toContain('/c3/1.jpg');
         await act(async () => answers.c2(null, imagesOf('c2')));
-        expect(thumbnails().map(thumbnail => thumbnail.style.backgroundImage)).toEqual(before);
+        expect(thumbnails().map((thumbnail) => thumbnail.style.backgroundImage)).toEqual(before);
         expect(shownTitle()).toBe('Chapter 3');
         // what arrived stays with its chapter
         await act(async () => {
-            await router.navigate({ to: '/reader', search: { connector: 'site', manga: 'm1', chapter: 'c2' } });
+            await router.navigate({
+                to: '/reader',
+                search: { connector: 'site', manga: 'm1', chapter: 'c2' },
+            });
         });
         await titleIs('Chapter 2');
         expect(thumbnails()[0].style.backgroundImage).toContain('/c2/1.jpg');
@@ -1436,22 +1690,31 @@ describe('a change of the address while the pages load', () => {
     });
 
     it('should not show the pages of a chapter with the same id in another manga', async () => {
-        const { connector } = createLibrary({ pagesOf: id => imagesOf(`m1/${id}`) });
+        const { connector } = createLibrary({ pagesOf: (id) => imagesOf(`m1/${id}`) });
         const other = addManga(connector, { id: 'm2', title: 'Manga Two' });
-        addChapter(other, { id: 'c2', title: 'Other Chapter 2', getPages: vi.fn(callback => callback(null, imagesOf('m2/c2'))) });
+        addChapter(other, {
+            id: 'c2',
+            title: 'Other Chapter 2',
+            getPages: vi.fn((callback) => callback(null, imagesOf('m2/c2'))),
+        });
         const { router } = await openThumbnails();
         expect(thumbnails()[0].style.backgroundImage).toContain('/m1/c2/1.jpg');
         await act(async () => {
-            await router.navigate({ to: '/reader', search: { connector: 'site', manga: 'm2', chapter: 'c2' } });
+            await router.navigate({
+                to: '/reader',
+                search: { connector: 'site', manga: 'm2', chapter: 'c2' },
+            });
         });
         await titleIs('Other Chapter 2');
-        expect((await screen.findAllByTitle(/^Page \d+$/))[0].style.backgroundImage).toContain('/m2/c2/1.jpg');
+        expect((await screen.findAllByTitle(/^Page \d+$/))[0].style.backgroundImage).toContain(
+            '/m2/c2/1.jpg',
+        );
     });
 
     it('should not show a chapter that was resolved late for an address that was left', async () => {
         const answers = [];
         const { manga } = createLibrary();
-        manga.getChapters = vi.fn(callback => {
+        manga.getChapters = vi.fn((callback) => {
             if (answers.length === 0) {
                 answers.push(callback);
             } else {
@@ -1461,7 +1724,10 @@ describe('a change of the address while the pages load', () => {
         const { router, selection } = await renderReader();
         await screen.findByText(RESOLVING);
         await act(async () => {
-            await router.navigate({ to: '/reader', search: { connector: 'site', manga: 'm1', chapter: 'c3' } });
+            await router.navigate({
+                to: '/reader',
+                search: { connector: 'site', manga: 'm1', chapter: 'c3' },
+            });
         });
         await titleIs('Chapter 3');
         await act(async () => answers[0](null, manga.chapters));
@@ -1495,7 +1761,7 @@ describe('the reader in the application', () => {
                     <ToastProvider>
                         <AppRouter />
                     </ToastProvider>
-                </QueryClientProvider>
+                </QueryClientProvider>,
             );
         });
         return userEvent.setup();
@@ -1511,7 +1777,7 @@ describe('the reader in the application', () => {
 
     it.each([
         ['without a chapter', '#/reader?connector=site&manga=m1'],
-        ['without parameters', '#/reader']
+        ['without parameters', '#/reader'],
     ])('should say that the chapter is not found for an address %s', async (name, hash) => {
         createLibrary();
         await renderApplication(hash);
@@ -1542,26 +1808,40 @@ describe('the reader in the application', () => {
         await titleIs('Chapter 3');
     });
 
-    it.each(['12345', '007', '1e3', 'true', 'null', '0', '-5', '1.50', '"quoted"', '/series/x/ch-1?a=1&b=2#frag', 'ünï/çødé', '{"id":7,"slug":"x"}'])(
-        'should carry the chapter id %s through the real route as the string it is',
-        async id => {
-            createLibrary({ ids: [id, 'c2', 'c1'] });
-            const user = await renderApplication('#/reader?connector=site&manga=m1&chapter=c2');
-            await user.click(await screen.findByTitle('Page 1'));
-            press(ARROW_RIGHT);
-            await titleIs(`Chapter ${id}`);
-            expect(screen.queryByText(NOT_FOUND)).toBeNull();
-            await screen.findByAltText('Page 1');
-            press(ARROW_LEFT);
-            await titleIs('Chapter 2');
-        }
-    );
+    it.each([
+        '12345',
+        '007',
+        '1e3',
+        'true',
+        'null',
+        '0',
+        '-5',
+        '1.50',
+        '"quoted"',
+        '/series/x/ch-1?a=1&b=2#frag',
+        'ünï/çødé',
+        '{"id":7,"slug":"x"}',
+    ])('should carry the chapter id %s through the real route as the string it is', async (id) => {
+        createLibrary({ ids: [id, 'c2', 'c1'] });
+        const user = await renderApplication('#/reader?connector=site&manga=m1&chapter=c2');
+        await user.click(await screen.findByTitle('Page 1'));
+        press(ARROW_RIGHT);
+        await titleIs(`Chapter ${id}`);
+        expect(screen.queryByText(NOT_FOUND)).toBeNull();
+        await screen.findByAltText('Page 1');
+        press(ARROW_LEFT);
+        await titleIs('Chapter 2');
+    });
 
     it('should open a chapter from the list of a manga whose id looks like a number', async () => {
         const connector = createConnector({ id: 'site', label: 'Site' });
         const manga = addManga(connector, { id: '100001', title: 'Numeric manga' });
         for (const id of ['5003', '5002', '5001']) {
-            addChapter(manga, { id, title: `Chapter ${id}`, getPages: vi.fn(callback => callback(null, imagesOf(id))) });
+            addChapter(manga, {
+                id,
+                title: `Chapter ${id}`,
+                getPages: vi.fn((callback) => callback(null, imagesOf(id))),
+            });
         }
         installEngine({ connectors: [connector] });
         const user = await renderApplication();
@@ -1578,7 +1858,9 @@ describe('the reader in the application', () => {
     it('should open the chapter of a link that carries its numeric-looking id without quotes', async () => {
         createLibrary({ ids: ['12345', 'c2', 'c1'] });
         await renderApplication('#/reader?connector=site&manga=m1&chapter=12345');
-        await waitFor(() => expect(screen.queryByTitle('Page 1') ?? screen.queryByText(NOT_FOUND)).not.toBeNull());
+        await waitFor(() =>
+            expect(screen.queryByTitle('Page 1') ?? screen.queryByText(NOT_FOUND)).not.toBeNull(),
+        );
         expect(screen.queryByText(NOT_FOUND)).toBeNull();
         expect(shownTitle()).toBe('Chapter 12345');
     });
@@ -1587,13 +1869,19 @@ describe('the reader in the application', () => {
         const connector = createConnector({ id: 'site', label: 'Site' });
         const manga = addManga(connector, { id: 100001, title: 'Numeric manga' });
         for (const id of [5003, 5002, 5001]) {
-            addChapter(manga, { id, title: `Chapter ${id}`, getPages: vi.fn(callback => callback(null, imagesOf(id))) });
+            addChapter(manga, {
+                id,
+                title: `Chapter ${id}`,
+                getPages: vi.fn((callback) => callback(null, imagesOf(id))),
+            });
         }
         installEngine({ connectors: [connector] });
         const user = await renderApplication();
         await user.click(await screen.findByRole('option', { name: /Numeric manga/ }));
         await user.click((await screen.findAllByTitle("Show preview of chapter's pages"))[1]);
-        await waitFor(() => expect(screen.queryByTitle('Page 1') ?? screen.queryByText(NOT_FOUND)).not.toBeNull());
+        await waitFor(() =>
+            expect(screen.queryByTitle('Page 1') ?? screen.queryByText(NOT_FOUND)).not.toBeNull(),
+        );
         expect(screen.queryByText(NOT_FOUND)).toBeNull();
         await user.click(screen.getByTitle('Page 1'));
         press(ARROW_RIGHT);
@@ -1606,7 +1894,11 @@ describe('the reader in the application', () => {
         const second = createConnector({ id: 'b', label: 'Beta' });
         const manga = addManga(second, { id: 'm1', title: 'Beta manga' });
         for (const id of ['c3', 'c2', 'c1']) {
-            addChapter(manga, { id, title: `Chapter ${id.slice(1)}`, getPages: vi.fn(callback => callback(null, imagesOf(id))) });
+            addChapter(manga, {
+                id,
+                title: `Chapter ${id.slice(1)}`,
+                getPages: vi.fn((callback) => callback(null, imagesOf(id))),
+            });
         }
         installEngine({ connectors: [first, second] });
         const user = await renderApplication('#/reader?connector=b&manga=m1&chapter=c2');
@@ -1614,7 +1906,9 @@ describe('the reader in the application', () => {
         press(ESCAPE);
         await waitFor(() => expect(window.location.hash).toBe('#/'));
         await user.click((await screen.findAllByTitle("Show preview of chapter's pages"))[0]);
-        await waitFor(() => expect(screen.queryByTitle('Page 1') ?? screen.queryByText(NOT_FOUND)).not.toBeNull());
+        await waitFor(() =>
+            expect(screen.queryByTitle('Page 1') ?? screen.queryByText(NOT_FOUND)).not.toBeNull(),
+        );
         expect(screen.queryByText(NOT_FOUND)).toBeNull();
     });
 });

@@ -3,7 +3,15 @@
 export const DEFAULT_LAYOUT = { width: 900, height: 600 };
 
 export function setLayout({ width, height } = DEFAULT_LAYOUT) {
-    for (const [name, value] of [['offsetWidth', width], ['clientWidth', width], ['offsetHeight', height], ['clientHeight', height]]) {
-        Object.defineProperty(HTMLElement.prototype, name, { configurable: true, get: () => value });
+    for (const [name, value] of [
+        ['offsetWidth', width],
+        ['clientWidth', width],
+        ['offsetHeight', height],
+        ['clientHeight', height],
+    ]) {
+        Object.defineProperty(HTMLElement.prototype, name, {
+            configurable: true,
+            get: () => value,
+        });
     }
 }

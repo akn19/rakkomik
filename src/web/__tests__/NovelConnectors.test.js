@@ -7,7 +7,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..', 'mjs');
 
 function walk(directory) {
-    return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
         const full = path.join(directory, entry.name);
         return entry.isDirectory() ? walk(full) : full.endsWith('.mjs') ? [full] : [];
     });
@@ -31,38 +31,55 @@ function novelEngine() {
 
 describe('the code of the connectors', () => {
     it('should not draw a novel into an image any more', () => {
-        const offenders = walk(root).filter(file => /html2canvas/.test(fs.readFileSync(file, 'utf8')));
-        expect(offenders.map(file => path.relative(root, file))).toEqual([]);
+        const offenders = walk(root).filter((file) =>
+            /html2canvas/.test(fs.readFileSync(file, 'utf8')),
+        );
+        expect(offenders.map((file) => path.relative(root, file))).toEqual([]);
     });
 
     it('should not depend on the layout of a screenshot any more', () => {
-        const offenders = walk(path.join(root, 'connectors')).filter(file => /novelWidth|novelPadding|novelFormat|novelContainer|NovelColorProfile/.test(fs.readFileSync(file, 'utf8')));
-        expect(offenders.map(file => path.relative(root, file))).toEqual([]);
+        const offenders = walk(path.join(root, 'connectors')).filter((file) =>
+            /novelWidth|novelPadding|novelFormat|novelContainer|NovelColorProfile/.test(
+                fs.readFileSync(file, 'utf8'),
+            ),
+        );
+        expect(offenders.map((file) => path.relative(root, file))).toEqual([]);
     });
 });
 
 describe('connectors that hold novels', () => {
-    const request = url => expect.objectContaining({ url });
+    const request = (url) => expect.objectContaining({ url });
 
     it('should take the text of a chapter of Novel Ringan', async () => {
         const fetchNovel = novelEngine();
         const pages = await (await connector('NovelRingan'))._getPages({ id: '/chapter-1' });
         expect(pages).toEqual(['novel-page:https://novelringan.com/chapter-1:div.entry-content']);
-        expect(fetchNovel).toHaveBeenCalledWith(request('https://novelringan.com/chapter-1'), 'div.entry-content');
+        expect(fetchNovel).toHaveBeenCalledWith(
+            request('https://novelringan.com/chapter-1'),
+            'div.entry-content',
+        );
     });
 
     it('should take the text of a chapter of Novelgo, without its advertisements', async () => {
         const fetchNovel = novelEngine();
         const pages = await (await connector('Novelgo'))._getPages({ id: '/chapter/1/' });
         expect(pages).toHaveLength(1);
-        expect(fetchNovel).toHaveBeenCalledWith(request('https://novelgo.id/chapter/1/'), 'div.noveils-chapter-wrapper div#chapter-post-content', { obstacles: 'div.code-block' });
+        expect(fetchNovel).toHaveBeenCalledWith(
+            request('https://novelgo.id/chapter/1/'),
+            'div.noveils-chapter-wrapper div#chapter-post-content',
+            { obstacles: 'div.code-block' },
+        );
     });
 
     it('should take the text of a chapter of SakuraNovel, without its numbered blocks', async () => {
         const fetchNovel = novelEngine();
         const pages = await (await connector('SakuraNovel'))._getPages({ id: '/chapter-1/' });
         expect(pages).toHaveLength(1);
-        expect(fetchNovel).toHaveBeenCalledWith(request('https://sakuranovel.id/chapter-1/'), 'div.asdasd', { obstacles: '[data-index]' });
+        expect(fetchNovel).toHaveBeenCalledWith(
+            request('https://sakuranovel.id/chapter-1/'),
+            'div.asdasd',
+            { obstacles: '[data-index]' },
+        );
     });
 
     it('should take the text of a chapter of KolNovel, without the elements that have a class', async () => {
@@ -75,9 +92,14 @@ describe('connectors that hold novels', () => {
 
     it('should take the text of a chapter of Saikaiscan, but not the images of its comics', async () => {
         const fetchNovel = novelEngine();
-        const pages = await (await connector('Saikaiscan'))._getPages({ id: '/series/story/chapter-1' });
+        const pages = await (
+            await connector('Saikaiscan')
+        )._getPages({ id: '/series/story/chapter-1' });
         expect(pages).toHaveLength(1);
-        expect(fetchNovel).toHaveBeenCalledWith(request('https://saikaiscans.net/series/story/chapter-1'), 'div#leitor-serie-body');
+        expect(fetchNovel).toHaveBeenCalledWith(
+            request('https://saikaiscans.net/series/story/chapter-1'),
+            'div#leitor-serie-body',
+        );
     });
 
     it('should take the text of a chapter of ScanManga', async () => {
@@ -99,7 +121,7 @@ describe('connectors that hold novels', () => {
         const sites = [
             ['WuxiaWorld', '_'],
             ['MyNovel', 'div.addtoany_content'],
-            ['WBNovel', 'div#text-chapter-toolbar, div.ad, div.go-to-top']
+            ['WBNovel', 'div#text-chapter-toolbar, div.ad, div.go-to-top'],
         ];
         for (const [name, obstacles] of sites) {
             fetchNovel.mockClear();
@@ -110,8 +132,13 @@ describe('connectors that hold novels', () => {
     });
 
     it('should take the text of a chapter of NovelCool, in every language', async () => {
-        const source = fs.readFileSync(path.join(root, 'connectors', 'templates', 'NovelCool.mjs'), 'utf8');
-        expect(source).toContain('Engine.Request.fetchNovel(request, this.novelContentQuery, { obstacles: this.novelObstaclesQuery })');
+        const source = fs.readFileSync(
+            path.join(root, 'connectors', 'templates', 'NovelCool.mjs'),
+            'utf8',
+        );
+        expect(source).toContain(
+            'Engine.Request.fetchNovel(request, this.novelContentQuery, { obstacles: this.novelObstaclesQuery })',
+        );
         const instance = await connector('NovelCoolEN');
         expect(instance.novelContentQuery).toBe('div.chapter-reading-section.position-relative');
         expect(instance.novelObstaclesQuery).toBe('div.chapter-section-report.model-trigger');
@@ -121,19 +148,30 @@ describe('connectors that hold novels', () => {
         const fetchNovel = novelEngine();
         const site = await connector('YugenMangas');
         site.url = 'https://reader.example';
-        expect(await site._getNovel('story', 'chapter-1')).toEqual(['novel-page:https://reader.example/series/story/chapter-1:div#reader-container']);
-        expect(fetchNovel).toHaveBeenCalledWith(request('https://reader.example/series/story/chapter-1'), 'div#reader-container');
+        expect(await site._getNovel('story', 'chapter-1')).toEqual([
+            'novel-page:https://reader.example/series/story/chapter-1:div#reader-container',
+        ]);
+        expect(fetchNovel).toHaveBeenCalledWith(
+            request('https://reader.example/series/story/chapter-1'),
+            'div#reader-container',
+        );
     });
 
-    it.each(['GremoryMangas', 'Miauscan'])('should take the text of a chapter of %s, when it has the reader of a novel', async name => {
-        const fetchNovel = novelEngine();
-        const site = await connector(name);
-        site.fetchDOM = vi.fn(async () => [{}]);
-        const pages = await site._getPages({ id: '/chapter-1/' });
-        expect(pages).toHaveLength(1);
-        expect(site.fetchDOM).toHaveBeenCalledWith(expect.anything(), 'div#readerarea.rdminimal');
-        expect(fetchNovel).toHaveBeenCalledWith(expect.anything(), 'div#readerarea.rdminimal');
-    });
+    it.each(['GremoryMangas', 'Miauscan'])(
+        'should take the text of a chapter of %s, when it has the reader of a novel',
+        async (name) => {
+            const fetchNovel = novelEngine();
+            const site = await connector(name);
+            site.fetchDOM = vi.fn(async () => [{}]);
+            const pages = await site._getPages({ id: '/chapter-1/' });
+            expect(pages).toHaveLength(1);
+            expect(site.fetchDOM).toHaveBeenCalledWith(
+                expect.anything(),
+                'div#readerarea.rdminimal',
+            );
+            expect(fetchNovel).toHaveBeenCalledWith(expect.anything(), 'div#readerarea.rdminimal');
+        },
+    );
 
     it('should take the text of a chapter of Tsundoku Traduções, without its logo and its own advertisement', async () => {
         const fetchNovel = novelEngine();
@@ -142,17 +180,23 @@ describe('connectors that hold novels', () => {
         await site._getPages({ id: '/chapter-1/' });
         expect(fetchNovel).toHaveBeenCalledWith(expect.anything(), 'div#readerarea.rdminimal', {
             obstacles: 'img[src*="Logo-Tsundoku"]',
-            ignoredTexts: ['https://tsundoku.com.br']
+            ignoredTexts: ['https://tsundoku.com.br'],
         });
     });
 
-    it.each(['GremoryMangas', 'Miauscan', 'TsundokuTraducoes'])('should leave the chapters of comics of %s alone', async name => {
-        const fetchNovel = novelEngine();
-        const site = await connector(name);
-        site.fetchDOM = vi.fn(async () => []);
-        const comicPages = ['https://cdn.example/1.jpg'];
-        vi.spyOn(Object.getPrototypeOf(Object.getPrototypeOf(site)), '_getPages').mockResolvedValue(comicPages);
-        expect(await site._getPages({ id: '/chapter-1/' })).toEqual(comicPages);
-        expect(fetchNovel).not.toHaveBeenCalled();
-    });
+    it.each(['GremoryMangas', 'Miauscan', 'TsundokuTraducoes'])(
+        'should leave the chapters of comics of %s alone',
+        async (name) => {
+            const fetchNovel = novelEngine();
+            const site = await connector(name);
+            site.fetchDOM = vi.fn(async () => []);
+            const comicPages = ['https://cdn.example/1.jpg'];
+            vi.spyOn(
+                Object.getPrototypeOf(Object.getPrototypeOf(site)),
+                '_getPages',
+            ).mockResolvedValue(comicPages);
+            expect(await site._getPages({ id: '/chapter-1/' })).toEqual(comicPages);
+            expect(fetchNovel).not.toHaveBeenCalled();
+        },
+    );
 });

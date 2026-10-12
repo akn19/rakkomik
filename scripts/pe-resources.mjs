@@ -9,8 +9,10 @@ import * as PELibrary from 'pe-library';
 import * as ResEdit from 'resedit';
 
 function versionParts(version) {
-    const parts = String(version).split(/[.-]/).map(part => parseInt(part, 10));
-    return [0, 1, 2, 3].map(index => (Number.isInteger(parts[index]) ? parts[index] : 0));
+    const parts = String(version)
+        .split(/[.-]/)
+        .map((part) => parseInt(part, 10));
+    return [0, 1, 2, 3].map((index) => (Number.isInteger(parts[index]) ? parts[index] : 0));
 }
 
 /**
@@ -29,18 +31,23 @@ export async function setExecutableResources(executable, { icon, version, string
         if (iconFile.icons.length === 0) {
             throw new Error(`"${icon}" holds no icon!`);
         }
-        const [ group ] = ResEdit.Resource.IconGroupEntry.fromEntries(resource.entries);
+        const [group] = ResEdit.Resource.IconGroupEntry.fromEntries(resource.entries);
         if (!group) {
             throw new Error(`"${executable}" has no icon group to replace!`);
         }
-        ResEdit.Resource.IconGroupEntry.replaceIconsForResource(resource.entries, group.id, group.lang, iconFile.icons.map(item => item.data));
+        ResEdit.Resource.IconGroupEntry.replaceIconsForResource(
+            resource.entries,
+            group.id,
+            group.lang,
+            iconFile.icons.map((item) => item.data),
+        );
     }
 
-    const [ info ] = ResEdit.Resource.VersionInfo.fromEntries(resource.entries);
+    const [info] = ResEdit.Resource.VersionInfo.fromEntries(resource.entries);
     if (!info) {
         throw new Error(`"${executable}" has no version information to edit!`);
     }
-    const [ language ] = info.getAvailableLanguages();
+    const [language] = info.getAvailableLanguages();
     const parts = versionParts(version);
     info.setFileVersion(...parts, language.lang);
     info.setProductVersion(...parts, language.lang);
@@ -59,7 +66,11 @@ export async function setExecutableResources(executable, { icon, version, string
 export async function readVersionStrings(executable) {
     const exe = PELibrary.NtExecutable.from(await fs.readFile(executable), { ignoreCert: true });
     const resource = PELibrary.NtExecutableResource.from(exe);
-    const [ info ] = ResEdit.Resource.VersionInfo.fromEntries(resource.entries);
-    const [ language ] = info.getAvailableLanguages();
-    return { ...info.getStringValues(language), FileVersion: info.fixedInfo.fileVersionMS, ProductVersion: info.fixedInfo.productVersionMS };
+    const [info] = ResEdit.Resource.VersionInfo.fromEntries(resource.entries);
+    const [language] = info.getAvailableLanguages();
+    return {
+        ...info.getStringValues(language),
+        FileVersion: info.fixedInfo.fileVersionMS,
+        ProductVersion: info.fixedInfo.productVersionMS,
+    };
 }

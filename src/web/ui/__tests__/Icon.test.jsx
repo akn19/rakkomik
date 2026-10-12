@@ -10,7 +10,7 @@ function svgOf(props) {
 
 // the shape of the icon: Lucide names it in the class of the element (`lucide-x`, `lucide-circle-x`, ...)
 function shapeOf(svg) {
-    return [...svg.classList].filter(name => name.startsWith('lucide-')).join(' ');
+    return [...svg.classList].filter((name) => name.startsWith('lucide-')).join(' ');
 }
 
 describe('icon', () => {
@@ -31,7 +31,9 @@ describe('icon', () => {
     });
 
     it('should turn when it spins, and keep the class that it is given', () => {
-        expect(svgOf({ name: 'spinner', spin: true }).classList.contains('animate-spin')).toBe(true);
+        expect(svgOf({ name: 'spinner', spin: true }).classList.contains('animate-spin')).toBe(
+            true,
+        );
         const svg = svgOf({ name: 'spinner', spin: true, className: 'mr-1' });
         expect(svg.classList.contains('animate-spin')).toBe(true);
         expect(svg.classList.contains('mr-1')).toBe(true);
@@ -49,8 +51,19 @@ describe('icon', () => {
     });
 
     it('should draw different shapes for different names', () => {
-        const names = ['plug', 'refresh', 'search', 'language', 'star', 'download', 'folder', 'folderClosed', 'cloud', 'cloudDownload'];
-        expect(new Set(names.map(name => shapeOf(svgOf({ name })))).size).toBe(names.length);
+        const names = [
+            'plug',
+            'refresh',
+            'search',
+            'language',
+            'star',
+            'download',
+            'folder',
+            'folderClosed',
+            'cloud',
+            'cloudDownload',
+        ];
+        expect(new Set(names.map((name) => shapeOf(svgOf({ name })))).size).toBe(names.length);
     });
 });
 
@@ -58,13 +71,17 @@ describe('icon', () => {
 // are collected from its sources, and every one of them has to be drawn as itself.
 describe('the icons that the interface uses', () => {
     const root = path.resolve(import.meta.dirname, '..');
-    const sources = [...fs.readdirSync(root), ...fs.readdirSync(path.join(root, 'views')).map(name => path.join('views', name))]
-        .filter(name => name.endsWith('.jsx'))
-        .map(name => [name, fs.readFileSync(path.join(root, name), 'utf8')]);
+    const sources = [
+        ...fs.readdirSync(root),
+        ...fs.readdirSync(path.join(root, 'views')).map((name) => path.join('views', name)),
+    ]
+        .filter((name) => name.endsWith('.jsx'))
+        .map((name) => [name, fs.readFileSync(path.join(root, name), 'utf8')]);
 
     function usedNames(source) {
         const names = new Set();
-        const quoted = text => [...text.matchAll(/['"]([A-Za-z]+)['"]/g)].forEach(match => names.add(match[1]));
+        const quoted = (text) =>
+            [...text.matchAll(/['"]([A-Za-z]+)['"]/g)].forEach((match) => names.add(match[1]));
         for (const match of source.matchAll(/<Icon\b[^>]*?\bname=(?:"([^"]+)"|\{([^}]*)\})/g)) {
             quoted(match[1] ? `"${match[1]}"` : match[2]);
         }
@@ -87,7 +104,9 @@ describe('the icons that the interface uses', () => {
 
     it.each(sources)('should all exist in %s', (name, source) => {
         const fallback = shapeOf(svgOf({ name: 'no-such-icon' }));
-        const missing = [...usedNames(source)].filter(icon => icon !== 'close' && shapeOf(svgOf({ name: icon })) === fallback);
+        const missing = [...usedNames(source)].filter(
+            (icon) => icon !== 'close' && shapeOf(svgOf({ name: icon })) === fallback,
+        );
         expect(missing).toEqual([]);
     });
 });

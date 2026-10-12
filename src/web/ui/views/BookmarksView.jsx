@@ -40,14 +40,16 @@ export default function BookmarksView() {
         <div className="mx-auto max-w-3xl pb-8">
             <h1 className="sr-only">Bookmarks</h1>
             <ul className="space-y-2">
-                {bookmarks.map(bookmark => (
+                {bookmarks.map((bookmark) => (
                     <li
                         key={`${bookmark.key.connector}/${bookmark.key.manga}`}
                         className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
                     >
                         <div className="min-w-0">
                             <p className="truncate text-sm font-medium">{bookmark.title.manga}</p>
-                            <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{bookmark.title.connector}</p>
+                            <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                                {bookmark.title.connector}
+                            </p>
                         </div>
                         <button
                             type="button"
@@ -64,7 +66,9 @@ export default function BookmarksView() {
             <ConfirmDialog
                 open={pending !== null}
                 title="Remove bookmark?"
-                message={pending ? `"${pending.title.manga}" will be removed from your bookmarks.` : ''}
+                message={
+                    pending ? `"${pending.title.manga}" will be removed from your bookmarks.` : ''
+                }
                 confirmLabel="Remove"
                 onConfirm={confirmDelete}
                 onCancel={() => setPending(null)}

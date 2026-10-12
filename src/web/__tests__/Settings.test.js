@@ -20,11 +20,15 @@ afterEach(() => {
 const directorySetting = { label: 'Manga Directory', input: 'directory', value: '/data/mangas' };
 
 async function validate(error, silent) {
-    globalThis.Engine = { Storage: { directoryExist: vi.fn(() => (error ? Promise.reject(error) : Promise.resolve())) } };
+    globalThis.Engine = {
+        Storage: {
+            directoryExist: vi.fn(() => (error ? Promise.reject(error) : Promise.resolve())),
+        },
+    };
     globalThis.alert = vi.fn();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const value = Settings.prototype._getValidValue.call({}, 'General', directorySetting, silent);
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
     return value;
 }
 
@@ -35,16 +39,20 @@ describe('settings directory validation', () => {
     });
 
     it('should not warn when the directory does not exist yet', async () => {
-        const error = new Error("Error invoking remote method 'rakkomik:fs:stat': Error: ENOENT: no such file or directory, stat '/data/mangas'");
+        const error = new Error(
+            "Error invoking remote method 'rakkomik:fs:stat': Error: ENOENT: no such file or directory, stat '/data/mangas'",
+        );
         await expect(validate(error)).resolves.toBe('/data/mangas');
         expect(globalThis.alert).not.toHaveBeenCalled();
         expect(console.warn).not.toHaveBeenCalled();
     });
 
     it('should still warn about other access problems', async () => {
-        await validate(new Error('EACCES: permission denied, stat \'/data/mangas\''));
+        await validate(new Error("EACCES: permission denied, stat '/data/mangas'"));
         expect(globalThis.alert).toHaveBeenCalledTimes(1);
-        expect(globalThis.alert.mock.calls[0][0]).toContain('Cannot access the directory for "Manga Directory" from "General" settings!');
+        expect(globalThis.alert.mock.calls[0][0]).toContain(
+            'Cannot access the directory for "Manga Directory" from "General" settings!',
+        );
     });
 
     it('should only log silently validated problems', async () => {
@@ -58,20 +66,20 @@ describe('settings of background loaded connectors', () => {
     const stored = {
         connectors: {
             west: { username: 'user', password: 'secret' },
-            late: { token: 'abc' }
-        }
+            late: { token: 'abc' },
+        },
     };
 
     function engine(connectors) {
         globalThis.window = {
-            hakuneko: { app: { getPath: () => '/docs' }, platform: 'linux', env: {} }
+            hakuneko: { app: { getPath: () => '/docs' }, platform: 'linux', env: {} },
         };
         globalThis.Engine = {
             Connectors: connectors,
             Storage: {
                 loadConfig: vi.fn(async () => stored),
-                saveConfig: vi.fn(async () => undefined)
-            }
+                saveConfig: vi.fn(async () => undefined),
+            },
         };
     }
 
@@ -80,7 +88,14 @@ describe('settings of background loaded connectors', () => {
     });
 
     it('should keep the stored settings of connectors that are not registered yet when saving', async () => {
-        const west = { id: 'west', label: 'West', config: { username: { input: 'text', value: '' }, password: { input: 'text', value: '' } } };
+        const west = {
+            id: 'west',
+            label: 'West',
+            config: {
+                username: { input: 'text', value: '' },
+                password: { input: 'text', value: '' },
+            },
+        };
         engine([west]);
         const settings = new Settings();
         await settings.load();
@@ -106,7 +121,7 @@ describe('settings of background loaded connectors', () => {
 describe('settings of novels', () => {
     function settings() {
         globalThis.window = {
-            hakuneko: { app: { getPath: () => '/docs' }, platform: 'linux', env: {} }
+            hakuneko: { app: { getPath: () => '/docs' }, platform: 'linux', env: {} },
         };
         return new Settings();
     }
@@ -119,13 +134,20 @@ describe('settings of novels', () => {
         const { novelFormat } = settings();
         expect(novelFormat.input).toBe('select');
         expect(novelFormat.value).toBe('.epub');
-        expect(novelFormat.options.map(option => option.value)).toEqual(['.epub', '.pdf']);
-        expect(novelFormat.options.map(option => option.name)).toEqual(['Ebook Reader (*.epub)', 'Portable Document (*.pdf)']);
+        expect(novelFormat.options.map((option) => option.value)).toEqual(['.epub', '.pdf']);
+        expect(novelFormat.options.map((option) => option.name)).toEqual([
+            'Ebook Reader (*.epub)',
+            'Portable Document (*.pdf)',
+        ]);
     });
 
     it('should keep the format of novels apart from the format of the chapters of comics', () => {
         const { chapterFormat, novelFormat } = settings();
-        expect(chapterFormat.options.map(option => option.value)).toEqual(['img', '.cbz', '.epub']);
+        expect(chapterFormat.options.map((option) => option.value)).toEqual([
+            'img',
+            '.cbz',
+            '.epub',
+        ]);
         expect(novelFormat).not.toBe(chapterFormat);
     });
 
@@ -133,7 +155,7 @@ describe('settings of novels', () => {
         globalThis.Engine = { Connectors: [] };
         const general = settings().getCategorizedSettings();
         expect(general[0].category).toBe('General');
-        expect(general[0].settings.map(setting => setting.label)).toContain('Novel File Format');
+        expect(general[0].settings.map((setting) => setting.label)).toContain('Novel File Format');
     });
 
     it('should not claim that the colours of the reader change the files of novels', () => {
@@ -144,20 +166,24 @@ describe('settings of novels', () => {
 });
 
 // The settings as the engine creates them: the places that the main process reports decide the defaults.
-function createSettings({ platform = 'linux', env = {}, paths = { documents: '/docs', userData: '/userdata' } } = {}) {
+function createSettings({
+    platform = 'linux',
+    env = {},
+    paths = { documents: '/docs', userData: '/userdata' },
+} = {}) {
     globalThis.window = {
         hakuneko: {
             platform,
             env,
             app: {
-                getPath: name => {
+                getPath: (name) => {
                     if (!Object.hasOwn(paths, name)) {
                         throw new Error(`Failed to get '${name}' path`);
                     }
                     return paths[name];
-                }
-            }
-        }
+                },
+            },
+        },
     };
     return new Settings();
 }
@@ -175,13 +201,14 @@ function stubEngine({ connectors = [], stored, loadError, saveError } = {}) {
                 throw saveError;
             }
         }),
-        directoryExist: vi.fn(async () => undefined)
+        directoryExist: vi.fn(async () => undefined),
     };
     globalThis.Engine = { Connectors: connectors, Storage: storage };
     return storage;
 }
 
-const names = settings => Object.keys(settings).filter(key => settings[key] instanceof Object && settings[key].input);
+const names = (settings) =>
+    Object.keys(settings).filter((key) => settings[key] instanceof Object && settings[key].input);
 
 describe('the settings a user starts with', () => {
     const DEFAULTS = {
@@ -202,14 +229,17 @@ describe('the settings a user starts with', () => {
         downloadHistoryLogFormat: ['select', ''],
         postChapterDownloadCommand: ['text', ''],
         discordPresence: ['select', 'none'],
-        NovelColorProfiles: ['select', 'Light']
+        NovelColorProfiles: ['select', 'Light'],
     };
 
-    it.each(Object.entries(DEFAULTS))('should start with %s as a %s of %j', (name, [input, value]) => {
-        const settings = createSettings();
-        expect(settings[name].input).toBe(input);
-        expect(settings[name].value).toBe(value);
-    });
+    it.each(Object.entries(DEFAULTS))(
+        'should start with %s as a %s of %j',
+        (name, [input, value]) => {
+            const settings = createSettings();
+            expect(settings[name].input).toBe(input);
+            expect(settings[name].value).toBe(value);
+        },
+    );
 
     it('should not miss a setting, and not have one more than is known here', () => {
         expect(names(createSettings()).sort()).toEqual(Object.keys(DEFAULTS).sort());
@@ -217,7 +247,7 @@ describe('the settings a user starts with', () => {
 
     it('should describe every setting: a label of its own, and what it does', () => {
         const settings = createSettings();
-        const labels = names(settings).map(name => settings[name].label);
+        const labels = names(settings).map((name) => settings[name].label);
         expect(new Set(labels).size).toBe(labels.length);
         for (const name of names(settings)) {
             expect(settings[name].label, name).toMatch(/\S/);
@@ -227,11 +257,14 @@ describe('the settings a user starts with', () => {
 
     it('should offer a choice that holds the default, with names to show, for every select', () => {
         const settings = createSettings();
-        for (const name of names(settings).filter(key => settings[key].input === 'select')) {
+        for (const name of names(settings).filter((key) => settings[key].input === 'select')) {
             const { options, value } = settings[name];
             expect(options.length, name).toBeGreaterThan(0);
-            expect(options.map(option => option.value), name).toContain(value);
-            expect(new Set(options.map(option => option.value)).size, name).toBe(options.length);
+            expect(
+                options.map((option) => option.value),
+                name,
+            ).toContain(value);
+            expect(new Set(options.map((option) => option.value)).size, name).toBe(options.length);
             for (const option of options) {
                 expect(option.name, name).toMatch(/\S/);
             }
@@ -247,14 +280,35 @@ describe('the settings a user starts with', () => {
     });
 
     it.each([
-        ['linux', { documents: '/home/me/Documents', userData: '/home/me/.config/RakKomik' }, '/home/me/Documents/Mangas'],
-        ['darwin', { documents: '/Users/me/Documents', userData: '/Users/me/Library/Application Support/RakKomik' }, '/Users/me/Documents/Mangas'],
-        ['win32', { documents: 'C:\\Users\\me\\Documents', userData: 'C:\\Users\\me\\AppData\\Roaming\\RakKomik' }, 'C:\\Users\\me\\Documents\\Mangas']
-    ])('should keep the mangas in the documents of the user, and the bookmarks in the user data, on %s', (platform, paths, mangas) => {
-        const settings = createSettings({ platform, paths });
-        expect(settings.baseDirectory.value).toBe(mangas);
-        expect(settings.bookmarkDirectory.value).toBe(paths.userData);
-    });
+        [
+            'linux',
+            { documents: '/home/me/Documents', userData: '/home/me/.config/RakKomik' },
+            '/home/me/Documents/Mangas',
+        ],
+        [
+            'darwin',
+            {
+                documents: '/Users/me/Documents',
+                userData: '/Users/me/Library/Application Support/RakKomik',
+            },
+            '/Users/me/Documents/Mangas',
+        ],
+        [
+            'win32',
+            {
+                documents: 'C:\\Users\\me\\Documents',
+                userData: 'C:\\Users\\me\\AppData\\Roaming\\RakKomik',
+            },
+            'C:\\Users\\me\\Documents\\Mangas',
+        ],
+    ])(
+        'should keep the mangas in the documents of the user, and the bookmarks in the user data, on %s',
+        (platform, paths, mangas) => {
+            const settings = createSettings({ platform, paths });
+            expect(settings.baseDirectory.value).toBe(mangas);
+            expect(settings.bookmarkDirectory.value).toBe(paths.userData);
+        },
+    );
 
     it('should keep the mangas in the working directory when electron cannot find the documents', () => {
         const settings = createSettings({ paths: { userData: '/userdata' } });
@@ -263,22 +317,42 @@ describe('the settings a user starts with', () => {
     });
 
     it('should not let the user choose the bookmark directory of a portable application', () => {
-        expect(createSettings({ env: { HAKUNEKO_PORTABLE: '1' } }).bookmarkDirectory.input).toBe('disabled');
+        expect(createSettings({ env: { HAKUNEKO_PORTABLE: '1' } }).bookmarkDirectory.input).toBe(
+            'disabled',
+        );
         expect(createSettings({ env: {} }).bookmarkDirectory.input).toBe('directory');
     });
 });
 
 describe('the settings by category', () => {
-    const config = () => ({ user: { input: 'text', value: '' }, token: { input: 'password', value: '' } });
+    const config = () => ({
+        user: { input: 'text', value: '' },
+        token: { input: 'password', value: '' },
+    });
 
     it('should list the settings of the engine, and then those of each connector that has some, in the order of the connectors', () => {
         const west = { id: 'west', label: 'West', config: config() };
-        const east = { id: 'east', label: 'East', config: { quality: { input: 'numeric', value: 1 } } };
-        stubEngine({ connectors: [west, { id: 'quiet', label: 'Quiet' }, east, { id: 'none', label: 'None', config: null }] });
+        const east = {
+            id: 'east',
+            label: 'East',
+            config: { quality: { input: 'numeric', value: 1 } },
+        };
+        stubEngine({
+            connectors: [
+                west,
+                { id: 'quiet', label: 'Quiet' },
+                east,
+                { id: 'none', label: 'None', config: null },
+            ],
+        });
         const settings = createSettings();
         const categories = settings.getCategorizedSettings();
-        expect(categories.map(category => category.category)).toEqual(['General', 'West', 'East']);
-        expect(categories[0].settings).toEqual(names(settings).map(name => settings[name]));
+        expect(categories.map((category) => category.category)).toEqual([
+            'General',
+            'West',
+            'East',
+        ]);
+        expect(categories[0].settings).toEqual(names(settings).map((name) => settings[name]));
         // the settings are the ones of the connector, so that what the user changes reaches it
         expect(categories[1].settings[0]).toBe(west.config.user);
         expect(categories[1].settings[1]).toBe(west.config.token);
@@ -305,7 +379,7 @@ describe('the settings by category', () => {
     it('should iterate over the same settings', () => {
         stubEngine();
         const settings = createSettings();
-        expect([...settings]).toEqual(names(settings).map(name => settings[name]));
+        expect([...settings]).toEqual(names(settings).map((name) => settings[name]));
     });
 });
 
@@ -314,7 +388,7 @@ describe('the colours of novels', () => {
         ['Light', { background: 'white', text: 'black' }],
         ['Dark', { background: 'black', text: 'white' }],
         ['dark', { background: 'black', text: 'white' }],
-        ['LIGHT', { background: 'white', text: 'black' }]
+        ['LIGHT', { background: 'white', text: 'black' }],
     ])('should be the colours of %s', (value, colors) => {
         const settings = createSettings();
         settings.NovelColorProfiles.value = value;
@@ -331,17 +405,38 @@ describe('the colours of novels', () => {
 });
 
 describe('what a value may be', () => {
-    const numeric = overrides => ({ label: 'Quality', input: 'numeric', value: 75, min: 50, max: 100, ...overrides });
+    const numeric = (overrides) => ({
+        label: 'Quality',
+        input: 'numeric',
+        value: 75,
+        min: 50,
+        max: 100,
+        ...overrides,
+    });
     const valid = (setting, silent) => createSettings()._getValidValue('General', setting, silent);
 
     it.each([
-        [49, 50], [50, 50], [51, 51], [75, 75], [99.5, 99.5], [100, 100], [101, 100],
-        [-1, 50], [0, 50], [1e9, 100], [-Infinity, 50], [Infinity, 100],
+        [49, 50],
+        [50, 50],
+        [51, 51],
+        [75, 75],
+        [99.5, 99.5],
+        [100, 100],
+        [101, 100],
+        [-1, 50],
+        [0, 50],
+        [1e9, 100],
+        [-Infinity, 50],
+        [Infinity, 100],
         // a number that was typed in is a text for a moment
-        ['45', 50], ['101', 100]
-    ])('should bring the number %j to %j when it has to stay between 50 and 100', (value, expected) => {
-        expect(valid(numeric({ value }))).toBe(expected);
-    });
+        ['45', 50],
+        ['101', 100],
+    ])(
+        'should bring the number %j to %j when it has to stay between 50 and 100',
+        (value, expected) => {
+            expect(valid(numeric({ value }))).toBe(expected);
+        },
+    );
 
     // NOTE: a number in a text that is inside the limits stays a text; the users of the setting parse it (parseFloat)
     it('should keep a text that is a number inside the limits as it is', () => {
@@ -363,7 +458,7 @@ describe('what a value may be', () => {
         ['checkbox', false],
         ['select', 'not an option'],
         ['file', '/some/where'],
-        ['disabled', 'x']
+        ['disabled', 'x'],
     ])('should leave a value of the type %s alone: %j', (input, value) => {
         expect(valid({ label: 'x', input, value })).toBe(value);
     });
@@ -392,22 +487,37 @@ describe('the settings that are passwords', () => {
 
     it('should not be the same text twice', async () => {
         const settings = createSettings();
-        const [first, second] = await Promise.all([settings._getEncryptedValue('password', 'same'), settings._getEncryptedValue('password', 'same')]);
+        const [first, second] = await Promise.all([
+            settings._getEncryptedValue('password', 'same'),
+            settings._getEncryptedValue('password', 'same'),
+        ]);
         expect(first).not.toBe(second);
         await expect(settings._getDecryptedValue('password', first)).resolves.toBe('same');
         await expect(settings._getDecryptedValue('password', second)).resolves.toBe('same');
     });
 
-    it.each(['p', 'user:p@ss wörd 日本 😀', 'x'.repeat(5000)])('should give back %j', async password => {
-        const settings = createSettings();
-        await expect(settings._getDecryptedValue('password', await settings._getEncryptedValue('password', password))).resolves.toBe(password);
-    });
+    it.each(['p', 'user:p@ss wörd 日本 😀', 'x'.repeat(5000)])(
+        'should give back %j',
+        async (password) => {
+            const settings = createSettings();
+            await expect(
+                settings._getDecryptedValue(
+                    'password',
+                    await settings._getEncryptedValue('password', password),
+                ),
+            ).resolves.toBe(password);
+        },
+    );
 
     it('should read what earlier versions stored', async () => {
         const settings = createSettings();
         await expect(settings._getDecryptedValue('password', SALTED)).resolves.toBe('user:secret');
-        await expect(settings._getDecryptedValue('password', UNSALTED)).resolves.toBe('user:secret');
-        await expect(settings._getDecryptedValue('password', SALTED_UNICODE)).resolves.toBe('p@ss wörd 日本');
+        await expect(settings._getDecryptedValue('password', UNSALTED)).resolves.toBe(
+            'user:secret',
+        );
+        await expect(settings._getDecryptedValue('password', SALTED_UNICODE)).resolves.toBe(
+            'p@ss wörd 日本',
+        );
     });
 
     it.each([
@@ -417,34 +527,46 @@ describe('the settings that are passwords', () => {
         ['select', 'img'],
         ['directory', '/x'],
         ['file', '/x'],
-        ['disabled', 'x']
+        ['disabled', 'x'],
     ])('should leave a %s as it is when it is written and read', async (input, value) => {
         const settings = createSettings();
         await expect(settings._getEncryptedValue(input, value)).resolves.toBe(value);
         await expect(settings._getDecryptedValue(input, value)).resolves.toBe(value);
     });
 
-    it.each(['', undefined, null])('should leave an empty password (%j) as it is', async value => {
-        const settings = createSettings();
-        await expect(settings._getEncryptedValue('password', value)).resolves.toBe(value);
-        await expect(settings._getDecryptedValue('password', value)).resolves.toBe(value);
-    });
+    it.each(['', undefined, null])(
+        'should leave an empty password (%j) as it is',
+        async (value) => {
+            const settings = createSettings();
+            await expect(settings._getEncryptedValue('password', value)).resolves.toBe(value);
+            await expect(settings._getDecryptedValue('password', value)).resolves.toBe(value);
+        },
+    );
 
     it.each([
         ['text that is no envelope', 'user:secret'],
         ['a cut off envelope', SALTED.slice(0, 20)],
-        ['an envelope with a damaged body', `${SALTED.slice(0, 16)}AAAA${SALTED.slice(20)}`]
+        ['an envelope with a damaged body', `${SALTED.slice(0, 16)}AAAA${SALTED.slice(20)}`],
     ])('should read %s as no password, and tell', async (name, value) => {
         vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         await expect(createSettings()._getDecryptedValue('password', value)).resolves.toBe('');
         expect(console.warn).toHaveBeenCalledTimes(1);
-        expect(console.warn.mock.calls[0][0]).toBe('Failed to decrypt settings value, falling back to empty!');
+        expect(console.warn.mock.calls[0][0]).toBe(
+            'Failed to decrypt settings value, falling back to empty!',
+        );
     });
 });
 
 describe('loading the settings', () => {
     it('should apply what is stored, and keep the default of the rest', async () => {
-        stubEngine({ stored: { readerEnabled: false, chapterFormat: '.cbz', recompressionQuality: 70, chapterTitleFormat: '%CH%' } });
+        stubEngine({
+            stored: {
+                readerEnabled: false,
+                chapterFormat: '.cbz',
+                recompressionQuality: 70,
+                chapterTitleFormat: '%CH%',
+            },
+        });
         const settings = createSettings();
         await settings.load();
         expect(settings.readerEnabled.value).toBe(false);
@@ -463,7 +585,13 @@ describe('loading the settings', () => {
     });
 
     it('should keep a stored false and an empty text: only what is not there keeps the default', async () => {
-        stubEngine({ stored: { readerEnabled: false, postChapterDownloadCommand: '', useSequentialMediaDownloads: true } });
+        stubEngine({
+            stored: {
+                readerEnabled: false,
+                postChapterDownloadCommand: '',
+                useSequentialMediaDownloads: true,
+            },
+        });
         const settings = createSettings();
         await settings.load();
         expect(settings.readerEnabled.value).toBe(false);
@@ -474,14 +602,22 @@ describe('loading the settings', () => {
     it('should keep the default for a choice that the setting does not offer, an empty text included', async () => {
         stubEngine({ stored: { discordPresence: '', chapterFormat: '.pdf' } });
         const settings = createSettings();
-        const defaults = { discordPresence: settings.discordPresence.value, chapterFormat: settings.chapterFormat.value };
+        const defaults = {
+            discordPresence: settings.discordPresence.value,
+            chapterFormat: settings.chapterFormat.value,
+        };
         await settings.load();
         expect(settings.discordPresence.value).toBe(defaults.discordPresence);
         expect(settings.chapterFormat.value).toBe(defaults.chapterFormat);
     });
 
     it('should take a number between the limits that the setting has', async () => {
-        for (const [stored, expected] of [[10, 50], [500, 100], [50, 50], [100, 100]]) {
+        for (const [stored, expected] of [
+            [10, 50],
+            [500, 100],
+            [50, 50],
+            [100, 100],
+        ]) {
             stubEngine({ stored: { recompressionQuality: stored } });
             const settings = createSettings();
             await settings.load();
@@ -504,7 +640,15 @@ describe('loading the settings', () => {
     });
 
     it('should not invent a setting from what is stored', async () => {
-        stubEngine({ stored: { theme: 'dark', helper: { input: 'text', value: 'x' }, connectors: {}, constructor: 'x', toString: 1 } });
+        stubEngine({
+            stored: {
+                theme: 'dark',
+                helper: { input: 'text', value: 'x' },
+                connectors: {},
+                constructor: 'x',
+                toString: 1,
+            },
+        });
         const settings = createSettings();
         const before = Object.keys(settings).sort();
         await settings.load();
@@ -516,7 +660,7 @@ describe('loading the settings', () => {
     it('should tell the listeners, once, with the settings', async () => {
         stubEngine({ stored: { readerEnabled: false } });
         const settings = createSettings();
-        const listener = vi.fn(event => event.detail.readerEnabled.value);
+        const listener = vi.fn((event) => event.detail.readerEnabled.value);
         settings.addEventListener('loaded', listener);
         await settings.load();
         expect(listener).toHaveBeenCalledTimes(1);
@@ -529,23 +673,28 @@ describe('loading the settings', () => {
         ['no settings', undefined],
         ['a list', []],
         ['a number', 5],
-        ['a text', 'readerEnabled']
-    ])('should keep the defaults, and tell the listeners, for a file that holds %s', async (name, stored) => {
-        stubEngine({ stored });
-        const settings = createSettings();
-        const listener = vi.fn();
-        settings.addEventListener('loaded', listener);
-        await settings.load();
-        expect(settings.readerEnabled.value).toBe(true);
-        expect(listener).toHaveBeenCalledTimes(1);
-    });
+        ['a text', 'readerEnabled'],
+    ])(
+        'should keep the defaults, and tell the listeners, for a file that holds %s',
+        async (name, stored) => {
+            stubEngine({ stored });
+            const settings = createSettings();
+            const listener = vi.fn();
+            settings.addEventListener('loaded', listener);
+            await settings.load();
+            expect(settings.readerEnabled.value).toBe(true);
+            expect(listener).toHaveBeenCalledTimes(1);
+        },
+    );
 
     // NOTE: a file that cannot be read (the first start has none) is reported as an error and ends the loading
     // without the 'loaded' event: the listeners (proxy, hCaptcha, presence) only hear about the settings when they
     // were read or written
     it('should keep the defaults, report the error, and not tell the listeners when the file cannot be read', async () => {
         vi.spyOn(console, 'error').mockImplementation(() => undefined);
-        const failure = Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' });
+        const failure = Object.assign(new Error('ENOENT: no such file or directory'), {
+            code: 'ENOENT',
+        });
         stubEngine({ loadError: failure });
         const settings = createSettings();
         const listener = vi.fn();
@@ -557,14 +706,28 @@ describe('loading the settings', () => {
     });
 
     describe('of the connectors', () => {
-        const westConfig = () => ({ user: { input: 'text', value: 'default' }, token: { input: 'password', value: '' }, quality: { input: 'numeric', min: 1, max: 5, value: 3 } });
+        const westConfig = () => ({
+            user: { input: 'text', value: 'default' },
+            token: { input: 'password', value: '' },
+            quality: { input: 'numeric', min: 1, max: 5, value: 3 },
+        });
 
         it('should apply the stored settings to the connector with the ID, and to no other', async () => {
             const west = { id: 'west', label: 'West', config: westConfig() };
             const east = { id: 'east', label: 'East', config: westConfig() };
             stubEngine({
                 connectors: [west, east],
-                stored: { connectors: { west: { user: 'me', token: 'U2FsdGVkX1+exQaGScmKu9RKDqjRZ/ewDVn74q5/V0Q=', quality: 9, unknown: 'x' }, nobody: { user: 'x' } } }
+                stored: {
+                    connectors: {
+                        west: {
+                            user: 'me',
+                            token: 'U2FsdGVkX1+exQaGScmKu9RKDqjRZ/ewDVn74q5/V0Q=',
+                            quality: 9,
+                            unknown: 'x',
+                        },
+                        nobody: { user: 'x' },
+                    },
+                },
             });
             await createSettings().load();
             expect(west.config.user.value).toBe('me');
@@ -576,7 +739,10 @@ describe('loading the settings', () => {
 
         it('should apply nothing to a connector that has no settings', async () => {
             const bookmarks = { id: 'bookmarks', label: 'Bookmarks', config: undefined };
-            stubEngine({ connectors: [bookmarks, { id: 'plain', label: 'Plain' }], stored: { connectors: { bookmarks: { x: 1 }, plain: { y: 2 } } } });
+            stubEngine({
+                connectors: [bookmarks, { id: 'plain', label: 'Plain' }],
+                stored: { connectors: { bookmarks: { x: 1 }, plain: { y: 2 } } },
+            });
             await expect(createSettings().load()).resolves.toBeUndefined();
             expect(bookmarks.config).toBeUndefined();
         });
@@ -584,22 +750,35 @@ describe('loading the settings', () => {
         it('should only warn about a directory of a connector that cannot be read, and not ask', async () => {
             vi.spyOn(console, 'warn').mockImplementation(() => undefined);
             globalThis.alert = vi.fn();
-            const folder = { id: 'folder', label: 'Folder', config: { path: { label: 'Manga Folder', input: 'directory', value: '' } } };
-            const storage = stubEngine({ connectors: [folder], stored: { connectors: { folder: { path: '/library' } } } });
+            const folder = {
+                id: 'folder',
+                label: 'Folder',
+                config: { path: { label: 'Manga Folder', input: 'directory', value: '' } },
+            };
+            const storage = stubEngine({
+                connectors: [folder],
+                stored: { connectors: { folder: { path: '/library' } } },
+            });
             storage.directoryExist.mockRejectedValue(new Error('EACCES: permission denied'));
             await createSettings().load();
-            await new Promise(resolve => setTimeout(resolve, 0));
+            await new Promise((resolve) => setTimeout(resolve, 0));
             expect(folder.config.path.value).toBe('/library');
             expect(globalThis.alert).not.toHaveBeenCalled();
             expect(console.warn).toHaveBeenCalledTimes(1);
-            expect(console.warn.mock.calls[0][0]).toContain('Cannot access the directory for "Manga Folder" from "Folder" settings!');
+            expect(console.warn.mock.calls[0][0]).toContain(
+                'Cannot access the directory for "Manga Folder" from "Folder" settings!',
+            );
         });
     });
 });
 
 describe('saving the settings', () => {
     it('should write every setting by its name, and the settings of the connectors by their IDs, in a file that a person can read', async () => {
-        const west = { id: 'west', label: 'West', config: { user: { input: 'text', value: 'me' }, level: { input: 'numeric', value: 4 } } };
+        const west = {
+            id: 'west',
+            label: 'West',
+            config: { user: { input: 'text', value: 'me' }, level: { input: 'numeric', value: 4 } },
+        };
         const storage = stubEngine({ connectors: [west, { id: 'plain', label: 'Plain' }] });
         const settings = createSettings();
         settings.chapterFormat.value = '.cbz';
@@ -615,7 +794,18 @@ describe('saving the settings', () => {
     });
 
     it('should write a password as the envelope, and no other value changed', async () => {
-        const storage = stubEngine({ connectors: [{ id: 'west', label: 'West', config: { token: { input: 'password', value: 'tok-123' }, open: { input: 'text', value: 'plain-456' } } }] });
+        const storage = stubEngine({
+            connectors: [
+                {
+                    id: 'west',
+                    label: 'West',
+                    config: {
+                        token: { input: 'password', value: 'tok-123' },
+                        open: { input: 'text', value: 'plain-456' },
+                    },
+                },
+            ],
+        });
         const settings = createSettings();
         settings.proxyAuth.value = 'user:secret';
         settings.proxyRules.value = 'user:secret';
@@ -645,20 +835,25 @@ describe('saving the settings', () => {
         await settings.save();
         expect(storage.saveConfig.mock.calls[0][1].useSubdirectory).toBe(false);
         expect(storage.saveConfig.mock.calls[1][1].useSubdirectory).toBe(true);
-        expect(storage.saveConfig.mock.calls[1][1].postChapterDownloadCommand).toBe('echo "%PATH%"');
+        expect(storage.saveConfig.mock.calls[1][1].postChapterDownloadCommand).toBe(
+            'echo "%PATH%"',
+        );
     });
 
     it('should tell the listeners, once, with the settings, after the file is written', async () => {
         const storage = stubEngine();
         let finish;
-        storage.saveConfig.mockImplementation(() => new Promise(resolve => {
-            finish = resolve;
-        }));
+        storage.saveConfig.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                }),
+        );
         const settings = createSettings();
         const listener = vi.fn();
         settings.addEventListener('saved', listener);
         const saving = settings.save();
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 0));
         expect(listener).not.toHaveBeenCalled();
         finish();
         await saving;
@@ -684,7 +879,10 @@ describe('saving the settings', () => {
 describe('the settings of a connector that is registered later', () => {
     it('should keep what is stored for a connector that was never registered, and replace what is stored for one that is', async () => {
         const west = { id: 'west', label: 'West', config: { user: { input: 'text', value: '' } } };
-        const storage = stubEngine({ connectors: [west], stored: { connectors: { west: { user: 'old', gone: 'x' }, late: { token: 'abc' } } } });
+        const storage = stubEngine({
+            connectors: [west],
+            stored: { connectors: { west: { user: 'old', gone: 'x' }, late: { token: 'abc' } } },
+        });
         const settings = createSettings();
         await settings.load();
         west.config.user.value = 'new';

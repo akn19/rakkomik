@@ -8,7 +8,6 @@ const electron = require('electron');
  * paths, ...) are handed to the preload at window creation (ElectronBootstrap).
  */
 module.exports = class IpcBridge {
-
     constructor(logger) {
         this._logger = logger;
     }
@@ -30,28 +29,28 @@ module.exports = class IpcBridge {
         electron.ipcMain.handle('rakkomik:clipboard:readText', () => {
             return electron.clipboard.readText();
         });
-        electron.ipcMain.handle('rakkomik:window:minimize', event => {
+        electron.ipcMain.handle('rakkomik:window:minimize', (event) => {
             this._window(event).minimize();
         });
-        electron.ipcMain.handle('rakkomik:window:maximize', event => {
+        electron.ipcMain.handle('rakkomik:window:maximize', (event) => {
             this._window(event).maximize();
         });
-        electron.ipcMain.handle('rakkomik:window:unmaximize', event => {
+        electron.ipcMain.handle('rakkomik:window:unmaximize', (event) => {
             this._window(event).unmaximize();
         });
-        electron.ipcMain.handle('rakkomik:window:isMaximized', event => {
+        electron.ipcMain.handle('rakkomik:window:isMaximized', (event) => {
             return this._window(event).isMaximized();
         });
-        electron.ipcMain.handle('rakkomik:window:close', event => {
+        electron.ipcMain.handle('rakkomik:window:close', (event) => {
             this._window(event).close();
         });
         electron.ipcMain.handle('rakkomik:exec', (event, command, options) => {
-            return new Promise(resolve => {
+            return new Promise((resolve) => {
                 exec(command, options, (error, stdout, stderr) => {
                     resolve({
                         error: error ? error.message : undefined,
                         stdout: stdout,
-                        stderr: stderr
+                        stderr: stderr,
                     });
                 });
             });

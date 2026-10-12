@@ -41,7 +41,7 @@ describe('Logger', () => {
         if (stream.destroyed) {
             return;
         }
-        await new Promise(resolve => {
+        await new Promise((resolve) => {
             stream.once('close', resolve);
             stream.end();
         });
@@ -50,18 +50,34 @@ describe('Logger', () => {
     // wait until the file holds the expected number of lines
     async function lines(logger, count) {
         let result = [];
-        await vi.waitFor(() => {
-            const content = fs.readFileSync(opened.get(logger), 'utf8');
-            result = content.split('\n').filter(line => line !== '').map(line => JSON.parse(line));
-            expect(result).toHaveLength(count);
-        }, { interval: 5, timeout: 4000 });
+        await vi.waitFor(
+            () => {
+                const content = fs.readFileSync(opened.get(logger), 'utf8');
+                result = content
+                    .split('\n')
+                    .filter((line) => line !== '')
+                    .map((line) => JSON.parse(line));
+                expect(result).toHaveLength(count);
+            },
+            { interval: 5, timeout: 4000 },
+        );
         return result;
     }
 
     describe('LEVEL', () => {
         it('should be reachable on every logger and ordered from the finest to the coarsest', () => {
             expect(ConsoleLogger.LEVEL).toBe(FileLogger.LEVEL);
-            const ordered = ['All', 'Trace', 'Debug', 'Verbose', 'Info', 'Warn', 'Error', 'Critical', 'None'].map(name => LEVEL[name]);
+            const ordered = [
+                'All',
+                'Trace',
+                'Debug',
+                'Verbose',
+                'Info',
+                'Warn',
+                'Error',
+                'Critical',
+                'None',
+            ].map((name) => LEVEL[name]);
             expect(ordered).toEqual([...ordered].sort((a, b) => a - b));
             expect(new Set(ordered).size).toBe(ordered.length);
         });
@@ -81,7 +97,7 @@ describe('Logger', () => {
             ['Warn', 'warn'],
             ['Error', 'error'],
             ['Critical', 'fatal'],
-            ['None', 'silent']
+            ['None', 'silent'],
         ])('should map the level %s onto the pino level %s', (name, expected) => {
             expect(new ConsoleLogger(LEVEL[name])._logger.level).toBe(expected);
         });
@@ -89,7 +105,7 @@ describe('Logger', () => {
         it.each([
             ['between two levels', 4.5, 'warn'],
             ['finer than the finest', -5, 'trace'],
-            ['coarser than critical', 7.5, 'silent']
+            ['coarser than critical', 7.5, 'silent'],
         ])('should map a number %s onto the level that covers it', (_, level, expected) => {
             expect(new ConsoleLogger(level)._logger.level).toBe(expected);
         });
@@ -97,14 +113,21 @@ describe('Logger', () => {
         it.each([
             ['no level', undefined],
             ['the level 0', 0],
-            ['null', null]
+            ['null', null],
         ])('should log from Info on when it is given %s', (_, level) => {
             expect(new ConsoleLogger(level)._logger.level).toBe('info');
         });
 
         it('should forward every method to its pino method with all arguments', () => {
             const logger = new ConsoleLogger(LEVEL.None);
-            const inner = { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn() };
+            const inner = {
+                trace: vi.fn(),
+                debug: vi.fn(),
+                info: vi.fn(),
+                warn: vi.fn(),
+                error: vi.fn(),
+                fatal: vi.fn(),
+            };
             logger._logger = inner;
             const error = new Error('cause');
             logger.trace('t', 1);
@@ -116,7 +139,10 @@ describe('Logger', () => {
             logger.critical('c', 7);
             expect(inner.trace.mock.calls).toEqual([['t', 1]]);
             // pino has no verbose level: it shares debug
-            expect(inner.debug.mock.calls).toEqual([['d', 2], ['v', 3]]);
+            expect(inner.debug.mock.calls).toEqual([
+                ['d', 2],
+                ['v', 3],
+            ]);
             expect(inner.info.mock.calls).toEqual([['i', 4]]);
             expect(inner.warn.mock.calls).toEqual([['w', 5]]);
             expect(inner.error.mock.calls).toEqual([['e', error]]);
@@ -135,8 +161,16 @@ describe('Logger', () => {
             logger.error('f');
             logger.critical('g');
             const written = await lines(logger, 7);
-            expect(written.map(line => line.msg)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
-            expect(written.map(line => line.level)).toEqual([PINO.trace, PINO.debug, PINO.debug, PINO.info, PINO.warn, PINO.error, PINO.fatal]);
+            expect(written.map((line) => line.msg)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
+            expect(written.map((line) => line.level)).toEqual([
+                PINO.trace,
+                PINO.debug,
+                PINO.debug,
+                PINO.info,
+                PINO.warn,
+                PINO.error,
+                PINO.fatal,
+            ]);
         });
 
         it.each([
@@ -144,7 +178,7 @@ describe('Logger', () => {
             ['Info', ['d', 'e', 'f', 'g']],
             ['Warn', ['e', 'f', 'g']],
             ['Error', ['f', 'g']],
-            ['Critical', ['g']]
+            ['Critical', ['g']],
         ])('should leave out the messages below the level %s', async (name, expected) => {
             const logger = fileLogger(LEVEL[name]);
             logger.trace('a');
@@ -155,7 +189,7 @@ describe('Logger', () => {
             logger.error('f');
             logger.critical('g');
             const written = await lines(logger, expected.length);
-            expect(written.map(line => line.msg)).toEqual(expected);
+            expect(written.map((line) => line.msg)).toEqual(expected);
         });
 
         it('should write nothing at all when the level is None', async () => {
@@ -227,7 +261,7 @@ describe('Logger', () => {
             const logger = fileLogger(LEVEL.All);
             logger.warn('Cannot read', 'a.txt', 3, { code: 'EACCES' }, new Error('denied'));
             const [line] = await lines(logger, 1);
-            expect(line.msg).toBe('Cannot read a.txt 3 { code: \'EACCES\' }');
+            expect(line.msg).toBe("Cannot read a.txt 3 { code: 'EACCES' }");
             expect(line.err.message).toBe('denied');
         });
 

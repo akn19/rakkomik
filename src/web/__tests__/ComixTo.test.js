@@ -10,7 +10,7 @@ function webp(size) {
     const bytes = new Uint8Array(size);
     bytes.set([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
     for (let index = 12; index < size; index++) {
-        bytes[index] = index * 7 & 0xFF;
+        bytes[index] = (index * 7) & 0xff;
     }
     return bytes;
 }
@@ -21,13 +21,13 @@ function xorShiftKeystream(key, count, highByte) {
         state ^= state << 13;
         state ^= state >>> 17;
         state ^= state << 5;
-        return highByte ? state >>> 24 : state & 0xFF;
+        return highByte ? state >>> 24 : state & 0xff;
     });
 }
 
 function lcgKeystream(key, count) {
     return Array.from({ length: count }, () => {
-        key = key * 1000005 + 1234567891 >> 0;
+        key = (key * 1000005 + 1234567891) >> 0;
         return key >>> 24;
     });
 }
@@ -51,17 +51,18 @@ function referenceSequence(init, salt, algorithm, count) {
     }
     let state = seed;
     let big = BigInt(seed >>> 0);
-    const next = algorithm === '3'
-        ? () => {
-            state ^= state << 13;
-            state ^= state >>> 17;
-            state ^= state << 5;
-            return state >>> 0;
-        }
-        : () => {
-            big = (big * 1664525n + 1013904223n) & 0xFFFFFFFFn;
-            return Number(big);
-        };
+    const next =
+        algorithm === '3'
+            ? () => {
+                  state ^= state << 13;
+                  state ^= state >>> 17;
+                  state ^= state << 5;
+                  return state >>> 0;
+              }
+            : () => {
+                  big = (big * 1664525n + 1013904223n) & 0xffffffffn;
+                  return Number(big);
+              };
     const indices = [...new Array(Math.max(1, count)).keys()];
     for (let current = indices.length - 1; current > 0; current--) {
         const random = next() % (current + 1);
@@ -114,10 +115,15 @@ describe('comix.to tile scrambling', () => {
         ['', 777, '3'],
         ['03632', 1234, '1'],
         ['02900', 5, '2'],
-        ['unknown', 424242, '']
-    ])('should match the reference order for hash "%s", seed %i, algorithm "%s"', (hash, seed, algorithm) => {
-        expect(Comix.scrambleOrder(25, hash, seed, algorithm)).toEqual(referenceSequence(hash, seed, algorithm, 25));
-    });
+        ['unknown', 424242, ''],
+    ])(
+        'should match the reference order for hash "%s", seed %i, algorithm "%s"',
+        (hash, seed, algorithm) => {
+            expect(Comix.scrambleOrder(25, hash, seed, algorithm)).toEqual(
+                referenceSequence(hash, seed, algorithm, 25),
+            );
+        },
+    );
 
     it('should return a permutation for any grid size', () => {
         for (const count of [1, 4, 9, 25, 36]) {

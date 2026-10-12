@@ -1,7 +1,6 @@
 const { ConsoleLogger } = require('./Logger');
 
 module.exports = class Updater {
-
     /**
      *
      * @param {UpdateServerManager} serverManager
@@ -18,7 +17,7 @@ module.exports = class Updater {
      *
      */
     async updateCache(pubkey) {
-        if(this._serverManager.isDisabled) {
+        if (this._serverManager.isDisabled) {
             this._logger.info('Update is disabled');
             return;
         }
@@ -28,7 +27,7 @@ module.exports = class Updater {
             this._logger.info('Remote Version:', updateInfo.version);
             let currentVersion = await this._cacheManager.getCurrentVersion();
             this._logger.info('Local Version:', currentVersion);
-            if(updateInfo.version !== currentVersion) {
+            if (updateInfo.version !== currentVersion) {
                 this._logger.info('Starting Update...');
                 let archive = await this._serverManager.getUpdateArchive(updateInfo);
                 await updateInfo.validate(archive, pubkey);
@@ -37,7 +36,7 @@ module.exports = class Updater {
             } else {
                 this._logger.info('Update Check Complete');
             }
-        } catch(error) {
+        } catch (error) {
             this._logger.error('Update Failed!', error);
         }
     }

@@ -25,7 +25,9 @@ function aesCbcEncryptNode(plainBytes, keyBytes, ivBytes, algo) {
 describe('Crypto codecs', () => {
     it('should roundtrip UTF-8 (incl. non-ASCII) through Base64 like CryptoJS', () => {
         const payload = JSON.stringify({ url: 'https://exämple.com/ü?id=1&x=üñï' });
-        expect(C.bytesToUtf8(C.base64ToBytes(C.bytesToBase64(C.utf8ToBytes(payload))))).toBe(payload);
+        expect(C.bytesToUtf8(C.base64ToBytes(C.bytesToBase64(C.utf8ToBytes(payload))))).toBe(
+            payload,
+        );
     });
 
     it('should parse lowercase/uppercase hex identically', () => {
@@ -40,23 +42,33 @@ describe('Crypto codecs', () => {
 
 describe('Crypto hashes', () => {
     it('should match NIST SHA-256(\"abc\")', () => {
-        expect(C.sha256Hex('abc')).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+        expect(C.sha256Hex('abc')).toBe(
+            'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+        );
     });
 
     it('should hash raw bytes like CryptoJS WordArray input', () => {
-        expect(C.bytesToHex(C.sha256Bytes(new Uint8Array([1, 2, 3, 255]))))
-            .toBe(nodeCrypto.createHash('sha256').update(Buffer.from([1, 2, 3, 255])).digest('hex'));
+        expect(C.bytesToHex(C.sha256Bytes(new Uint8Array([1, 2, 3, 255])))).toBe(
+            nodeCrypto
+                .createHash('sha256')
+                .update(Buffer.from([1, 2, 3, 255]))
+                .digest('hex'),
+        );
     });
 
     it('should match Node SHA-512', async () => {
         const input = 'freeforcxc2021reading';
-        expect(await C.sha512Hex(input)).toBe(nodeCrypto.createHash('sha512').update(input).digest('hex'));
+        expect(await C.sha512Hex(input)).toBe(
+            nodeCrypto.createHash('sha512').update(input).digest('hex'),
+        );
     });
 });
 
 describe('Crypto OpenSSL envelope (Settings passwords)', () => {
     it('should decrypt values written by the removed crypto-js lib', async () => {
-        await expect(C.opensslAesDecrypt(LEGACY_SETTINGS_CIPHER, 'HakuNeko!')).resolves.toBe('s3cr3t-proxy-pass');
+        await expect(C.opensslAesDecrypt(LEGACY_SETTINGS_CIPHER, 'HakuNeko!')).resolves.toBe(
+            's3cr3t-proxy-pass',
+        );
     });
 
     it('should roundtrip new values (Salted__ envelope)', async () => {
@@ -71,7 +83,9 @@ describe('Crypto AES-CBC connector shapes', () => {
         const key = C.utf8ToBytes(COMICO_KEY);
         const iv = new Uint8Array(16);
         const cipher = C.base64ToBytes(LEGACY_COMICO_CIPHER);
-        await expect(C.aesCbcDecrypt(cipher, key, iv).then(b => C.bytesToUtf8(b))).resolves.toBe(COMICO_URL);
+        await expect(C.aesCbcDecrypt(cipher, key, iv).then((b) => C.bytesToUtf8(b))).resolves.toBe(
+            COMICO_URL,
+        );
     });
 
     it('should decrypt GManga-shaped payloads (base64 ct, hex key, base64 iv)', async () => {

@@ -21,15 +21,22 @@ beforeEach(() => {
     vi.useFakeTimers();
     managers = [];
     vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => new AbortController().signal);
-    vi.stubGlobal('fetch', vi.fn(async () => ({ status: 200, statusText: 'OK', blob: async () => new Blob(['page']) })));
+    vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({
+            status: 200,
+            statusText: 'OK',
+            blob: async () => new Blob(['page']),
+        })),
+    );
     globalThis.Engine = {
         Settings: {
             useSequentialMediaDownloads: { value: false },
             ignoreErrorOnDownload: { value: false },
             chapterFormat: { value: '.cbz' },
-            novelFormat: { value: '.epub' }
+            novelFormat: { value: '.epub' },
         },
-        Storage: { saveChapterPages: vi.fn(async () => undefined), sanatizePath: title => title }
+        Storage: { saveChapterPages: vi.fn(async () => undefined), sanatizePath: (title) => title },
     };
 });
 
@@ -53,7 +60,14 @@ function createManager() {
 }
 
 function createConnector(id, overrides = {}) {
-    return { id, label: `Connector ${id}`, isLocked: false, requestOptions: {}, existingMangas: [], ...overrides };
+    return {
+        id,
+        label: `Connector ${id}`,
+        isLocked: false,
+        requestOptions: {},
+        existingMangas: [],
+        ...overrides,
+    };
 }
 
 // a chapter that is told its pages by the test: `chapter.answer(error, pages)` is what the connector would do
@@ -63,19 +77,24 @@ function createChapter(connector, title, mangaTitle = `Manga of ${connector.id}`
         title,
         status: 'available',
         statuses: [],
-        manga: { title: mangaTitle, connector, updateStatus: vi.fn(), isChapterFileExisting: vi.fn(() => false) },
-        setStatus: vi.fn(status => {
+        manga: {
+            title: mangaTitle,
+            connector,
+            updateStatus: vi.fn(),
+            isChapterFileExisting: vi.fn(() => false),
+        },
+        setStatus: vi.fn((status) => {
             chapter.status = status;
             chapter.statuses.push(status);
         }),
-        getPages: vi.fn(callback => {
+        getPages: vi.fn((callback) => {
             chapter.answer = callback;
-        })
+        }),
     };
     return chapter;
 }
 
-const tick = ms => vi.advanceTimersByTimeAsync(ms);
+const tick = (ms) => vi.advanceTimersByTimeAsync(ms);
 
 // the worker looks at the queues every 250 ms
 const WORKER = 250;
@@ -92,7 +111,14 @@ async function fail(chapter, error = new Error('no pages')) {
 
 function watch(manager) {
     const events = [];
-    manager.addEventListener('updated', event => events.push({ type: event.type, job: event.detail, status: event.detail.status, progress: event.detail.progress }));
+    manager.addEventListener('updated', (event) =>
+        events.push({
+            type: event.type,
+            job: event.detail,
+            status: event.detail.status,
+            progress: event.detail.progress,
+        }),
+    );
     return events;
 }
 
@@ -146,9 +172,13 @@ describe('addDownload', () => {
     it('should queue the chapters of a connector one after the other, whatever their manga', () => {
         const manager = createManager();
         const connector = createConnector('site');
-        const chapters = [createChapter(connector, 'Chapter 1', 'Manga A'), createChapter(connector, 'Chapter 1', 'Manga B'), createChapter(connector, 'Chapter 2', 'Manga A')];
-        chapters.forEach(chapter => manager.addDownload(chapter));
-        expect(manager.queue.site.map(job => job.chapter)).toEqual(chapters);
+        const chapters = [
+            createChapter(connector, 'Chapter 1', 'Manga A'),
+            createChapter(connector, 'Chapter 1', 'Manga B'),
+            createChapter(connector, 'Chapter 2', 'Manga A'),
+        ];
+        chapters.forEach((chapter) => manager.addDownload(chapter));
+        expect(manager.queue.site.map((job) => job.chapter)).toEqual(chapters);
     });
 
     it('should keep a queue for each connector, told apart by the id', () => {
@@ -209,21 +239,31 @@ describe('the worker', () => {
         expect(chapter.statuses).toEqual(['queued', 'downloading', 'completed']);
         expect(Engine.Storage.saveChapterPages).toHaveBeenCalledTimes(1);
         expect(Engine.Storage.saveChapterPages.mock.calls[0][0]).toBe(chapter);
-        expect(events.every(event => event.job === job && event.type === 'updated')).toBe(true);
-        expect(events.map(event => event.status).filter((status, index, all) => status !== all[index - 1])).toEqual(['queued', 'downloading', 'completed']);
+        expect(events.every((event) => event.job === job && event.type === 'updated')).toBe(true);
+        expect(
+            events
+                .map((event) => event.status)
+                .filter((status, index, all) => status !== all[index - 1]),
+        ).toEqual(['queued', 'downloading', 'completed']);
         expect(events.at(-1)).toMatchObject({ status: 'completed', progress: 100 });
-        const progress = events.map(event => event.progress);
+        const progress = events.map((event) => event.progress);
         expect(progress).toEqual([...progress].sort((a, b) => a - b));
     });
 
     it('should download the chapters of one connector one after the other, in the order they were added', async () => {
         const manager = createManager();
         const connector = createConnector('site');
-        const [first, second, third] = ['Chapter 1', 'Chapter 2', 'Chapter 3'].map(title => createChapter(connector, title));
-        [first, second, third].forEach(chapter => manager.addDownload(chapter));
+        const [first, second, third] = ['Chapter 1', 'Chapter 2', 'Chapter 3'].map((title) =>
+            createChapter(connector, title),
+        );
+        [first, second, third].forEach((chapter) => manager.addDownload(chapter));
 
         await tick(WORKER);
-        expect([first, second, third].map(chapter => chapter.status)).toEqual(['downloading', 'queued', 'queued']);
+        expect([first, second, third].map((chapter) => chapter.status)).toEqual([
+            'downloading',
+            'queued',
+            'queued',
+        ]);
 
         // however long the first one takes, the others wait
         await tick(10 * 60 * 1000);
@@ -232,11 +272,19 @@ describe('the worker', () => {
 
         await succeed(first);
         await tick(WORKER);
-        expect([first, second, third].map(chapter => chapter.status)).toEqual(['completed', 'downloading', 'queued']);
+        expect([first, second, third].map((chapter) => chapter.status)).toEqual([
+            'completed',
+            'downloading',
+            'queued',
+        ]);
 
         await fail(second);
         await tick(WORKER);
-        expect([first, second, third].map(chapter => chapter.status)).toEqual(['completed', 'failed', 'downloading']);
+        expect([first, second, third].map((chapter) => chapter.status)).toEqual([
+            'completed',
+            'failed',
+            'downloading',
+        ]);
 
         await succeed(third);
         expect(third.status).toBe('completed');
@@ -246,21 +294,28 @@ describe('the worker', () => {
     it('should queue what is added while a job runs behind the jobs that wait, in the order they were added', async () => {
         const manager = createManager();
         const connector = createConnector('site');
-        const [first, second, third, fourth] = ['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4'].map(title => createChapter(connector, title));
+        const [first, second, third, fourth] = [
+            'Chapter 1',
+            'Chapter 2',
+            'Chapter 3',
+            'Chapter 4',
+        ].map((title) => createChapter(connector, title));
         manager.addDownload(first);
         manager.addDownload(second);
         await tick(WORKER);
         manager.addDownload(third);
         await tick(WORKER);
         manager.addDownload(fourth);
-        expect(manager.queue.site.map(job => job.chapter)).toEqual([second, third, fourth]);
+        expect(manager.queue.site.map((job) => job.chapter)).toEqual([second, third, fourth]);
 
         for (const chapter of [first, second, third, fourth]) {
             await tick(WORKER);
             expect(chapter.status).toBe('downloading');
             await succeed(chapter);
         }
-        expect([first, second, third, fourth].map(chapter => chapter.status)).toEqual(Array(4).fill('completed'));
+        expect([first, second, third, fourth].map((chapter) => chapter.status)).toEqual(
+            Array(4).fill('completed'),
+        );
     });
 
     it('should download for several connectors at the same time', async () => {
@@ -268,7 +323,7 @@ describe('the worker', () => {
         const a = createChapter(createConnector('site-a'), 'Chapter 1');
         const b = createChapter(createConnector('site-b'), 'Chapter 1');
         const a2 = createChapter(createConnector('site-a'), 'Chapter 2');
-        [a, b, a2].forEach(chapter => manager.addDownload(chapter));
+        [a, b, a2].forEach((chapter) => manager.addDownload(chapter));
 
         await tick(WORKER);
 
@@ -368,7 +423,9 @@ describe('the worker', () => {
             expect(job.errors).toEqual([failure]);
             expect(broken.statuses).toEqual(['queued', 'downloading', 'failed']);
             expect(log).toHaveBeenCalledWith(failure);
-            expect(events.filter(event => event.job === job).map(event => event.status)).toEqual(['queued', 'downloading', 'failed']);
+            expect(
+                events.filter((event) => event.job === job).map((event) => event.status),
+            ).toEqual(['queued', 'downloading', 'failed']);
 
             // the connector is free again, the failure does not stop the jobs behind it
             await tick(WORKER);
@@ -381,13 +438,15 @@ describe('the worker', () => {
             vi.spyOn(console, 'error').mockImplementation(() => undefined);
             const manager = createManager();
             const connector = createConnector('site');
-            const broken = Array.from({ length: 5 }, (value, index) => throwing(connector, `Chapter ${index}`));
+            const broken = Array.from({ length: 5 }, (value, index) =>
+                throwing(connector, `Chapter ${index}`),
+            );
             const last = createChapter(connector, 'Chapter 9');
-            [...broken, last].forEach(chapter => manager.addDownload(chapter));
+            [...broken, last].forEach((chapter) => manager.addDownload(chapter));
 
             await tick(10 * WORKER);
 
-            expect(broken.map(chapter => chapter.status)).toEqual(Array(5).fill('failed'));
+            expect(broken.map((chapter) => chapter.status)).toEqual(Array(5).fill('failed'));
             expect(last.status).toBe('downloading');
         });
 
@@ -399,7 +458,7 @@ describe('the worker', () => {
             manager.addDownload(chapter);
             const [job] = manager.queue.site;
             const failure = new Error('cannot set the status');
-            chapter.setStatus = vi.fn(status => {
+            chapter.setStatus = vi.fn((status) => {
                 if (status === 'downloading') {
                     throw failure;
                 }
@@ -439,7 +498,14 @@ describe('a chapter that is queued again', () => {
         await tick(WORKER);
         await succeed(chapter);
         expect(retry.status).toBe('completed');
-        expect(chapter.statuses).toEqual(['queued', 'downloading', 'failed', 'queued', 'downloading', 'completed']);
+        expect(chapter.statuses).toEqual([
+            'queued',
+            'downloading',
+            'failed',
+            'queued',
+            'downloading',
+            'completed',
+        ]);
     });
 
     // NOTE: the chapter keeps the list of its pages after a failure, so a restart loads the same addresses again and does not ask
@@ -448,11 +514,20 @@ describe('a chapter that is queued again', () => {
         vi.spyOn(console, 'error').mockImplementation(() => undefined);
         globalThis.document = new EventTarget();
         globalThis.EventListener = Enums.EventListener;
-        const getPageList = vi.fn((manga, chapter, callback) => callback(null, [`https://img.test/${getPageList.mock.calls.length}.jpg`]));
-        const connector = createConnector('site', { initialize: async () => undefined, _getPageList: getPageList });
+        const getPageList = vi.fn((manga, chapter, callback) =>
+            callback(null, [`https://img.test/${getPageList.mock.calls.length}.jpg`]),
+        );
+        const connector = createConnector('site', {
+            initialize: async () => undefined,
+            _getPageList: getPageList,
+        });
         const manga = new Manga(connector, '/m/1', 'Manga', 'available');
         const chapter = new Chapter(manga, '/c/1', 'Chapter 1', 'en', 'available');
-        fetch.mockResolvedValueOnce({ status: 403, statusText: 'Forbidden', blob: async () => new Blob(['denied']) });
+        fetch.mockResolvedValueOnce({
+            status: 403,
+            statusText: 'Forbidden',
+            blob: async () => new Blob(['denied']),
+        });
         const manager = createManager();
 
         manager.addDownload(chapter);
@@ -466,7 +541,10 @@ describe('a chapter that is queued again', () => {
 
         expect(chapter.status).toBe('completed');
         expect(getPageList).toHaveBeenCalledTimes(1);
-        expect(fetch.mock.calls.map(call => call[0])).toEqual(['https://img.test/1.jpg', 'https://img.test/1.jpg']);
+        expect(fetch.mock.calls.map((call) => call[0])).toEqual([
+            'https://img.test/1.jpg',
+            'https://img.test/1.jpg',
+        ]);
     });
 
     it('should be a new job after it completed, so a chapter can be downloaded again', async () => {
@@ -491,7 +569,7 @@ describe('the user interface', () => {
         const manager = createManager();
         bind(manager);
         let list = [];
-        const unsubscribe = bridge.subscribeDownloads(event => {
+        const unsubscribe = bridge.subscribeDownloads((event) => {
             list = bridge.mergeDownloadJobs(list, event.detail);
         });
         const good = createChapter(createConnector('site-a'), 'Good');
@@ -499,16 +577,21 @@ describe('the user interface', () => {
 
         manager.addDownload(good);
         manager.addDownload(bad);
-        expect(list.map(job => [job.labels.chapter, job.status])).toEqual([['Good', 'queued'], ['Bad', 'queued']]);
+        expect(list.map((job) => [job.labels.chapter, job.status])).toEqual([
+            ['Good', 'queued'],
+            ['Bad', 'queued'],
+        ]);
 
         await tick(WORKER);
-        expect(list.map(job => job.status)).toEqual(['downloading', 'downloading']);
+        expect(list.map((job) => job.status)).toEqual(['downloading', 'downloading']);
 
         await succeed(good);
-        expect(list.map(job => [job.labels.chapter, job.status])).toEqual([['Bad', 'downloading']]);
+        expect(list.map((job) => [job.labels.chapter, job.status])).toEqual([
+            ['Bad', 'downloading'],
+        ]);
 
         await fail(bad);
-        expect(list.map(job => [job.labels.chapter, job.status])).toEqual([['Bad', 'failed']]);
+        expect(list.map((job) => [job.labels.chapter, job.status])).toEqual([['Bad', 'failed']]);
         const failedJob = list[0];
 
         // the restart of the UI
@@ -519,8 +602,8 @@ describe('the user interface', () => {
 
         await tick(WORKER);
         await fail(bad, new Error('still no pages'));
-        expect(list.map(job => [job.labels.chapter, job.status])).toEqual([['Bad', 'failed']]);
-        expect(list[0].errors.map(error => error.message)).toEqual(['still no pages']);
+        expect(list.map((job) => [job.labels.chapter, job.status])).toEqual([['Bad', 'failed']]);
+        expect(list[0].errors.map((error) => error.message)).toEqual(['still no pages']);
 
         unsubscribe();
         manager.addDownload(good);
@@ -533,7 +616,16 @@ describe('the user interface', () => {
         manager.addDownload(createChapter(createConnector('site-a'), 'Chapter 1'));
         manager.addDownload(createChapter(createConnector('site-b'), 'Chapter 1'));
         manager.addDownload(createChapter(createConnector('site-a'), 'Chapter 2'));
-        expect(bridge.getDownloadJobs().map(job => `${job.labels.connector}/${job.labels.chapter}`).sort()).toEqual(['Connector site-a/Chapter 1', 'Connector site-a/Chapter 2', 'Connector site-b/Chapter 1']);
+        expect(
+            bridge
+                .getDownloadJobs()
+                .map((job) => `${job.labels.connector}/${job.labels.chapter}`)
+                .sort(),
+        ).toEqual([
+            'Connector site-a/Chapter 1',
+            'Connector site-a/Chapter 2',
+            'Connector site-b/Chapter 1',
+        ]);
         expect(bridge.hasActiveDownloads()).toBe(true);
     });
 
@@ -544,11 +636,17 @@ describe('the user interface', () => {
         globalThis.EventListener = Enums.EventListener;
         const connector = createConnector('site', {
             initialize: async () => undefined,
-            _getPageList: (manga, chapter, callback) => callback(null, ['https://img.test/1.jpg'])
+            _getPageList: (manga, chapter, callback) => callback(null, ['https://img.test/1.jpg']),
         });
-        const chapter = new Chapter(new Manga(connector, '/m/1', 'Manga', 'available'), '/c/1', 'Chapter 1', 'en', 'available');
+        const chapter = new Chapter(
+            new Manga(connector, '/m/1', 'Manga', 'available'),
+            '/c/1',
+            'Chapter 1',
+            'en',
+            'available',
+        );
         const selected = [];
-        document.addEventListener('onSelectChapter', event => selected.push(event.detail));
+        document.addEventListener('onSelectChapter', (event) => selected.push(event.detail));
         const manager = createManager();
 
         manager.addDownload(chapter);
@@ -571,7 +669,9 @@ describe('the user interface', () => {
         await tick(WORKER);
         await succeed(good);
         await fail(bad);
-        expect(bridge.getDownloadJobs().map(job => [job.labels.chapter, job.status])).toEqual([['Bad', 'failed']]);
+        expect(bridge.getDownloadJobs().map((job) => [job.labels.chapter, job.status])).toEqual([
+            ['Bad', 'failed'],
+        ]);
         expect(bridge.hasActiveDownloads()).toBe(false);
     });
 
@@ -580,12 +680,15 @@ describe('the user interface', () => {
         globalThis.EventListener = Enums.EventListener;
         const connector = createConnector('site', {
             initialize: async () => undefined,
-            _getPageList: (manga, chapter, callback) => callback(null, ['https://img.test/1.jpg', 'https://img.test/2.jpg'])
+            _getPageList: (manga, chapter, callback) =>
+                callback(null, ['https://img.test/1.jpg', 'https://img.test/2.jpg']),
         });
         const manga = new Manga(connector, '/m/1', 'Manga', 'available');
         const chapter = new Chapter(manga, '/c/1', 'Chapter 1', 'en', 'available');
         const seen = [];
-        const unsubscribe = bridge.subscribeChapterStatus(event => seen.push([event.detail.title, event.detail.status]));
+        const unsubscribe = bridge.subscribeChapterStatus((event) =>
+            seen.push([event.detail.title, event.detail.status]),
+        );
         const manager = createManager();
 
         manager.addDownload(chapter);
@@ -593,7 +696,11 @@ describe('the user interface', () => {
         await tick(1000);
         unsubscribe();
 
-        expect(seen).toEqual([['Chapter 1', 'queued'], ['Chapter 1', 'downloading'], ['Chapter 1', 'completed']]);
+        expect(seen).toEqual([
+            ['Chapter 1', 'queued'],
+            ['Chapter 1', 'downloading'],
+            ['Chapter 1', 'completed'],
+        ]);
         expect(chapter.status).toBe('completed');
         expect(Engine.Storage.saveChapterPages).toHaveBeenCalledWith(chapter, expect.any(Array));
         expect(Engine.Storage.saveChapterPages.mock.calls[0][1]).toHaveLength(2);
@@ -623,7 +730,12 @@ describe('the user interface', () => {
         manager.addDownload(broken);
         await tick(WORKER);
         await fail(broken);
-        expect(bridge.getDownloadJobs().map(job => job.labels.chapter).sort()).toEqual(['Broken', 'Running']);
+        expect(
+            bridge
+                .getDownloadJobs()
+                .map((job) => job.labels.chapter)
+                .sort(),
+        ).toEqual(['Broken', 'Running']);
     });
 });
 
@@ -635,7 +747,12 @@ describe('canceling downloads', () => {
         manager.addDownload(running);
         manager.addDownload(waiting);
         await tick(WORKER);
-        return { running, waiting, runningJob: [...manager.running][0], waitingJob: manager.queue[connector.id][0] };
+        return {
+            running,
+            waiting,
+            runningJob: [...manager.running][0],
+            waitingJob: manager.queue[connector.id][0],
+        };
     }
 
     it('should know the jobs that run, which have left their queue, and the jobs that wait', async () => {
@@ -656,7 +773,9 @@ describe('canceling downloads', () => {
         expect(manager.queue.site).toHaveLength(0);
         expect(waitingJob.status).toBe('canceled');
         expect(waiting.status).toBe('available');
-        expect(events.filter(event => event.job === waitingJob).map(event => event.status)).toEqual(['queued', 'canceled']);
+        expect(
+            events.filter((event) => event.job === waitingJob).map((event) => event.status),
+        ).toEqual(['queued', 'canceled']);
         await succeed(running);
         await tick(10 * WORKER);
         expect(waiting.getPages).not.toHaveBeenCalled();
@@ -677,7 +796,10 @@ describe('canceling downloads', () => {
         // what the connector answers later is not the business of the job any more
         await succeed(running);
         await tick(10 * WORKER);
-        expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('Running'), expect.anything());
+        expect(fetch).not.toHaveBeenCalledWith(
+            expect.stringContaining('Running'),
+            expect.anything(),
+        );
         expect(runningJob.status).toBe('canceled');
     });
 
@@ -705,7 +827,9 @@ describe('canceling downloads', () => {
         expect(manager.cancelChapter(waiting)).toBe(true);
         expect(manager.cancelChapter(waiting)).toBe(false);
         expect(manager.cancelChapter(running)).toBe(true);
-        expect(manager.cancelChapter(createChapter(createConnector('site'), 'Nobody asked'))).toBe(false);
+        expect(manager.cancelChapter(createChapter(createConnector('site'), 'Nobody asked'))).toBe(
+            false,
+        );
         expect(manager.jobs).toEqual([]);
     });
 
@@ -728,7 +852,7 @@ describe('canceling downloads', () => {
         await tick(10 * WORKER);
         expect(a.waiting.getPages).not.toHaveBeenCalled();
         expect(b.waiting.getPages).not.toHaveBeenCalled();
-        expect(events.filter(event => event.status === 'canceled')).toHaveLength(4);
+        expect(events.filter((event) => event.status === 'canceled')).toHaveLength(4);
     });
 
     it('should have nothing to stop when nothing is downloaded', async () => {

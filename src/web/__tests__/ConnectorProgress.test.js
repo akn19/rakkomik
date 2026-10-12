@@ -41,7 +41,7 @@ describe('isUpdating', () => {
 
 describe('request counting', () => {
     function stubFetch() {
-        const fetch = vi.fn(async request => {
+        const fetch = vi.fn(async (request) => {
             const url = typeof request === 'string' ? request : request.url;
             if (url.endsWith('/json')) {
                 return respond(200, '[1]', 'application/json');
@@ -50,7 +50,9 @@ describe('request counting', () => {
                 return respond(200, '<p></p>', 'text/html');
             }
             if (url.endsWith('/flaky')) {
-                return fetch.mock.calls.filter(call => (typeof call[0] === 'string' ? call[0] : call[0].url).endsWith('/flaky')).length > 1
+                return fetch.mock.calls.filter((call) =>
+                    (typeof call[0] === 'string' ? call[0] : call[0].url).endsWith('/flaky'),
+                ).length > 1
                     ? respond(200, '<p></p>', 'text/html')
                     : respond(503, '', 'text/html');
             }
@@ -63,28 +65,41 @@ describe('request counting', () => {
     it('should count every request the fetch helpers complete during an update', async () => {
         stubFetch();
         const connector = site();
-        connector.createDOM = () => ({ querySelectorAll: () => [ 'a', 'b' ] });
+        connector.createDOM = () => ({ querySelectorAll: () => ['a', 'b'] });
         connector.isUpdating = true;
 
         await connector.fetchJSON('https://site.test/json');
         expect(connector.updateProgress.requests).toBe(1);
         await connector.fetchDOM('https://site.test/html', 'p');
         expect(connector.updateProgress.requests).toBe(2);
-        await expect(connector.fetchRegex(new Request('https://site.test/text'), /x(\d)/g)).resolves.toEqual([ '1', '2', '3' ]);
+        await expect(
+            connector.fetchRegex(new Request('https://site.test/text'), /x(\d)/g),
+        ).resolves.toEqual(['1', '2', '3']);
         expect(connector.updateProgress.requests).toBe(3);
         // built on fetchJSON: one request, whatever the answer means
-        await connector.fetchGraphQL('https://site.test/json', 'operation', 'query', {}).catch(() => undefined);
+        await connector
+            .fetchGraphQL('https://site.test/json', 'operation', 'query', {})
+            .catch(() => undefined);
         expect(connector.updateProgress.requests).toBe(4);
     });
 
     it('should count the request of a protocol buffers call, but not the loading of its types', async () => {
-        const type = { decode: bytes => bytes, toObject: bytes => ({ size: bytes.length }) };
+        const type = { decode: (bytes) => bytes, toObject: (bytes) => ({ size: bytes.length }) };
         const load = vi.fn(async () => ({ lookupType: () => type }));
         globalThis.protobuf = { load };
-        vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array([1, 2, 3]))));
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => new Response(new Uint8Array([1, 2, 3]))),
+        );
         const connector = site();
         connector.isUpdating = true;
-        await expect(connector.fetchPROTO('https://site.test/proto', 'https://site.test/types.proto', 'Root')).resolves.toEqual({ size: 3 });
+        await expect(
+            connector.fetchPROTO(
+                'https://site.test/proto',
+                'https://site.test/types.proto',
+                'Root',
+            ),
+        ).resolves.toEqual({ size: 3 });
         expect(load).toHaveBeenCalledTimes(1);
         expect(connector.updateProgress.requests).toBe(1);
     });
@@ -101,13 +116,19 @@ describe('request counting', () => {
 
     it('should count a request when it completes, not when it is sent', async () => {
         let complete = null;
-        vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => {
-            complete = () => resolve(respond(200, '[1]', 'application/json'));
-        })));
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(
+                () =>
+                    new Promise((resolve) => {
+                        complete = () => resolve(respond(200, '[1]', 'application/json'));
+                    }),
+            ),
+        );
         const connector = site();
         connector.isUpdating = true;
         const pending = connector.fetchJSON('https://site.test/json');
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 0));
         expect(connector.updateProgress.requests).toBe(0);
         complete();
         await pending;
@@ -115,9 +136,12 @@ describe('request counting', () => {
     });
 
     it('should count a failed request as well', async () => {
-        vi.stubGlobal('fetch', vi.fn(async () => {
-            throw new Error('offline');
-        }));
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => {
+                throw new Error('offline');
+            }),
+        );
         const connector = site();
         connector.isUpdating = true;
         await expect(connector.fetchJSON('https://site.test/json')).rejects.toThrow('offline');
@@ -135,28 +159,37 @@ describe('request counting', () => {
 
 describe('updateMangas', () => {
     it('should report the requests of the update while it runs and nothing afterwards', async () => {
-        vi.stubGlobal('fetch', vi.fn(async () => respond(200, '[{"id":"b","title":"B"},{"id":"a","title":"A"}]', 'application/json')));
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () =>
+                respond(200, '[{"id":"b","title":"B"},{"id":"a","title":"A"}]', 'application/json'),
+            ),
+        );
         globalThis.Engine = { Storage: { saveMangaList: vi.fn(async () => undefined) } };
         const connector = site();
         const seen = [];
-        connector._getMangas = async function() {
+        connector._getMangas = async function () {
             const mangas = [];
             for (let page = 1; page <= 3; page++) {
-                mangas.push(...await this.fetchJSON('https://site.test/list?page=' + page));
+                mangas.push(...(await this.fetchJSON('https://site.test/list?page=' + page)));
                 seen.push(this.updateProgress.requests);
             }
             return mangas;
         };
 
         // getMangas runs after the list is saved, when the update (and its progress) is over
-        const afterwards = await new Promise(resolve => {
-            connector.getMangas = () => resolve({ updating: connector.isUpdating, progress: connector.updateProgress });
+        const afterwards = await new Promise((resolve) => {
+            connector.getMangas = () =>
+                resolve({ updating: connector.isUpdating, progress: connector.updateProgress });
             connector.updateMangas(() => undefined);
         });
 
-        expect(seen).toEqual([ 1, 2, 3 ]);
+        expect(seen).toEqual([1, 2, 3]);
         expect(afterwards).toEqual({ updating: false, progress: undefined });
-        expect(Engine.Storage.saveMangaList).toHaveBeenCalledWith('site', [ { id: 'a', title: 'A' }, { id: 'b', title: 'B' } ]);
+        expect(Engine.Storage.saveMangaList).toHaveBeenCalledWith('site', [
+            { id: 'a', title: 'A' },
+            { id: 'b', title: 'B' },
+        ]);
     });
 
     it('should end the progress when the update fails', async () => {
@@ -165,8 +198,14 @@ describe('updateMangas', () => {
             throw new Error('site down');
         };
         vi.spyOn(console, 'error').mockImplementation(() => undefined);
-        const state = await new Promise(resolve => {
-            connector.updateMangas(error => resolve({ message: error.message, updating: connector.isUpdating, progress: connector.updateProgress }));
+        const state = await new Promise((resolve) => {
+            connector.updateMangas((error) =>
+                resolve({
+                    message: error.message,
+                    updating: connector.isUpdating,
+                    progress: connector.updateProgress,
+                }),
+            );
         });
         expect(state).toEqual({ message: 'site down', updating: false, progress: undefined });
     });

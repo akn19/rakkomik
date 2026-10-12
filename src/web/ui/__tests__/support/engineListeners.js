@@ -15,7 +15,10 @@ export function trackListeners(emitters) {
             add(type, listener, options);
         });
         vi.spyOn(emitter, 'removeEventListener').mockImplementation((type, listener, options) => {
-            const index = live.findIndex(entry => entry.emitter === emitter && entry.type === type && entry.listener === listener);
+            const index = live.findIndex(
+                (entry) =>
+                    entry.emitter === emitter && entry.type === type && entry.listener === listener,
+            );
             if (index > -1) {
                 live.splice(index, 1);
             }

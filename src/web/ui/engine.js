@@ -38,8 +38,17 @@ export function getConnectorsSnapshot() {
     const registry = engine.ConnectorRegistry || null;
     const list = registry ? registry.list : engine.Connectors || [];
     const ready = registry ? registry.isReady : true;
-    if (connectorsCache.registry !== registry || connectorsCache.length !== list.length || connectorsCache.ready !== ready) {
-        connectorsCache = { registry, length: list.length, ready, value: { connectors: list.slice(), ready } };
+    if (
+        connectorsCache.registry !== registry ||
+        connectorsCache.length !== list.length ||
+        connectorsCache.ready !== ready
+    ) {
+        connectorsCache = {
+            registry,
+            length: list.length,
+            ready,
+            value: { connectors: list.slice(), ready },
+        };
     }
     return connectorsCache.value;
 }
@@ -80,7 +89,10 @@ export function getUpdateProgress(connector) {
     if (!progress) {
         return undefined;
     }
-    return { requests: progress.requests, seconds: Math.max(0, Math.floor((Date.now() - progress.startedAt) / 1000)) };
+    return {
+        requests: progress.requests,
+        seconds: Math.max(0, Math.floor((Date.now() - progress.startedAt) / 1000)),
+    };
 }
 
 export function getEngineStatus() {
@@ -111,7 +123,7 @@ export function getVersionInfo() {
         return {
             branch: version.branch.label,
             revision: version.revision.label,
-            link: version.revision.link
+            link: version.revision.link,
         };
     } catch {
         return { branch: '', revision: '', link: '' };
@@ -153,7 +165,10 @@ export function getBookmarks() {
     } catch {
         return NO_BOOKMARKS;
     }
-    if (list.length !== bookmarksCache.length || list.some((bookmark, index) => bookmark !== bookmarksCache[index])) {
+    if (
+        list.length !== bookmarksCache.length ||
+        list.some((bookmark, index) => bookmark !== bookmarksCache[index])
+    ) {
         bookmarksCache = list.slice();
     }
     return bookmarksCache;
@@ -184,7 +199,10 @@ export function deleteBookmark(bookmark) {
 export function isMangaBookmarked(manga) {
     try {
         const manager = getEngine().BookmarkManager;
-        return manager.bookmarks.some(bookmark => bookmark.key.manga === manga.id && bookmark.key.connector === manga.connector.id);
+        return manager.bookmarks.some(
+            (bookmark) =>
+                bookmark.key.manga === manga.id && bookmark.key.connector === manga.connector.id,
+        );
     } catch {
         return false;
     }
@@ -193,7 +211,9 @@ export function isMangaBookmarked(manga) {
 export function toggleBookmark(manga) {
     const manager = getEngine().BookmarkManager;
     if (isMangaBookmarked(manga)) {
-        const bookmark = manager.bookmarks.find(entry => entry.key.manga === manga.id && entry.key.connector === manga.connector.id);
+        const bookmark = manager.bookmarks.find(
+            (entry) => entry.key.manga === manga.id && entry.key.connector === manga.connector.id,
+        );
         return manager.deleteBookmark(bookmark);
     }
     return manager.addBookmark(manga);
@@ -225,7 +245,10 @@ export function deleteChaptermark(markedChapter) {
 
 export function isChapterMarked(chapter, markedChapter) {
     try {
-        return !!markedChapter && getEngine().ChaptermarkManager.isChapterMarked(chapter, markedChapter);
+        return (
+            !!markedChapter &&
+            getEngine().ChaptermarkManager.isChapterMarked(chapter, markedChapter)
+        );
     } catch {
         return false;
     }
@@ -241,10 +264,10 @@ function trackJobs(manager) {
     if (!tracker) {
         tracker = {
             jobs: Object.values(manager.queue || {})
-                .filter(entry => Array.isArray(entry))
-                .flat()
+                .filter((entry) => Array.isArray(entry))
+                .flat(),
         };
-        manager.addEventListener('updated', event => {
+        manager.addEventListener('updated', (event) => {
             tracker.jobs = mergeDownloadJobs(tracker.jobs, event.detail);
         });
         jobTrackers.set(manager, tracker);
@@ -272,7 +295,7 @@ export function subscribeDownloads(listener) {
     } catch {
         return () => undefined;
     }
-    const handler = event => listener(event);
+    const handler = (event) => listener(event);
     manager.addEventListener('updated', handler);
     return () => manager.removeEventListener('updated', handler);
 }
@@ -315,7 +338,7 @@ export function mergeDownloadJobs(jobList, job) {
         }
         return list;
     }
-    const failedTwin = list.findIndex(item => job.isSame(item) && item.status === 'failed');
+    const failedTwin = list.findIndex((item) => job.isSame(item) && item.status === 'failed');
     if (failedTwin > -1) {
         list.splice(failedTwin, 1);
     }
@@ -354,7 +377,7 @@ export function cancelAllDownloads() {
 }
 
 export function hasActiveDownloads() {
-    return getDownloadJobs().some(job => job.status === 'queued' || job.status === 'downloading');
+    return getDownloadJobs().some((job) => job.status === 'queued' || job.status === 'downloading');
 }
 
 export function subscribeAppClose(listener) {
@@ -390,7 +413,7 @@ export async function findConnectorsByManga(pattern) {
     for (const connector of engine.Connectors) {
         try {
             const mangas = await engine.Storage.loadMangaList(connector.id);
-            if (mangas.some(manga => manga.title.toLowerCase().includes(needle))) {
+            if (mangas.some((manga) => manga.title.toLowerCase().includes(needle))) {
                 matches.push(connector.id);
             }
         } catch {
@@ -426,10 +449,12 @@ export function toggleChaptermark(chapter, markedChapter) {
 }
 
 export function getSettingsDraft() {
-    return getEngine().Settings.getCategorizedSettings().map(group => ({
-        category: group.category,
-        items: group.settings.map(ref => ({ ref, value: ref.value }))
-    }));
+    return getEngine()
+        .Settings.getCategorizedSettings()
+        .map((group) => ({
+            category: group.category,
+            items: group.settings.map((ref) => ({ ref, value: ref.value })),
+        }));
 }
 
 export async function saveSettingsDraft(draft) {

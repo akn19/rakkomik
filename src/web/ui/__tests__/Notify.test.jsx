@@ -11,7 +11,7 @@ function mountToasts() {
     render(
         <ToastProvider>
             <Probe />
-        </ToastProvider>
+        </ToastProvider>,
     );
     return api;
 }
@@ -57,11 +57,15 @@ describe('toasts', () => {
             api.notify('third');
         });
         expect(first).not.toBe(second);
-        expect(screen.getAllByText(/^(first|second|third)$/).map(node => node.textContent)).toEqual(['first', 'second', 'third']);
+        expect(
+            screen.getAllByText(/^(first|second|third)$/).map((node) => node.textContent),
+        ).toEqual(['first', 'second', 'third']);
         act(() => {
             api.dismiss(second);
         });
-        expect(screen.getAllByText(/^(first|second|third)$/).map(node => node.textContent)).toEqual(['first', 'third']);
+        expect(
+            screen.getAllByText(/^(first|second|third)$/).map((node) => node.textContent),
+        ).toEqual(['first', 'third']);
     });
 
     it('should not fail when a message that is gone is dismissed again, or removed by its own timer after a click', () => {
@@ -72,10 +76,12 @@ describe('toasts', () => {
             id = api.notify('once');
         });
         fireEvent.click(screen.getByTitle('Dismiss'));
-        expect(() => act(() => {
-            api.dismiss(id);
-            vi.advanceTimersByTime(5000);
-        })).not.toThrow();
+        expect(() =>
+            act(() => {
+                api.dismiss(id);
+                vi.advanceTimersByTime(5000);
+            }),
+        ).not.toThrow();
         expect(screen.queryByText('once')).toBeNull();
     });
 

@@ -11,33 +11,49 @@ const path = require('node:path');
  */
 function realBridge() {
     return {
-        mkdir: target => fs.promises.mkdir(target, { recursive: true }).then(() => undefined),
-        writeFile: (target, data, encoding) => fs.promises.writeFile(target, typeof data === 'string' ? data : Buffer.from(data), encoding).then(() => undefined),
+        mkdir: (target) => fs.promises.mkdir(target, { recursive: true }).then(() => undefined),
+        writeFile: (target, data, encoding) =>
+            fs.promises
+                .writeFile(target, typeof data === 'string' ? data : Buffer.from(data), encoding)
+                .then(() => undefined),
         rename: (from, to) => fs.promises.rename(from, to).then(() => undefined),
-        unlink: target => fs.promises.unlink(target).then(() => undefined),
-        readFile: (target, encoding) => fs.promises.readFile(target, encoding || undefined).then(data => (typeof data === 'string' ? data : new Uint8Array(data))),
-        stat: target => fs.promises.stat(target).then(stats => ({ isDirectory: stats.isDirectory(), isFile: stats.isFile(), size: stats.size })),
-        readdir: target => fs.promises.readdir(target)
+        unlink: (target) => fs.promises.unlink(target).then(() => undefined),
+        readFile: (target, encoding) =>
+            fs.promises
+                .readFile(target, encoding || undefined)
+                .then((data) => (typeof data === 'string' ? data : new Uint8Array(data))),
+        stat: (target) =>
+            fs.promises.stat(target).then((stats) => ({
+                isDirectory: stats.isDirectory(),
+                isFile: stats.isFile(),
+                size: stats.size,
+            })),
+        readdir: (target) => fs.promises.readdir(target),
     };
 }
 
 // counts the operations that are under way, so that a test can wait until the storage is quiet
 function counted(bridge, counter) {
-    return Object.fromEntries(Object.entries(bridge).map(([name, method]) => [name, (...args) => {
-        counter.active++;
-        const done = () => {
-            counter.active--;
-        };
-        let result;
-        try {
-            result = method(...args);
-        } catch (error) {
-            done();
-            throw error;
-        }
-        result.then(done, done);
-        return result;
-    }]));
+    return Object.fromEntries(
+        Object.entries(bridge).map(([name, method]) => [
+            name,
+            (...args) => {
+                counter.active++;
+                const done = () => {
+                    counter.active--;
+                };
+                let result;
+                try {
+                    result = method(...args);
+                } catch (error) {
+                    done();
+                    throw error;
+                }
+                result.then(done, done);
+                return result;
+            },
+        ]),
+    );
 }
 
 /**
@@ -60,11 +76,11 @@ function createEnvironment(Storage, options = {}) {
         dialog: { showOpenDialog: vi.fn() },
         shell: { showItemInFolder: vi.fn() },
         fs: counted(options.fs || realBridge(), counter),
-        pdf: { render: vi.fn(async html => new TextEncoder().encode(`%PDF-1.7 ${html.length}`)) },
+        pdf: { render: vi.fn(async (html) => new TextEncoder().encode(`%PDF-1.7 ${html.length}`)) },
         exec: vi.fn(async () => ({})),
         env: options.env || {},
-        app: { getPath: name => (name === 'userData' ? userData : root) },
-        os: { tmpdir: path.join(root, 'tmp') }
+        app: { getPath: (name) => (name === 'userData' ? userData : root) },
+        os: { tmpdir: path.join(root, 'tmp') },
     };
     globalThis.window = { hakuneko };
     const settings = {
@@ -74,17 +90,22 @@ function createEnvironment(Storage, options = {}) {
         chapterFormat: 'img',
         novelFormat: '.epub',
         postChapterDownloadCommand: '',
-        ...options.settings
+        ...options.settings,
     };
     const storage = new Storage();
     globalThis.Engine = {
         Storage: storage,
-        Settings: Object.fromEntries(Object.entries(settings).map(([name, value]) => [name, { value }])),
-        ComicInfoGenerator: new (options.ComicInfoGenerator || class {
-            createComicInfoXML(series, title, count) {
-                return `<ComicInfo series="${series}" title="${title}" pages="${count}"/>`;
+        Settings: Object.fromEntries(
+            Object.entries(settings).map(([name, value]) => [name, { value }]),
+        ),
+        ComicInfoGenerator: new (
+            options.ComicInfoGenerator ||
+            class {
+                createComicInfoXML(series, title, count) {
+                    return `<ComicInfo series="${series}" title="${title}" pages="${count}"/>`;
+                }
             }
-        })()
+        )(),
     };
     return {
         root,
@@ -97,14 +118,14 @@ function createEnvironment(Storage, options = {}) {
         /** settles when no operation of the bridge is under way any more, e.g. after a save was refused while others ran on */
         async idle() {
             do {
-                await new Promise(resolve => setImmediate(resolve));
+                await new Promise((resolve) => setImmediate(resolve));
             } while (counter.active > 0);
         },
         dispose() {
             delete globalThis.window;
             delete globalThis.Engine;
             fs.rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 10 });
-        }
+        },
     };
 }
 
@@ -130,9 +151,10 @@ function zipEntries(bytes) {
         const nameLength = view.getUint16(offset + 28, true);
         entries.push({
             name: new TextDecoder().decode(bytes.subarray(offset + 46, offset + 46 + nameLength)),
-            method: view.getUint16(offset + 10, true)
+            method: view.getUint16(offset + 10, true),
         });
-        offset += 46 + nameLength + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
+        offset +=
+            46 + nameLength + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
     }
     return entries;
 }
@@ -143,7 +165,7 @@ function zipEntries(bytes) {
  */
 function listFiles(root) {
     const found = [];
-    const walk = directory => {
+    const walk = (directory) => {
         for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
             const full = path.join(directory, entry.name);
             if (entry.isDirectory()) {

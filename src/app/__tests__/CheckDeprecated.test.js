@@ -36,11 +36,17 @@ function write(file, content) {
 function createProject({ devDependencies, dependencies, installed = {}, nested = {} }) {
     write(path.join(project, 'package.json'), { name: 'root', devDependencies });
     write(path.join(project, 'src', 'app', 'package.json'), { name: 'app', dependencies });
-    for (const [ name, version ] of Object.entries(installed)) {
-        write(path.join(project, 'node_modules', ...name.split('/'), 'package.json'), { name, version });
+    for (const [name, version] of Object.entries(installed)) {
+        write(path.join(project, 'node_modules', ...name.split('/'), 'package.json'), {
+            name,
+            version,
+        });
     }
-    for (const [ name, version ] of Object.entries(nested)) {
-        write(path.join(project, 'src', 'app', 'node_modules', ...name.split('/'), 'package.json'), { name, version });
+    for (const [name, version] of Object.entries(nested)) {
+        write(
+            path.join(project, 'src', 'app', 'node_modules', ...name.split('/'), 'package.json'),
+            { name, version },
+        );
     }
 }
 
@@ -73,7 +79,14 @@ function createRegistry(documents) {
 
 // the document of a package whose versions are as `versions` says: version -> deprecation message, or null
 function document(versions) {
-    return { versions: Object.fromEntries(Object.entries(versions).map(([ version, deprecated ]) => [ version, deprecated === null ? {} : { deprecated } ])) };
+    return {
+        versions: Object.fromEntries(
+            Object.entries(versions).map(([version, deprecated]) => [
+                version,
+                deprecated === null ? {} : { deprecated },
+            ]),
+        ),
+    };
 }
 
 /**
@@ -92,15 +105,20 @@ function startGate({ documents = {}, allowlist = {}, fetch, root = project } = {
                 state.printed = output.entries.length;
                 state.requested = registry.requests.length;
             }
-        }
+        },
     };
     const { exposed } = loadToolScript(CHECK, {
         dirname: path.join(root, 'scripts'),
-        globals: { process: fake, console: output, fetch: fetch ?? registry.fetch, AbortSignal: { timeout: timeout => ({ timeout }) } },
-        expose: [ 'ALLOWLIST' ]
+        globals: {
+            process: fake,
+            console: output,
+            fetch: fetch ?? registry.fetch,
+            AbortSignal: { timeout: (timeout) => ({ timeout }) },
+        },
+        expose: ['ALLOWLIST'],
     });
     // the script has started and waits for the registry: the recorded exceptions are in the list before it decides
-    for (const [ name, reason ] of Object.entries(allowlist)) {
+    for (const [name, reason] of Object.entries(allowlist)) {
         exposed.ALLOWLIST.set(name, reason);
     }
     return {
@@ -110,10 +128,14 @@ function startGate({ documents = {}, allowlist = {}, fetch, root = project } = {
             return {
                 exitCode: state.exitCode,
                 requests: registry.requests.slice(0, state.requested ?? undefined),
-                stdout: printed.filter(entry => entry.stream === 'log').map(entry => entry.text),
-                stderr: printed.filter(entry => entry.stream === 'error').map(entry => entry.text)
+                stdout: printed
+                    .filter((entry) => entry.stream === 'log')
+                    .map((entry) => entry.text),
+                stderr: printed
+                    .filter((entry) => entry.stream === 'error')
+                    .map((entry) => entry.text),
             };
-        }
+        },
     };
 }
 
@@ -128,14 +150,14 @@ describe('the gate for deprecated dependencies', () => {
                 devDependencies: { alpha: '^1.0.0', '@scope/beta': '^2.0.0' },
                 dependencies: { gamma: '^3.0.0', alpha: '^1.0.0' },
                 installed: { alpha: '1.2.3', '@scope/beta': '2.0.0' },
-                nested: { gamma: '3.1.0' }
+                nested: { gamma: '3.1.0' },
             });
         });
 
         const documents = () => ({
             alpha: document({ '1.2.3': null }),
             '@scope/beta': document({ '2.0.0': null }),
-            gamma: document({ '3.1.0': null })
+            gamma: document({ '3.1.0': null }),
         });
 
         it('should pass without ending the process, after it counted every package once', async () => {
@@ -145,17 +167,17 @@ describe('the gate for deprecated dependencies', () => {
             expect(stdout).toEqual([
                 // alpha is declared by both manifests
                 'Checking 3 declared packages at installed versions ...',
-                '\nOK: no unrecorded deprecated packages (0 allowlisted).'
+                '\nOK: no unrecorded deprecated packages (0 allowlisted).',
             ]);
         });
 
         it('should ask the registry for the abbreviated document of each package, with a time limit', async () => {
             const { requests } = await runGate({ documents: documents() });
-            expect(requests.map(request => request.url)).toEqual([
+            expect(requests.map((request) => request.url)).toEqual([
                 'https://registry.npmjs.org/alpha',
                 // the slash of a scope is encoded
                 'https://registry.npmjs.org/@scope%2fbeta',
-                'https://registry.npmjs.org/gamma'
+                'https://registry.npmjs.org/gamma',
             ]);
             for (const { options } of requests) {
                 expect(options.headers).toEqual({ accept: 'application/vnd.npm.install-v1+json' });
@@ -165,20 +187,38 @@ describe('the gate for deprecated dependencies', () => {
 
         it('should judge the installed version, and not the other versions of the package', async () => {
             // the versions before and after the installed one (1.2.3) are deprecated
-            const { exitCode } = await runGate({ documents: { ...documents(), alpha: document({ '1.0.0': 'old', '1.2.3': null, '2.0.0': 'newer and already deprecated' }) } });
+            const { exitCode } = await runGate({
+                documents: {
+                    ...documents(),
+                    alpha: document({
+                        '1.0.0': 'old',
+                        '1.2.3': null,
+                        '2.0.0': 'newer and already deprecated',
+                    }),
+                },
+            });
             expect(exitCode).toBeNull();
         });
 
         it('should not take an empty deprecation message for a deprecation', async () => {
-            const { exitCode } = await runGate({ documents: { ...documents(), alpha: document({ '1.2.3': '' }) } });
+            const { exitCode } = await runGate({
+                documents: { ...documents(), alpha: document({ '1.2.3': '' }) },
+            });
             expect(exitCode).toBeNull();
         });
 
         it('should read the version of the root install before the one that the application has', async () => {
-            write(path.join(project, 'src', 'app', 'node_modules', 'alpha', 'package.json'), { name: 'alpha', version: '9.9.9' });
-            const { exitCode, stdout } = await runGate({ documents: { ...documents(), alpha: document({ '1.2.3': 'old', '9.9.9': null }) } });
+            write(path.join(project, 'src', 'app', 'node_modules', 'alpha', 'package.json'), {
+                name: 'alpha',
+                version: '9.9.9',
+            });
+            const { exitCode, stdout } = await runGate({
+                documents: { ...documents(), alpha: document({ '1.2.3': 'old', '9.9.9': null }) },
+            });
             expect(exitCode).toBe(1);
-            expect(stdout).toContain('  X alpha@1.2.3 (package.json:devDependencies): DEPRECATED — old');
+            expect(stdout).toContain(
+                '  X alpha@1.2.3 (package.json:devDependencies): DEPRECATED — old',
+            );
         });
     });
 
@@ -188,54 +228,76 @@ describe('the gate for deprecated dependencies', () => {
                 devDependencies: { alpha: '^1.0.0', delta: '^4.0.0' },
                 dependencies: { gamma: '^3.0.0' },
                 installed: { alpha: '1.2.3', delta: '4.0.0' },
-                nested: { gamma: '3.1.0' }
+                nested: { gamma: '3.1.0' },
             });
         });
 
         it('should name it, where it is declared and what the registry says, and end the process with 1', async () => {
             const { exitCode, stdout, stderr } = await runGate({
-                documents: { alpha: document({ '1.2.3': 'Use beta' }), delta: document({ '4.0.0': null }), gamma: document({ '3.1.0': null }) }
+                documents: {
+                    alpha: document({ '1.2.3': 'Use beta' }),
+                    delta: document({ '4.0.0': null }),
+                    gamma: document({ '3.1.0': null }),
+                },
             });
             expect(exitCode).toBe(1);
             expect(stdout).toEqual([
                 'Checking 3 declared packages at installed versions ...',
-                '  X alpha@1.2.3 (package.json:devDependencies): DEPRECATED — Use beta'
+                '  X alpha@1.2.3 (package.json:devDependencies): DEPRECATED — Use beta',
             ]);
             expect(stderr).toEqual([
                 '\nFAIL: 1 deprecated package(s) without recorded exception.',
-                'Add a replacement, or record an exception in scripts/check-deprecated.js ALLOWLIST.'
+                'Add a replacement, or record an exception in scripts/check-deprecated.js ALLOWLIST.',
             ]);
         });
 
         it('should report every deprecated package, those of the application too', async () => {
             const { exitCode, stdout, stderr } = await runGate({
-                documents: { alpha: document({ '1.2.3': 'one' }), delta: document({ '4.0.0': null }), gamma: document({ '3.1.0': 'two' }) }
+                documents: {
+                    alpha: document({ '1.2.3': 'one' }),
+                    delta: document({ '4.0.0': null }),
+                    gamma: document({ '3.1.0': 'two' }),
+                },
             });
             expect(exitCode).toBe(1);
             expect(stdout).toEqual([
                 'Checking 3 declared packages at installed versions ...',
                 '  X alpha@1.2.3 (package.json:devDependencies): DEPRECATED — one',
-                '  X gamma@3.1.0 (src/app/package.json:dependencies): DEPRECATED — two'
+                '  X gamma@3.1.0 (src/app/package.json:dependencies): DEPRECATED — two',
             ]);
             expect(stderr[0]).toBe('\nFAIL: 2 deprecated package(s) without recorded exception.');
         });
 
         it('should let a recorded exception pass, say so, and still refuse the others', async () => {
-            const documents = { alpha: document({ '1.2.3': 'Use beta' }), delta: document({ '4.0.0': 'Use epsilon' }), gamma: document({ '3.1.0': null }) };
-            const { exitCode, stdout, stderr } = await runGate({ documents, allowlist: { alpha: 'needed until the next major' } });
+            const documents = {
+                alpha: document({ '1.2.3': 'Use beta' }),
+                delta: document({ '4.0.0': 'Use epsilon' }),
+                gamma: document({ '3.1.0': null }),
+            };
+            const { exitCode, stdout, stderr } = await runGate({
+                documents,
+                allowlist: { alpha: 'needed until the next major' },
+            });
             expect(exitCode).toBe(1);
             expect(stdout).toEqual([
                 'Checking 3 declared packages at installed versions ...',
                 '  ~ alpha@1.2.3: deprecated but allowlisted — needed until the next major',
                 '    upstream note: Use beta',
-                '  X delta@4.0.0 (package.json:devDependencies): DEPRECATED — Use epsilon'
+                '  X delta@4.0.0 (package.json:devDependencies): DEPRECATED — Use epsilon',
             ]);
             expect(stderr[0]).toBe('\nFAIL: 1 deprecated package(s) without recorded exception.');
         });
 
         it('should pass when every deprecated package has a recorded exception, and count them', async () => {
-            const documents = { alpha: document({ '1.2.3': 'Use beta' }), delta: document({ '4.0.0': 'Use epsilon' }), gamma: document({ '3.1.0': null }) };
-            const { exitCode, stdout, stderr } = await runGate({ documents, allowlist: { alpha: 'because', delta: 'because too' } });
+            const documents = {
+                alpha: document({ '1.2.3': 'Use beta' }),
+                delta: document({ '4.0.0': 'Use epsilon' }),
+                gamma: document({ '3.1.0': null }),
+            };
+            const { exitCode, stdout, stderr } = await runGate({
+                documents,
+                allowlist: { alpha: 'because', delta: 'because too' },
+            });
             expect(exitCode).toBeNull();
             expect(stderr).toEqual([]);
             expect(stdout.at(-1)).toBe('\nOK: no unrecorded deprecated packages (2 allowlisted).');
@@ -247,81 +309,147 @@ describe('the gate for deprecated dependencies', () => {
             createProject({
                 devDependencies: { alpha: '^1.0.0', beta: '^2.0.0' },
                 dependencies: { gamma: '^3.0.0' },
-                installed: { beta: '2.0.0' }
+                installed: { beta: '2.0.0' },
             });
-            const { exitCode, stdout, stderr, requests } = await runGate({ documents: { beta: document({ '2.0.0': null }) } });
+            const { exitCode, stdout, stderr, requests } = await runGate({
+                documents: { beta: document({ '2.0.0': null }) },
+            });
             expect(exitCode).toBe(1);
             expect(requests).toEqual([]);
-            expect(stdout).toEqual([ 'Checking 3 declared packages at installed versions ...' ]);
-            expect(stderr).toEqual([ 'FAIL: 2 package(s) not installed (run install first): alpha, gamma' ]);
+            expect(stdout).toEqual(['Checking 3 declared packages at installed versions ...']);
+            expect(stderr).toEqual([
+                'FAIL: 2 package(s) not installed (run install first): alpha, gamma',
+            ]);
         });
     });
 
     describe('when the registry does not give an answer', () => {
         beforeEach(() => {
-            createProject({ devDependencies: { alpha: '^1.0.0', beta: '^2.0.0' }, installed: { alpha: '1.2.3', beta: '2.0.0' } });
+            createProject({
+                devDependencies: { alpha: '^1.0.0', beta: '^2.0.0' },
+                installed: { alpha: '1.2.3', beta: '2.0.0' },
+            });
         });
 
         const fine = document({ '2.0.0': null });
 
         it.each([
-            [ 'an error status', 503, 'registry responded 503 for alpha' ],
-            [ 'a package that is unknown', 404, 'registry responded 404 for alpha' ],
-            [ 'no network', new TypeError('fetch failed'), 'fetch failed' ],
-            [ 'a timeout', new DOMException('The operation was aborted due to timeout', 'TimeoutError'), 'The operation was aborted due to timeout' ],
-            [ 'a document that is not JSON', 'not json', 'Unexpected token' ],
-            [ 'a document without versions', {}, 'alpha@1.2.3 not found on registry' ],
-            [ 'a document that lacks the installed version', document({ '0.9.0': null }), 'alpha@1.2.3 not found on registry' ]
-        ])('should fail the gate for %s, since a package that was not checked is not a package that is fine', async (description, answer, message) => {
-            const { exitCode, stdout, stderr } = await runGate({ documents: { alpha: answer, beta: fine } });
-            expect(exitCode).toBe(1);
-            expect(stdout).toHaveLength(2);
-            expect(stdout[1]).toContain(`  ! alpha@1.2.3: registry check failed — ${message}`);
-            expect(stderr).toEqual([ '\nFAIL: 1 registry check(s) errored (network required for this gate).' ]);
-        });
+            ['an error status', 503, 'registry responded 503 for alpha'],
+            ['a package that is unknown', 404, 'registry responded 404 for alpha'],
+            ['no network', new TypeError('fetch failed'), 'fetch failed'],
+            [
+                'a timeout',
+                new DOMException('The operation was aborted due to timeout', 'TimeoutError'),
+                'The operation was aborted due to timeout',
+            ],
+            ['a document that is not JSON', 'not json', 'Unexpected token'],
+            ['a document without versions', {}, 'alpha@1.2.3 not found on registry'],
+            [
+                'a document that lacks the installed version',
+                document({ '0.9.0': null }),
+                'alpha@1.2.3 not found on registry',
+            ],
+        ])(
+            'should fail the gate for %s, since a package that was not checked is not a package that is fine',
+            async (description, answer, message) => {
+                const { exitCode, stdout, stderr } = await runGate({
+                    documents: { alpha: answer, beta: fine },
+                });
+                expect(exitCode).toBe(1);
+                expect(stdout).toHaveLength(2);
+                expect(stdout[1]).toContain(`  ! alpha@1.2.3: registry check failed — ${message}`);
+                expect(stderr).toEqual([
+                    '\nFAIL: 1 registry check(s) errored (network required for this gate).',
+                ]);
+            },
+        );
 
         it('should report a package that is deprecated and a package that could not be checked, both', async () => {
-            const { exitCode, stdout } = await runGate({ documents: { alpha: new Error('socket hang up'), beta: document({ '2.0.0': 'Use alpha' }) } });
+            const { exitCode, stdout } = await runGate({
+                documents: {
+                    alpha: new Error('socket hang up'),
+                    beta: document({ '2.0.0': 'Use alpha' }),
+                },
+            });
             expect(exitCode).toBe(1);
-            expect(stdout).toEqual(expect.arrayContaining([
-                '  ! alpha@1.2.3: registry check failed — socket hang up',
-                '  X beta@2.0.0 (package.json:devDependencies): DEPRECATED — Use alpha'
-            ]));
+            expect(stdout).toEqual(
+                expect.arrayContaining([
+                    '  ! alpha@1.2.3: registry check failed — socket hang up',
+                    '  X beta@2.0.0 (package.json:devDependencies): DEPRECATED — Use alpha',
+                ]),
+            );
         });
 
         it('should wait for every answer before it decides, whichever is last', async () => {
             let release = null;
-            const late = new Promise(resolve => {
+            const late = new Promise((resolve) => {
                 release = resolve;
             });
-            const gate = startGate({ documents: { alpha: () => late.then(() => document({ '1.2.3': 'late news' })), beta: document({ '2.0.0': null }) } });
+            const gate = startGate({
+                documents: {
+                    alpha: () => late.then(() => document({ '1.2.3': 'late news' })),
+                    beta: document({ '2.0.0': null }),
+                },
+            });
             // beta was answered, alpha was not: nothing is decided
             const waiting = await gate.result();
             expect(waiting.requests).toHaveLength(2);
             expect(waiting.exitCode).toBeNull();
-            expect(waiting.stdout).toEqual([ 'Checking 2 declared packages at installed versions ...' ]);
+            expect(waiting.stdout).toEqual([
+                'Checking 2 declared packages at installed versions ...',
+            ]);
             release();
             const decided = await gate.result();
             expect(decided.exitCode).toBe(1);
-            expect(decided.stdout).toContain('  X alpha@1.2.3 (package.json:devDependencies): DEPRECATED — late news');
+            expect(decided.stdout).toContain(
+                '  X alpha@1.2.3 (package.json:devDependencies): DEPRECATED — late news',
+            );
         });
     });
 
     describe('when the manifests cannot be read', () => {
         it.each([
-            [ 'the manifest of the project is missing', () => fs.rmSync(path.join(project, 'package.json')), /^FAIL: ENOENT.*package\.json/ ],
-            [ 'the manifest of the application is missing', () => fs.rmSync(path.join(project, 'src', 'app', 'package.json')), /^FAIL: ENOENT.*package\.json/ ],
-            [ 'the manifest of the project is not JSON', () => fs.writeFileSync(path.join(project, 'package.json'), '{ not json'), /^FAIL: / ],
-            [ 'the manifest of an installed package is not JSON', () => fs.writeFileSync(path.join(project, 'node_modules', 'alpha', 'package.json'), ''), /^FAIL: / ]
-        ])('should end the process with 1 and one message when %s', async (description, spoil, message) => {
-            createProject({ devDependencies: { alpha: '^1.0.0' }, installed: { alpha: '1.2.3' } });
-            spoil();
-            const { exitCode, stderr, requests } = await runGate({ documents: { alpha: document({ '1.2.3': null }) } });
-            expect(exitCode).toBe(1);
-            expect(stderr).toHaveLength(1);
-            expect(stderr[0]).toMatch(message);
-            expect(requests).toEqual([]);
-        });
+            [
+                'the manifest of the project is missing',
+                () => fs.rmSync(path.join(project, 'package.json')),
+                /^FAIL: ENOENT.*package\.json/,
+            ],
+            [
+                'the manifest of the application is missing',
+                () => fs.rmSync(path.join(project, 'src', 'app', 'package.json')),
+                /^FAIL: ENOENT.*package\.json/,
+            ],
+            [
+                'the manifest of the project is not JSON',
+                () => fs.writeFileSync(path.join(project, 'package.json'), '{ not json'),
+                /^FAIL: /,
+            ],
+            [
+                'the manifest of an installed package is not JSON',
+                () =>
+                    fs.writeFileSync(
+                        path.join(project, 'node_modules', 'alpha', 'package.json'),
+                        '',
+                    ),
+                /^FAIL: /,
+            ],
+        ])(
+            'should end the process with 1 and one message when %s',
+            async (description, spoil, message) => {
+                createProject({
+                    devDependencies: { alpha: '^1.0.0' },
+                    installed: { alpha: '1.2.3' },
+                });
+                spoil();
+                const { exitCode, stderr, requests } = await runGate({
+                    documents: { alpha: document({ '1.2.3': null }) },
+                });
+                expect(exitCode).toBe(1);
+                expect(stderr).toHaveLength(1);
+                expect(stderr[0]).toMatch(message);
+                expect(requests).toEqual([]);
+            },
+        );
     });
 
     it('should pass for a project that declares nothing', async () => {
@@ -329,25 +457,39 @@ describe('the gate for deprecated dependencies', () => {
         const { exitCode, stdout, requests } = await runGate();
         expect(exitCode).toBeNull();
         expect(requests).toEqual([]);
-        expect(stdout).toEqual([ 'Checking 0 declared packages at installed versions ...', '\nOK: no unrecorded deprecated packages (0 allowlisted).' ]);
+        expect(stdout).toEqual([
+            'Checking 0 declared packages at installed versions ...',
+            '\nOK: no unrecorded deprecated packages (0 allowlisted).',
+        ]);
     });
 
     // the registry here says that no version of anything is deprecated; the gate reads the manifests and the install of this checkout
     it('should find every package that this repository declares installed, scoped ones and those of the application included', async () => {
-        const manifest = file => JSON.parse(fs.readFileSync(path.join(REPOSITORY, file), 'utf8'));
-        const declared = [ ...new Set([ ...Object.keys(manifest('package.json').devDependencies), ...Object.keys(manifest(path.join('src', 'app', 'package.json')).dependencies) ]) ];
+        const manifest = (file) => JSON.parse(fs.readFileSync(path.join(REPOSITORY, file), 'utf8'));
+        const declared = [
+            ...new Set([
+                ...Object.keys(manifest('package.json').devDependencies),
+                ...Object.keys(manifest(path.join('src', 'app', 'package.json')).dependencies),
+            ]),
+        ];
         const asked = [];
         const { exitCode, stdout, stderr } = await runGate({
             root: REPOSITORY,
-            fetch: async url => {
+            fetch: async (url) => {
                 asked.push(decodeURIComponent(url.slice('https://registry.npmjs.org/'.length)));
-                return { ok: true, status: 200, json: async () => ({ versions: new Proxy({}, { get: () => ({}) }) }) };
-            }
+                return {
+                    ok: true,
+                    status: 200,
+                    json: async () => ({ versions: new Proxy({}, { get: () => ({}) }) }),
+                };
+            },
         });
         expect(stderr).toEqual([]);
         expect(exitCode).toBeNull();
-        expect(stdout[0]).toBe(`Checking ${declared.length} declared packages at installed versions ...`);
-        expect(asked.sort()).toEqual([ ...declared ].sort());
+        expect(stdout[0]).toBe(
+            `Checking ${declared.length} declared packages at installed versions ...`,
+        );
+        expect(asked.sort()).toEqual([...declared].sort());
         expect(stdout.at(-1)).toMatch(/^\nOK: /);
     });
 });

@@ -21,36 +21,58 @@ export default function StartView() {
             <h1 className="mt-0 mb-0 text-[1.5em] font-bold">Welcome to RakKomik</h1>
             <p className={CARD + ' my-[1em] flow-root'}>
                 <img src="/img/logo_s.png" alt="" className="float-left mr-[1em] rounded-[10%]" />
-                <strong>RakKomik</strong> was made to help users who download media for circumstances that requires
-                offline usage.
+                <strong>RakKomik</strong> was made to help users who download media for
+                circumstances that requires offline usage.
                 <br />
                 The philosophy is <u>ad-hoc consumption</u>, get it when you want to read/watch it.
                 <br />
                 Read the documentation on GitHub (link available in the menu)
             </p>
-            <h2 className="mb-[0.1em] text-[1.17em] font-bold">Find a site to get the content you want to view</h2>
+            <h2 className="mb-[0.1em] text-[1.17em] font-bold">
+                Find a site to get the content you want to view
+            </h2>
             <div className={CARD}>
-                <strong>RakKomik</strong> is not hosting anything. Find a website on the internet that provides the
-                content you want. Then :
+                <strong>RakKomik</strong> is not hosting anything. Find a website on the internet
+                that provides the content you want. Then :
                 <ol className="my-[1em] list-decimal pl-[2.5em]">
                     <li>
-                        <Icon name="plug" size={16} className="rk-icon mr-[0.25em] inline -scale-x-100 align-text-bottom" />
+                        <Icon
+                            name="plug"
+                            size={16}
+                            className="rk-icon mr-[0.25em] inline -scale-x-100 align-text-bottom"
+                        />
                         Select your connector (the website). Use the filters
                     </li>
                     <li>
-                        <Icon name="refresh" size={16} className="rk-icon mr-[0.25em] inline align-text-bottom" />
+                        <Icon
+                            name="refresh"
+                            size={16}
+                            className="rk-icon mr-[0.25em] inline align-text-bottom"
+                        />
                         Click on the refresh button (can take minutes)
                     </li>
                     <li>
-                        <Icon name="search" size={16} className="rk-icon mr-[0.25em] inline align-text-bottom" />
+                        <Icon
+                            name="search"
+                            size={16}
+                            className="rk-icon mr-[0.25em] inline align-text-bottom"
+                        />
                         Find a manga
                     </li>
                     <li>
-                        <Icon name="language" size={16} className="rk-icon mr-[0.25em] inline align-text-bottom" />
+                        <Icon
+                            name="language"
+                            size={16}
+                            className="rk-icon mr-[0.25em] inline align-text-bottom"
+                        />
                         Filter chapters by language (optional)
                     </li>
                     <li>
-                        <Icon name="search" size={16} className="rk-icon mr-[0.25em] inline align-text-bottom" />
+                        <Icon
+                            name="search"
+                            size={16}
+                            className="rk-icon mr-[0.25em] inline align-text-bottom"
+                        />
                         Select a chapter
                     </li>
                 </ol>
@@ -62,11 +84,17 @@ export default function StartView() {
                 <br />
                 <Emoji>👉</Emoji> See the documentation for details
             </div>
-            <h2 className="mt-[1em] mb-[0.1em] text-[1.17em] font-bold">Ready to go <Emoji>🚀</Emoji></h2>
-            <div className={CARD}>Download, view, bookmark your favorite mangas <Emoji>📚</Emoji></div>
+            <h2 className="mt-[1em] mb-[0.1em] text-[1.17em] font-bold">
+                Ready to go <Emoji>🚀</Emoji>
+            </h2>
+            <div className={CARD}>
+                Download, view, bookmark your favorite mangas <Emoji>📚</Emoji>
+            </div>
             <blockquote className={CARD + ' mt-[1em] space-y-1'}>
-                {quote.lines.map(line => (
-                    <p key={line} className="italic">{line}</p>
+                {quote.lines.map((line) => (
+                    <p key={line} className="italic">
+                        {line}
+                    </p>
                 ))}
                 <footer className="pt-1 text-right italic">— {quote.author}</footer>
             </blockquote>

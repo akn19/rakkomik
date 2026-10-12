@@ -39,10 +39,11 @@ function session(connectors) {
     return settings;
 }
 
-const names = settings => Object.keys(settings).filter(key => settings[key] instanceof Object && settings[key].input);
+const names = (settings) =>
+    Object.keys(settings).filter((key) => settings[key] instanceof Object && settings[key].input);
 const file = () => path.join(env.userData, 'hakuneko.settings');
 const stored = () => JSON.parse(fs.readFileSync(file(), 'utf8'));
-const temporaryFiles = () => fs.readdirSync(env.userData).filter(name => name.includes('.tmp-'));
+const temporaryFiles = () => fs.readdirSync(env.userData).filter((name) => name.includes('.tmp-'));
 
 describe('the settings that the user changed', () => {
     const library = () => path.join(env.root, 'library');
@@ -63,23 +64,26 @@ describe('the settings that the user changed', () => {
         hCaptchaAccessibilityUUID: () => '68e89cc3-4c2d-4539-b80b-49ba4bec76c4',
         postChapterDownloadCommand: () => 'echo "%C% | %M% | %O%" > "%PATH%.txt"',
         discordPresence: () => 'hentai',
-        NovelColorProfiles: () => 'Dark'
+        NovelColorProfiles: () => 'Dark',
     };
 
-    it.each(Object.entries(CHANGES))('should be there in the next session: %s', async (name, change) => {
-        const settings = start();
-        fs.mkdirSync(library());
-        fs.mkdirSync(path.join(env.root, 'bookmarks'));
-        settings[name].value = change();
-        await settings.save();
-        const next = session();
-        await next.load();
-        expect(next[name].value).toBe(change());
-        // and nothing else changed
-        for (const other of Object.keys(CHANGES).filter(key => key !== name)) {
-            expect(next[other].value, other).toBe(settings[other].value);
-        }
-    });
+    it.each(Object.entries(CHANGES))(
+        'should be there in the next session: %s',
+        async (name, change) => {
+            const settings = start();
+            fs.mkdirSync(library());
+            fs.mkdirSync(path.join(env.root, 'bookmarks'));
+            settings[name].value = change();
+            await settings.save();
+            const next = session();
+            await next.load();
+            expect(next[name].value).toBe(change());
+            // and nothing else changed
+            for (const other of Object.keys(CHANGES).filter((key) => key !== name)) {
+                expect(next[other].value, other).toBe(settings[other].value);
+            }
+        },
+    );
 
     it('should all be there in the next session when they are changed together', async () => {
         const settings = start();
@@ -150,7 +154,14 @@ describe('the first start, and files that are not as expected', () => {
 
     it('should apply what an older version wrote, and keep the defaults for the settings it did not know', async () => {
         const settings = start();
-        fs.writeFileSync(file(), JSON.stringify({ readerEnabled: false, chapterFormat: '.cbz', baseDirectory: path.join(env.root, 'old') }));
+        fs.writeFileSync(
+            file(),
+            JSON.stringify({
+                readerEnabled: false,
+                chapterFormat: '.cbz',
+                baseDirectory: path.join(env.root, 'old'),
+            }),
+        );
         const listener = vi.fn();
         settings.addEventListener('loaded', listener);
         await settings.load();
@@ -164,7 +175,14 @@ describe('the first start, and files that are not as expected', () => {
 
     it('should drop what a later version wrote about settings it does not have, but keep the connectors', async () => {
         const settings = start();
-        fs.writeFileSync(file(), JSON.stringify({ theme: 'dark', newSetting: { input: 'text', value: 'x' }, connectors: { late: { token: 'abc' } } }));
+        fs.writeFileSync(
+            file(),
+            JSON.stringify({
+                theme: 'dark',
+                newSetting: { input: 'text', value: 'x' },
+                connectors: { late: { token: 'abc' } },
+            }),
+        );
         await settings.load();
         await settings.save();
         const data = stored();
@@ -177,7 +195,7 @@ describe('the first start, and files that are not as expected', () => {
         [10, 50],
         [49.9, 50],
         [500, 100],
-        [100.1, 100]
+        [100.1, 100],
     ])('should bring the number %j that was written by hand to %j', async (written, expected) => {
         const settings = start();
         fs.writeFileSync(file(), JSON.stringify({ recompressionQuality: written }));
@@ -187,7 +205,10 @@ describe('the first start, and files that are not as expected', () => {
 
     it('should not take the bookmark directory from the file when the application is portable', async () => {
         const settings = start({ env: { HAKUNEKO_PORTABLE: '1' } });
-        fs.writeFileSync(file(), JSON.stringify({ bookmarkDirectory: path.join(env.root, 'elsewhere') }));
+        fs.writeFileSync(
+            file(),
+            JSON.stringify({ bookmarkDirectory: path.join(env.root, 'elsewhere') }),
+        );
         await settings.load();
         expect(settings.bookmarkDirectory.value).toBe(env.userData);
         await settings.save();
@@ -198,7 +219,9 @@ describe('the first start, and files that are not as expected', () => {
         const settings = start();
         fs.writeFileSync(file(), JSON.stringify({ chapterFormat: '.pdf' }));
         await settings.load();
-        expect(settings.chapterFormat.options.map(option => option.value)).toContain(settings.chapterFormat.value);
+        expect(settings.chapterFormat.options.map((option) => option.value)).toContain(
+            settings.chapterFormat.value,
+        );
     });
 });
 
@@ -207,24 +230,32 @@ describe('what the folders of the settings need', () => {
         globalThis.alert = vi.fn();
         const settings = start();
         fs.writeFileSync(path.join(env.root, 'a file'), 'x');
-        fs.writeFileSync(file(), JSON.stringify({ baseDirectory: path.join(env.root, 'not yet'), bookmarkDirectory: path.join(env.root, 'a file') }));
+        fs.writeFileSync(
+            file(),
+            JSON.stringify({
+                baseDirectory: path.join(env.root, 'not yet'),
+                bookmarkDirectory: path.join(env.root, 'a file'),
+            }),
+        );
         await settings.load();
         await env.idle();
         expect(globalThis.alert).toHaveBeenCalledTimes(1);
-        expect(globalThis.alert.mock.calls[0][0]).toContain('Cannot access the directory for "Bookmarks Directory" from "General" settings!');
+        expect(globalThis.alert.mock.calls[0][0]).toContain(
+            'Cannot access the directory for "Bookmarks Directory" from "General" settings!',
+        );
         expect(globalThis.alert.mock.calls[0][0]).toContain('is not a directory!');
     });
 });
 
 describe('the settings of the connectors on disk', () => {
-    const connector = id => ({
+    const connector = (id) => ({
         id,
         label: id.toUpperCase(),
         config: {
             username: { label: 'User', input: 'text', value: '' },
             password: { label: 'Password', input: 'password', value: '' },
-            quality: { label: 'Quality', input: 'numeric', min: 1, max: 5, value: 3 }
-        }
+            quality: { label: 'Quality', input: 'numeric', min: 1, max: 5, value: 3 },
+        },
     });
 
     it('should be there in the next session, with the password as an envelope', async () => {
@@ -277,7 +308,11 @@ describe('the settings as listeners see them', () => {
     it('should reach the listeners after they were written, as the files of the settings say', async () => {
         const settings = start();
         const seen = [];
-        settings.addEventListener('saved', event => seen.push(fs.existsSync(file()) && stored().proxyRules === event.detail.proxyRules.value));
+        settings.addEventListener('saved', (event) =>
+            seen.push(
+                fs.existsSync(file()) && stored().proxyRules === event.detail.proxyRules.value,
+            ),
+        );
         settings.proxyRules.value = 'http=proxy.web:80';
         await settings.save();
         expect(seen).toEqual([true]);
@@ -287,7 +322,7 @@ describe('the settings as listeners see them', () => {
         const settings = start();
         fs.writeFileSync(file(), JSON.stringify({ proxyRules: 'http=proxy.web:80' }));
         const seen = [];
-        settings.addEventListener('loaded', event => seen.push(event.detail.proxyRules.value));
+        settings.addEventListener('loaded', (event) => seen.push(event.detail.proxyRules.value));
         await settings.load();
         expect(seen).toEqual(['http=proxy.web:80']);
     });
@@ -302,7 +337,9 @@ describe('saving that goes wrong or overlaps', () => {
         settings.chapterFormat.value = '.epub';
         const listener = vi.fn();
         settings.addEventListener('saved', listener);
-        env.hakuneko.fs.rename = vi.fn(() => Promise.reject(new Error('EBUSY: resource busy or locked')));
+        env.hakuneko.fs.rename = vi.fn(() =>
+            Promise.reject(new Error('EBUSY: resource busy or locked')),
+        );
         await expect(settings.save()).resolves.toBeUndefined();
         expect(console.error.mock.calls[0][0]).toBe('Failed to save HakuNeko settings!');
         expect(listener).not.toHaveBeenCalled();
@@ -312,14 +349,17 @@ describe('saving that goes wrong or overlaps', () => {
 
     // Windows cannot rename two files onto the same target at the same moment (EPERM), which write-file-atomic works
     // around with a queue; it was not tried there
-    it.skipIf(process.platform === 'win32')('should leave a file that is complete when several saves overlap', async () => {
-        const settings = start();
-        settings.proxyRules.value = 'x'.repeat(30000);
-        const saves = Array.from({ length: 12 }, () => settings.save());
-        await Promise.all(saves);
-        const data = stored();
-        expect(data.proxyRules).toBe('x'.repeat(30000));
-        expect(Object.keys(data)).toEqual([...names(settings), 'connectors']);
-        expect(temporaryFiles()).toEqual([]);
-    });
+    it.skipIf(process.platform === 'win32')(
+        'should leave a file that is complete when several saves overlap',
+        async () => {
+            const settings = start();
+            settings.proxyRules.value = 'x'.repeat(30000);
+            const saves = Array.from({ length: 12 }, () => settings.save());
+            await Promise.all(saves);
+            const data = stored();
+            expect(data.proxyRules).toBe('x'.repeat(30000));
+            expect(Object.keys(data)).toEqual([...names(settings), 'connectors']);
+            expect(temporaryFiles()).toEqual([]);
+        },
+    );
 });

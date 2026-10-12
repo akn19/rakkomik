@@ -12,7 +12,7 @@ function mountSelection() {
     render(
         <SelectionProvider>
             <Probe />
-        </SelectionProvider>
+        </SelectionProvider>,
     );
     return selection;
 }
@@ -36,7 +36,11 @@ describe('selection', () => {
         act(() => selection.current.setChapter(chapter));
         expect(selection.current).toMatchObject({ connectorId: 'site-a', manga, chapter });
         act(() => selection.current.selectConnector('site-b'));
-        expect(selection.current).toMatchObject({ connectorId: 'site-b', manga: null, chapter: null });
+        expect(selection.current).toMatchObject({
+            connectorId: 'site-b',
+            manga: null,
+            chapter: null,
+        });
     });
 
     it('should forget the chapter, but not the connector, when another manga is selected', () => {
@@ -83,7 +87,9 @@ describe('selection', () => {
             useSelection();
             return null;
         }
-        expect(() => render(<Lonely />)).toThrow('useSelection() must be used inside <SelectionProvider>!');
+        expect(() => render(<Lonely />)).toThrow(
+            'useSelection() must be used inside <SelectionProvider>!',
+        );
         error.mockRestore();
     });
 });

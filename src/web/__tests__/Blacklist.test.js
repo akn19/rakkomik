@@ -15,11 +15,11 @@ describe('the default patterns', () => {
         const { patterns } = new Blacklist();
         expect(Array.isArray(patterns)).toBe(true);
         expect(patterns.length).toBeGreaterThan(50);
-        expect(patterns.every(pattern => typeof pattern === 'string')).toBe(true);
+        expect(patterns.every((pattern) => typeof pattern === 'string')).toBe(true);
     });
 
     it('should all be match patterns that Electron accepts as a URL filter', () => {
-        const invalid = new Blacklist().patterns.filter(pattern => !MATCH_PATTERN.test(pattern));
+        const invalid = new Blacklist().patterns.filter((pattern) => !MATCH_PATTERN.test(pattern));
         expect(invalid).toEqual([]);
     });
 
@@ -36,9 +36,11 @@ describe('the default patterns', () => {
         ['facebook.com', 'sites that sign in with Facebook'],
         ['facebook.net', 'sites that sign in with Facebook'],
         ['fbcdn.net', 'images that sites keep on the Facebook CDN'],
-        ['gstatic.com', 'scripts and fonts of the pages of Google']
+        ['gstatic.com', 'scripts and fonts of the pages of Google'],
     ])('should not block all of %s (%s)', (host) => {
-        const blocked = new Blacklist().patterns.filter(pattern => pattern === `*://*.${host}/*` || pattern === `*://${host}/*`);
+        const blocked = new Blacklist().patterns.filter(
+            (pattern) => pattern === `*://*.${host}/*` || pattern === `*://${host}/*`,
+        );
         expect(blocked).toEqual([]);
     });
 
@@ -49,7 +51,7 @@ describe('the default patterns', () => {
         '*://*.googletagmanager.com/*',
         '*://*.adnxs.com/*',
         '*://*.taboola.com/*',
-        '*://*.outbrain.com/*'
+        '*://*.outbrain.com/*',
     ])('should block the advertising and tracking host %s', (pattern) => {
         expect(new Blacklist().patterns).toContain(pattern);
     });
@@ -71,7 +73,9 @@ describe('addPattern', () => {
         blacklist.addPattern('*://*.ads.example/*');
         blacklist.addPattern('*://*.ads.example/*');
         expect(blacklist.patterns).toHaveLength(count + 1);
-        expect(blacklist.patterns.filter(pattern => pattern === '*://*.ads.example/*')).toHaveLength(1);
+        expect(
+            blacklist.patterns.filter((pattern) => pattern === '*://*.ads.example/*'),
+        ).toHaveLength(1);
     });
 
     it('should extend the list in place, so the consumers that hold it see the new pattern', () => {

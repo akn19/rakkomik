@@ -45,7 +45,7 @@ describe('quotes of the start view', () => {
     });
 
     it('should not list the same quote twice', () => {
-        const texts = QUOTES.map(quote => `${quote.lines.join(' ')} -- ${quote.author}`);
+        const texts = QUOTES.map((quote) => `${quote.lines.join(' ')} -- ${quote.author}`);
         expect(texts.filter((text, index) => texts.indexOf(text) !== index)).toEqual([]);
     });
 });

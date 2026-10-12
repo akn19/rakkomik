@@ -18,7 +18,9 @@ function question() {
 }
 
 function rows() {
-    return screen.getAllByTitle(/^Remove /).map(button => button.closest('.flex').querySelector('.truncate').textContent);
+    return screen
+        .getAllByTitle(/^Remove /)
+        .map((button) => button.closest('.flex').querySelector('.truncate').textContent);
 }
 
 beforeEach(() => {
@@ -63,7 +65,7 @@ describe('bookmarks view', () => {
         fireEvent.click(screen.getByTitle('Remove Berserk'));
         fireEvent.click(question().getByRole('button', { name: 'Remove' }));
         expect(engine.BookmarkManager.deleteBookmark).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({ key: { connector: 'site', manga: berserk.id } })
+            expect.objectContaining({ key: { connector: 'site', manga: berserk.id } }),
         );
         expect(screen.getByText('Bookmark removed.')).toBeTruthy();
         expect(screen.queryByText('Remove bookmark?')).toBeNull();
@@ -108,7 +110,9 @@ describe('bookmarks view', () => {
         renderWithProviders(<BookmarksView />, { selection: false });
         expect(rows()).toEqual(['Akira', 'Berserk']);
         act(() => {
-            engine.BookmarkManager.deleteBookmark(engine.BookmarkManager.bookmarks.find(entry => entry.key.manga === manga.id));
+            engine.BookmarkManager.deleteBookmark(
+                engine.BookmarkManager.bookmarks.find((entry) => entry.key.manga === manga.id),
+            );
         });
         expect(rows()).toEqual(['Akira']);
     });
@@ -116,7 +120,10 @@ describe('bookmarks view', () => {
     it('should show the bookmarks that were imported while the view is open, which the engine announces as a change', () => {
         renderWithProviders(<BookmarksView />, { selection: false });
         act(() => {
-            engine.BookmarkManager.bookmarks.push({ key: { connector: 'site', manga: 'x' }, title: { connector: 'Site', manga: 'Imported' } });
+            engine.BookmarkManager.bookmarks.push({
+                key: { connector: 'site', manga: 'x' },
+                title: { connector: 'Site', manga: 'Imported' },
+            });
             engine.BookmarkManager.emit('changed', engine.BookmarkManager.bookmarks);
         });
         expect(rows()).toEqual(['Imported']);
@@ -127,7 +134,11 @@ describe('bookmarks view', () => {
         const manager = engine.BookmarkManager;
         const removeEventListener = vi.spyOn(manager, 'removeEventListener');
         unmount();
-        expect(removeEventListener.mock.calls.map(([event]) => event).sort()).toEqual(['added', 'changed', 'removed']);
+        expect(removeEventListener.mock.calls.map(([event]) => event).sort()).toEqual([
+            'added',
+            'changed',
+            'removed',
+        ]);
     });
 
     it('should keep the rows apart when two websites have a manga with the same id', () => {
@@ -136,7 +147,9 @@ describe('bookmarks view', () => {
         const manga = addManga(other, { id: 'm1', title: 'Same (other)' });
         engine.BookmarkManager.addBookmark(manga);
         renderWithProviders(<BookmarksView />, { selection: false });
-        expect(within(screen.getAllByTitle(/^Remove /)[0].closest('.flex')).getByText(/Same/)).toBeTruthy();
+        expect(
+            within(screen.getAllByTitle(/^Remove /)[0].closest('.flex')).getByText(/Same/),
+        ).toBeTruthy();
         expect(screen.getAllByTitle(/^Remove /)).toHaveLength(2);
     });
 });
@@ -144,8 +157,14 @@ describe('bookmarks view', () => {
 describe('bookmarks view for the screen reader', () => {
     it('should head the view, list the bookmarks and name the button of each after its manga', () => {
         engine.BookmarkManager.bookmarks.push(
-            { key: { connector: 'site', manga: 'm1' }, title: { connector: 'Site', manga: 'Berserk' } },
-            { key: { connector: 'site', manga: 'm2' }, title: { connector: 'Site', manga: 'Akira' } }
+            {
+                key: { connector: 'site', manga: 'm1' },
+                title: { connector: 'Site', manga: 'Berserk' },
+            },
+            {
+                key: { connector: 'site', manga: 'm2' },
+                title: { connector: 'Site', manga: 'Akira' },
+            },
         );
         renderWithProviders(<BookmarksView />, { selection: false });
         expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Bookmarks');

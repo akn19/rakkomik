@@ -3,7 +3,9 @@
 function expectWellFormed(markup) {
     expect(markup).not.toMatch(/&(?!amp;|lt;|gt;|quot;)/);
     const stack = [];
-    for (const [, closing, name, , selfClosing] of markup.matchAll(/<(\/?)([A-Za-z][A-Za-z0-9:]*)((?:\s+[A-Za-z0-9:_-]+="[^"<>]*")*)\s*(\/?)>/g)) {
+    for (const [, closing, name, , selfClosing] of markup.matchAll(
+        /<(\/?)([A-Za-z][A-Za-z0-9:]*)((?:\s+[A-Za-z0-9:_-]+="[^"<>]*")*)\s*(\/?)>/g,
+    )) {
         if (closing) {
             expect(stack.pop()).toBe(name);
         } else if (!selfClosing) {

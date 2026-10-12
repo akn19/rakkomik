@@ -10,18 +10,18 @@ export default defineConfig({
     fullyParallel: false,
     reporter: [['list'], ['junit', { outputFile: 'junit-e2e.xml' }]],
     use: {
-        trace: 'retain-on-failure'
+        trace: 'retain-on-failure',
     },
     projects: [
         {
             name: 'ui',
             testMatch: ['App.e2e.mjs', 'Accessibility.e2e.mjs'],
-            timeout: 60000
+            timeout: 60000,
         },
         {
             name: 'sites',
             testMatch: 'Connectors.e2e.mjs',
-            timeout: 90000
-        }
-    ]
+            timeout: 90000,
+        },
+    ],
 });

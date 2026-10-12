@@ -12,9 +12,10 @@
 class CookieJar {
     constructor(cookies) {
         this.list = {};
-        (cookies || '').split(';')
-            .filter(cookie => cookie.trim())
-            .forEach(cookie => {
+        (cookies || '')
+            .split(';')
+            .filter((cookie) => cookie.trim())
+            .forEach((cookie) => {
                 let pair = cookie.split('=');
                 this.set(pair.shift(), pair.join('='));
             });
@@ -22,8 +23,8 @@ class CookieJar {
 
     toString() {
         return Object.keys(this.list)
-            .filter(key => this.list[key] !== 'EXPIRED')
-            .map(key => key + '=' + this.list[key])
+            .filter((key) => this.list[key] !== 'EXPIRED')
+            .map((key) => key + '=' + this.list[key])
             .join('; ');
     }
 
@@ -33,9 +34,9 @@ class CookieJar {
 
     merge(cookie) {
         let result = new CookieJar();
-        Object.keys(this.list).forEach(key => result.set(key, this.list[key]));
+        Object.keys(this.list).forEach((key) => result.set(key, this.list[key]));
         if (cookie instanceof CookieJar) {
-            Object.keys(cookie.list).forEach(key => result.set(key, cookie.list[key]));
+            Object.keys(cookie.list).forEach((key) => result.set(key, cookie.list[key]));
         }
         return result;
     }
@@ -43,8 +44,8 @@ class CookieJar {
     static applyCrossSiteCookies(headers) {
         // the header comes in any case: HTTP/2 answers use lower case, the cookie of Webtoons is added as Set-Cookie
         Object.keys(headers)
-            .filter(key => key.toLowerCase() === 'set-cookie')
-            .forEach(key => CookieJar.applyCrossSiteCookiesOf(headers, key));
+            .filter((key) => key.toLowerCase() === 'set-cookie')
+            .forEach((key) => CookieJar.applyCrossSiteCookiesOf(headers, key));
     }
 
     static applyCrossSiteCookiesOf(headers, key) {
@@ -59,9 +60,12 @@ class CookieJar {
             cookies = [cookies];
         }
         for (let index in cookies) {
-            const parts = cookies[index].split(';').map(part => part.trim()).filter(part => !/^SameSite=/i.test(part));
+            const parts = cookies[index]
+                .split(';')
+                .map((part) => part.trim())
+                .filter((part) => !/^SameSite=/i.test(part));
             // Chromium keeps a SameSite=None cookie only when it is Secure as well
-            if (!parts.some(part => /^Secure$/i.test(part))) {
+            if (!parts.some((part) => /^Secure$/i.test(part))) {
                 parts.push('Secure');
             }
             cookies[index] = [...parts, 'SameSite=None'].join('; ');
@@ -73,13 +77,14 @@ class CookieJar {
 }
 
 module.exports = class HeaderSurgery {
-
     /**
      * @param {string} [userAgent] the application's user agent (ElectronBootstrap passes
      *   Chromium's own); requests that still carry the raw Electron one are aligned to it
      */
     constructor(userAgent) {
-        this.userAgent = userAgent || `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome || '120.0.0.0'} Safari/537.36`;
+        this.userAgent =
+            userAgent ||
+            `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome || '120.0.0.0'} Safari/537.36`;
     }
 
     applyBeforeSendHeaders(url, requestHeaders) {
@@ -99,7 +104,10 @@ module.exports = class HeaderSurgery {
         delete requestHeaders['x-host'];
 
         // Align stray Electron user agents with the application's one
-        if (requestHeaders['User-Agent'] && requestHeaders['User-Agent'].toLowerCase().includes('electron')) {
+        if (
+            requestHeaders['User-Agent'] &&
+            requestHeaders['User-Agent'].toLowerCase().includes('electron')
+        ) {
             requestHeaders['User-Agent'] = this.userAgent;
         }
         // If a custom user agent is set use this instead
@@ -165,7 +173,10 @@ module.exports = class HeaderSurgery {
 
         // HACK: Imgur does not support request with accept types containing other mimes then images
         //       => overwrite accept header to prevent redirection to HTML notice
-        if (/i\.imgur\.com/i.test(uri.hostname) || /\.(jpg|jpeg|png|gif|webp)/i.test(uri.pathname)) {
+        if (
+            /i\.imgur\.com/i.test(uri.hostname) ||
+            /\.(jpg|jpeg|png|gif|webp)/i.test(uri.pathname)
+        ) {
             requestHeaders['Accept'] = 'image/webp,image/apng,image/*,*/*';
             delete requestHeaders['accept'];
         }
@@ -194,7 +205,8 @@ module.exports = class HeaderSurgery {
             responseHeaders['Access-Control-Expose-Headers'] = ['Content-Length'];
         }
         if (uri.hostname.includes('webtoons') && uri.searchParams.get('title_no')) {
-            responseHeaders['Set-Cookie'] = `agn2=${uri.searchParams.get('title_no')}; Domain=${uri.hostname}; Path=/`;
+            responseHeaders['Set-Cookie'] =
+                `agn2=${uri.searchParams.get('title_no')}; Domain=${uri.hostname}; Path=/`;
         }
         if (uri.hostname.includes('comikey') && uri.pathname.includes('/read/')) {
             delete responseHeaders['content-security-policy'];

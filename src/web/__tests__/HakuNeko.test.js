@@ -10,12 +10,15 @@ vi.mock('../mjs/engine/Settings.mjs', () => ({
             if (state.failOn === 'Settings') {
                 throw new Error('Settings failed');
             }
-            state.atSettings = { EventListener: typeof globalThis.EventListener, Connector: typeof globalThis.Connector };
+            state.atSettings = {
+                EventListener: typeof globalThis.EventListener,
+                Connector: typeof globalThis.Connector,
+            };
             this.args = args;
             this.discordPresence = { value: 'none' };
             state.created.push(['Settings', this]);
         }
-    }
+    },
 }));
 
 vi.mock('../mjs/engine/Storage.mjs', () => ({
@@ -28,7 +31,7 @@ vi.mock('../mjs/engine/Storage.mjs', () => ({
             this.saveBookmarks = vi.fn(async () => undefined);
             state.created.push(['Storage', this]);
         }
-    }
+    },
 }));
 
 vi.mock('../mjs/engine/Request.mjs', () => ({
@@ -41,7 +44,7 @@ vi.mock('../mjs/engine/Request.mjs', () => ({
             this.settings = settings;
             state.created.push(['Request', this]);
         }
-    }
+    },
 }));
 
 vi.mock('../mjs/engine/Connectors.mjs', () => ({
@@ -58,7 +61,7 @@ vi.mock('../mjs/engine/Connectors.mjs', () => ({
             this.load = vi.fn(async () => undefined);
             state.created.push(['Connectors', this]);
         }
-    }
+    },
 }));
 
 let HakuNeko = null;
@@ -76,8 +79,9 @@ beforeAll(async () => {
         DiscordPresence: (await import('../mjs/engine/DiscordPresence.mjs')).default,
         DownloadManager: (await import('../mjs/engine/DownloadManager.mjs')).default,
         Enums: (await import('../mjs/engine/Enums.mjs')).default,
-        InterProcessCommunication: (await import('../mjs/engine/InterProcessCommunication.mjs')).default,
-        Version: (await import('../mjs/VersionInfo.mjs')).default
+        InterProcessCommunication: (await import('../mjs/engine/InterProcessCommunication.mjs'))
+            .default,
+        Version: (await import('../mjs/VersionInfo.mjs')).default,
     };
 });
 
@@ -137,7 +141,19 @@ describe('the engine', () => {
         for (const name of ['Settings', 'Storage', 'Request', 'Connectors']) {
             expect(created(name)).toHaveLength(1);
         }
-        for (const name of ['Blacklist', 'BookmarkManager', 'ChaptermarkManager', 'ComicInfoGenerator', 'DownloadManager', 'Settings', 'Storage', 'Request', 'ConnectorRegistry', 'Connectors', 'ConnectorsReady']) {
+        for (const name of [
+            'Blacklist',
+            'BookmarkManager',
+            'ChaptermarkManager',
+            'ComicInfoGenerator',
+            'DownloadManager',
+            'Settings',
+            'Storage',
+            'Request',
+            'ConnectorRegistry',
+            'Connectors',
+            'ConnectorsReady',
+        ]) {
             expect(engine[name]).toBe(engine[name]);
         }
     });
@@ -183,7 +199,11 @@ describe('the globals of the page', () => {
     it('should be what DiscordPresence listens with', () => {
         const added = vi.spyOn(globalThis.document, 'addEventListener');
         boot();
-        expect(added.mock.calls.map(call => call[0]).sort()).toEqual(['onSelectChapter', 'onSelectConnector', 'onSelectManga']);
+        expect(added.mock.calls.map((call) => call[0]).sort()).toEqual([
+            'onSelectChapter',
+            'onSelectConnector',
+            'onSelectManga',
+        ]);
     });
 });
 
@@ -219,7 +239,7 @@ describe('what the parts are given', () => {
         engine.Settings.dispatchEvent(new CustomEvent('saved'));
         await vi.advanceTimersByTimeAsync(0);
 
-        const saved = engine.Storage.saveBookmarks.mock.calls.map(call => call[0]).sort();
+        const saved = engine.Storage.saveBookmarks.mock.calls.map((call) => call[0]).sort();
         expect(saved).toEqual(['bookmarks', 'chaptermarks']);
         expect(presence.clearAndDestroy).toHaveBeenCalledTimes(1);
     });
@@ -227,10 +247,14 @@ describe('what the parts are given', () => {
     it('should let the bookmarks be imported from a file of FMD', async () => {
         const engine = boot();
         globalThis.Engine = engine;
-        const query = vi.fn(async () => [{ link: 'unknown-site', manga: '/m/1', connectorTitle: 'Unknown', mangaTitle: 'Lost' }]);
+        const query = vi.fn(async () => [
+            { link: 'unknown-site', manga: '/m/1', connectorTitle: 'Unknown', mangaTitle: 'Lost' },
+        ]);
         globalThis.window = { hakuneko: { sqlite: { query } }, open: vi.fn() };
 
-        await engine.BookmarkManager.importBookmarks(new File([new Uint8Array([1, 2, 3])], 'favorites.db'));
+        await engine.BookmarkManager.importBookmarks(
+            new File([new Uint8Array([1, 2, 3])], 'favorites.db'),
+        );
 
         expect(query).toHaveBeenCalledTimes(1);
         expect(window.open).toHaveBeenCalledTimes(1);
@@ -244,9 +268,12 @@ describe('initialize', () => {
         const [connectors] = created('Connectors');
         let finished = false;
         let finish = null;
-        connectors.initialize.mockImplementation(() => new Promise(resolve => {
-            finish = resolve;
-        }));
+        connectors.initialize.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                }),
+        );
 
         const initializing = engine.initialize().then(() => {
             finished = true;
@@ -288,10 +315,13 @@ describe('loadConnectors', () => {
 
 describe('a part that cannot be created', () => {
     // NOTE: the page does not catch it (loadEngine of index.html), so the engine is not started and the UI is not mounted
-    it.each(['Settings', 'Request', 'Connectors', 'Storage'])('should stop the start of the engine with the error of %s', (name) => {
-        state.failOn = name;
-        expect(() => boot()).toThrow(`${name} failed`);
-    });
+    it.each(['Settings', 'Request', 'Connectors', 'Storage'])(
+        'should stop the start of the engine with the error of %s',
+        (name) => {
+            state.failOn = name;
+            expect(() => boot()).toThrow(`${name} failed`);
+        },
+    );
 
     it('should not create the parts that follow a part that failed', () => {
         state.failOn = 'Settings';

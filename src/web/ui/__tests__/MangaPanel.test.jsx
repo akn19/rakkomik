@@ -33,7 +33,7 @@ function mount() {
         <>
             <MangaPanel readerEnabled />
             <SelectionProbe />
-        </>
+        </>,
     );
 }
 
@@ -47,17 +47,27 @@ async function mountLoaded(firstTitle = 'Akira') {
 // the bookmark connector of the engine (connectors/system/BookmarkConnector.mjs): its list is made of the bookmarks, each with
 // the connector of its website, or a stand-in while that connector is not registered (yet)
 function createBookmarksConnector() {
-    const list = callback => {
-        const mangas = window.Engine.BookmarkManager.bookmarks.map(bookmark => createManga(
-            window.Engine.Connectors.find(entry => entry.id === bookmark.key.connector)
-                || { id: bookmark.key.connector, label: `${bookmark.key.connector} (unavailable)` },
-            bookmark.key.manga,
-            bookmark.title.manga
-        ));
+    const list = (callback) => {
+        const mangas = window.Engine.BookmarkManager.bookmarks.map((bookmark) =>
+            createManga(
+                window.Engine.Connectors.find((entry) => entry.id === bookmark.key.connector) || {
+                    id: bookmark.key.connector,
+                    label: `${bookmark.key.connector} (unavailable)`,
+                },
+                bookmark.key.manga,
+                bookmark.title.manga,
+            ),
+        );
         mangas.sort((a, b) => (a.title.toLowerCase() < b.title.toLowerCase() ? -1 : 1));
         callback(null, mangas);
     };
-    return createConnector({ id: 'bookmarks', label: ' 【Bookmarks】', url: undefined, getMangas: vi.fn(list), updateMangas: vi.fn(list) });
+    return createConnector({
+        id: 'bookmarks',
+        label: ' 【Bookmarks】',
+        url: undefined,
+        getMangas: vi.fn(list),
+        updateMangas: vi.fn(list),
+    });
 }
 
 // the clipboard connector (connectors/system/ClipboardConnector.mjs): it lists what its last update read from the clipboard
@@ -66,19 +76,27 @@ function createClipboardConnector(pasted) {
         id: 'clipboard',
         label: ' 【Clipboard】',
         url: undefined,
-        updateMangas: vi.fn(callback => {
+        updateMangas: vi.fn((callback) => {
             connector.mangas = pasted;
             callback(null, connector.mangas);
-        })
+        }),
     });
     return connector;
 }
 
-const rows = () => screen.queryAllByRole('option').map(row => row.textContent);
-const selectedRows = () => screen.queryAllByRole('option').filter(row => row.getAttribute('aria-selected') === 'true').map(row => row.textContent);
+const rows = () => screen.queryAllByRole('option').map((row) => row.textContent);
+const selectedRows = () =>
+    screen
+        .queryAllByRole('option')
+        .filter((row) => row.getAttribute('aria-selected') === 'true')
+        .map((row) => row.textContent);
 // the titles that are drawn in the colour of the bookmarked mangas
 const GOLD = 'text-(--manga-list-bookmarked-color)';
-const goldRows = () => screen.queryAllByRole('option').filter(row => row.classList.contains(GOLD)).map(row => row.textContent);
+const goldRows = () =>
+    screen
+        .queryAllByRole('option')
+        .filter((row) => row.classList.contains(GOLD))
+        .map((row) => row.textContent);
 // the field of the website is a button that opens the picker: its name says what it shows
 const websiteField = () => screen.getByRole('button', { name: /^Website:/ });
 const websiteText = () => websiteField().textContent.replace(/^Website: ?/, '');
@@ -86,23 +104,29 @@ const filterField = () => screen.getByTitle(/to filter the manga list/);
 const pasteButton = () => screen.getByTitle('Click to paste manga links from the clipboard');
 const refreshButton = () => screen.getAllByTitle(/^Synchronize local manga list/)[0];
 const starButton = () => screen.getByRole('button', { name: /bookmark/ });
-const spins = button => button.querySelector('svg').classList.contains('animate-spin');
+const spins = (button) => button.querySelector('svg').classList.contains('animate-spin');
 // the status line under the list: its message, and the spinner with the tooltip that names the running task
 const footer = () => screen.getByText(/^(Mangas: |Updating…)/).parentElement;
 const footerText = () => footer().textContent;
 const footerSpinner = () => footer().querySelector('.animate-spin');
 const footerSpinnerTitle = () => footer().querySelector('[title]').getAttribute('title');
-const toastOf = text => screen.getByText(text).closest('.pointer-events-auto');
+const toastOf = (text) => screen.getByText(text).closest('.pointer-events-auto');
 // the cards of the connector dialog, found by the label in their tooltip
-const cardOf = label => within(screen.getByRole('list', { name: 'Connectors' })).getAllByRole('listitem')
-    .find(card => card.getAttribute('title').includes(`Label: ${label}\n`));
+const cardOf = (label) =>
+    within(screen.getByRole('list', { name: 'Connectors' }))
+        .getAllByRole('listitem')
+        .find((card) => card.getAttribute('title').includes(`Label: ${label}\n`));
 // whether the card shows its website as the selected one
-const currentOf = label => within(cardOf(label)).getByTitle('Show the mangas of this website').getAttribute('aria-current');
+const currentOf = (label) =>
+    within(cardOf(label))
+        .getByTitle('Show the mangas of this website')
+        .getAttribute('aria-current');
 // no layout and no style sheet: the check of `pointer-events` has nothing to find, and the pauses between the keys only slow the tests
 const typist = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
-const tick = ms => act(() => {
-    vi.advanceTimersByTime(ms);
-});
+const tick = (ms) =>
+    act(() => {
+        vi.advanceTimersByTime(ms);
+    });
 
 async function pickConnector(user, label) {
     await user.click(websiteField());
@@ -116,16 +140,16 @@ beforeEach(() => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
     vi.setSystemTime(new Date('2026-03-01T12:00:00Z'));
     site = createUpdatableConnector({ id: 'site', label: 'Site' });
-    ['Akira', 'Berserk', 'Vagabond'].forEach(title => addManga(site, { title }));
+    ['Akira', 'Berserk', 'Vagabond'].forEach((title) => addManga(site, { title }));
     other = createUpdatableConnector({ id: 'other', label: 'Other Site' });
-    ['Monster', 'Naruto'].forEach(title => addManga(other, { title }));
+    ['Monster', 'Naruto'].forEach((title) => addManga(other, { title }));
     engine = installEngine({ connectors: [site, other] });
 });
 
 // React reports act() problems, duplicate keys and failed effects through console.error: none may pass unnoticed. The assertion is
 // soft, so that a failure does not keep the hooks of the setup file and of the renderer from cleaning up
 afterEach(() => {
-    const noise = consoleError.mock.calls.map(call => call.map(String).join(' '));
+    const noise = consoleError.mock.calls.map((call) => call.map(String).join(' '));
     consoleError.mockRestore();
     if (!expectConsoleErrors) {
         expect.soft(noise).toEqual([]);
@@ -346,7 +370,7 @@ describe('the manga list', () => {
         it.each([
             ['show', 'a website', 'site', true],
             ['show', 'the clipboard', 'clipboard', true],
-            ['not show', 'the bookmarks', 'bookmarks', false]
+            ['not show', 'the bookmarks', 'bookmarks', false],
         ])('should %s the hint of an empty list for %s', async (_verb, _subject, id, hinted) => {
             const empty = createConnector({ id, label: `Empty ${id}` });
             engine = installEngine({ connectors: [empty] });
@@ -357,7 +381,7 @@ describe('the manga list', () => {
 
         it('should show the hint while the list is loading, and take it away with the list', async () => {
             let answer = null;
-            site.getMangas = vi.fn(callback => {
+            site.getMangas = vi.fn((callback) => {
                 answer = callback;
             });
             mount();
@@ -372,7 +396,7 @@ describe('the manga list', () => {
         });
 
         it('should keep the hint, and show no spinner, when the list cannot be loaded', async () => {
-            site.getMangas = vi.fn(callback => callback(new Error('the list is corrupt')));
+            site.getMangas = vi.fn((callback) => callback(new Error('the list is corrupt')));
             mount();
             await waitFor(() => expect(footerSpinner()).toBeNull());
             expect(footerText()).toBe('Mangas: 0 / 0');
@@ -381,7 +405,7 @@ describe('the manga list', () => {
         });
 
         it('should keep the hint when the engine answers without a list', async () => {
-            site.getMangas = vi.fn(callback => callback(null, undefined));
+            site.getMangas = vi.fn((callback) => callback(null, undefined));
             mount();
             await waitFor(() => expect(footerSpinner()).toBeNull());
             expect(footerText()).toBe('Mangas: 0 / 0');
@@ -394,7 +418,9 @@ describe('the manga list', () => {
             engine = installEngine({ connectors: [empty] });
             mount();
             await screen.findByText(/Manga list is loading or empty/);
-            const buttons = screen.getAllByTitle('Synchronize local manga list with online list from <Empty Site>');
+            const buttons = screen.getAllByTitle(
+                'Synchronize local manga list with online list from <Empty Site>',
+            );
             expect(buttons).toHaveLength(2);
             await user.click(buttons[1]);
             expect(empty.updateMangas).toHaveBeenCalledTimes(1);
@@ -416,14 +442,25 @@ describe('the manga list', () => {
 
 describe('the title filter', () => {
     const titles = [
-        'Akira', 'Berserk', 'Berserker', 'Bleach', '20th Century Boys', 'École',
-        '東京喰種', '東京ラブ', '進撃の巨人',
-        'Re:Zero', 'Re:Monster', 'One Piece (2)', 'x.y', 'xzy'
+        'Akira',
+        'Berserk',
+        'Berserker',
+        'Bleach',
+        '20th Century Boys',
+        'École',
+        '東京喰種',
+        '東京ラブ',
+        '進撃の巨人',
+        'Re:Zero',
+        'Re:Monster',
+        'One Piece (2)',
+        'x.y',
+        'xzy',
     ];
 
     beforeEach(() => {
         const library = createConnector({ id: 'library', label: 'Library' });
-        titles.forEach(title => addManga(library, { title }));
+        titles.forEach((title) => addManga(library, { title }));
         engine = installEngine({ connectors: [library] });
     });
 
@@ -446,7 +483,7 @@ describe('the title filter', () => {
         ['(2)', ['One Piece (2)']],
         ['x.y', ['x.y']],
         ['.*', []],
-        ['no such manga', []]
+        ['no such manga', []],
     ])('should show the mangas for the pattern "%s"', async (pattern, expected) => {
         const user = typist();
         mount();
@@ -529,7 +566,7 @@ describe('the status line', () => {
 
     it('should show a spinner that names the website while its list is loading', async () => {
         let answer = null;
-        site.getMangas = vi.fn(callback => {
+        site.getMangas = vi.fn((callback) => {
             answer = callback;
         });
         mount();
@@ -568,7 +605,11 @@ describe('the refresh button', () => {
         expect(other.updateMangas).not.toHaveBeenCalled();
         // while it runs: the button spins, a bar is shown, the status line says what is going on
         expect(spins(refreshButton())).toBe(true);
-        expect(screen.getByRole('progressbar', { name: 'Updating manga list' }).getAttribute('aria-valuetext')).toBe('Updating');
+        expect(
+            screen
+                .getByRole('progressbar', { name: 'Updating manga list' })
+                .getAttribute('aria-valuetext'),
+        ).toBe('Updating');
         expect(footerText()).toBe('Updating…');
         expect(footerSpinnerTitle()).toBe('Updating manga list (Site): waiting for the website');
         const fresh = makeMangas(site, ['Berserk', 'Claymore', 'Dorohedoro', 'Eden']);
@@ -582,32 +623,44 @@ describe('the refresh button', () => {
         expect(screen.queryByRole('progressbar')).toBeNull();
         expect(spins(refreshButton())).toBe(false);
         // the cache of the connector holds the new list: it is not read from the disk again
-        expect(queryClient.getQueryData(['mangas', 'site']).map(manga => manga.title)).toEqual(['Berserk', 'Claymore', 'Dorohedoro', 'Eden']);
+        expect(queryClient.getQueryData(['mangas', 'site']).map((manga) => manga.title)).toEqual([
+            'Berserk',
+            'Claymore',
+            'Dorohedoro',
+            'Eden',
+        ]);
         expect(site.getMangas).toHaveBeenCalledTimes(1);
     });
 
     it.each([
-        ['with the reason of the engine', new Error('HTTP 503'), 'Failed to update manga list for Site\nHTTP 503'],
+        [
+            'with the reason of the engine',
+            new Error('HTTP 503'),
+            'Failed to update manga list for Site\nHTTP 503',
+        ],
         [
             'without a reason, as the engine does when the website had no mangas',
             undefined,
-            'Failed to update manga list for Site\nFailed to update manga list for "Site"!'
-        ]
-    ])('should tell that the update failed, %s, and leave the list as it was', async (_name, error, message) => {
-        const user = typist();
-        await mountLoaded();
-        await user.click(refreshButton());
-        await act(async () => {
-            site.failUpdate(error);
-        });
-        const toast = await screen.findByText(/^Failed to update manga list for Site/);
-        expect(toast.textContent).toBe(message);
-        expect(toastOf(/^Failed to update manga list for Site/).className).toMatch(/red/);
-        expect(rows()).toEqual(['Akira', 'Berserk', 'Vagabond']);
-        expect(footerText()).toBe('Mangas: 3 / 3');
-        expect(screen.queryByRole('progressbar')).toBeNull();
-        expect(spins(refreshButton())).toBe(false);
-    });
+            'Failed to update manga list for Site\nFailed to update manga list for "Site"!',
+        ],
+    ])(
+        'should tell that the update failed, %s, and leave the list as it was',
+        async (_name, error, message) => {
+            const user = typist();
+            await mountLoaded();
+            await user.click(refreshButton());
+            await act(async () => {
+                site.failUpdate(error);
+            });
+            const toast = await screen.findByText(/^Failed to update manga list for Site/);
+            expect(toast.textContent).toBe(message);
+            expect(toastOf(/^Failed to update manga list for Site/).className).toMatch(/red/);
+            expect(rows()).toEqual(['Akira', 'Berserk', 'Vagabond']);
+            expect(footerText()).toBe('Mangas: 3 / 3');
+            expect(screen.queryByRole('progressbar')).toBeNull();
+            expect(spins(refreshButton())).toBe(false);
+        },
+    );
 
     it('should be ready for another update after one failed', async () => {
         const user = typist();
@@ -652,8 +705,14 @@ describe('the refresh button', () => {
         });
         expect(await screen.findByText('Manga list updated (2 titles).')).toBeTruthy();
         expect(rows()).toEqual(['Monster', 'Naruto']);
-        expect(queryClient.getQueryData(['mangas', 'site']).map(manga => manga.title)).toEqual(['Claymore', 'Dorohedoro']);
-        expect(queryClient.getQueryData(['mangas', 'other']).map(manga => manga.title)).toEqual(['Monster', 'Naruto']);
+        expect(queryClient.getQueryData(['mangas', 'site']).map((manga) => manga.title)).toEqual([
+            'Claymore',
+            'Dorohedoro',
+        ]);
+        expect(queryClient.getQueryData(['mangas', 'other']).map((manga) => manga.title)).toEqual([
+            'Monster',
+            'Naruto',
+        ]);
         await pickConnector(user, 'Site');
         expect(await screen.findByText('Claymore')).toBeTruthy();
         expect(rows()).toEqual(['Claymore', 'Dorohedoro']);
@@ -674,17 +733,24 @@ describe('the refresh button', () => {
         it.each([
             [0, 5, '0:05'],
             [1, 5, '1 request · 0:05'],
-            [12, 65, '12 requests · 1:05']
-        ])('should show its progress, %i requests after %i seconds', async (requests, seconds, text) => {
-            site.updateProgress = { requests, startedAt: Date.now() - seconds * 1000 };
-            await mountLoaded();
-            expect(footerText()).toBe(`Updating… ${text}`);
-            expect(footerSpinnerTitle()).toBe(`Updating manga list (Site): ${text}`);
-            expect(screen.getByRole('progressbar', { name: 'Updating manga list' }).getAttribute('aria-valuetext')).toBe(text);
-            expect(spins(refreshButton())).toBe(true);
-            // the list is there all the same
-            expect(rows()).toEqual(['Akira', 'Berserk', 'Vagabond']);
-        });
+            [12, 65, '12 requests · 1:05'],
+        ])(
+            'should show its progress, %i requests after %i seconds',
+            async (requests, seconds, text) => {
+                site.updateProgress = { requests, startedAt: Date.now() - seconds * 1000 };
+                await mountLoaded();
+                expect(footerText()).toBe(`Updating… ${text}`);
+                expect(footerSpinnerTitle()).toBe(`Updating manga list (Site): ${text}`);
+                expect(
+                    screen
+                        .getByRole('progressbar', { name: 'Updating manga list' })
+                        .getAttribute('aria-valuetext'),
+                ).toBe(text);
+                expect(spins(refreshButton())).toBe(true);
+                // the list is there all the same
+                expect(rows()).toEqual(['Akira', 'Berserk', 'Vagabond']);
+            },
+        );
 
         it('should follow the update twice a second, and show the end of it', async () => {
             await mountLoaded();
@@ -699,7 +765,9 @@ describe('the refresh button', () => {
             site.updateProgress.requests = 9;
             tick(2000);
             expect(footerText()).toBe('Updating… 9 requests · 0:03');
-            expect(screen.getByRole('progressbar').getAttribute('aria-valuetext')).toBe('9 requests · 0:03');
+            expect(screen.getByRole('progressbar').getAttribute('aria-valuetext')).toBe(
+                '9 requests · 0:03',
+            );
             // and it is over
             site.updateProgress = undefined;
             tick(500);
@@ -734,7 +802,11 @@ describe('the refresh button', () => {
             const user = typist();
             await mountLoaded();
             await user.click(websiteField());
-            await user.click(within(cardOf('Site')).getByTitle('Synchronize local manga list with online list from <Site>'));
+            await user.click(
+                within(cardOf('Site')).getByTitle(
+                    'Synchronize local manga list with online list from <Site>',
+                ),
+            );
             expect(site.updateMangas).toHaveBeenCalledTimes(1);
             await user.keyboard('{Escape}');
             expect(screen.queryByRole('list', { name: 'Connectors' })).toBeNull();
@@ -783,8 +855,14 @@ describe('the paste button', () => {
         expect(screen.getByText('Manga list updated (2 titles).')).toBeTruthy();
         expect(footerText()).toBe('Mangas: 2 / 2');
         // what was read is filed under the clipboard, and the list of the website that was shown before is not touched
-        expect(queryClient.getQueryData(['mangas', 'clipboard']).map(manga => manga.title)).toEqual(['Berserk', 'Pasted Manga']);
-        expect(queryClient.getQueryData(['mangas', 'site']).map(manga => manga.title)).toEqual(['Akira', 'Berserk', 'Vagabond']);
+        expect(
+            queryClient.getQueryData(['mangas', 'clipboard']).map((manga) => manga.title),
+        ).toEqual(['Berserk', 'Pasted Manga']);
+        expect(queryClient.getQueryData(['mangas', 'site']).map((manga) => manga.title)).toEqual([
+            'Akira',
+            'Berserk',
+            'Vagabond',
+        ]);
     });
 
     it('should show the hint of an empty list when the clipboard holds no link that a website knows', async () => {
@@ -815,12 +893,14 @@ describe('the paste button', () => {
     it('should report a clipboard that cannot be read like any other failed update', async () => {
         const user = typist();
         const clipboard = createClipboardConnector([]);
-        clipboard.updateMangas = vi.fn(callback => callback(new Error('clipboard is locked')));
+        clipboard.updateMangas = vi.fn((callback) => callback(new Error('clipboard is locked')));
         engine = installEngine({ connectors: [site, clipboard] });
         await mountLoaded();
         await user.click(pasteButton());
         const toast = await screen.findByText(/^Failed to update manga list for/);
-        expect(toast.textContent).toBe('Failed to update manga list for  【Clipboard】\nclipboard is locked');
+        expect(toast.textContent).toBe(
+            'Failed to update manga list for  【Clipboard】\nclipboard is locked',
+        );
         expect(websiteText()).toBe(' 【Clipboard】');
         expect(footerText()).toBe('Mangas: 0 / 0');
     });
@@ -857,11 +937,13 @@ describe('the bookmark star', () => {
         expect(starButton().title).toBe(STAR_ADD);
         await user.click(starButton());
         expect(engine.BookmarkManager.addBookmark).toHaveBeenCalledExactlyOnceWith(site.mangas[1]);
-        expect(engine.BookmarkManager.bookmarks.map(bookmark => bookmark.key)).toEqual([{ connector: 'site', manga: 'm2' }]);
+        expect(engine.BookmarkManager.bookmarks.map((bookmark) => bookmark.key)).toEqual([
+            { connector: 'site', manga: 'm2' },
+        ]);
         expect(starButton().title).toBe(STAR_REMOVE);
         await user.click(starButton());
         expect(engine.BookmarkManager.deleteBookmark).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({ key: { connector: 'site', manga: 'm2' } })
+            expect.objectContaining({ key: { connector: 'site', manga: 'm2' } }),
         );
         expect(engine.BookmarkManager.bookmarks).toEqual([]);
         expect(starButton().title).toBe(STAR_ADD);
@@ -906,7 +988,12 @@ describe('the bookmark star', () => {
         await mountLoaded();
         await user.click(screen.getByText('Berserk'));
         act(() => {
-            engine.BookmarkManager.bookmarks = [{ key: { connector: 'site', manga: 'm2' }, title: { connector: 'Site', manga: 'Berserk' } }];
+            engine.BookmarkManager.bookmarks = [
+                {
+                    key: { connector: 'site', manga: 'm2' },
+                    title: { connector: 'Site', manga: 'Berserk' },
+                },
+            ];
             engine.BookmarkManager.emit('changed', engine.BookmarkManager.bookmarks);
         });
         expect(starButton().title).toBe(STAR_REMOVE);
@@ -1026,7 +1113,12 @@ describe('the bookmarked mangas in the list', () => {
     it('should follow a bookmark list that is replaced as a whole, as loading the bookmarks does', async () => {
         await mountLoaded();
         act(() => {
-            engine.BookmarkManager.bookmarks = [{ key: { connector: 'site', manga: 'm3' }, title: { connector: 'Site', manga: 'Vagabond' } }];
+            engine.BookmarkManager.bookmarks = [
+                {
+                    key: { connector: 'site', manga: 'm3' },
+                    title: { connector: 'Site', manga: 'Vagabond' },
+                },
+            ];
             engine.BookmarkManager.emit('changed', engine.BookmarkManager.bookmarks);
         });
         expect(goldRows()).toEqual(['Vagabond']);
@@ -1072,12 +1164,14 @@ describe('the bookmarked mangas in the list', () => {
 // A colour that is not defined is no error: the title quietly has the colour of the list. So the style sheet is read here.
 describe('the colour of a bookmarked manga', () => {
     const css = fs.readFileSync(path.join(import.meta.dirname, '..', 'index.css'), 'utf8');
-    const block = selector => new RegExp(`^${selector} \\{([^}]*)\\}`, 'm').exec(css)[1];
-    const token = (selector, name) => new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6});`).exec(block(selector))?.[1];
+    const block = (selector) => new RegExp(`^${selector} \\{([^}]*)\\}`, 'm').exec(css)[1];
+    const token = (selector, name) =>
+        new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6});`).exec(block(selector))?.[1];
     // the contrast of two colours, as WCAG measures it
-    const luminance = hex => {
-        const [red, green, blue] = [1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16) / 255)
-            .map(value => (value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4));
+    const luminance = (hex) => {
+        const [red, green, blue] = [1, 3, 5]
+            .map((start) => parseInt(hex.slice(start, start + 2), 16) / 255)
+            .map((value) => (value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4));
         return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
     };
     const contrast = (a, b) => {
@@ -1085,23 +1179,38 @@ describe('the colour of a bookmarked manga', () => {
         return (lighter + 0.05) / (darker + 0.05);
     };
 
-    it.each([[':root', 'light'], ['\\.dark', 'dark']])('should be defined for the %s theme (%s)', selector => {
+    it.each([
+        [':root', 'light'],
+        ['\\.dark', 'dark'],
+    ])('should be defined for the %s theme (%s)', (selector) => {
         expect(token(selector, '--manga-list-bookmarked-color')).toMatch(/^#[0-9a-f]{6}$/i);
     });
 
     it('should be a colour for each theme of its own', () => {
-        expect(token(':root', '--manga-list-bookmarked-color')).not.toBe(token('\\.dark', '--manga-list-bookmarked-color'));
+        expect(token(':root', '--manga-list-bookmarked-color')).not.toBe(
+            token('\\.dark', '--manga-list-bookmarked-color'),
+        );
     });
 
-    it.each([[':root'], ['\\.dark']])('should be readable on the background of the list (%s): a contrast of at least 4.5', selector => {
-        const background = token(selector, '--list-background-color');
-        expect(background).toMatch(/^#[0-9a-f]{6}$/i);
-        expect(contrast(token(selector, '--manga-list-bookmarked-color'), background)).toBeGreaterThanOrEqual(4.5);
-    });
+    it.each([[':root'], ['\\.dark']])(
+        'should be readable on the background of the list (%s): a contrast of at least 4.5',
+        (selector) => {
+            const background = token(selector, '--list-background-color');
+            expect(background).toMatch(/^#[0-9a-f]{6}$/i);
+            expect(
+                contrast(token(selector, '--manga-list-bookmarked-color'), background),
+            ).toBeGreaterThanOrEqual(4.5);
+        },
+    );
 
     it('should be gold: more red than green, and more green than blue', () => {
         for (const selector of [':root', '\\.dark']) {
-            const [red, green, blue] = [1, 3, 5].map(start => parseInt(token(selector, '--manga-list-bookmarked-color').slice(start, start + 2), 16));
+            const [red, green, blue] = [1, 3, 5].map((start) =>
+                parseInt(
+                    token(selector, '--manga-list-bookmarked-color').slice(start, start + 2),
+                    16,
+                ),
+            );
             expect(red).toBeGreaterThan(green);
             expect(green).toBeGreaterThan(blue);
         }
@@ -1162,7 +1271,12 @@ describe('the bookmarks connector', () => {
         mount();
         await screen.findByText('Mangas: 0 / 0');
         act(() => {
-            engine.BookmarkManager.bookmarks = [{ key: { connector: 'other', manga: 'm2' }, title: { connector: 'Other Site', manga: 'Naruto' } }];
+            engine.BookmarkManager.bookmarks = [
+                {
+                    key: { connector: 'other', manga: 'm2' },
+                    title: { connector: 'Other Site', manga: 'Naruto' },
+                },
+            ];
             engine.BookmarkManager.emit('changed', engine.BookmarkManager.bookmarks);
         });
         expect(await screen.findByText('Naruto')).toBeTruthy();
@@ -1173,7 +1287,10 @@ describe('the bookmarks connector', () => {
         engine.BookmarkManager.addBookmark(site.mangas[1]);
         mount();
         await screen.findByText('Berserk');
-        engine.BookmarkManager.bookmarks.push({ key: { connector: 'other', manga: 'm1' }, title: { connector: 'Other Site', manga: 'Monster' } });
+        engine.BookmarkManager.bookmarks.push({
+            key: { connector: 'other', manga: 'm1' },
+            title: { connector: 'Other Site', manga: 'Monster' },
+        });
         await user.click(refreshButton());
         expect(bookmarks.updateMangas).toHaveBeenCalledTimes(1);
         expect(await screen.findByText('Manga list updated (2 titles).')).toBeTruthy();
@@ -1191,7 +1308,9 @@ describe('the bookmarks connector', () => {
         });
         expect(await screen.findByText('Late Manga')).toBeTruthy();
         // the website is not registered yet: the bookmark has a stand-in for it
-        expect(screen.getByText('Late Manga').getAttribute('title')).toBe('Late Manga\nlate (unavailable)');
+        expect(screen.getByText('Late Manga').getAttribute('title')).toBe(
+            'Late Manga\nlate (unavailable)',
+        );
         act(() => {
             engine.ConnectorRegistry.list.push(late);
             engine.ConnectorRegistry.emit('registered');
@@ -1200,7 +1319,11 @@ describe('the bookmarks connector', () => {
             engine.ConnectorRegistry.isReady = true;
             engine.ConnectorRegistry.emit('ready');
         });
-        await waitFor(() => expect(screen.getByText('Late Manga').getAttribute('title')).toBe('Late Manga\nLate Site'));
+        await waitFor(() =>
+            expect(screen.getByText('Late Manga').getAttribute('title')).toBe(
+                'Late Manga\nLate Site',
+            ),
+        );
         expect(rows()).toEqual(['Late Manga']);
     });
 
@@ -1223,7 +1346,11 @@ describe('the bookmarks connector', () => {
             engine.ConnectorRegistry.emit('ready');
         });
         await pickConnector(user, ' 【Bookmarks】');
-        await waitFor(() => expect(screen.getByText('Late Manga').getAttribute('title')).toBe('Late Manga\nLate Site'));
+        await waitFor(() =>
+            expect(screen.getByText('Late Manga').getAttribute('title')).toBe(
+                'Late Manga\nLate Site',
+            ),
+        );
     });
 
     it('should show a bookmark that was added while the list of another website was shown', async () => {
@@ -1276,7 +1403,10 @@ describe('the connector picker', () => {
         expect(screen.getByRole('list', { name: 'Connectors' })).toBeTruthy();
     });
 
-    it.each([['Enter', '{Enter}'], ['Space', ' ']])('should open with %s on the website field, which is a button', async (name, key) => {
+    it.each([
+        ['Enter', '{Enter}'],
+        ['Space', ' '],
+    ])('should open with %s on the website field, which is a button', async (name, key) => {
         const user = typist();
         await mountLoaded();
         websiteField().focus();
@@ -1284,13 +1414,16 @@ describe('the connector picker', () => {
         expect(screen.getByRole('list', { name: 'Connectors' })).toBeTruthy();
     });
 
-    it.each([['a'], ['{Tab}'], ['{Escape}'], ['{ArrowDown}']])('should not open with the key "%s"', async key => {
-        const user = typist();
-        await mountLoaded();
-        websiteField().focus();
-        await user.keyboard(key);
-        expect(screen.queryByRole('list', { name: 'Connectors' })).toBeNull();
-    });
+    it.each([['a'], ['{Tab}'], ['{Escape}'], ['{ArrowDown}']])(
+        'should not open with the key "%s"',
+        async (key) => {
+            const user = typist();
+            await mountLoaded();
+            websiteField().focus();
+            await user.keyboard(key);
+            expect(screen.queryByRole('list', { name: 'Connectors' })).toBeNull();
+        },
+    );
 
     it('should have the name field ready for typing when it opens, and narrow the websites down with what is typed', async () => {
         const user = typist();
@@ -1300,7 +1433,9 @@ describe('the connector picker', () => {
         expect(document.activeElement).toBe(field);
         await user.keyboard('other');
         expect(field.value).toBe('other');
-        expect(within(screen.getByRole('list', { name: 'Connectors' })).getAllByRole('listitem')).toHaveLength(1);
+        expect(
+            within(screen.getByRole('list', { name: 'Connectors' })).getAllByRole('listitem'),
+        ).toHaveLength(1);
         expect(cardOf('Other Site')).toBeTruthy();
     });
 
@@ -1347,7 +1482,9 @@ describe('announcing the selection', () => {
     function listenFor(name) {
         const seen = [];
         const stop = new AbortController();
-        document.addEventListener(name, event => seen.push(event.detail), { signal: stop.signal });
+        document.addEventListener(name, (event) => seen.push(event.detail), {
+            signal: stop.signal,
+        });
         return { seen, stop: () => stop.abort() };
     }
 
@@ -1387,7 +1524,8 @@ describe('announcing the selection', () => {
 describe('the list for the keyboard and the screen reader', () => {
     const list = () => screen.getByRole('listbox', { name: 'Manga list' });
     // the manga that the keys are on
-    const activeTitle = () => document.getElementById(list().getAttribute('aria-activedescendant')).textContent;
+    const activeTitle = () =>
+        document.getElementById(list().getAttribute('aria-activedescendant')).textContent;
 
     it('should take the focus itself, with the first manga as the one the keys are on, and count the mangas', async () => {
         await mountLoaded();
@@ -1395,8 +1533,16 @@ describe('the list for the keyboard and the screen reader', () => {
         act(() => list().focus());
         expect(activeTitle()).toBe('Akira');
         const options = screen.getAllByRole('option');
-        expect(options.map(option => option.getAttribute('aria-posinset'))).toEqual(['1', '2', '3']);
-        expect(options.map(option => option.getAttribute('aria-setsize'))).toEqual(['3', '3', '3']);
+        expect(options.map((option) => option.getAttribute('aria-posinset'))).toEqual([
+            '1',
+            '2',
+            '3',
+        ]);
+        expect(options.map((option) => option.getAttribute('aria-setsize'))).toEqual([
+            '3',
+            '3',
+            '3',
+        ]);
         expect(options[0].classList.contains('rk-active')).toBe(true);
     });
 
@@ -1480,9 +1626,15 @@ describe('the list for the keyboard and the screen reader', () => {
 
     it('should name the buttons and the fields of the panel', async () => {
         await mountLoaded();
-        expect(screen.getByRole('button', { name: 'Paste manga links from the clipboard' })).toBe(pasteButton());
-        expect(screen.getByRole('button', { name: 'Update the manga list of Site' })).toBe(refreshButton());
-        expect(screen.getByRole('textbox', { name: 'Filter the mangas by title' })).toBe(filterField());
+        expect(screen.getByRole('button', { name: 'Paste manga links from the clipboard' })).toBe(
+            pasteButton(),
+        );
+        expect(screen.getByRole('button', { name: 'Update the manga list of Site' })).toBe(
+            refreshButton(),
+        );
+        expect(screen.getByRole('textbox', { name: 'Filter the mangas by title' })).toBe(
+            filterField(),
+        );
         expect(screen.getByRole('region', { name: 'Manga List' })).toBeTruthy();
         const picker = websiteField();
         expect(picker.getAttribute('aria-haspopup')).toBe('dialog');

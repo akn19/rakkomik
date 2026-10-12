@@ -11,7 +11,7 @@ class FakeManga extends EventTarget {
         this.id = id;
         this.title = title;
         this.chapters = [];
-        this.getChapters = vi.fn(callback => callback(null, this.chapters));
+        this.getChapters = vi.fn((callback) => callback(null, this.chapters));
     }
 }
 
@@ -29,7 +29,9 @@ export function createManga(connector, id, title) {
  * A list that an update brings: one manga per title, with the ids `<connector id>-1`, `<connector id>-2`, ...
  */
 export function makeMangas(connector, titles) {
-    return titles.map((title, index) => createManga(connector, `${connector.id}-${index + 1}`, title));
+    return titles.map((title, index) =>
+        createManga(connector, `${connector.id}-${index + 1}`, title),
+    );
 }
 
 /**
@@ -40,21 +42,21 @@ export function createUpdatableConnector(fields = {}) {
     let answer = null;
     const connector = createConnector({
         ...fields,
-        updateMangas: vi.fn(callback => {
+        updateMangas: vi.fn((callback) => {
             if (connector.updateProgress) {
                 return;
             }
             connector.updateProgress = { requests: 0, startedAt: Date.now() };
             answer = callback;
-        })
+        }),
     });
-    connector.finishUpdate = mangas => {
+    connector.finishUpdate = (mangas) => {
         connector.updateProgress = undefined;
         connector.mangas = mangas;
         answer(null, mangas);
     };
     // the engine answers `(error, undefined)`; an empty list is an error without an error object: `(undefined, undefined)`
-    connector.failUpdate = error => {
+    connector.failUpdate = (error) => {
         connector.updateProgress = undefined;
         answer(error, undefined);
     };

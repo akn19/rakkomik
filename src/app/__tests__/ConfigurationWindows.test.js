@@ -10,24 +10,28 @@ mockModule('electron', () => {
     return {
         app: {
             getAppPath: vi.fn(() => '/usr/bin'),
-            getPath: vi.fn(type => {
-                switch(type) {
-                    case 'exe': return '/usr/bin/rakkomik';
-                    case 'appData': return path.resolve(os.homedir(), 'AppData', 'Roaming');
-                    case 'userData': return path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik');
-                    case 'userCache': return path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache');
-                    default: return undefined;
+            getPath: vi.fn((type) => {
+                switch (type) {
+                    case 'exe':
+                        return '/usr/bin/rakkomik';
+                    case 'appData':
+                        return path.resolve(os.homedir(), 'AppData', 'Roaming');
+                    case 'userData':
+                        return path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik');
+                    case 'userCache':
+                        return path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache');
+                    default:
+                        return undefined;
                 }
             }),
-            name: 'RakKomik'
-        }
+            name: 'RakKomik',
+        },
     };
 });
 const electron = require('electron');
 const Configuration = require('../ConfigurationWindows');
 
-var suite = function() {
-
+var suite = function () {
     beforeEach(() => {
         vi.clearAllMocks();
         // builtins are not module-mocked: stub the shared `fs` export object instead
@@ -45,10 +49,10 @@ var suite = function() {
         connectorProtocol: 'connectorProtocol',
         applicationStartupURL: 'protocol://applicationStartupURL',
         applicationCacheDirectory: path.resolve('/home/.cache/rakkomik'),
-        applicationUserDataDirectory: path.resolve('/home/.config/rakkomik')
+        applicationUserDataDirectory: path.resolve('/home/.config/rakkomik'),
     };
 
-    describe('isPortable', function() {
+    describe('isPortable', function () {
         it('should be true when file exists', () => {
             fs.existsSync.mockReturnValueOnce(true);
             expect(Configuration.isPortableMode).toEqual(true);
@@ -63,7 +67,7 @@ var suite = function() {
         });
     });
 
-    describe('publicKey', function() {
+    describe('publicKey', function () {
         it('should be valid after initialization', () => {
             let testee = new Configuration(undefined);
             expect(testee.publicKey.startsWith('-----BEGIN PUBLIC KEY-----')).toBeTruthy();
@@ -79,21 +83,25 @@ var suite = function() {
         });
     });
 
-    describe('applicationProtocol', function() {
+    describe('applicationProtocol', function () {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
             expect(testee.applicationProtocol).toEqual('hakuneko');
         });
         it('should be overwritten by startup URL from options', () => {
             let testee = new Configuration(expected);
-            expect(testee.applicationProtocol).toEqual(expected.applicationStartupURL.split(':')[0]);
+            expect(testee.applicationProtocol).toEqual(
+                expected.applicationStartupURL.split(':')[0],
+            );
         });
     });
 
-    describe('applicationUpdateURL', function() {
+    describe('applicationUpdateURL', function () {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
-            expect(testee.applicationUpdateURL).toEqual('https://github.com/akn19/rakkomik/releases/download/web-main/latest');
+            expect(testee.applicationUpdateURL).toEqual(
+                'https://github.com/akn19/rakkomik/releases/download/web-main/latest',
+            );
         });
         it('should be overwritten by update URL from options', () => {
             let testee = new Configuration(expected);
@@ -101,7 +109,7 @@ var suite = function() {
         });
     });
 
-    describe('connectorProtocol', function() {
+    describe('connectorProtocol', function () {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
             expect(testee.connectorProtocol).toEqual('connector');
@@ -112,7 +120,7 @@ var suite = function() {
         });
     });
 
-    describe('applicationStartupURL', function() {
+    describe('applicationStartupURL', function () {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
             expect(testee.applicationStartupURL).toEqual('hakuneko://cache/index.html');
@@ -123,10 +131,12 @@ var suite = function() {
         });
     });
 
-    describe('applicationCacheDirectory', function() {
+    describe('applicationCacheDirectory', function () {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
-            expect(testee.applicationCacheDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache'));
+            expect(testee.applicationCacheDirectory).toEqual(
+                path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache'),
+            );
             expect(electron.app.getPath).toHaveBeenCalledTimes(3);
             expect(electron.app.getPath).toHaveBeenCalledWith('exe');
             expect(electron.app.getPath).toHaveBeenCalledWith('appData');
@@ -142,10 +152,12 @@ var suite = function() {
         });
     });
 
-    describe('applicationUserDataDirectory', function() {
+    describe('applicationUserDataDirectory', function () {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
-            expect(testee.applicationUserDataDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik'));
+            expect(testee.applicationUserDataDirectory).toEqual(
+                path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik'),
+            );
             expect(electron.app.getPath).toHaveBeenCalledTimes(3);
             expect(electron.app.getPath).toHaveBeenCalledWith('exe');
             expect(electron.app.getPath).toHaveBeenCalledWith('appData');
@@ -153,7 +165,9 @@ var suite = function() {
         });
         it('should be overwritten by absolute user data directory from options', () => {
             let testee = new Configuration(expected);
-            expect(testee.applicationUserDataDirectory).toEqual(expected.applicationUserDataDirectory);
+            expect(testee.applicationUserDataDirectory).toEqual(
+                expected.applicationUserDataDirectory,
+            );
         });
         it('should be overwritten by relative user data directory from options', () => {
             let testee = new Configuration({ applicationUserDataDirectory: '../data' });
@@ -161,10 +175,12 @@ var suite = function() {
         });
     });
 
-    describe('applicationUserPluginsDirectory', function() {
+    describe('applicationUserPluginsDirectory', function () {
         it('should have default after initialization', () => {
             let testee = new Configuration(undefined);
-            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik', 'rakkomik.plugins'));
+            expect(testee.applicationUserPluginsDirectory).toEqual(
+                path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik', 'rakkomik.plugins'),
+            );
             expect(electron.app.getPath).toHaveBeenCalledTimes(3);
             expect(electron.app.getPath).toHaveBeenCalledWith('exe');
             expect(electron.app.getPath).toHaveBeenCalledWith('appData');
@@ -172,34 +188,64 @@ var suite = function() {
         });
         it('should be changed by absolute user data directory from options', () => {
             let testee = new Configuration(expected);
-            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve(expected.applicationUserDataDirectory, 'rakkomik.plugins'));
+            expect(testee.applicationUserPluginsDirectory).toEqual(
+                path.resolve(expected.applicationUserDataDirectory, 'rakkomik.plugins'),
+            );
         });
         it('should be changed by relative user data directory from options', () => {
             let testee = new Configuration({ applicationUserDataDirectory: '../data' });
-            expect(testee.applicationUserPluginsDirectory).toEqual(path.resolve('/usr/data/rakkomik.plugins'));
+            expect(testee.applicationUserPluginsDirectory).toEqual(
+                path.resolve('/usr/data/rakkomik.plugins'),
+            );
         });
     });
 
-    describe('options', function() {
-        it.each([ undefined, null, '' ])('should take the directories of Electron when the options are %p', option => {
-            let testee = new Configuration({ applicationCacheDirectory: option, applicationUserDataDirectory: option });
-            expect(testee.applicationCacheDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache'));
-            expect(testee.applicationUserDataDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik'));
-        });
+    describe('options', function () {
+        it.each([undefined, null, ''])(
+            'should take the directories of Electron when the options are %p',
+            (option) => {
+                let testee = new Configuration({
+                    applicationCacheDirectory: option,
+                    applicationUserDataDirectory: option,
+                });
+                expect(testee.applicationCacheDirectory).toEqual(
+                    path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache'),
+                );
+                expect(testee.applicationUserDataDirectory).toEqual(
+                    path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik'),
+                );
+            },
+        );
         it('should decide on each of the two directories by itself', () => {
-            let cache = new Configuration({ applicationCacheDirectory: expected.applicationCacheDirectory });
+            let cache = new Configuration({
+                applicationCacheDirectory: expected.applicationCacheDirectory,
+            });
             expect(cache.applicationCacheDirectory).toEqual(expected.applicationCacheDirectory);
-            expect(cache.applicationUserDataDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik'));
-            let data = new Configuration({ applicationUserDataDirectory: expected.applicationUserDataDirectory });
-            expect(data.applicationCacheDirectory).toEqual(path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache'));
-            expect(data.applicationUserDataDirectory).toEqual(expected.applicationUserDataDirectory);
+            expect(cache.applicationUserDataDirectory).toEqual(
+                path.resolve(os.homedir(), 'AppData', 'Roaming', 'RakKomik'),
+            );
+            let data = new Configuration({
+                applicationUserDataDirectory: expected.applicationUserDataDirectory,
+            });
+            expect(data.applicationCacheDirectory).toEqual(
+                path.resolve(os.homedir(), 'AppData', 'Local', 'RakKomik', 'cache'),
+            );
+            expect(data.applicationUserDataDirectory).toEqual(
+                expected.applicationUserDataDirectory,
+            );
         });
         it('should keep the cache in the Local folder next to the Roaming folder of the application data, named after the application', () => {
             let original = electron.app.getPath.getMockImplementation();
-            electron.app.getPath.mockImplementation(type => (type === 'appData' ? path.resolve('/profile/user/Roaming') : original(type)));
+            electron.app.getPath.mockImplementation((type) =>
+                type === 'appData' ? path.resolve('/profile/user/Roaming') : original(type),
+            );
             try {
-                let testee = new Configuration({ applicationUserDataDirectory: expected.applicationUserDataDirectory });
-                expect(testee.applicationCacheDirectory).toEqual(path.resolve('/profile/user/Local/RakKomik/cache'));
+                let testee = new Configuration({
+                    applicationUserDataDirectory: expected.applicationUserDataDirectory,
+                });
+                expect(testee.applicationCacheDirectory).toEqual(
+                    path.resolve('/profile/user/Local/RakKomik/cache'),
+                );
             } finally {
                 electron.app.getPath.mockImplementation(original);
             }
@@ -208,8 +254,12 @@ var suite = function() {
             let name = electron.app.name;
             electron.app.name = 'Another Name';
             try {
-                let testee = new Configuration({ applicationUserDataDirectory: expected.applicationUserDataDirectory });
-                expect(path.basename(path.dirname(testee.applicationCacheDirectory))).toEqual('Another Name');
+                let testee = new Configuration({
+                    applicationUserDataDirectory: expected.applicationUserDataDirectory,
+                });
+                expect(path.basename(path.dirname(testee.applicationCacheDirectory))).toEqual(
+                    'Another Name',
+                );
                 expect(path.basename(testee.applicationCacheDirectory)).toEqual('cache');
             } finally {
                 electron.app.name = name;

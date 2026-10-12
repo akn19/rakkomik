@@ -28,15 +28,21 @@ export default ({ mode }) => ({
         tailwindcss(),
         // `vite build --mode web`: also assemble the complete web bundle in build/web
         ...(mode === 'web'
-            ? [webBundle({ source: path.dirname(UIDIR), target: path.join(ROOT, 'build', 'web'), include: ['index.html', 'js', 'img', 'mjs', 'ui/dist'] })]
-            : [])
+            ? [
+                  webBundle({
+                      source: path.dirname(UIDIR),
+                      target: path.join(ROOT, 'build', 'web'),
+                      include: ['index.html', 'js', 'img', 'mjs', 'ui/dist'],
+                  }),
+              ]
+            : []),
     ],
     root: UIDIR,
     // The bundle runs in a de-privileged renderer (no nodeIntegration):
     // stub the only Node global the UI libs touch so dead dev branches
     // fold away at build time instead of throwing at import time.
     define: {
-        'process.env.NODE_ENV': JSON.stringify('production')
+        'process.env.NODE_ENV': JSON.stringify('production'),
     },
     build: {
         outDir: path.join(UIDIR, 'dist'),
@@ -45,19 +51,22 @@ export default ({ mode }) => ({
             entry: path.join(UIDIR, 'main.jsx'),
             name: 'RakkomikUI',
             formats: ['es'],
-            fileName: () => 'ui.js'
+            fileName: () => 'ui.js',
         },
         rollupOptions: {
             // Fixed names for the files index.html references directly;
             // hashed names for the rest (assets such as fonts). There are no lazy
             // chunks on purpose, see src/web/ui/router.jsx.
             output: {
-                assetFileNames: asset => asset.names?.some(name => name.endsWith('.css')) ? 'ui.[ext]' : 'ui-asset-[name]-[hash].[ext]'
-            }
+                assetFileNames: (asset) =>
+                    asset.names?.some((name) => name.endsWith('.css'))
+                        ? 'ui.[ext]'
+                        : 'ui-asset-[name]-[hash].[ext]',
+            },
         },
         // Binary assets referenced from CSS (e.g. fonts) are inlined by Vite
         // in lib mode; for this local-disk app that is acceptable (no network,
         // parsed once). Keep emitted files, if any, next to the bundle.
-        assetsInlineLimit: 0
-    }
+        assetsInlineLimit: 0,
+    },
 });

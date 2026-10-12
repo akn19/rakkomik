@@ -15,7 +15,10 @@ const CHARACTER_KEYS = ['*', '/', '+', '-'];
 
 // how the pages scroll: in one jump when the user asked the system for less motion
 function scrollBehavior() {
-    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    return typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth';
 }
 
 function PageImage({ src, index, width, padding }) {
@@ -23,7 +26,7 @@ function PageImage({ src, index, width, padding }) {
     const timer = React.useRef(null);
     // a picture that is not shown any more is not asked for again
     React.useEffect(() => () => window.clearTimeout(timer.current), []);
-    const onError = event => {
+    const onError = (event) => {
         // Classic imgError parity: retry 3x with a cache-busting query.
         if (retry.current < 3) {
             retry.current += 1;
@@ -55,7 +58,12 @@ function NovelPage({ page, index, width, padding }) {
         <article
             id={`rk-page-${index}`}
             className="rk-page rk-novel"
-            style={{ fontSize: `${width / 75}em`, margin: `${padding}em auto`, backgroundColor: colors.background, color: colors.text }}
+            style={{
+                fontSize: `${width / 75}em`,
+                margin: `${padding}em auto`,
+                backgroundColor: colors.background,
+                color: colors.text,
+            }}
             dangerouslySetInnerHTML={{ __html: markup }}
         />
     );
@@ -79,7 +87,12 @@ function NovelThumbnail({ page, index, onOpen }) {
 
 function ToolbarButton({ icon, title, onClick }) {
     return (
-        <button type="button" title={title} onClick={onClick} className="rk-button m-[0.25em] align-middle">
+        <button
+            type="button"
+            title={title}
+            onClick={onClick}
+            className="rk-button m-[0.25em] align-middle"
+        >
             <Icon name={icon} size={22} />
         </button>
     );
@@ -103,29 +116,68 @@ function Toolbar({ title, reading, imageWidth, actions }) {
             <span
                 role="heading"
                 aria-level={1}
-                className={'mr-[0.5em] text-[1.25em] font-bold ' + (reading ? 'sr-only group-has-[:focus-visible]:not-sr-only group-hover:not-sr-only' : '')}
+                className={
+                    'mr-[0.5em] text-[1.25em] font-bold ' +
+                    (reading
+                        ? 'sr-only group-has-[:focus-visible]:not-sr-only group-hover:not-sr-only'
+                        : '')
+                }
             >
                 {title}
             </span>
             {reading && (
                 <>
-                    <ToolbarButton icon="chevronLeft" title="Previous Chapter (ArrowLeft)" onClick={actions.previous} />
-                    <ToolbarButton icon="chevronRight" title="Next Chapter (ArrowRight)" onClick={actions.next} />
+                    <ToolbarButton
+                        icon="chevronLeft"
+                        title="Previous Chapter (ArrowLeft)"
+                        onClick={actions.previous}
+                    />
+                    <ToolbarButton
+                        icon="chevronRight"
+                        title="Next Chapter (ArrowRight)"
+                        onClick={actions.next}
+                    />
                     &nbsp;
-                    <ToolbarButton icon="shrink" title="Decrease spacing between images (CTRL -)" onClick={actions.lessPadding} />
-                    <ToolbarButton icon="expand" title="Increase spacing between images (CTRL +)" onClick={actions.morePadding} />
+                    <ToolbarButton
+                        icon="shrink"
+                        title="Decrease spacing between images (CTRL -)"
+                        onClick={actions.lessPadding}
+                    />
+                    <ToolbarButton
+                        icon="expand"
+                        title="Increase spacing between images (CTRL +)"
+                        onClick={actions.morePadding}
+                    />
                     &nbsp;
                     <ToolbarButton icon="zoomIn" title="Zoom In (+)" onClick={actions.zoomIn} />
                     <ToolbarButton icon="zoomOut" title="Zoom Out (-)" onClick={actions.zoomOut} />
                     &nbsp;
-                    <ToolbarButton icon="defaultWidth" title="Default Image Width (/)" onClick={actions.defaultWidth} />
-                    <ToolbarButton icon="fitWidth" title="Zoom to Fit Window (*)" onClick={actions.fitWidth} />
+                    <ToolbarButton
+                        icon="defaultWidth"
+                        title="Default Image Width (/)"
+                        onClick={actions.defaultWidth}
+                    />
+                    <ToolbarButton
+                        icon="fitWidth"
+                        title="Zoom to Fit Window (*)"
+                        onClick={actions.fitWidth}
+                    />
                     &nbsp;
-                    <span role="status" className="align-middle italic">Image Width: {imageWidth}%</span>
-                    <ToolbarButton icon="scrollDown" title="Magic Scroll Down (SPACEBAR)" onClick={actions.scroll} />
+                    <span role="status" className="align-middle italic">
+                        Image Width: {imageWidth}%
+                    </span>
+                    <ToolbarButton
+                        icon="scrollDown"
+                        title="Magic Scroll Down (SPACEBAR)"
+                        onClick={actions.scroll}
+                    />
                 </>
             )}
-            <ToolbarButton icon="closeCircle" title={reading ? 'Close (ESC)' : 'Close the preview (ESC)'} onClick={actions.close} />
+            <ToolbarButton
+                icon="closeCircle"
+                title={reading ? 'Close (ESC)' : 'Close the preview (ESC)'}
+                onClick={actions.close}
+            />
         </div>
     );
 }
@@ -146,20 +198,28 @@ export default function ReaderView() {
     const autoNext = React.useRef(false);
     const autoNextTimer = React.useRef(null);
     // "press Space again" is asked and answered in one chapter: the question does not go on to the next one
-    React.useEffect(() => () => {
-        window.clearTimeout(autoNextTimer.current);
-        autoNext.current = false;
-    }, [chapterId]);
+    React.useEffect(
+        () => () => {
+            window.clearTimeout(autoNextTimer.current);
+            autoNext.current = false;
+        },
+        [chapterId],
+    );
     const containerRef = React.useRef(null);
     const frameRef = React.useRef(null);
     const keepRatio = React.useRef(null);
 
     const resolvedQuery = useQuery({
         queryKey: ['reader', connectorId, mangaId, chapterId],
-        queryFn: () => resolveChapter(connectorId, mangaId, chapterId)
+        queryFn: () => resolveChapter(connectorId, mangaId, chapterId),
     });
     const resolved = resolvedQuery.data;
-    const { connectorId: selectedConnectorId, selectConnector, selectManga, chapterOrder } = useSelection();
+    const {
+        connectorId: selectedConnectorId,
+        selectConnector,
+        selectManga,
+        chapterOrder,
+    } = useSelection();
     // Keep the panels coherent: resolving a deep link selects its connector and its manga (the links of the panels are
     // made from the connector of the selection, so a manga under the wrong one would lead to chapters that are not found).
     React.useEffect(() => {
@@ -176,34 +236,37 @@ export default function ReaderView() {
     const pagesQuery = useQuery({
         queryKey: ['pages', connectorId, mangaId, chapterId],
         queryFn: () => fetchPages(chapter),
-        enabled: !!chapter
+        enabled: !!chapter,
     });
     const media = Array.isArray(pagesQuery.data) ? pagesQuery.data : [];
 
     // Order of the panel's (filtered, sorted) list; the raw list before the panel published it.
     const order = React.useMemo(() => {
-        if (chapterOrder.some(entry => String(entry.id) === chapterId)) {
+        if (chapterOrder.some((entry) => String(entry.id) === chapterId)) {
             return chapterOrder;
         }
         return resolved ? resolved.chapters : [];
     }, [chapterOrder, chapterId, resolved]);
 
-    const openChapter = React.useCallback(offset => {
-        const index = order.findIndex(entry => String(entry.id) === chapterId);
-        const target = order[index + offset];
-        if (index < 0 || !target) {
-            return;
-        }
-        setMode('read');
-        setStartPage(0);
-        if (containerRef.current) {
-            containerRef.current.scrollTop = 0;
-        }
-        navigate({
-            to: '/reader',
-            search: { connector: connectorId, manga: mangaId, chapter: String(target.id) }
-        });
-    }, [order, chapterId, connectorId, mangaId, navigate]);
+    const openChapter = React.useCallback(
+        (offset) => {
+            const index = order.findIndex((entry) => String(entry.id) === chapterId);
+            const target = order[index + offset];
+            if (index < 0 || !target) {
+                return;
+            }
+            setMode('read');
+            setStartPage(0);
+            if (containerRef.current) {
+                containerRef.current.scrollTop = 0;
+            }
+            navigate({
+                to: '/reader',
+                search: { connector: connectorId, manga: mangaId, chapter: String(target.id) },
+            });
+        },
+        [order, chapterId, connectorId, mangaId, navigate],
+    );
     // chapterUp = the entry above in the list, chapterDown = the entry below.
     const nextChapter = React.useCallback(() => openChapter(-1), [openChapter]);
     const previousChapter = React.useCallback(() => openChapter(1), [openChapter]);
@@ -237,9 +300,12 @@ export default function ReaderView() {
     }, [mode, startPage, chapterId, media.length]);
 
     // Zoom/spacing keep the relative scroll position (classic zoom/setImagePadding).
-    const changeLayout = change => {
+    const changeLayout = (change) => {
         const container = containerRef.current;
-        keepRatio.current = container && container.scrollHeight ? container.scrollTop / container.scrollHeight : null;
+        keepRatio.current =
+            container && container.scrollHeight
+                ? container.scrollTop / container.scrollHeight
+                : null;
         change();
     };
     React.useLayoutEffect(() => {
@@ -250,53 +316,63 @@ export default function ReaderView() {
         keepRatio.current = null;
     }, [imageWidth, imagePadding]);
 
-    const zoom = next => changeLayout(() => setImageWidth(Math.min(400, Math.max(25, next))));
-    const padding = delta => changeLayout(() => setImagePadding(value => Math.max(0, value + delta)));
+    const zoom = (next) => changeLayout(() => setImageWidth(Math.min(400, Math.max(25, next))));
+    const padding = (delta) =>
+        changeLayout(() => setImagePadding((value) => Math.max(0, value + delta)));
 
-    const scrollMagic = React.useCallback(defaultDistance => {
-        const container = containerRef.current;
-        if (!container) {
-            return;
-        }
-        const images = [...container.querySelectorAll('.rk-page')];
-        if (!images.length) {
-            return;
-        }
-        if (images[images.length - 1].getBoundingClientRect().bottom - window.innerHeight < 1) {
-            if (autoNext.current) {
-                autoNext.current = false;
-                nextChapter();
+    const scrollMagic = React.useCallback(
+        (defaultDistance) => {
+            const container = containerRef.current;
+            if (!container) {
                 return;
             }
-            autoNext.current = true;
-            notify('Press Space again for the next chapter.', 'info');
-            autoNextTimer.current = window.setTimeout(() => {
-                autoNext.current = false;
-            }, 4000);
-            return;
-        }
-        const inView = images.filter(image => {
-            const rect = image.getBoundingClientRect();
-            return rect.top <= window.innerHeight && rect.bottom > 1;
-        });
-        // with no page in view (the window shows the gap between two pages) it goes on with the first page below the window
-        const target = inView[inView.length - 1] || images.find(image => image.getBoundingClientRect().top > window.innerHeight) || images[0];
-        if (target.getBoundingClientRect().top > 1) {
-            target.scrollIntoView({ behavior: scrollBehavior() });
-        } else if (window.innerHeight + 1 < target.getBoundingClientRect().bottom) {
-            container.scrollBy({
-                top: Math.min(defaultDistance, target.getBoundingClientRect().bottom - window.innerHeight),
-                left: 0,
-                behavior: scrollBehavior()
+            const images = [...container.querySelectorAll('.rk-page')];
+            if (!images.length) {
+                return;
+            }
+            if (images[images.length - 1].getBoundingClientRect().bottom - window.innerHeight < 1) {
+                if (autoNext.current) {
+                    autoNext.current = false;
+                    nextChapter();
+                    return;
+                }
+                autoNext.current = true;
+                notify('Press Space again for the next chapter.', 'info');
+                autoNextTimer.current = window.setTimeout(() => {
+                    autoNext.current = false;
+                }, 4000);
+                return;
+            }
+            const inView = images.filter((image) => {
+                const rect = image.getBoundingClientRect();
+                return rect.top <= window.innerHeight && rect.bottom > 1;
             });
-        } else if (target.nextElementSibling) {
-            target.nextElementSibling.scrollIntoView({ behavior: scrollBehavior() });
-        }
-    }, [notify, nextChapter]);
+            // with no page in view (the window shows the gap between two pages) it goes on with the first page below the window
+            const target =
+                inView[inView.length - 1] ||
+                images.find((image) => image.getBoundingClientRect().top > window.innerHeight) ||
+                images[0];
+            if (target.getBoundingClientRect().top > 1) {
+                target.scrollIntoView({ behavior: scrollBehavior() });
+            } else if (window.innerHeight + 1 < target.getBoundingClientRect().bottom) {
+                container.scrollBy({
+                    top: Math.min(
+                        defaultDistance,
+                        target.getBoundingClientRect().bottom - window.innerHeight,
+                    ),
+                    left: 0,
+                    behavior: scrollBehavior(),
+                });
+            } else if (target.nextElementSibling) {
+                target.nextElementSibling.scrollIntoView({ behavior: scrollBehavior() });
+            }
+        },
+        [notify, nextChapter],
+    );
 
-    const onKeyDown = event => {
+    const onKeyDown = (event) => {
         const container = containerRef.current;
-        const smooth = distance => {
+        const smooth = (distance) => {
             if (!container) {
                 return;
             }
@@ -321,7 +397,10 @@ export default function ReaderView() {
         // while a button of the titlebar does.
         const frame = frameRef.current;
         const target = event.target;
-        const inReader = !(target instanceof HTMLElement) || target === document.body || (frame && frame.contains(target));
+        const inReader =
+            !(target instanceof HTMLElement) ||
+            target === document.body ||
+            (frame && frame.contains(target));
         switch (true) {
             case event.code === 'Escape' && !event.ctrlKey:
                 closeReader();
@@ -340,12 +419,20 @@ export default function ReaderView() {
                 break;
             case event.code === 'PageUp' && !event.ctrlKey:
                 if (container) {
-                    container.scrollBy({ top: -window.innerHeight * 0.95, left: 0, behavior: scrollBehavior() });
+                    container.scrollBy({
+                        top: -window.innerHeight * 0.95,
+                        left: 0,
+                        behavior: scrollBehavior(),
+                    });
                 }
                 break;
             case event.code === 'PageDown' && !event.ctrlKey:
                 if (container) {
-                    container.scrollBy({ top: window.innerHeight * 0.95, left: 0, behavior: scrollBehavior() });
+                    container.scrollBy({
+                        top: window.innerHeight * 0.95,
+                        left: 0,
+                        behavior: scrollBehavior(),
+                    });
                 }
                 break;
             case event.code === 'ArrowRight' && !event.ctrlKey:
@@ -390,8 +477,11 @@ export default function ReaderView() {
     const keyHandler = React.useRef(onKeyDown);
     keyHandler.current = onKeyDown;
     React.useEffect(() => {
-        const handler = event => {
-            if (event.target instanceof HTMLElement && /^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName)) {
+        const handler = (event) => {
+            if (
+                event.target instanceof HTMLElement &&
+                /^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName)
+            ) {
                 return;
             }
             keyHandler.current(event);
@@ -405,15 +495,24 @@ export default function ReaderView() {
     // element is in that row. Every state of reading gets this frame, otherwise the panels would show for a moment
     // while the next chapter resolves.
     // The frame can take the focus (it does when reading starts), without a ring: it is the whole window.
-    const frame = mode === 'read'
-        ? { ref: frameRef, tabIndex: -1, className: 'absolute inset-0 z-20 bg-(--page-reader-background-color) text-zinc-300 outline-none', 'data-reading': '' }
-        : { ref: frameRef, tabIndex: -1, className: 'relative h-full outline-none' };
+    const frame =
+        mode === 'read'
+            ? {
+                  ref: frameRef,
+                  tabIndex: -1,
+                  className:
+                      'absolute inset-0 z-20 bg-(--page-reader-background-color) text-zinc-300 outline-none',
+                  'data-reading': '',
+              }
+            : { ref: frameRef, tabIndex: -1, className: 'relative h-full outline-none' };
 
     if (resolvedQuery.isPending) {
         return (
             <div {...frame}>
                 <h1 className="sr-only">Reader</h1>
-                <p role="status" className="p-[1em]">Resolving chapter …</p>
+                <p role="status" className="p-[1em]">
+                    Resolving chapter …
+                </p>
             </div>
         );
     }
@@ -426,7 +525,11 @@ export default function ReaderView() {
                         <Icon name="warning" size={16} />
                         Chapter not found.
                     </p>
-                    <button type="button" onClick={() => navigate({ to: '/' })} className="rk-button">
+                    <button
+                        type="button"
+                        onClick={() => navigate({ to: '/' })}
+                        className="rk-button"
+                    >
                         Close
                     </button>
                 </div>
@@ -444,29 +547,47 @@ export default function ReaderView() {
         defaultWidth: () => changeLayout(() => setImageWidth(75)),
         fitWidth: () => changeLayout(() => setImageWidth(100)),
         scroll: () => scrollMagic(window.innerHeight * 0.8),
-        wheel: event => containerRef.current?.scrollBy({ top: event.deltaY, left: event.deltaX }),
-        close: closeReader
+        wheel: (event) => containerRef.current?.scrollBy({ top: event.deltaY, left: event.deltaX }),
+        close: closeReader,
     };
 
     return (
         <div {...frame}>
-            <Toolbar title={chapter.title} reading={mode === 'read'} imageWidth={imageWidth} actions={actions} />
-            {pagesQuery.isPending && <p role="status" className="p-[1em]">Loading pages …</p>}
+            <Toolbar
+                title={chapter.title}
+                reading={mode === 'read'}
+                imageWidth={imageWidth}
+                actions={actions}
+            />
+            {pagesQuery.isPending && (
+                <p role="status" className="p-[1em]">
+                    Loading pages …
+                </p>
+            )}
             {pagesQuery.isError && (
                 <p role="alert" className="flex items-center gap-[0.5em] p-[1em] font-bold">
                     <Icon name="warning" size={16} className="shrink-0" />
-                    Failed to load pages for this chapter{pagesQuery.error ? `: ${pagesQuery.error.message}` : '.'}
+                    Failed to load pages for this chapter
+                    {pagesQuery.error ? `: ${pagesQuery.error.message}` : '.'}
                 </p>
             )}
             {mode === 'thumbs' && media.length > 0 && (
-                <div ref={containerRef} className="h-full overflow-y-scroll p-[1em] pt-[3em] select-none">
+                <div
+                    ref={containerRef}
+                    className="h-full overflow-y-scroll p-[1em] pt-[3em] select-none"
+                >
                     {media.map((page, index) => {
                         const open = () => {
                             setStartPage(index);
                             setMode('read');
                         };
                         return isNovelPage(page) ? (
-                            <NovelThumbnail key={`${index}-${String(page).slice(-32)}`} page={page} index={index} onOpen={open} />
+                            <NovelThumbnail
+                                key={`${index}-${String(page).slice(-32)}`}
+                                page={page}
+                                index={index}
+                                onOpen={open}
+                            />
                         ) : (
                             <button
                                 key={`${index}-${String(page).slice(-32)}`}
@@ -475,7 +596,9 @@ export default function ReaderView() {
                                 aria-label={`Page ${index + 1}`}
                                 onClick={open}
                                 className="m-[0.5em] inline-block h-[16em] w-[16em] cursor-pointer rounded-[1em] bg-(--page-thumbnail-background-color) bg-contain bg-center bg-no-repeat [border:var(--page-thumbnail-border)] [box-shadow:var(--page-thumbnail-shadow)]"
-                                style={{ backgroundImage: `url('${String(page).replace(/'/g, "\\'")}')` }}
+                                style={{
+                                    backgroundImage: `url('${String(page).replace(/'/g, "\\'")}')`,
+                                }}
                             />
                         );
                     })}
@@ -484,15 +607,30 @@ export default function ReaderView() {
             {mode === 'read' && media.length > 0 && (
                 <div
                     ref={containerRef}
-                    // the pages scroll: a stop for Tab, so that the keyboard can reach what scrolls (the arrows work here)
+                    // the arrows and Page Up and Down scroll it while it has the focus
+                    // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrolling region needs a stop for Tab (WCAG 2.1.1), or the keyboard cannot reach what scrolls
                     tabIndex={0}
                     className="h-full overflow-y-scroll bg-(--page-reader-background-color) select-none focus-visible:outline-offset-[-3px] focus-visible:[outline-color:#f0f0f0]"
                 >
-                    {media.map((page, index) => isNovelPage(page) ? (
-                        <NovelPage key={`${index}-${String(page).slice(-32)}`} page={page} index={index} width={imageWidth} padding={imagePadding} />
-                    ) : (
-                        <PageImage key={`${index}-${String(page).slice(-32)}`} src={page} index={index} width={imageWidth} padding={imagePadding} />
-                    ))}
+                    {media.map((page, index) =>
+                        isNovelPage(page) ? (
+                            <NovelPage
+                                key={`${index}-${String(page).slice(-32)}`}
+                                page={page}
+                                index={index}
+                                width={imageWidth}
+                                padding={imagePadding}
+                            />
+                        ) : (
+                            <PageImage
+                                key={`${index}-${String(page).slice(-32)}`}
+                                src={page}
+                                index={index}
+                                width={imageWidth}
+                                padding={imagePadding}
+                            />
+                        ),
+                    )}
                 </div>
             )}
         </div>

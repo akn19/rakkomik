@@ -11,7 +11,10 @@ import path from 'node:path';
 
 function git(...args) {
     // stderr stays out of the build log: a failure is thrown with its message anyway
-    return execFileSync('git', args, { encoding: 'utf8', stdio: [ 'ignore', 'pipe', 'pipe' ] }).trim();
+    return execFileSync('git', args, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
 }
 
 /**
@@ -20,11 +23,11 @@ function git(...args) {
  * (packaging/aur/PKGBUILD).
  */
 function checkoutName() {
-    if(process.env.RAKKOMIK_BRANCH) {
+    if (process.env.RAKKOMIK_BRANCH) {
         return process.env.RAKKOMIK_BRANCH;
     }
     const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
-    if(branch === 'HEAD') {
+    if (branch === 'HEAD') {
         try {
             return git('describe', '--tags', '--exact-match', 'HEAD');
         } catch {
@@ -57,7 +60,7 @@ async function createVersionInfo(file) {
         `        label: '${revision.slice(0, 6)}',`,
         `        link: 'https://github.com/akn19/rakkomik/commits/${revision}',`,
         '    }',
-        '};'
+        '};',
     ].join('\n');
     await fs.writeFile(file, content);
 }
@@ -74,9 +77,11 @@ export function webBundle({ source, target, include }) {
             // runs after the UI bundle (`ui/dist`) has been written
             await fs.rm(target, { recursive: true, force: true });
             for (const entry of include) {
-                await fs.cp(path.join(source, entry), path.join(target, entry), { recursive: true });
+                await fs.cp(path.join(source, entry), path.join(target, entry), {
+                    recursive: true,
+                });
             }
             await createVersionInfo(path.join(target, 'mjs', 'VersionInfo.mjs'));
-        }
+        },
     };
 }

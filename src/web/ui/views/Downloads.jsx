@@ -11,14 +11,14 @@ const STATUS_LABEL = {
     queued: 'Queued',
     downloading: 'Downloading',
     completed: 'Completed',
-    failed: 'Failed'
+    failed: 'Failed',
 };
 
 function errorText(job) {
     if (!job.errors || !job.errors.length) {
         return STATUS_LABEL[job.status] || job.status;
     }
-    return job.errors.map(error => error.message || String(error)).join('\n');
+    return job.errors.map((error) => error.message || String(error)).join('\n');
 }
 
 // a job that is done, well or not, can be downloaded again
@@ -34,7 +34,7 @@ export default function DownloadsView() {
     const [confirmAll, setConfirmAll] = React.useState(false);
     const active = jobs.filter(isCancelable);
 
-    const restart = job => {
+    const restart = (job) => {
         try {
             restartChapterDownload(job.chapter);
             notify(`Restarted download of "${job.labels.chapter}".`, 'success');
@@ -49,7 +49,9 @@ export default function DownloadsView() {
         <div className="mx-auto max-w-4xl pb-8">
             <h1 className="sr-only">Downloads</h1>
             <div className="mb-3 flex items-center justify-between">
-                <p role="status" className="text-xs text-zinc-700 dark:text-zinc-400">{jobs.length} Download(s)</p>
+                <p role="status" className="text-xs text-zinc-700 dark:text-zinc-400">
+                    {jobs.length} Download(s)
+                </p>
                 <button
                     type="button"
                     title="Cancel all downloads"
@@ -80,7 +82,11 @@ export default function DownloadsView() {
                                 {/* the status; a button only while the job can be downloaded again */}
                                 <button
                                     type="button"
-                                    title={restartable(job) ? 'Click to download again' : errorText(job)}
+                                    title={
+                                        restartable(job)
+                                            ? 'Click to download again'
+                                            : errorText(job)
+                                    }
                                     disabled={!restartable(job)}
                                     onClick={() => {
                                         if (restartable(job)) {
@@ -92,19 +98,26 @@ export default function DownloadsView() {
                                         (job.status === 'failed'
                                             ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
                                             : job.status === 'completed'
-                                                ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
-                                                : 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300')
+                                              ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
+                                              : 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300')
                                     }
                                 >
                                     {STATUS_LABEL[job.status] || job.status}
                                 </button>
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium">{job.labels.manga}</p>
+                                    <p className="truncate text-sm font-medium">
+                                        {job.labels.manga}
+                                    </p>
                                     <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
                                         {job.labels.chapter} — {job.labels.connector}
                                     </p>
                                 </div>
-                                <span aria-hidden="true" className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{Math.round(job.progress || 0)}%</span>
+                                <span
+                                    aria-hidden="true"
+                                    className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400"
+                                >
+                                    {Math.round(job.progress || 0)}%
+                                </span>
                                 {isCancelable(job) && (
                                     <button
                                         type="button"
@@ -131,7 +144,9 @@ export default function DownloadsView() {
                                 />
                             </div>
                             {job.status === 'failed' && job.errors && job.errors.length > 0 && (
-                                <p className="mt-1 whitespace-pre-line text-xs text-red-600 dark:text-red-400">{errorText(job)}</p>
+                                <p className="mt-1 whitespace-pre-line text-xs text-red-600 dark:text-red-400">
+                                    {errorText(job)}
+                                </p>
                             )}
                         </li>
                     );
@@ -152,7 +167,9 @@ export default function DownloadsView() {
             <ConfirmDialog
                 open={confirmRestart !== null}
                 title="Download again?"
-                message={confirmRestart ? `"${confirmRestart.labels.chapter}" will be queued again.` : ''}
+                message={
+                    confirmRestart ? `"${confirmRestart.labels.chapter}" will be queued again.` : ''
+                }
                 confirmLabel="Download"
                 onConfirm={() => restart(confirmRestart)}
                 onCancel={() => setConfirmRestart(null)}

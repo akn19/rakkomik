@@ -2,8 +2,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const electron = require('electron');
 
-const publicKey =
-`-----BEGIN PUBLIC KEY-----
+const publicKey = `-----BEGIN PUBLIC KEY-----
 MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx8wRFrix8rwGiDexiOnU
 XhuCutb2rzqXpGcGl8Kdjh2OglHpL4rA3yGTGI4h6RAy+ZQTEadVfRn64Y2NyO/s
 QwNpZ46k6Dux2tZ2rf8S9l+DmKnahZqT3zPWup55X0pu/Lw8Li+55Zka0z61wPuE
@@ -19,7 +18,6 @@ FCeE3f9vRDeIArstfYlkRWkCAwEAAQ==
 -----END PUBLIC KEY-----`;
 
 module.exports = class Configuration {
-
     /**
      * Configuration for portable usage of the application
      * See also: https://github.com/electron/electron/blob/master/docs/api/app.md#appgetpathname
@@ -28,11 +26,18 @@ module.exports = class Configuration {
     constructor(configuration) {
         let options = configuration || {};
         let applicationExecutableDirectory = path.dirname(electron.app.getPath('exe'));
-        this._applicationUpdateURL = options['applicationUpdateURL'] || 'https://github.com/akn19/rakkomik/releases/download/web-main/latest';
+        this._applicationUpdateURL =
+            options['applicationUpdateURL'] ||
+            'https://github.com/akn19/rakkomik/releases/download/web-main/latest';
         // the scheme is part of the engine's contract: Connectors.mjs loads its modules over hakuneko://
-        this._applicationStartupURL = options['applicationStartupURL'] || 'hakuneko://cache/index.html';
-        this._applicationCacheDirectory = options['applicationCacheDirectory'] || path.join(applicationExecutableDirectory, 'cache');
-        this._applicationUserDataDirectory = options['applicationUserDataDirectory'] || path.join(applicationExecutableDirectory, 'userdata');
+        this._applicationStartupURL =
+            options['applicationStartupURL'] || 'hakuneko://cache/index.html';
+        this._applicationCacheDirectory =
+            options['applicationCacheDirectory'] ||
+            path.join(applicationExecutableDirectory, 'cache');
+        this._applicationUserDataDirectory =
+            options['applicationUserDataDirectory'] ||
+            path.join(applicationExecutableDirectory, 'userdata');
     }
 
     printInfo() {
@@ -60,7 +65,7 @@ module.exports = class Configuration {
      */
     static get bundledWebDirectory() {
         const application = electron.app.getAppPath();
-        if(path.basename(application) !== 'app.asar') {
+        if (path.basename(application) !== 'app.asar') {
             return undefined;
         }
         const directory = path.join(path.dirname(application), 'web');
@@ -76,7 +81,7 @@ module.exports = class Configuration {
     }
 
     get applicationProtocol() {
-        return new URL(this._applicationStartupURL).protocol.slice( 0, -1 );
+        return new URL(this._applicationStartupURL).protocol.slice(0, -1);
     }
 
     get connectorProtocol() {

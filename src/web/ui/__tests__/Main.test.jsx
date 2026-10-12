@@ -14,7 +14,7 @@ function listening() {
         ['settings', engine.Settings],
         ['bookmarks', engine.BookmarkManager],
         ['chaptermarks', engine.ChaptermarkManager],
-        ['registry', engine.ConnectorRegistry]
+        ['registry', engine.ConnectorRegistry],
     ]) {
         const added = vi.spyOn(target, 'addEventListener');
         const removed = vi.spyOn(target, 'removeEventListener');
