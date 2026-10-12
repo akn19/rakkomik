@@ -122,10 +122,12 @@ export async function reload(page) {
 }
 
 /**
- * Wait until all website connectors are registered (they load in the background).
+ * Wait until all website connectors are registered and the stored settings are applied once more, for the connectors
+ * (both happen in the background, see index.html). A setting that a test changes before that is set back.
  */
 export async function connectorsReady(page) {
     await page.evaluate(() => Engine.ConnectorsReady);
+    await page.waitForFunction(() => performance.getEntriesByName('rk:settings').length > 0);
 }
 
 export { expect };

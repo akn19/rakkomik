@@ -1064,6 +1064,8 @@ test.describe('novels', () => {
         const site = await createNovelServer();
         try {
             await reload(page);
+            // the settings of the test must not be set back by the settings that are loaded with the connectors
+            await connectorsReady(page);
             const stored = await page.evaluate(
                 async ([url, module]) => {
                     const { readNovelPage } = await import(module);
