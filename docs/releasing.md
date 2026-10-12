@@ -5,7 +5,7 @@
 | Workflow | Runs on | What it does |
 |---|---|---|
 | `ci.yml` | pushes to `main` and `*.*.*` branches, pull requests | lint, deprecated dependency check and web build once (on Linux) and the unit tests on Linux, Windows and macOS. A push then [publishes the web part](#web-part); a pull request gets a [git-cliff](https://git-cliff.org) preview of the changes since the last release in its job summary |
-| `security.yml` | pushes to `main`, pull requests, every Monday | CodeQL for the JavaScript and for the workflows, and a Trivy scan of the dependencies and of the files for secrets. The results are in the Security tab |
+| `security.yml` | pushes to `main`, pull requests, every Monday | CodeQL for the JavaScript and for the workflows, and a Trivy scan of the dependencies and of the files for secrets. The results are in the Security tab. Both leave out the connectors (`src/web/mjs/connectors`): for CodeQL that is set in `.github/codeql/codeql-config.yml`, for Trivy in `skip-dirs` of the workflow |
 | `release.yml` | tags `vX.Y.Z`, by hand | release notes, GitHub release, installers attached to it; the AUR package when that is switched on |
 | `build-app.yml` | `release.yml`, by hand | builds the installers of Windows, macOS and Linux and the package of Arch Linux, runs the end-to-end tests on the package of each runner (`pnpm run test:package`), and uploads the packages as artifacts (only the `.deb`, `.rpm`, `.exe`, `.zip`, `.dmg` and `.pkg.tar.zst` files) |
 

@@ -49,6 +49,8 @@ jobs:
           languages: ${{ matrix.language }}
           # interpreted languages: there is nothing to build
           build-mode: none
+          # leaves the connectors out
+          config-file: ./.github/codeql/codeql-config.yml
       - name: Analyze
         uses: github/codeql-action/analyze@v4
         with:
@@ -67,12 +69,14 @@ jobs:
       # Scans the lock files (the dependencies the application ships with) and every file for secrets. Only
       # vulnerabilities with a fix are reported, to the Security tab: a new advisory must not break a build that has
       # nothing to do with it. The version is exact on purpose, this action has no tag for a major version (its
-      # releases are immutable).
+      # releases are immutable). The connectors are left out, as for CodeQL: they hold no lock file, so what that
+      # changes is the search for secrets in them.
       - name: Scan the repository
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
+          skip-dirs: src/web/mjs/connectors
           scanners: vuln,secret
           severity: CRITICAL,HIGH
           ignore-unfixed: true

@@ -1,0 +1,10 @@
+# https://docs.github.com/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning
+#
+# What CodeQL leaves out (used by .github/workflows/security.yml).
+
+name: RakKomik CodeQL
+
+paths-ignore:
+  # The connectors: one script for each website, which reads the pages of third parties the way the website sends them.
+  # They are many, and each does the same kind of thing, so their alerts say little about the application itself.
+  - src/web/mjs/connectors/**
