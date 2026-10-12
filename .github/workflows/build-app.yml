@@ -45,6 +45,15 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      # The version of a release is its tag: the installers carry it in their names and metadata, and the shell in
+      # app.asar. A run on a branch keeps the version that the files have, and so does a tag from before the script
+      # (its files say the version of the tag).
+      - name: Take the version from the tag
+        if: startsWith(inputs.ref || github.ref, 'refs/tags/v') && hashFiles('scripts/set-version.js') != ''
+        shell: bash
+        env:
+          REF: ${{ inputs.ref || github.ref }}
+        run: node scripts/set-version.js "${REF#refs/tags/}"
       - name: Install packages
         run: pnpm install
       - name: Install packaging tools (Linux)
@@ -87,6 +96,13 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
+      # scripts/build-arch.sh takes the version of the package from package.json, and the working tree with this change
+      # is what it packs
+      - name: Take the version from the tag
+        if: startsWith(inputs.ref || github.ref, 'refs/tags/v') && hashFiles('scripts/set-version.js') != ''
+        env:
+          REF: ${{ inputs.ref || github.ref }}
+        run: node scripts/set-version.js "${REF#refs/tags/}"
       # makepkg refuses to run as root: a user of its own builds the package
       - name: Build (Arch package)
         run: |

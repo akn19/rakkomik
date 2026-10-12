@@ -6,7 +6,7 @@
 |---|---|---|
 | `ci.yml` | pushes to `main` and `*.*.*` branches, pull requests | lint, deprecated dependency check and web build once (on Linux) and the unit tests on Linux, Windows and macOS. A push then [publishes the web part](#web-part); a pull request gets a [git-cliff](https://git-cliff.org) preview of the changes since the last release in its job summary |
 | `security.yml` | pushes to `main`, pull requests, every Monday | CodeQL for the JavaScript and for the workflows, and a Trivy scan of the dependencies and of the files for secrets. The results are in the Security tab. Both leave out the connectors (`src/web/mjs/connectors`): for CodeQL that is set in `.github/codeql/codeql-config.yml`, for Trivy in `skip-dirs` of the workflow |
-| `release.yml` | tags `vX.Y.Z`, by hand | release notes, GitHub release, installers attached to it; the AUR package when that is switched on |
+| `release.yml` | tags `vX.Y.Z`, by hand | release notes, GitHub release, installers attached to it (the version is the tag); the version of the tag committed to the default branch; the AUR package when that is switched on |
 | `build-app.yml` | `release.yml`, by hand | builds the installers of Windows, macOS and Linux and the package of Arch Linux, runs the end-to-end tests on the package of each runner (`pnpm run test:package`), and uploads the packages as artifacts (only the `.deb`, `.rpm`, `.exe`, `.zip`, `.dmg` and `.pkg.tar.zst` files) |
 
 A push builds the web part and nothing else: **installers are built for tags only** (or by hand from the Actions tab,
@@ -19,15 +19,18 @@ The workflows install pnpm 12 (`pnpm/action-setup`) and Node.js 24; no minor ver
 
 ## Releases
 
-A release is a tag `vX.Y.Z` (no suffix: the number becomes the AUR `pkgver`) whose number equals the `version` of
-`package.json` **and** `src/app/package.json`. To release:
+A release is a tag `vX.Y.Z` (no suffix: the number becomes the AUR `pkgver`), and **the number of the tag is the
+version of the application**: nobody edits the `version` of `package.json` or `src/app/package.json` for a release.
+To release, tag a commit whose run is green and push the tag (`git tag vX.Y.Z && git push origin vX.Y.Z`).
 
-1. set both versions, commit, and push the commit;
-2. tag it (`git tag vX.Y.Z && git push origin vX.Y.Z`).
+The builds take the version from the tag. `scripts/set-version.js` writes it into both files of the checkout before
+the installers and the Arch package are built (and the `PKGBUILD` does the same for the AUR package), so the
+installers carry it in their names and metadata and `app.asar` in its `package.json`. A run without a tag (a local
+build, or a run from the Actions tab on a branch) carries the version that the files have.
 
 `release.yml` then
 
-1. checks the tag against both versions;
+1. checks the form of the tag;
 2. writes the release notes with git-cliff from the conventional commit messages since the previous `v` tag
    (`cliff.toml`; groups: features, bug fixes, performance, refactoring, documentation, build/CI/tests, maintenance;
    commits that are not conventional are left out);
@@ -37,10 +40,19 @@ A release is a tag `vX.Y.Z` (no suffix: the number becomes the AUR `pkgver`) who
    official Arch Linux image) and, when all of them succeeded, attaches them to the release: `.exe` and `.zip` for
    Windows, `.deb` and `.rpm` for Linux and `.dmg` for macOS, each for x86-64 and ARM64, and one `.pkg.tar.zst` for
    Arch Linux (the same package for every architecture, it runs on the `electron` package of the system);
-5. publishes [the AUR package](#aur-package), once that is switched on.
+5. publishes [the AUR package](#aur-package), once that is switched on;
+6. when the installers are attached, commits the version of the tag to the two files on the default branch
+   (`chore(release): set the version to X.Y.Z`, by `github-actions[bot]`), so that they say which release was the last.
+   It does nothing when the tag is not in the history of the default branch, or when its number is not greater than
+   the version the files have, so publishing an old tag again never takes them back. A push with the token of the
+   workflow starts no workflow, so `ci.yml` does not run on that commit, and git-cliff leaves it out of the notes.
 
 The installers carry the web part and do not depend on the [web part release](#web-part), so a release is complete
-without it. They carry the version of `package.json` in their names and metadata, which equals the tag.
+without it. They carry the version of the tag in their names and metadata.
+
+The commit of step 6 needs a default branch that accepts a push of the workflow: with a rule that requires a pull
+request, allow `github-actions` to bypass it, or the step fails after the release is complete and the files get the
+version by hand (`node scripts/set-version.js --if-newer vX.Y.Z`).
 
 Start the workflow by hand with an existing tag to publish it again (the assets are replaced). Preview the notes locally with
 `git cliff --unreleased` (what the next release will contain) or `git cliff --latest` (the newest tag); install
@@ -133,8 +145,11 @@ immutable) and `KSXGitHub/github-actions-deploy-aur`, which receives the AUR key
 
 ## When a release fails
 
-- _version does not match the tag_: set `version` in `package.json` and `src/app/package.json`, move the tag
-  (`git tag -f`, `git push -f origin vX.Y.Z`) or release the next number.
+- _"…" is not the tag of a release_ (`scripts/set-version.js`): the tag has a suffix or is not of the form `vX.Y.Z`;
+  release the next number instead.
+- _the step that commits the version fails with a rejected push_: the default branch does not accept pushes of the
+  workflow (see above), or it moved in the very moment; run the workflow again by hand with the tag, or set the
+  version of the files yourself.
 - _AUR job fails in `makepkg`_ (the job runs only when it is switched on): reproduce it with `pnpm run build:arch`; the
   log of the action shows the build output.
 - _AUR push is rejected_: the key is not registered in the AUR account, or the package belongs to another account.

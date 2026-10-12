@@ -1,11 +1,14 @@
 # https://docs.github.com/actions/writing-workflows/workflow-syntax-for-github-actions
 #
-# A release is a tag `vX.Y.Z` (no suffix: it becomes the AUR `pkgver`) whose number equals the
-# `version` of package.json and src/app/package.json. This is the only workflow that builds installers. Pushing the tag
+# A release is a tag `vX.Y.Z` (no suffix: it becomes the AUR `pkgver`), and the number of the tag is the version of the
+# application: the builds write it into package.json and src/app/package.json (scripts/set-version.js), so nothing is
+# edited by hand. This is the only workflow that builds installers. Pushing the tag
 #   1. writes the release notes with git-cliff (cliff.toml) from the conventional commit messages,
 #   2. creates (or updates) the GitHub release with them,
 #   3. builds the installers of Windows, Linux and macOS (build-app.yml) and attaches them to the release,
-#   4. publishes packaging/aur to the AUR as the package `rakkomik`, when that is switched on (see below).
+#   4. publishes packaging/aur to the AUR as the package `rakkomik`, when that is switched on (see below),
+#   5. commits the version of the tag to the default branch, so that the two files there say which release was last
+#      (only after the release is complete, and only when the tag is newer than the version they have).
 # The code is not checked again here: ci.yml checked the commit when it was pushed, so tag a commit whose run is green.
 # Run the workflow by hand with the tag as input to publish an existing tag again.
 #
@@ -54,16 +57,6 @@ jobs:
         with:
           ref: refs/tags/${{ env.TAG }}
           fetch-depth: 0
-      - name: Check the tag against the package versions
-        run: |
-          version="${TAG#v}"
-          for file in package.json src/app/package.json; do
-            declared=$(jq -r .version "$file")
-            if [ "$declared" != "$version" ]; then
-              echo "::error file=$file::The version $declared of $file does not match the tag $TAG!"
-              exit 1
-            fi
-          done
       - name: Generate the release notes (git-cliff)
         uses: orhun/git-cliff-action@v4
         with:
@@ -107,6 +100,43 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: gh release upload "$TAG" installers/* --clobber
+
+  version:
+    name: Version in the repository
+    # a release that was built whole: the files of the default branch then say which version it was
+    needs: attach
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - name: Checkout ${{ github.repository }} @ ${{ github.event.repository.default_branch }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      - name: Install NodeJS
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # A push with the token of the workflow starts no other workflow, so ci.yml does not run on this commit, and the
+      # message is one that git-cliff leaves out of the release notes (cliff.toml). A branch that does not accept pushes
+      # without a pull request makes the step fail: allow the workflow to push to it, or set the version by hand.
+      - name: Set the version of the tag in the files
+        run: |
+          if ! git merge-base --is-ancestor "refs/tags/$TAG" HEAD; then
+            echo "$TAG is not in the history of $BRANCH: the version of the files stays as it is."
+            exit 0
+          fi
+          node scripts/set-version.js --if-newer "$TAG"
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit --all --message "chore(release): set the version to ${TAG#v}"
+          git push origin "HEAD:$BRANCH"
 
   aur:
     name: AUR package
