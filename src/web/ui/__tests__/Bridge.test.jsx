@@ -295,6 +295,66 @@ describe('saving the settings', () => {
     });
 });
 
+describe('the colours of novels that follow the theme', () => {
+    const profile = () => engine.Settings.NovelColorProfiles.value;
+
+    it.each([
+        [true, 'Light', 'Dark'],
+        [false, 'Dark', 'Light']
+    ])('should become the profile of the theme when the interface is dark: %s', async (dark, before, after) => {
+        engine.Settings.NovelColorProfiles.value = before;
+        await bridge.followThemeInNovels(dark);
+        expect(profile()).toBe(after);
+        expect(engine.Settings.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should be stored, without telling the listeners that the settings were saved', async () => {
+        const listener = vi.fn();
+        engine.Settings.addEventListener('saved', listener);
+        await bridge.followThemeInNovels(true);
+        expect(engine.Settings.save).toHaveBeenCalledExactlyOnceWith({ silent: true });
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('should be stored once the profile is changed, not before', async () => {
+        engine.Settings.save.mockImplementationOnce(async () => {
+            expect(profile()).toBe('Dark');
+        });
+        await bridge.followThemeInNovels(true);
+        expect(engine.Settings.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not write the settings again when the profile already is the one of the theme', async () => {
+        engine.Settings.NovelColorProfiles.value = 'Dark';
+        await bridge.followThemeInNovels(true);
+        expect(profile()).toBe('Dark');
+        expect(engine.Settings.save).not.toHaveBeenCalled();
+    });
+
+    it('should leave the other settings as they are', async () => {
+        engine.Settings.readerEnabled.value = false;
+        await bridge.followThemeInNovels(true);
+        expect(engine.Settings.readerEnabled.value).toBe(false);
+    });
+
+    it('should not fail, and not store anything, when the engine has no such setting', async () => {
+        delete engine.Settings.NovelColorProfiles;
+        await expect(bridge.followThemeInNovels(true)).resolves.toBeUndefined();
+        expect(engine.Settings.save).not.toHaveBeenCalled();
+    });
+
+    it('should not fail while there is no engine', async () => {
+        delete window.Engine;
+        await expect(bridge.followThemeInNovels(true)).resolves.toBeUndefined();
+    });
+
+    it('should not fail when the settings cannot be stored', async () => {
+        engine.Settings.save.mockRejectedValueOnce(new Error('disk is full'));
+        await expect(bridge.followThemeInNovels(true)).resolves.toBeUndefined();
+        expect(profile()).toBe('Dark');
+    });
+});
+
 describe('the download queue', () => {
     it('should be empty when the manager has no queue', () => {
         engine.DownloadManager.queue = undefined;

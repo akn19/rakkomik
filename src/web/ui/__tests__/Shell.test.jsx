@@ -74,6 +74,67 @@ describe('theme', () => {
         expect(window.localStorage.getItem('rakkomik.theme')).toBe('light');
     });
 
+    describe('and the colours of novels', () => {
+        const profile = () => engine.Settings.NovelColorProfiles.value;
+
+        it('should be chosen for novels too, each time the toggle switches', async () => {
+            vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false });
+            await renderShell();
+            const toggle = screen.getByTitle('Toggle theme');
+            fireEvent.click(toggle);
+            expect(frame().classList.contains('dark')).toBe(true);
+            expect(profile()).toBe('Dark');
+            fireEvent.click(toggle);
+            expect(frame().classList.contains('dark')).toBe(false);
+            expect(profile()).toBe('Light');
+            await vi.waitFor(() => expect(engine.Settings.save).toHaveBeenCalledTimes(2));
+            expect(engine.Settings.save).toHaveBeenCalledWith({ silent: true });
+        });
+
+        it('should not tell anyone that the settings were saved, which would load the chapter lists again', async () => {
+            vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false });
+            await renderShell();
+            const listener = vi.fn();
+            engine.Settings.addEventListener('saved', listener);
+            fireEvent.click(screen.getByTitle('Toggle theme'));
+            await vi.waitFor(() => expect(engine.Settings.save).toHaveBeenCalledTimes(1));
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it('should be shown in the form of the settings as the theme is, after the toggle', async () => {
+            vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false });
+            engine.Settings.groups = [{ category: 'General', settings: [engine.Settings.NovelColorProfiles] }];
+            Object.assign(engine.Settings.NovelColorProfiles, {
+                label: 'Light/Dark mode for Novels',
+                input: 'select',
+                options: [{ value: 'Dark', name: 'Dark' }, { value: 'Light', name: 'Light' }]
+            });
+            await renderShell();
+            fireEvent.click(screen.getByTitle('Toggle theme'));
+            fireEvent.click(screen.getByTitle('Toggle menu'));
+            const row = screen.getByText('Light/Dark mode for Novels').closest('tr');
+            expect(row.querySelector('select').value).toBe('Dark');
+        });
+
+        it('should not touch the choice of the user when the application only starts', async () => {
+            vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true });
+            engine.Settings.NovelColorProfiles.value = 'Light';
+            await renderShell();
+            expect(frame().classList.contains('dark')).toBe(true);
+            expect(profile()).toBe('Light');
+            expect(engine.Settings.save).not.toHaveBeenCalled();
+        });
+
+        it('should still switch when the engine has no such setting', async () => {
+            vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false });
+            delete engine.Settings.NovelColorProfiles;
+            await renderShell();
+            fireEvent.click(screen.getByTitle('Toggle theme'));
+            expect(frame().classList.contains('dark')).toBe(true);
+            expect(engine.Settings.save).not.toHaveBeenCalled();
+        });
+    });
+
     it('should still switch when the choice cannot be stored, and when a stored choice cannot be read', async () => {
         vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true });
         // a storage of its own and not a spy on Storage.prototype: the storage of happy-dom binds a method to itself the

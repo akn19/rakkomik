@@ -452,6 +452,24 @@ export async function saveSettingsDraft(draft) {
     await getEngine().Settings.save();
 }
 
+/**
+ * The setting "Light/Dark mode for Novels" follows the theme of the interface when that is switched, so the form of the
+ * settings shows what the interface is. It is stored at once, but not announced: nothing has to react to it (the
+ * announcement of a saved form makes the chapter lists load again).
+ */
+export async function followThemeInNovels(dark) {
+    try {
+        const settings = getEngine().Settings;
+        const profile = dark ? 'Dark' : 'Light';
+        if (settings.NovelColorProfiles.value !== profile) {
+            settings.NovelColorProfiles.value = profile;
+            await settings.save({ silent: true });
+        }
+    } catch {
+        // without an engine, or one that has no such setting, the theme still switches
+    }
+}
+
 export async function browseDirectory(currentPath) {
     return getEngine().Storage.folderBrowser(currentPath);
 }

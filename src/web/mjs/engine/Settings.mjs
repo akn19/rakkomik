@@ -286,7 +286,8 @@ export default class Settings extends EventTarget {
                 {val: { background: 'black', text: 'white' }, value: 'Dark', name: 'Dark' },
                 {val: { background: 'white', text: 'black' }, value: 'Light', name: 'Light' }
             ],
-            value: 'Light',
+            // until the user chooses, novels are as dark as the operating system (and so the interface) is
+            value: typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'Dark' : 'Light',
         };
     }
 
@@ -366,7 +367,11 @@ export default class Settings extends EventTarget {
         }
     }
 
-    async save() {
+    /**
+     * @param {object} [options]
+     * @param {boolean} [options.silent] keep the listeners out of it: for a change that none of them has to react to
+     */
+    async save({ silent = false } = {}) {
         try {
             let data = {};
             // gather general settings
@@ -384,7 +389,9 @@ export default class Settings extends EventTarget {
                 }
             }
             await Engine.Storage.saveConfig('settings', data, 2);
-            this.dispatchEvent(new CustomEvent(events.saved, { detail: this }));
+            if (!silent) {
+                this.dispatchEvent(new CustomEvent(events.saved, { detail: this }));
+            }
         } catch (error) {
             console.error('Failed to save HakuNeko settings!', error);
         }
