@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation } from '@tanstack/react-router';
-import { hasActiveDownloads, subscribeAppClose, quitApp, isReaderEnabled, subscribeSettings, followThemeInNovels } from './engine.js';
+import { hasActiveDownloads, subscribeAppClose, quitApp, isReaderEnabled, subscribeSettings } from './engine.js';
 import { SelectionProvider } from './selection.jsx';
 import { ConfirmDialog } from './dialog.jsx';
 import MangaPanel from './MangaPanel.jsx';
@@ -104,7 +104,6 @@ export default function Shell() {
     const toggleTheme = () => {
         const next = !dark;
         setDark(next);
-        followThemeInNovels(next);
         try {
             window.localStorage.setItem(THEME_KEY, next ? 'dark' : 'light');
         } catch {

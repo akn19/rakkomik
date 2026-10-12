@@ -96,19 +96,6 @@ describe('the settings that the user changed', () => {
         }
     });
 
-    it('should be there in the next session when they were saved silently, and tell nobody on the way', async () => {
-        const settings = start();
-        const listener = vi.fn();
-        settings.addEventListener('saved', listener);
-        settings.NovelColorProfiles.value = 'Dark';
-        await settings.save({ silent: true });
-        expect(stored().NovelColorProfiles).toBe('Dark');
-        expect(listener).not.toHaveBeenCalled();
-        const next = session();
-        await next.load();
-        expect(next.NovelColorProfiles.value).toBe('Dark');
-    });
-
     it('should be written in a file that a person can read and edit', async () => {
         const settings = start();
         settings.chapterFormat.value = '.cbz';

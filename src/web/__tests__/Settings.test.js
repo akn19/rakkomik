@@ -144,9 +144,8 @@ describe('settings of novels', () => {
 });
 
 // The settings as the engine creates them: the places that the main process reports decide the defaults.
-function createSettings({ platform = 'linux', env = {}, paths = { documents: '/docs', userData: '/userdata' }, matchMedia } = {}) {
+function createSettings({ platform = 'linux', env = {}, paths = { documents: '/docs', userData: '/userdata' } } = {}) {
     globalThis.window = {
-        matchMedia,
         hakuneko: {
             platform,
             env,
@@ -328,55 +327,6 @@ describe('the colours of novels', () => {
         const settings = createSettings();
         settings.NovelColorProfiles.value = 'Sepia';
         expect(() => settings.NovelColorProfile()).toThrow(TypeError);
-    });
-});
-
-describe('the colours of novels before the user chose any', () => {
-    const operatingSystem = dark => vi.fn(() => ({ matches: dark }));
-
-    it.each([
-        [true, 'Dark', { background: 'black', text: 'white' }],
-        [false, 'Light', { background: 'white', text: 'black' }]
-    ])('should follow the operating system when it is dark: %s', (dark, profile, colors) => {
-        const matchMedia = operatingSystem(dark);
-        const settings = createSettings({ matchMedia });
-        expect(matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
-        expect(settings.NovelColorProfiles.value).toBe(profile);
-        expect(settings.NovelColorProfile()).toEqual(colors);
-    });
-
-    it('should be light when the browser cannot tell what the operating system prefers', () => {
-        expect(createSettings({ matchMedia: undefined }).NovelColorProfiles.value).toBe('Light');
-    });
-
-    it('should be a profile that the setting offers, whatever the operating system is', () => {
-        for (const dark of [true, false]) {
-            const { NovelColorProfiles } = createSettings({ matchMedia: operatingSystem(dark) });
-            expect(NovelColorProfiles.options.map(option => option.value)).toContain(NovelColorProfiles.value);
-        }
-    });
-
-    it('should stay what the user chose, whatever the operating system is', async () => {
-        for (const [dark, chosen] of [[true, 'Light'], [false, 'Dark']]) {
-            stubEngine({ stored: { NovelColorProfiles: chosen } });
-            const settings = createSettings({ matchMedia: operatingSystem(dark) });
-            await settings.load();
-            expect(settings.NovelColorProfiles.value).toBe(chosen);
-        }
-    });
-
-    it('should follow the operating system while a file of settings has no choice yet', async () => {
-        stubEngine({ stored: { readerEnabled: false } });
-        const settings = createSettings({ matchMedia: operatingSystem(true) });
-        await settings.load();
-        expect(settings.NovelColorProfiles.value).toBe('Dark');
-    });
-
-    it('should follow the operating system when what is stored is no profile of the engine', async () => {
-        stubEngine({ stored: { NovelColorProfiles: 'Sepia' } });
-        const settings = createSettings({ matchMedia: operatingSystem(true) });
-        await settings.load();
-        expect(settings.NovelColorProfiles.value).toBe('Dark');
     });
 });
 
@@ -714,20 +664,6 @@ describe('saving the settings', () => {
         await saving;
         expect(listener).toHaveBeenCalledTimes(1);
         expect(listener.mock.calls[0][0].detail).toBe(settings);
-    });
-
-    it('should write the file, but tell nobody, when it is asked to be silent', async () => {
-        const storage = stubEngine();
-        const settings = createSettings();
-        const listener = vi.fn();
-        settings.addEventListener('saved', listener);
-        settings.NovelColorProfiles.value = 'Dark';
-        await settings.save({ silent: true });
-        expect(storage.saveConfig.mock.calls[0][1].NovelColorProfiles).toBe('Dark');
-        expect(listener).not.toHaveBeenCalled();
-        await settings.save({ silent: false });
-        await settings.save();
-        expect(listener).toHaveBeenCalledTimes(2);
     });
 
     // NOTE: a failed save is logged, but the promise is not rejected: the caller (the settings dialog of the UI) cannot

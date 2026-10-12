@@ -68,13 +68,7 @@ export function createSettings(fields = {}) {
         // [{ category, settings: [{ input, label, description, value, min, max, options }] }]
         groups: [],
         getCategorizedSettings: () => settings.groups,
-        // a silent save stores without telling the listeners, as the engine does
-        save: vi.fn(async ({ silent } = {}) => {
-            if (!silent) {
-                settings.emit('saved');
-            }
-        }),
-        NovelColorProfiles: { value: 'Light' },
+        save: vi.fn(async () => settings.emit('saved')),
         NovelColorProfile: () => ({ background: 'white', text: 'black' })
     }, fields);
     return settings;
