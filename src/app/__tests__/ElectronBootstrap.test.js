@@ -1296,7 +1296,8 @@ describe('ElectronBootstrap', () => {
         });
 
         it('should offer the zoom of the window, so that the text can be made larger', async () => {
-            await launch();
+            // the quit entry that macOS adds to this menu has its own test below
+            await withPlatform('linux', () => launch());
             const view = applicationMenu().find((entry) => entry.role === 'viewMenu');
             const roles = view.submenu.map((entry) => entry.role).filter(Boolean);
             expect(roles).toEqual([

@@ -128,6 +128,11 @@ test.describe('accessibility', () => {
             expect(await violationsOf(page)).toEqual([]);
             await page.getByRole('button', { name: 'Page 1' }).click();
             await expect(page.locator('img.rk-page')).toHaveCount(3);
+            // the buttons of the reader fade out while reading and fade in under the pointer. Axe takes the opacity of
+            // a moment in between for the colour of the text, so it is scanned once the buttons are fully shown.
+            const toolbar = page.locator('div.group', { has: page.getByText(/^Image Width:/) });
+            await toolbar.hover();
+            await expect(toolbar).toHaveCSS('opacity', '1');
             expect(await violationsOf(page)).toEqual([]);
             // back to the thumbnails, and from there to the start page
             await page.keyboard.press('Escape');
