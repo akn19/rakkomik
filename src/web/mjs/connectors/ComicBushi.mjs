@@ -1,7 +1,6 @@
 import CoreView from './templates/CoreView.mjs';
 
 export default class ComicBushi extends CoreView {
-
     constructor() {
         super();
         super.id = 'comicbushi';
@@ -16,10 +15,13 @@ export default class ComicBushi extends CoreView {
     async _getMangasFromPage(page) {
         const request = new Request(this.url + page, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryManga);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title:  element.querySelector(this.queryMangaTitle).textContent.replace(/^完結 /, '').trim()
+                title: element
+                    .querySelector(this.queryMangaTitle)
+                    .textContent.replace(/^完結 /, '')
+                    .trim(),
             };
         });
     }

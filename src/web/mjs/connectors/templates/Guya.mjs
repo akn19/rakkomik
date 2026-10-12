@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class Guya extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -26,7 +25,7 @@ export default class Guya extends Connector {
         return Object.entries(data).map(([key, value]) => {
             return {
                 id: value.slug,
-                title: key
+                title: key,
             };
         });
     }
@@ -35,13 +34,15 @@ export default class Guya extends Connector {
         const uri = new URL('/api/series/' + manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSON(request);
-        return Object.entries(data.chapters).sort(([num1], [num2]) => parseFloat(num2) - parseFloat(num1)).map(([number, { title }]) => {
-            return {
-                id: number,
-                title: `Chapter ${number}${title.length > 0 ? ' - ' + title : ''}`,
-                language: ''
-            };
-        });
+        return Object.entries(data.chapters)
+            .sort(([num1], [num2]) => parseFloat(num2) - parseFloat(num1))
+            .map(([number, { title }]) => {
+                return {
+                    id: number,
+                    title: `Chapter ${number}${title.length > 0 ? ' - ' + title : ''}`,
+                    language: '',
+                };
+            });
     }
 
     async _getPages(chapter) {
@@ -49,7 +50,10 @@ export default class Guya extends Connector {
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSON(request);
         const [pages, group] = this.getPagesInfo(data, chapter);
-        return pages.map(page => `${this.url}/media/manga/${chapter.manga.id}/chapters/${data.chapters[chapter.id].folder}/${group}/${page}`);
+        return pages.map(
+            (page) =>
+                `${this.url}/media/manga/${chapter.manga.id}/chapters/${data.chapters[chapter.id].folder}/${group}/${page}`,
+        );
     }
 
     getPagesInfo(data, chapter) {

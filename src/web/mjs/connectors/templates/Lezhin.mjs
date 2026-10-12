@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class Lezhin extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -16,22 +15,25 @@ export default class Lezhin extends Connector {
         this.config = {
             username: {
                 label: 'E-Mail',
-                description: 'E-Mail for login with your Lezhin account.\nAn account is required to access R-rated content.',
+                description:
+                    'E-Mail for login with your Lezhin account.\nAn account is required to access R-rated content.',
                 input: 'text',
-                value: ''
+                value: '',
             },
             password: {
                 label: 'Password',
-                description: 'Password for login with your Lezhin account.\nAn account is required to access R-rated content.',
+                description:
+                    'Password for login with your Lezhin account.\nAn account is required to access R-rated content.',
                 input: 'password',
-                value: ''
+                value: '',
             },
             forceJPEG: {
                 label: 'Force JPEG',
-                description: 'Always use JPEG instead of WEBP images, even when WEBP images would be available.\nNote: The WEBP images are smaller in size but still provide the same or even slightly better quality.',
+                description:
+                    'Always use JPEG instead of WEBP images, even when WEBP images would be available.\nNote: The WEBP images are smaller in size but still provide the same or even slightly better quality.',
                 input: 'checkbox',
-                value: true
-            }
+                value: true,
+            },
         };
     }
 
@@ -41,8 +43,7 @@ export default class Lezhin extends Connector {
     }
 
     async _initializeAccount() {
-
-        if(this.token) {
+        if (this.token) {
             //check if user disconnected
             const data = await this.getLzConfig();
             if (!data.token) {
@@ -51,7 +52,7 @@ export default class Lezhin extends Connector {
             }
         }
 
-        if(this.token || !this.config.username.value || !this.config.password.value) {
+        if (this.token || !this.config.username.value || !this.config.password.value) {
             return;
         }
         const password = this.config.password.value.replace("'", "\\'"); //escape the password, because if it contains a single quote the script will fail
@@ -75,18 +76,17 @@ export default class Lezhin extends Connector {
         try {
             const request = new Request(this.links.login, this.requestOptions);
             await Engine.Request.fetchUI(request, script);
-        } catch( error ) {
+        } catch (error) {
             //
         }
 
         const data = await this.getLzConfig();
         this.token = data.token;
-        this.requestOptions.headers.set('Authorization', 'Bearer '+ data.token);
+        this.requestOptions.headers.set('Authorization', 'Bearer ' + data.token);
 
         // force user locale user setting to be the same as locale from the currently used website ...
         // => prevent a warning webpage that would appear otherwise when loading chapters / pages
         return fetch(`${this.url}/locale/${this.locale}`, this.requestOptions);
-
     }
 
     async _getMangaFromURI(uri) {
@@ -101,18 +101,18 @@ export default class Lezhin extends Connector {
         const mangaList = [];
         for (let page = 0, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
 
     async _getMangasFromPage(page) {
         const uri = new URL('/lz-api/v2/contents', this.apiURL);
-        const params = new URLSearchParams ({
-            'menu': 'general',
-            'limit': this.mangasPerPage,
-            'offset': page * this.mangasPerPage,
-            'order': 'popular'
+        const params = new URLSearchParams({
+            menu: 'general',
+            limit: this.mangasPerPage,
+            offset: page * this.mangasPerPage,
+            order: 'popular',
         });
         uri.search = params.toString();
         const request = new Request(uri, this.requestOptions);
@@ -120,10 +120,10 @@ export default class Lezhin extends Connector {
         request.headers.set('X-LZ-Adult', '0');
         request.headers.set('X-LZ-AllowAdult', 'true');
         const data = await this.fetchJSON(request);
-        return data.data.map( manga => {
+        return data.data.map((manga) => {
             return {
                 id: manga.alias, // manga.id
-                title: manga.title
+                title: manga.title,
             };
         });
     }
@@ -182,22 +182,28 @@ export default class Lezhin extends Connector {
         const purchased = await Engine.Request.fetchUI(request, script);
 
         const uri = new URL('https://www.lezhin.com/lz-api/v2/inventory_groups/comic_viewer');
-        const params = new URLSearchParams ({
-            'platform': 'web',
-            'store': 'web',
-            'alias': chapter.manga.id,
-            'name': chapter.id,
-            'preload': false,
-            'type': 'comic_episode'
+        const params = new URLSearchParams({
+            platform: 'web',
+            store: 'web',
+            alias: chapter.manga.id,
+            name: chapter.id,
+            preload: false,
+            type: 'comic_episode',
         });
         uri.search = params.toString();
         request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSON(request);
 
         //default to scrollsInfo if pagesInfo doesnt exists (same structure)
-        const content = data.data.extra.episode.pagesInfo ? data.data.extra.episode.pagesInfo : data.data.extra.episode.scrollsInfo;
-        return content.map(scroll => {
-            return this.createConnectorURI({url : scroll.path, infos : JSON.stringify(data), purchased : purchased});
+        const content = data.data.extra.episode.pagesInfo
+            ? data.data.extra.episode.pagesInfo
+            : data.data.extra.episode.scrollsInfo;
+        return content.map((scroll) => {
+            return this.createConnectorURI({
+                url: scroll.path,
+                infos: JSON.stringify(data),
+                purchased: purchased,
+            });
         });
     }
 
@@ -222,36 +228,38 @@ export default class Lezhin extends Connector {
 
         const tokenuri = new URL('/lz-api/v2/cloudfront/signed-url/generate', this.apiURL);
         const tokenParams = new URLSearchParams({
-            'contentId': episode.idComic,
-            'episodeId': episode.id,
-            'purchased': subscribed || purchased,
-            'q': 40,
-            'firstCheckType': 'P',
+            contentId: episode.idComic,
+            episodeId: episode.id,
+            purchased: subscribed || purchased,
+            q: 40,
+            firstCheckType: 'P',
         });
         tokenuri.search = tokenParams.toString();
 
         //get parameters
-        let request = new Request( tokenuri, this.requestOptions );
+        let request = new Request(tokenuri, this.requestOptions);
         request.headers.set('x-referer', this.apiURL);
         let response = await this.fetchJSON(request);
 
         //update image url
         const imageParams = new URLSearchParams({
-            'purchased': subscribed || purchased,
-            'q': 40,
-            'updated': updatedAt,
-            'Policy': response.data.Policy,
-            'Signature': response.data.Signature,
-            'Key-Pair-Id': response.data['Key-Pair-Id']
+            purchased: subscribed || purchased,
+            q: 40,
+            updated: updatedAt,
+            Policy: response.data.Policy,
+            Signature: response.data.Signature,
+            'Key-Pair-Id': response.data['Key-Pair-Id'],
         });
         imageurl.search = imageParams.toString();
         request = new Request(imageurl, this.requestOptions);
         response = await fetch(request);
 
-        const scrambled = data.data.extra.comic.metadata && data.data.extra.comic.metadata.imageShuffle;
+        const scrambled =
+            data.data.extra.comic.metadata && data.data.extra.comic.metadata.imageShuffle;
 
         data = await response.blob();
-        if (scrambled) {//if image is scrambled
+        if (scrambled) {
+            //if image is scrambled
             data = await this.descrambleimage(data, episode.id);
         }
         data = await this._blobToBuffer(data);
@@ -277,41 +285,54 @@ export default class Lezhin extends Connector {
 
     async descrambleimage(imageBlob, episodeid) {
         const bitmap = await createImageBitmap(imageBlob);
-        return new Promise(resolve => {
-
+        return new Promise((resolve) => {
             const canvas = document.createElement('canvas');
-            canvas.width = bitmap.width,
-            canvas.height = bitmap.height;
+            ((canvas.width = bitmap.width), (canvas.height = bitmap.height));
             const ctx = canvas.getContext('2d');
             let scrambleTable = _generateScrambletable(episodeid, 5);
             const i = Math.floor(Math.sqrt(scrambleTable.length));
-            const dimensions = {width : canvas.width, height : canvas.height};
+            const dimensions = { width: canvas.width, height: canvas.height };
 
             scrambleTable = _addLength(scrambleTable);
             scrambleTable = createSuperArray(scrambleTable);
 
-            const piecesData = scrambleTable.map(entry => {
-                const n = entry[0];
-                const r = entry[1];
-                return {
-                    from: calculatePieces(dimensions, i, parseInt(n)),
-                    to: calculatePieces(dimensions, i, r)
-                };
-            }).filter(entry => {
-                return !!entry.from && !!entry.to;
-            });
+            const piecesData = scrambleTable
+                .map((entry) => {
+                    const n = entry[0];
+                    const r = entry[1];
+                    return {
+                        from: calculatePieces(dimensions, i, parseInt(n)),
+                        to: calculatePieces(dimensions, i, r),
+                    };
+                })
+                .filter((entry) => {
+                    return !!entry.from && !!entry.to;
+                });
 
             for (const piece of piecesData) {
                 const e = piece.from;
                 const n = piece.to;
-                ctx.drawImage(bitmap, n.left, n.top, n.width, n.height, e.left, e.top, e.width, e.height );
+                ctx.drawImage(
+                    bitmap,
+                    n.left,
+                    n.top,
+                    n.width,
+                    n.height,
+                    e.left,
+                    e.top,
+                    e.width,
+                    e.height,
+                );
             }
 
-            canvas.toBlob(data => {
-                resolve(data);
-            }, Engine.Settings.recompressionFormat.value, parseFloat( Engine.Settings.recompressionQuality.value )/100);
+            canvas.toBlob(
+                (data) => {
+                    resolve(data);
+                },
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
         });
-
     }
 }
 
@@ -325,35 +346,33 @@ function _generateScrambletable(episodeid, e) {
 
 const Randomizer = function e(t, n) {
     var r = this;
-    !function (t) {
+    (!(function (t) {
         if (!(t instanceof e)) throw new TypeError('Cannot call a class as a function');
-    }(this),
+    })(this),
+        (this.random = function (t) {
+            // eslint-disable-next-line no-undef
+            const BIGT = BigInt(t);
+            // eslint-disable-next-line no-undef
+            const big12 = BigInt(12);
+            // eslint-disable-next-line no-undef
+            const big25 = BigInt(25);
+            // eslint-disable-next-line no-undef
+            const big27 = BigInt(27);
+            // eslint-disable-next-line no-undef
+            const big32 = BigInt(32);
+            // eslint-disable-next-line no-undef
+            const BigXXX = BigInt('18446744073709551615');
 
-    this.random = function (t) {
+            let e = r.state;
+            e = e ^ (e >> big12);
+            const shifter = (e << big25) & BigXXX;
+            e = e ^ shifter;
+            e = e ^ (e >> big27);
+            r.state = e & BigXXX;
 
-        // eslint-disable-next-line no-undef
-        const BIGT = BigInt(t);
-        // eslint-disable-next-line no-undef
-        const big12 = BigInt(12);
-        // eslint-disable-next-line no-undef
-        const big25 = BigInt(25);
-        // eslint-disable-next-line no-undef
-        const big27 = BigInt(27);
-        // eslint-disable-next-line no-undef
-        const big32 = BigInt(32);
-        // eslint-disable-next-line no-undef
-        const BigXXX = BigInt('18446744073709551615');
+            return parseInt((e >> big32) % BIGT, 10); //22
 
-        let e = r.state;
-        e = e ^ e >> big12;
-        const shifter = e << big25 & BigXXX;
-        e = e ^ shifter;
-        e = e ^ e >>big27;
-        r.state = e & BigXXX;
-
-        return parseInt((e >> big32) % BIGT, 10); //22
-
-        /*
+            /*
 // Detailled code using bigint js library, for references purposes. Test manga : Jinx, Chapter 1, Lezhin EN
        var BIGT = bigInt(t);
        var big12 = bigInt(12);
@@ -371,47 +390,45 @@ const Randomizer = function e(t, n) {
 
         return e.shiftRight(big32).remainder(BIGT).toJSNumber(); //22
 */
-
-    },
-
-    this.get = function () {
-        return r.order;
-    },
-
-    this.seed = t,
-    // eslint-disable-next-line no-undef
-    this.state = BigInt(this.seed);
+        }),
+        (this.get = function () {
+            return r.order;
+        }),
+        (this.seed = t),
+        // eslint-disable-next-line no-undef
+        (this.state = BigInt(this.seed)));
     for (
         var i = n * n,
-            o = Array.from({
-                length: i
-            }, function (t, e) {
-                return e;
-            }),
+            o = Array.from(
+                {
+                    length: i,
+                },
+                function (t, e) {
+                    return e;
+                },
+            ),
             a = 0;
         a < o.length;
         a++
     ) {
         var s = this.random(i),
             u = o[a];
-        o[a] = o[s],
-        o[s] = u;
+        ((o[a] = o[s]), (o[s] = u));
     }
     this.order = o;
 };
 
 function _addLength(t) {
-    return [].concat(t, [
-        t.length,
-        t.length + 1
-    ]);
+    return [].concat(t, [t.length, t.length + 1]);
 }
 
 function createSuperArray(array) {
     //generate "0", "arraylength" array
-    const indexArray = Array(array.length).fill().map((_, index) => index.toString());
+    const indexArray = Array(array.length)
+        .fill()
+        .map((_, index) => index.toString());
     const resultArray = [];
-    indexArray.map(element => resultArray.push([element, array[element]]));
+    indexArray.map((element) => resultArray.push([element, array[element]]));
     return resultArray;
 }
 
@@ -434,38 +451,40 @@ function calculatePieces(t, e, n) {
         y,
         b,
         w = e * e;
-    return n < w ? (
-        p = e,
-        v = n,
-        g = (d = t).width,
-        m = d.height,
-        y = Math.floor(g / p),
-        b = Math.floor(m / p),
-        {
-            left: v % p * y,
-            top: Math.floor(v / p) * b,
-            width: y,
-            height: b
-        }
-    ) : n === w ? (
-        c = e,
-        l = (u = t).width,
-        f = u.height,
-        0 === (h = l % c) ? null : {
-            left: l - h,
-            top: 0,
-            width: h,
-            height: f
-        }
-    ) : (
-        i = e,
-        o = (r = t).width,
-        a = r.height,
-        0 === (s = a % i) ? null : {
-            left: 0,
-            top: a - s,
-            width: o - o % i,
-            height: s
-        }
-    );
+    return n < w
+        ? ((p = e),
+          (v = n),
+          (g = (d = t).width),
+          (m = d.height),
+          (y = Math.floor(g / p)),
+          (b = Math.floor(m / p)),
+          {
+              left: (v % p) * y,
+              top: Math.floor(v / p) * b,
+              width: y,
+              height: b,
+          })
+        : n === w
+          ? ((c = e),
+            (l = (u = t).width),
+            (f = u.height),
+            0 === (h = l % c)
+                ? null
+                : {
+                      left: l - h,
+                      top: 0,
+                      width: h,
+                      height: f,
+                  })
+          : ((i = e),
+            (o = (r = t).width),
+            (a = r.height),
+            0 === (s = a % i)
+                ? null
+                : {
+                      left: 0,
+                      top: a - s,
+                      width: o - (o % i),
+                      height: s,
+                  });
 }

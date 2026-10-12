@@ -1,12 +1,11 @@
 import SinMH from './templates/SinMH.mjs';
 
 export default class ManHuaFen extends SinMH {
-
     constructor() {
         super();
         super.id = 'manhuafen';
         super.label = '漫画呗 (ManHuaFen)';
-        this.tags = [ 'manga', 'webtoon', 'chinese' ];
+        this.tags = ['manga', 'webtoon', 'chinese'];
         this.url = 'https://www.manhuafen.com';
 
         this.queryManga = 'div.wrap_intro_l div.wrap_intro_l_comic div.comic_deCon h1';

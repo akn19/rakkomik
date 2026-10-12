@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class HeavenManga2 extends Connector {
-
     constructor() {
         super();
         super.id = 'heavenmanga2';
         super.label = 'HeavenManga';
-        this.tags = [ 'manga', 'spanish' ];
+        this.tags = ['manga', 'spanish'];
         this.url = 'https://heavenmanga.com';
     }
 
@@ -29,9 +28,12 @@ export default class HeavenManga2 extends Connector {
     async _getMangas() {
         let mangaList = [];
         let request = new Request(new URL('/top', this.url), this.requestOptions);
-        let data = await this.fetchDOM(request, 'div.page-content-listing ul.pagination li:nth-last-of-type(2) a');
+        let data = await this.fetchDOM(
+            request,
+            'div.page-content-listing ul.pagination li:nth-last-of-type(2) a',
+        );
         let pageCount = parseInt(data[0].href.match(/page=(\d+)/)[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -41,10 +43,10 @@ export default class HeavenManga2 extends Connector {
     async _getMangasFromPage(page) {
         let request = new Request(new URL('/top?page=' + page, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'div.page-item-detail div.photo a.thumbnail');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('source').getAttribute('alt').trim()
+                title: element.querySelector('source').getAttribute('alt').trim(),
             };
         });
     }
@@ -52,11 +54,11 @@ export default class HeavenManga2 extends Connector {
     async _getChapters(manga) {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'table.table tr td h4.title a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.text.replace(/^[Ll]eer\s*/, '').trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -65,7 +67,10 @@ export default class HeavenManga2 extends Connector {
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'div.post-content a#leer');
         let uri = this.getAbsolutePath(data[0], request.url);
-        data = await this.fetchRegex(new Request(uri, this.requestOptions), /['"]imgURL['"]\s*:\s*['"]\s*([^'"]+?)\s*['"]/g);
-        return data.map(image => this.getAbsolutePath(image, request.url));
+        data = await this.fetchRegex(
+            new Request(uri, this.requestOptions),
+            /['"]imgURL['"]\s*:\s*['"]\s*([^'"]+?)\s*['"]/g,
+        );
+        return data.map((image) => this.getAbsolutePath(image, request.url));
     }
 }

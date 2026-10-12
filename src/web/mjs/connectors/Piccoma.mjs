@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Piccoma extends Connector {
-
     constructor() {
         super();
         super.id = 'piccoma';
@@ -19,27 +18,31 @@ export default class Piccoma extends Connector {
     async _getMangaFromURI(uri) {
         const id = uri.pathname.split('/')[3];
         uri.pathname = uri.pathname.split('/').slice(0, 4).join('/');
-        const [ element ] = await this.fetchDOM(new Request(uri, this.requestOptions), 'h1.PCM-productTitle');
+        const [element] = await this.fetchDOM(
+            new Request(uri, this.requestOptions),
+            'h1.PCM-productTitle',
+        );
         return new Manga(this, id, element.textContent.trim());
     }
 
     async _getMangas() {
-        const genres = [ 1, 2, 3, 4, 5, 6, 7, 9, 10 ];
+        const genres = [1, 2, 3, 4, 5, 6, 7, 9, 10];
         const mangaList = [];
         try {
-            for(const genre of genres) {
+            for (const genre of genres) {
                 const result = await this.getMangasFromPage(genre, 1);
                 mangaList.push(...result.mangas);
                 for (let page = 2; page <= result.pages; page++) {
-                    const {mangas} = await this.getMangasFromPage(genre, page);
+                    const { mangas } = await this.getMangasFromPage(genre, page);
                     mangaList.push(...mangas);
                 }
-
             }
-        } catch(error) {
+        } catch (error) {
             //
         }
-        return [...new Set(mangaList.map(manga => manga.id))].map(id => mangaList.find(manga => manga.id === id));
+        return [...new Set(mangaList.map((manga) => manga.id))].map((id) =>
+            mangaList.find((manga) => manga.id === id),
+        );
     }
 
     async getMangasFromPage(genre, page) {
@@ -50,29 +53,31 @@ export default class Piccoma extends Connector {
         const { data } = await this.fetchJSON(new Request(uri, this.requestOptions));
         return {
             pages: data.total_page,
-            mangas: data.products.map(entry => {
+            mangas: data.products.map((entry) => {
                 return {
                     id: entry.id,
-                    title : entry.title
+                    title: entry.title,
                 };
-            })
+            }),
         };
     }
 
     async _getChapters(manga) {
-        return [
-            ... await this.fetchEpisodes(manga),
-            ... await this.fetchVolumes(manga),
-        ].sort((self, other) => self.title.localeCompare(other.title));
+        return [...(await this.fetchEpisodes(manga)), ...(await this.fetchVolumes(manga))].sort(
+            (self, other) => self.title.localeCompare(other.title),
+        );
     }
 
     async fetchEpisodes(manga) {
-        const request = new Request(`${this.url}/web/product/${manga.id}/episodes?etype=E`, this.requestOptions);
+        const request = new Request(
+            `${this.url}/web/product/${manga.id}/episodes?etype=E`,
+            this.requestOptions,
+        );
         const data = await this.fetchDOM(request, 'ul.PCM-epList li a[data-episode_id]');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: element.dataset.episode_id,
-                title : element.querySelector('div.PCM-epList_title h2').textContent.trim()
+                title: element.querySelector('div.PCM-epList_title h2').textContent.trim(),
             };
         });
     }
@@ -80,22 +85,27 @@ export default class Piccoma extends Connector {
     async fetchVolumes(manga) {
         const request = new Request(`${this.url}/web/product/${manga.id}/episodes?etype=V`);
         const data = await this.fetchDOM(request, 'ul.PCM-volList li');
-        return data.map(element => {
-            const volume = [ ...element.querySelectorAll('div.PCM-prdVol_btns > a:not([class*="buyBtn"])') ].pop();
+        return data.map((element) => {
+            const volume = [
+                ...element.querySelectorAll('div.PCM-prdVol_btns > a:not([class*="buyBtn"])'),
+            ].pop();
             const title = [
                 element.querySelector('div.PCM-prdVol_title h2').innerText.trim(),
-                volume.classList.contains('PCM-prdVol_freeBtn') ? ` (${ volume.innerText.trim() })` : '',
-                volume.classList.contains('PCM-prdVol_trialBtn') ? ` (${ volume.innerText.trim() })` : '',
+                volume.classList.contains('PCM-prdVol_freeBtn')
+                    ? ` (${volume.innerText.trim()})`
+                    : '',
+                volume.classList.contains('PCM-prdVol_trialBtn')
+                    ? ` (${volume.innerText.trim()})`
+                    : '',
             ].join('');
             return {
-                id : volume.dataset.episode_id,
-                title : title
+                id: volume.dataset.episode_id,
+                title: title,
             };
         });
     }
 
     async _getPages(chapter) {
-
         const script = `
    	        new Promise((resolve, reject) => {
 
@@ -127,13 +137,15 @@ export default class Piccoma extends Connector {
       	    });
       	`;
 
-        const request = new Request(`${this.url}${this.viewer}${chapter.manga.id}/${chapter.id}`, this.requestOptions);
+        const request = new Request(
+            `${this.url}${this.viewer}${chapter.manga.id}/${chapter.id}`,
+            this.requestOptions,
+        );
         const images = await Engine.Request.fetchUI(request, script, 10000);
         if (!images) {
             throw new Error(`The chapter '${chapter.title}' is neither public, nor purchased!`);
         }
-        return images.map(image => this.createConnectorURI({...image}));
-
+        return images.map((image) => this.createConnectorURI({ ...image }));
     }
 
     async _handleConnectorURI(payload) {
@@ -152,10 +164,14 @@ export default class Piccoma extends Connector {
     }
 
     async _canvasToBlob(canvas) {
-        return new Promise(resolve => {
-            canvas.toBlob(data => {
-                resolve(data);
-            }, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value) / 100);
+        return new Promise((resolve) => {
+            canvas.toBlob(
+                (data) => {
+                    resolve(data);
+                },
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
         });
     }
 
@@ -163,7 +179,7 @@ export default class Piccoma extends Connector {
         return new Promise((resolve, reject) => {
             const image = new Image();
             image.onload = () => resolve(image);
-            image.onerror = error => reject(error);
+            image.onerror = (error) => reject(error);
             image.src = url;
         });
     }
@@ -174,7 +190,7 @@ export default class Piccoma extends Connector {
 }
 // from https://github.com/webcaetano/image-scramble/blob/master/unscrambleImg.js
 function unscrambleImg(img, sliceSize, seed) {
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = img.width;
     canvas.height = img.height;
@@ -207,7 +223,7 @@ function unscrambleImg(img, sliceSize, seed) {
                 slices[g][i].x,
                 slices[g][i].y,
                 slices[g][i].width,
-                slices[g][i].height
+                slices[g][i].height,
             );
         }
     }
@@ -236,8 +252,10 @@ function getSlices(img, sliceSize) {
         const col = i - row * verticalSlices;
         slice.x = col * sliceSize;
         slice.y = row * sliceSize;
-        slice.width = sliceSize - (slice.x + sliceSize <= img.width ? 0 : slice.x + sliceSize - img.width);
-        slice.height = sliceSize - (slice.y + sliceSize <= img.height ? 0 : slice.y + sliceSize - img.height);
+        slice.width =
+            sliceSize - (slice.x + sliceSize <= img.width ? 0 : slice.x + sliceSize - img.width);
+        slice.height =
+            sliceSize - (slice.y + sliceSize <= img.height ? 0 : slice.y + sliceSize - img.height);
         const key = `${slice.width}-${slice.height}`;
         if (slices[key] == null) {
             slices[key] = [];
@@ -312,8 +330,12 @@ function _seedrandom_(seed) {
 }
 
 function ARC4(key) {
-    var t, keylen = key.length,
-        me = this, i = 0, j = me.i = me.j = 0, s = me.S = [];
+    var t,
+        keylen = key.length,
+        me = this,
+        i = 0,
+        j = (me.i = me.j = 0),
+        s = (me.S = []);
 
     if (!keylen) {
         key = [keylen++];
@@ -323,27 +345,32 @@ function ARC4(key) {
         s[i] = i++;
     }
     for (i = 0; i < width; i++) {
-        s[i] = s[j = mask & j + key[i % keylen] + (t = s[i])];
+        s[i] = s[(j = mask & (j + key[i % keylen] + (t = s[i])))];
         s[j] = t;
     }
 
     (me.g = function (count) {
-        var t, r = 0,
-            i = me.i, j = me.j, s = me.S;
+        var t,
+            r = 0,
+            i = me.i,
+            j = me.j,
+            s = me.S;
         while (count--) {
-            t = s[i = mask & i + 1];
-            r = r * width + s[mask & (s[i] = s[j = mask & j + t]) + (s[j] = t)];
+            t = s[(i = mask & (i + 1))];
+            r = r * width + s[mask & ((s[i] = s[(j = mask & (j + t))]) + (s[j] = t))];
         }
-        me.i = i; me.j = j;
+        me.i = i;
+        me.j = j;
         return r;
     })(width);
 }
 
 function mixkey(seed, key) {
-    var stringseed = seed + '', smear, j = 0;
+    var stringseed = seed + '',
+        smear,
+        j = 0;
     while (j < stringseed.length) {
-        key[mask & j] =
-            mask & (smear ^= key[mask & j] * 19) + stringseed.charCodeAt(j++);
+        key[mask & j] = mask & ((smear ^= key[mask & j] * 19) + stringseed.charCodeAt(j++));
     }
     return String.fromCharCode.apply(0, key);
 }

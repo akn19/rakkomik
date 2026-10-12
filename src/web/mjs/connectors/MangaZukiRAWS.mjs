@@ -4,7 +4,6 @@ import MangaReaderCMS from './templates/MangaReaderCMS.mjs';
  *
  */
 export default class MangaZukiRAWS extends MangaReaderCMS {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class MangaZukiRAWS extends MangaReaderCMS {
         super();
         super.id = 'mangazuki-raws';
         super.label = 'Mangazuki RAWS';
-        this.tags = [ 'manga', 'high-quality', 'korean', 'scanlation' ];
+        this.tags = ['manga', 'high-quality', 'korean', 'scanlation'];
         this.url = 'https://raws.mangazuki.co';
 
         this.queryMangas = 'ul.price-list li a';

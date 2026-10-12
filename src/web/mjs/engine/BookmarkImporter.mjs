@@ -1,5 +1,4 @@
 export default class BookmarkImporter {
-
     constructor() {
         /*
          * A map from FMD connector IDs to HakuNeko connector IDs
@@ -8,76 +7,76 @@ export default class BookmarkImporter {
         this._connectorMap = {
             '3asq': 'mangalover-archive',
             '3asqorg': 'mangalover',
-            'acqqcom': 'tencentcomic',
-            'artemisnf': 'artemisnofansub',
-            'comicocoid': 'comicoid',
-            'copypastescanlation': 'copypastescan',
-            'coyuhi': 'universoyuri',
-            'darkskyscan': 'darkskyprojects',
-            'desume': 'desu',
-            'doujinscom': 'doujins',
-            'dynastyscans': 'dynasty-scans',
+            acqqcom: 'tencentcomic',
+            artemisnf: 'artemisnofansub',
+            comicocoid: 'comicoid',
+            copypastescanlation: 'copypastescan',
+            coyuhi: 'universoyuri',
+            darkskyscan: 'darkskyprojects',
+            desume: 'desu',
+            doujinscom: 'doujins',
+            dynastyscans: 'dynasty-scans',
             'e-hentai': 'ehentai',
-            'goodmanga': 'mangareader',
-            'hentaichanru': 'henchan',
-            'hitomila': 'hitomi',
-            'hunterfansubscan': 'hunterfansub',
-            'komikindowebid': 'komikindoweb',
-            'leitornet': 'leitor',
-            'lhscans': 'lhscan',
-            'maidmangaid': 'maid',
+            goodmanga: 'mangareader',
+            hentaichanru: 'henchan',
+            hitomila: 'hitomi',
+            hunterfansubscan: 'hunterfansub',
+            komikindowebid: 'komikindoweb',
+            leitornet: 'leitor',
+            lhscans: 'lhscan',
+            maidmangaid: 'maid',
             'manga-tr': 'mangatr',
-            'mangaae': 'mangaarab',
-            'mangaarab': 'allmanga',
-            'mangabb': 'mangareader',
-            'mangacan': 'mangacanblog',
-            'mangachanru': 'mangachan',
-            'mangaeden': 'mangaeden-en',
-            'mangaeden_it': 'mangaeden-it',
-            'mangaf': 'mangaforall',
-            'mangahubio': 'mangahub',
-            'mangaichiscan': 'mangaichiscans',
-            'mangaindo': 'mangaindoweb',
-            'mangaindonet': 'mangaindo',
-            'manganelo': 'manganel',
-            'mangaonlinebiz': 'mangaonline',
-            'mangapark': 'mangapark-en',
-            'mangaparkcom': 'mangapark-en',
-            'mangaparknet': 'mangapark-en',
-            'mangaparkorg': 'mangapark',
-            'mangatoon': 'mangatoon-en',
-            'mangatooncn': 'mangatoon-cn',
-            'mangatoonid': 'mangatoon-id',
-            'mangatoonsp': 'mangatoon-es',
-            'mangatoonvi': 'mangatoon-vi',
-            'mangazuki': 'mangazuki-scans',
-            'mangazukionline': 'mangazuki-online',
-            'mangazukiraws': 'mangazuki-raws',
-            'manhwaco': 'sleepypandascans',
-            'manhwahentai': 'manhwahentaime',
-            'mintmangaru': 'mintmanga',
-            'neoprojectscan': 'neoprojectscans',
-            'ninemanga': 'ninemanga-en',
-            'ninemangabr': 'ninemanga-br',
-            'ninemangade': 'ninemanga-de',
-            'ninemangaes': 'ninemanga-es',
-            'ninemangait': 'ninemanga-it',
-            'ninemangaru': 'ninemanga-ru',
-            'perveden_it': 'perveden-it',
-            'pocketangelscan': 'pocketangelscans',
-            'ravensscans': 'ravensscans-es',
-            'readcomiconline': 'kisscomic',
-            'readcomicsonlineru': 'readcomicsonline',
-            'readmangaru': 'readmanga',
-            'readmangatoday': 'readmng',
-            'seinagifansub': 'seinagifansub-es',
-            'selfmangaru': 'selfmanga',
-            'sundaywebevery': 'sundaywebry',
-            'tmohentai': 'tumangaonlinehentai',
-            'translatewebtoon': 'linewebtoon-translate',
-            'webtoons': 'linewebtoon-en',
-            'yaoichanru': 'yaoichan',
-            'yuri-ism': 'yuriism'
+            mangaae: 'mangaarab',
+            mangaarab: 'allmanga',
+            mangabb: 'mangareader',
+            mangacan: 'mangacanblog',
+            mangachanru: 'mangachan',
+            mangaeden: 'mangaeden-en',
+            mangaeden_it: 'mangaeden-it',
+            mangaf: 'mangaforall',
+            mangahubio: 'mangahub',
+            mangaichiscan: 'mangaichiscans',
+            mangaindo: 'mangaindoweb',
+            mangaindonet: 'mangaindo',
+            manganelo: 'manganel',
+            mangaonlinebiz: 'mangaonline',
+            mangapark: 'mangapark-en',
+            mangaparkcom: 'mangapark-en',
+            mangaparknet: 'mangapark-en',
+            mangaparkorg: 'mangapark',
+            mangatoon: 'mangatoon-en',
+            mangatooncn: 'mangatoon-cn',
+            mangatoonid: 'mangatoon-id',
+            mangatoonsp: 'mangatoon-es',
+            mangatoonvi: 'mangatoon-vi',
+            mangazuki: 'mangazuki-scans',
+            mangazukionline: 'mangazuki-online',
+            mangazukiraws: 'mangazuki-raws',
+            manhwaco: 'sleepypandascans',
+            manhwahentai: 'manhwahentaime',
+            mintmangaru: 'mintmanga',
+            neoprojectscan: 'neoprojectscans',
+            ninemanga: 'ninemanga-en',
+            ninemangabr: 'ninemanga-br',
+            ninemangade: 'ninemanga-de',
+            ninemangaes: 'ninemanga-es',
+            ninemangait: 'ninemanga-it',
+            ninemangaru: 'ninemanga-ru',
+            perveden_it: 'perveden-it',
+            pocketangelscan: 'pocketangelscans',
+            ravensscans: 'ravensscans-es',
+            readcomiconline: 'kisscomic',
+            readcomicsonlineru: 'readcomicsonline',
+            readmangaru: 'readmanga',
+            readmangatoday: 'readmng',
+            seinagifansub: 'seinagifansub-es',
+            selfmangaru: 'selfmanga',
+            sundaywebevery: 'sundaywebry',
+            tmohentai: 'tumangaonlinehentai',
+            translatewebtoon: 'linewebtoon-translate',
+            webtoons: 'linewebtoon-en',
+            yaoichanru: 'yaoichan',
+            'yuri-ism': 'yuriism',
         };
         /*
          * A map of converter functions to transform FMD manga IDs to HakuNeko manga IDs
@@ -85,22 +84,25 @@ export default class BookmarkImporter {
          */
         this._mangaMap = {
             // the number of the old ids, or the UUID of the current ones
-            'mangadex': id => id.match( /^\/[a-z]+\/(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})($|\/.*$)/ )[1],
-            'mangarock': id => id.split( '/' ).pop(),
+            mangadex: (id) =>
+                id.match(
+                    /^\/[a-z]+\/(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})($|\/.*$)/,
+                )[1],
+            mangarock: (id) => id.split('/').pop(),
             //'mangapark': id => ( id.indexOf( '/series' ) > -1 ? id : undefined ),
-            'mangatube': id => id.split( '/' ).pop()
+            mangatube: (id) => id.split('/').pop(),
         };
     }
 
     /**
      *
      */
-    async importBookmarks( file ) {
-        if( file.size < 2 ) {
-            throw new Error( `Invalid file size: ${file.size}` );
+    async importBookmarks(file) {
+        if (file.size < 2) {
+            throw new Error(`Invalid file size: ${file.size}`);
         }
-        if( file.type === 'application/x-sqlite3' || file.name.toLowerCase().endsWith( '.db' ) ) {
-            return await this._importBookmarksFMD( file );
+        if (file.type === 'application/x-sqlite3' || file.name.toLowerCase().endsWith('.db')) {
+            return await this._importBookmarksFMD(file);
         }
         throw new Error(`File type '${file.type}' is not supported!`);
     }
@@ -108,20 +110,21 @@ export default class BookmarkImporter {
     /**
      *
      */
-    async _importBookmarksFMD( file ) {
+    async _importBookmarksFMD(file) {
         // the SQLite engine lives in the main process (node:sqlite): hand the file over as bytes
-        const bytes = new Uint8Array( await file.arrayBuffer() );
-        const query = 'SELECT `websitelink` AS `link`, `link` AS `manga`, `website` AS `connectorTitle`, `title` AS `mangaTitle` FROM `favorites`;';
-        const rows = await window.hakuneko.sqlite.query( bytes, query );
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const query =
+            'SELECT `websitelink` AS `link`, `link` AS `manga`, `website` AS `connectorTitle`, `title` AS `mangaTitle` FROM `favorites`;';
+        const rows = await window.hakuneko.sqlite.query(bytes, query);
         // a favorite that cannot be converted must not cost the user all the others
-        return rows.flatMap( row => {
+        return rows.flatMap((row) => {
             try {
-                return [ this._mapFMDRowToManga( row ) ];
-            } catch( error ) {
-                console.warn( 'Skipped a favorite that cannot be converted:', row, error.message );
+                return [this._mapFMDRowToManga(row)];
+            } catch (error) {
+                console.warn('Skipped a favorite that cannot be converted:', row, error.message);
                 return [];
             }
-        } );
+        });
     }
 
     /**
@@ -129,24 +132,27 @@ export default class BookmarkImporter {
      */
     _mapFMDRowToManga(row) {
         // NOTE: due to a bug in FMD sometimes the connector has 'http' postfix which needs to be removed
-        let connectorID = this._mapFMDConnectorID( row.link.replace( /http[s]?:/, '' ).split( '/' )[0] );
-        let mangaID = this._mapFMDMangaID( connectorID, new URL( row.manga, 'http://hostname.dummy' ).pathname );
+        let connectorID = this._mapFMDConnectorID(row.link.replace(/http[s]?:/, '').split('/')[0]);
+        let mangaID = this._mapFMDMangaID(
+            connectorID,
+            new URL(row.manga, 'http://hostname.dummy').pathname,
+        );
         return {
             key: {
                 connector: connectorID,
-                manga: mangaID
+                manga: mangaID,
             },
             title: {
                 connector: row.connectorTitle,
-                manga: row.mangaTitle
-            }
+                manga: row.mangaTitle,
+            },
         };
     }
 
     /**
      * Find the corresponding HakuNeko connector ID for the given FMD website ID
      */
-    _mapFMDConnectorID( connectorFMD ) {
+    _mapFMDConnectorID(connectorFMD) {
         let connectorID = this._connectorMap[connectorFMD];
         return connectorID ? connectorID : connectorFMD;
     }
@@ -154,8 +160,8 @@ export default class BookmarkImporter {
     /**
      * Find the corresponding HakuNeko manga ID for the given FMD website ID
      */
-    _mapFMDMangaID( connectorID, mangaFMD ) {
+    _mapFMDMangaID(connectorID, mangaFMD) {
         let mangaConvert = this._mangaMap[connectorID];
-        return mangaConvert ? mangaConvert( mangaFMD ) : mangaFMD;
+        return mangaConvert ? mangaConvert(mangaFMD) : mangaFMD;
     }
 }

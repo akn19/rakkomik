@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class NineHentai extends Connector {
-
     constructor() {
         super();
         super.id = '9hentai';
@@ -10,7 +9,7 @@ export default class NineHentai extends Connector {
         this.tags = ['hentai', 'multi-lingual'];
         this.url = 'https://9hentai.to';
         this.links = {
-            login: 'https://9hentai.to/login'
+            login: 'https://9hentai.to/login',
         };
     }
 
@@ -23,15 +22,16 @@ export default class NineHentai extends Connector {
     }
 
     async _getMangaList(callback) {
-        let msg = 'This website does not provide a manga list, please copy and paste the URL containing the images directly from your browser into HakuNeko.';
-        callback( new Error( msg ), undefined );
+        let msg =
+            'This website does not provide a manga list, please copy and paste the URL containing the images directly from your browser into HakuNeko.';
+        callback(new Error(msg), undefined);
     }
 
     async _getChapterList(manga, callback) {
         try {
-            let chapterList = [ Object.assign({ language: '' }, manga) ];
+            let chapterList = [Object.assign({ language: '' }, manga)];
             callback(null, chapterList);
-        } catch(error) {
+        } catch (error) {
             console.error(error, manga);
             callback(error, undefined);
         }
@@ -41,11 +41,11 @@ export default class NineHentai extends Connector {
         try {
             let request = this._createPageListRequest(chapter.id);
             let data = await this.fetchJSON(request);
-            let pageList = [...new Array(data.results.total_page).keys()].map(page => {
+            let pageList = [...new Array(data.results.total_page).keys()].map((page) => {
                 return data.results.image_server + data.results.id + '/' + (page + 1) + '.jpg';
             });
             callback(null, pageList);
-        } catch(error) {
+        } catch (error) {
             console.error(error, chapter);
             callback(error, undefined);
         }

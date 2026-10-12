@@ -2,7 +2,6 @@ import SpeedBinb from './templates/SpeedBinb.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ComicBrise extends SpeedBinb {
-
     constructor() {
         super();
         super.id = 'comicbrise';
@@ -21,11 +20,11 @@ export default class ComicBrise extends SpeedBinb {
 
     async _getMangas() {
         const request = new Request(new URL('/titlelist', this.url), this.requestOptions);
-        const data = await this.fetchDOM(request, ".list-works a");
-        return data.map(element => {
+        const data = await this.fetchDOM(request, '.list-works a');
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element.pathname, this.url),
-                title: element.innerText.trim()
+                title: element.innerText.trim(),
             };
         });
     }
@@ -33,18 +32,21 @@ export default class ComicBrise extends SpeedBinb {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, '.modal.modal-chapter .modal-body');
-        return data.reverse()
-            .filter(e => e.querySelector(".banner-trial source").getAttribute("alt") == "FREE")
-            .map(element => {
+        return data
+            .reverse()
+            .filter((e) => e.querySelector('.banner-trial source').getAttribute('alt') == 'FREE')
+            .map((element) => {
                 return {
                     id: element.querySelector('.banner-trial a').pathname,
-                    title: element.querySelector('.primary-title').textContent.trim()
+                    title: element.querySelector('.primary-title').textContent.trim(),
                 };
             });
     }
-    _getPageList_v016061( imageConfigurtions, baseURL ) {
+    _getPageList_v016061(imageConfigurtions, baseURL) {
         baseURL += baseURL.endsWith('/') ? '' : '/';
-        let pageLinks = imageConfigurtions.map( element => this.createConnectorURI( this.getAbsolutePath( element.dataset.ptimg, baseURL ) ) );
-        return Promise.resolve( pageLinks );
+        let pageLinks = imageConfigurtions.map((element) =>
+            this.createConnectorURI(this.getAbsolutePath(element.dataset.ptimg, baseURL)),
+        );
+        return Promise.resolve(pageLinks);
     }
 }

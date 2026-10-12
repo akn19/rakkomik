@@ -2,7 +2,6 @@ import { DETECTION_SCRIPT, installChallengeBypass } from './AntiScraping.mjs';
 import { createNovelPage, createNovelScript } from './Novel.mjs';
 
 export default class Request {
-
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Blacklist, Enums
     constructor(ipc, settings) {
         // Fetch windows run in the main process (FetchWindowManager).
@@ -30,7 +29,9 @@ export default class Request {
 
     async _initializeHCaptchaUUID(settings) {
         let hcCookies = await window.hakuneko.session.getCookies({ name: 'hc_accessibility' });
-        let isCookieAvailable = hcCookies.some(cookie => cookie.expirationDate > Date.now() / 1000 + 1800);
+        let isCookieAvailable = hcCookies.some(
+            (cookie) => cookie.expirationDate > Date.now() / 1000 + 1800,
+        );
         if (settings.hCaptchaAccessibilityUUID.value && !isCookieAvailable) {
             let script = `
                 new Promise((resolve, reject) => {
@@ -51,7 +52,10 @@ export default class Request {
                     }, 7500);
                 });
             `;
-            let uri = new URL('https://accounts.hcaptcha.com/verify_email/' + settings.hCaptchaAccessibilityUUID.value);
+            let uri = new URL(
+                'https://accounts.hcaptcha.com/verify_email/' +
+                    settings.hCaptchaAccessibilityUUID.value,
+            );
             let request = new window.Request(uri);
             try {
                 let data = await this.fetchUI(request, script, 30000);
@@ -129,7 +133,7 @@ export default class Request {
             // set user agent to prevent `window.navigator.userAgent` being set to elecetron ...
             userAgent: request.headers.get('x-user-agent') || this.userAgent,
             httpReferrer: referer ? referer : undefined,
-            extraHeaders: headers ? headers : undefined
+            extraHeaders: headers ? headers : undefined,
 
             //postData: undefined,
         };
@@ -152,7 +156,7 @@ export default class Request {
             preferences: preferences || {},
             timeout: timeout || 60000,
             interactiveAfter: this.interactiveAfter,
-            interactiveTimeout: this.interactiveTimeout
+            interactiveTimeout: this.interactiveTimeout,
         });
     }
 
@@ -171,11 +175,11 @@ export default class Request {
             preferences: {
                 nodeIntegration: false,
                 webSecurity: false,
-                images: images || false
+                images: images || false,
             },
             timeout: timeout || 60000,
             interactiveAfter: this.interactiveAfter,
-            interactiveTimeout: this.interactiveTimeout
+            interactiveTimeout: this.interactiveTimeout,
         });
     }
 
@@ -197,5 +201,4 @@ export default class Request {
         }
         return createNovelPage(xhtml);
     }
-
 }

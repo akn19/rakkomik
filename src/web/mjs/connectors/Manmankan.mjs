@@ -1,12 +1,11 @@
 import SinMH from './templates/SinMH.mjs';
 
 export default class Manmankan extends SinMH {
-
     constructor() {
         super();
         super.id = 'manmankan';
         super.label = '漫漫看漫画网 (ManManKan)';
-        this.tags = [ 'manga', 'webtoon', 'chinese' ];
+        this.tags = ['manga', 'webtoon', 'chinese'];
         this.url = 'https://manmankan.cc';
 
         this.path = '/sort/%PAGE%.html';

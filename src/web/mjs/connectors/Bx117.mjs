@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Bx117 extends Connector {
-
     constructor() {
         super();
         super.id = 'bx117';
         super.label = '117漫画网 (bx117)';
-        this.tags = [ 'manga', 'webtoon', 'chinese' ];
+        this.tags = ['manga', 'webtoon', 'chinese'];
         this.url = 'http://m.bx117.com';
     }
     async _getMangaFromURI(uri) {
@@ -21,10 +20,10 @@ export default class Bx117 extends Connector {
     async _getChapters(manga) {
         const request = new Request(this.url + manga.id, this.requestOptions);
         const data = await this.fetchDOM(request, 'a.d-nowrap', 3);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -41,10 +40,10 @@ export default class Bx117 extends Connector {
 
     async _getMangas() {
         let mangaList = [];
-        for(let i = 1; i <= 2; i++) {
-            for(let page = 1, run = true; run; page++) {
+        for (let i = 1; i <= 2; i++) {
+            for (let page = 1, run = true; run; page++) {
                 let mangas = await this._getMangasFromPage(page, i);
-                mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+                mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
             }
         }
         return mangaList;
@@ -55,24 +54,24 @@ export default class Bx117 extends Connector {
             method: 'POST',
             body: new URLSearchParams({
                 page: page,
-                action:'GetWapList',
-                _id:'listbody',
-                pagesize:12,
-                order:1,
-                classid1:0,
-                url:'/statics/qingtiancms.ashx',
-                typelianzai:`110${serial}`
+                action: 'GetWapList',
+                _id: 'listbody',
+                pagesize: 12,
+                order: 1,
+                classid1: 0,
+                url: '/statics/qingtiancms.ashx',
+                typelianzai: `110${serial}`,
             }).toString(),
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                 'X-Requested-With': 'XMLHttpRequest',
-            }
+            },
         });
         const data = await this.fetchDOM(request, 'li', 3);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element.querySelector('a'), this.url),
-                title: element.textContent.trim()
+                title: element.textContent.trim(),
             };
         });
     }

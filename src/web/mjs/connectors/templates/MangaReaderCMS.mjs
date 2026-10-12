@@ -2,12 +2,11 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class MangaReaderCMS extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
         super.label = undefined;
-        this.tags = [ 'manga' ];
+        this.tags = ['manga'];
         this.url = undefined;
         this.path = '/';
 
@@ -26,13 +25,16 @@ export default class MangaReaderCMS extends Connector {
     }
 
     async _getMangas() {
-        let request = new Request(new URL(this.path + 'changeMangaList?type=text', this.url), this.requestOptions);
+        let request = new Request(
+            new URL(this.path + 'changeMangaList?type=text', this.url),
+            this.requestOptions,
+        );
         request.headers.set('X-Requested-With', 'XMLHttpRequest');
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRelativeLink(element),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -40,12 +42,16 @@ export default class MangaReaderCMS extends Connector {
     async _getChapters(manga) {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
-            let anchor = element.nodeName.toLowerCase() === 'a' ? element : element.querySelector('a');
+        return data.map((element) => {
+            let anchor =
+                element.nodeName.toLowerCase() === 'a' ? element : element.querySelector('a');
             return {
                 id: this.getRelativeLink(anchor),
-                title: element.innerText.replace(/\s*:\s*$/, '').replace(manga.title, '').trim(),
-                language: this.language
+                title: element.innerText
+                    .replace(/\s*:\s*$/, '')
+                    .replace(manga.title, '')
+                    .trim(),
+                language: this.language,
             };
         });
     }
@@ -53,11 +59,11 @@ export default class MangaReaderCMS extends Connector {
     async _getPages(chapter) {
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryPages);
-        return data.map(element => {
+        return data.map((element) => {
             try {
                 const src = element.dataset['src'].split('://').pop();
                 return decodeURIComponent(atob(src || undefined));
-            } catch(error) {
+            } catch (error) {
                 let src = (element.dataset['src'] || element.src).trim();
                 return new URL(src, request.url).href;
             }

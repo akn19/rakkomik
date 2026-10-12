@@ -1,7 +1,6 @@
 import GnuBoard5BootstrapBasic2 from './templates/GnuBoard5BootstrapBasic2.mjs';
 
 export default class CopyToon extends GnuBoard5BootstrapBasic2 {
-
     constructor() {
         super();
         super.id = 'copytoon';
@@ -18,10 +17,11 @@ export default class CopyToon extends GnuBoard5BootstrapBasic2 {
         this.config = {
             url: {
                 label: 'URL',
-                description: 'This website changes their URL regularly.\nThis is the last known URL which can also be manually set by the user.',
+                description:
+                    'This website changes their URL regularly.\nThis is the last known URL which can also be manually set by the user.',
                 input: 'text',
-                value: 'https://copytoon142.com/'
-            }
+                value: 'https://copytoon142.com/',
+            },
         };
     }
 
@@ -50,11 +50,14 @@ export default class CopyToon extends GnuBoard5BootstrapBasic2 {
     async _getChapters(manga) {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'div.contents-list ul li a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: [...element.querySelector('div.content-title').childNodes].pop().textContent.replace(manga.title, '').trim(),
-                language: ''
+                title: [...element.querySelector('div.content-title').childNodes]
+                    .pop()
+                    .textContent.replace(manga.title, '')
+                    .trim(),
+                language: '',
             };
         });
     }

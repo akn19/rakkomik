@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class OzulScansEN extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'ozulscans-en';

@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class UzayManga extends Connector {
-
     constructor() {
         super();
         super.id = 'uzaymanga';
         super.label = 'Uzay Manga';
-        this.tags = [ 'webtoon', 'turkish', 'scanlation' ];
+        this.tags = ['webtoon', 'turkish', 'scanlation'];
         this.url = 'https://uzaymanga.com';
         this.requestOptions.headers.set('x-referer', this.url);
     }
@@ -24,7 +23,7 @@ export default class UzayManga extends Connector {
         let mangaList = [];
         for (let page = 1, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -34,10 +33,10 @@ export default class UzayManga extends Connector {
         uri.searchParams.set('page', page);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.overflow-hidden.grid.grid-cols-1 > div > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -45,10 +44,10 @@ export default class UzayManga extends Connector {
     async _getChapters(manga) {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'div.list-episode a');
-        return data.map(chapter => {
+        return data.map((chapter) => {
             return {
                 id: chapter.pathname,
-                title : chapter.querySelector('.chapternum').textContent.trim()
+                title: chapter.querySelector('.chapternum').textContent.trim(),
             };
         });
     }
@@ -67,10 +66,12 @@ export default class UzayManga extends Connector {
             });
     	  `;
 
-        const uri = new URL( chapter.id, this.url );
-        const request = new Request( uri.href, this.requestOptions );
+        const uri = new URL(chapter.id, this.url);
+        const request = new Request(uri.href, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script);
         const jsonString = data.match(/(\[{"path":.*}\])}}/)[1];
-        return JSON.parse(jsonString).map(image => 'https://cdn1.uzaymanga.com/upload/series/'+ image.path);
+        return JSON.parse(jsonString).map(
+            (image) => 'https://cdn1.uzaymanga.com/upload/series/' + image.path,
+        );
     }
 }

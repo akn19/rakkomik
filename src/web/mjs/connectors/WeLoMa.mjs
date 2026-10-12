@@ -2,7 +2,6 @@ import FlatManga from './templates/FlatManga.mjs';
 
 // Similar to LoveHug
 export default class WeLoMa extends FlatManga {
-
     constructor() {
         super();
         super.id = 'weloma';
@@ -45,10 +44,10 @@ export default class WeLoMa extends FlatManga {
         uri.searchParams.set('page', page);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }

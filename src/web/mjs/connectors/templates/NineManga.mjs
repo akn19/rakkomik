@@ -1,7 +1,6 @@
 import TAADD from '../TAADD.mjs';
 
 export default class NineManga extends TAADD {
-
     constructor() {
         super();
         super.id = undefined;

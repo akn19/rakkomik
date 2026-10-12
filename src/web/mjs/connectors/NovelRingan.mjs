@@ -15,7 +15,7 @@ export default class NovelRingan extends Connector {
     async _getMangas() {
         let request = new Request(this.url + '/daftar-novel', this.requestOptions);
         let data = await this.fetchDOM(request, 'div.blix ul li a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.text.trim(),
@@ -26,7 +26,7 @@ export default class NovelRingan extends Connector {
     async _getChapters(manga) {
         let request = new Request(this.url + manga.id, this.requestOptions);
         let data = await this.fetchDOM(request, 'div.bxcl ul li a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.text.trim(),
@@ -37,7 +37,7 @@ export default class NovelRingan extends Connector {
 
     async _getPages(chapter) {
         let request = new Request(this.url + chapter.id, this.requestOptions);
-        return [ await Engine.Request.fetchNovel(request, this.novelContentQuery) ];
+        return [await Engine.Request.fetchNovel(request, this.novelContentQuery)];
     }
 
     async _getMangaFromURI(uri) {

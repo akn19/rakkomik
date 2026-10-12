@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class KomikindoInfo extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'komikindoinfo';

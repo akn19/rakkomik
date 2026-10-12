@@ -3,14 +3,13 @@ import Manga from '../engine/Manga.mjs';
 import { sha256Bytes, bytesToHex } from '../engine/Crypto.mjs';
 
 export default class MangaFox extends Connector {
-
     constructor() {
         super();
         super.id = 'mangafox';
         super.label = 'MangaFox';
-        this.tags = [ 'manga', 'english' ];
+        this.tags = ['manga', 'english'];
         this.url = 'https://fanfox.net';
-        this.requestOptions.headers.set( 'x-cookie', 'isAdult=1' );
+        this.requestOptions.headers.set('x-cookie', 'isAdult=1');
         this.pageLoadDelay = 50;
 
         // this script uses chapterfun.ashx instead of chapter_bar.js as in MangaHere
@@ -54,7 +53,11 @@ export default class MangaFox extends Connector {
 
     async _getMangaFromURI(uri) {
         let request = new Request(uri, this.requestOptions);
-        let data = await this.fetchDOM(request, 'div.detail-info div.detail-info-right p.detail-info-right-title span.detail-info-right-title-font', 3);
+        let data = await this.fetchDOM(
+            request,
+            'div.detail-info div.detail-info-right p.detail-info-right-title span.detail-info-right-title-font',
+            3,
+        );
         let id = uri.pathname + uri.search;
         let title = data[0].innerText.trim();
         return new Manga(this, id, title);
@@ -63,9 +66,12 @@ export default class MangaFox extends Connector {
     async _getMangas() {
         let mangaList = [];
         let request = new Request(new URL('/directory/', this.url), this.requestOptions);
-        let data = await this.fetchDOM(request, 'div.pager-list div.pager-list-left a:nth-last-child(2)');
+        let data = await this.fetchDOM(
+            request,
+            'div.pager-list div.pager-list-left a:nth-last-child(2)',
+        );
         let pageCount = parseInt(data[0].text.trim());
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -75,11 +81,15 @@ export default class MangaFox extends Connector {
     async _getMangasFromPage(page) {
         let uri = new URL(`/directory/${page}.htm`, this.url);
         let request = new Request(uri, this.requestOptions);
-        let data = await this.fetchDOM(request, 'div.manga-list-1 ul li p.manga-list-1-item-title a', 3);
-        return data.map(element => {
+        let data = await this.fetchDOM(
+            request,
+            'div.manga-list-1 ul li p.manga-list-1-item-title a',
+            3,
+        );
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.title.trim()
+                title: element.title.trim(),
             };
         });
     }
@@ -88,11 +98,11 @@ export default class MangaFox extends Connector {
         let uri = new URL(manga.id, this.url);
         let data = await this.fetchDOM(uri, 'div#chapterlist ul li a');
         // TODO: license element check ... (e.g. ???)
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.querySelector('p.title3').innerText.replace(manga.title, '').trim(),
-                language: 'english'
+                language: 'english',
             };
         });
     }
@@ -102,10 +112,12 @@ export default class MangaFox extends Connector {
         let request = new Request(uri, this.requestOptions);
         const pages = await Engine.Request.fetchUI(request, this.script);
 
-        const pageList = pages.map(link => this.createConnectorURI({
-            url: link,
-            referer: this.url
-        }));
+        const pageList = pages.map((link) =>
+            this.createConnectorURI({
+                url: link,
+                referer: this.url,
+            }),
+        );
 
         const lastImage = await super._handleConnectorURI(pageList.slice(-1));
         // perform advertisement check and may remove last image: pageList.pop()

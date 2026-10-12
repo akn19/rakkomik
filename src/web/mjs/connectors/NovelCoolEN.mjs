@@ -5,10 +5,10 @@ export default class NovelCoolEN extends NovelCool {
         super();
         super.id = 'novelcool-en';
         super.label = 'Novel Cool (EN)';
-        this.tags = [ 'english', 'manga', 'webtoon'];
+        this.tags = ['english', 'manga', 'webtoon'];
         this.url = 'https://www.novelcool.com';
         this.links = {
-            login: 'https://novelcool.com/login.html'
+            login: 'https://novelcool.com/login.html',
         };
     }
 }

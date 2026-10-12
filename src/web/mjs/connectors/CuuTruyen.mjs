@@ -14,7 +14,9 @@ export default class CuuTruyen extends Connector {
         const mangaid = uri.href.match(/\/mangas\/([0-9]+)/)[1];
         const req = new URL(`/api/v2/mangas/${mangaid}`, this.url);
         const request = new Request(req, this.requestOptions);
-        const { data: { name } } = await this.fetchJSON(request);
+        const {
+            data: { name },
+        } = await this.fetchJSON(request);
         return new Manga(this, mangaid, name.trim());
     }
 
@@ -27,7 +29,10 @@ export default class CuuTruyen extends Connector {
         const mangaList = this._getMangasFromPage(data);
 
         for (let page = 2; page <= pages; page++) {
-            const uri = new URL(`/api/v2/mangas/recently_updated?page=${page}&per_page=30`, this.url);
+            const uri = new URL(
+                `/api/v2/mangas/recently_updated?page=${page}&per_page=30`,
+                this.url,
+            );
             const request = new Request(uri, this.requestOptions);
             const data = await this.fetchJSON(request);
             const mangas = this._getMangasFromPage(data);
@@ -63,7 +68,9 @@ export default class CuuTruyen extends Connector {
     async _getPages(chapter) {
         const uri = new URL('/api/v2/chapters/' + chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
-        const { data: { pages } } = await this.fetchJSON(request);
+        const {
+            data: { pages },
+        } = await this.fetchJSON(request);
 
         if (pages.some((image) => image.status !== 'processed')) {
             throw new Error('This chapter is still processing, please try again later.');
@@ -82,7 +89,7 @@ export default class CuuTruyen extends Connector {
             cache: 'no-cache',
             referrer: `${this.url}/`,
             headers: {
-                'accept': 'image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5',
+                accept: 'image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5',
             },
         });
 
@@ -93,7 +100,9 @@ export default class CuuTruyen extends Connector {
         const decryptedDrmData = this.decodeXorCipher(atob(payload.drmData), '3141592653589793');
 
         if (!decryptedDrmData.startsWith('#v4|')) {
-            throw new Error(`Invalid DRM data (does not start with magic bytes): ${decryptedDrmData}`);
+            throw new Error(
+                `Invalid DRM data (does not start with magic bytes): ${decryptedDrmData}`,
+            );
         }
 
         const image = await createImageBitmap(await response.blob());
@@ -116,15 +125,19 @@ export default class CuuTruyen extends Connector {
     }
 
     _canvasToBlob(canvas) {
-        return new Promise(resolve => {
-            canvas.toBlob(data => {
-                resolve(data);
-            }, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value) / 100);
+        return new Promise((resolve) => {
+            canvas.toBlob(
+                (data) => {
+                    resolve(data);
+                },
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
         });
     }
 
     decodeXorCipher(data, key) {
-        let output = "";
+        let output = '';
 
         for (let i = 0; i < data.length; i++) {
             output += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));

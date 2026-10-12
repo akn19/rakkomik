@@ -1,11 +1,10 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 export default class AzoraWorld extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'azoraworld';
         super.label = 'AzoraWorld (AzoraManga)';
-        this.tags = [ 'webtoon', 'arabic', 'manga' ];
+        this.tags = ['webtoon', 'arabic', 'manga'];
         this.url = 'https://azoramoon.com';
     }
 
@@ -23,7 +22,6 @@ export default class AzoraWorld extends WordPressMadara {
             });
         `;
         const data = await Engine.Request.fetchUI(request, script);
-        return data.map(picture => this.createConnectorURI({url : picture, referer : url}));
+        return data.map((picture) => this.createConnectorURI({ url: picture, referer: url }));
     }
-
 }

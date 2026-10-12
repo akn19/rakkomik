@@ -5,7 +5,7 @@ export default class HManhwa extends WordPressMadara {
         super();
         super.id = 'hmanhwa';
         super.label = 'HManhwa';
-        this.tags = [ 'webtoon', 'hentai', 'english', 'korean' ];
+        this.tags = ['webtoon', 'hentai', 'english', 'korean'];
         this.url = 'https://hmanhwa.com';
     }
 }

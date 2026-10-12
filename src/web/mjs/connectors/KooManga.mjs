@@ -1,12 +1,11 @@
 import WordPressZbulu from './templates/WordPressZbulu.mjs';
 
 export default class KooManga extends WordPressZbulu {
-
     constructor() {
         super();
         super.id = 'koomanga';
         super.label = 'KooManga';
-        this.tags = [ 'manga', 'webtoon', 'english' ];
+        this.tags = ['manga', 'webtoon', 'english'];
         this.url = 'https://koomanga.com';
     }
 
@@ -22,9 +21,10 @@ export default class KooManga extends WordPressZbulu {
     }
 
     getFormatRegex() {
-        return{
-            chapterRegex:/\s*(?:^|ch\.?|ep\.?|chapter|chap|chapitre|episode|#)\s*([\d.?\-?v?]+)(?:\s|:|$)+/i,
-            volumeRegex:/\s*(?:vol\.?|volume|tome)\s*(\d+)/i
+        return {
+            chapterRegex:
+                /\s*(?:^|ch\.?|ep\.?|chapter|chap|chapitre|episode|#)\s*([\d.?\-?v?]+)(?:\s|:|$)+/i,
+            volumeRegex: /\s*(?:vol\.?|volume|tome)\s*(\d+)/i,
         };
     }
 }

@@ -1,12 +1,11 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class ManhwasNet extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'manhwasnet';
         super.label = 'Manhwas';
-        this.tags = [ 'webtoon', 'hentai', 'spanish' ];
+        this.tags = ['webtoon', 'hentai', 'spanish'];
         this.url = 'https://manhwas.net';
         this.path = '/biblioteca';
 
@@ -18,9 +17,9 @@ export default class ManhwasNet extends WordPressMadara {
 
     async _getMangas() {
         let mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -29,10 +28,10 @@ export default class ManhwasNet extends WordPressMadara {
         let uri = new URL(`${this.path}?page=${page}`, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.querySelector('h3.title').textContent.trim()
+                title: element.querySelector('h3.title').textContent.trim(),
             };
         });
     }
@@ -42,13 +41,12 @@ export default class ManhwasNet extends WordPressMadara {
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapters);
 
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
                 title: element.querySelector('p span').textContent.trim(),
             };
         });
-
     }
 
     async _getPages(chapter) {
@@ -67,12 +65,11 @@ export default class ManhwasNet extends WordPressMadara {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const images = await Engine.Request.fetchUI(request, script);
-        return images.map(image => {
+        return images.map((image) => {
             return this.createConnectorURI({
                 url: image,
-                referer: this.url
+                referer: this.url,
             });
         });
     }
-
 }

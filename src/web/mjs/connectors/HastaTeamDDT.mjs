@@ -1,12 +1,11 @@
 import FoolSlide from './templates/FoolSlide.mjs';
 
 export default class HastaTeamDDT extends FoolSlide {
-
     constructor() {
         super();
         super.id = 'hastateamddt';
         super.label = 'Hasta Team DDT';
-        this.tags = [ 'manga', 'high-quality', 'italian', 'scanlation' ];
+        this.tags = ['manga', 'high-quality', 'italian', 'scanlation'];
         this.url = 'https://ddt.hastareader.com';
 
         this.path = '/slide/directory/';
@@ -18,10 +17,12 @@ export default class HastaTeamDDT extends FoolSlide {
     async _getPages(chapter) {
         let referer = new URL(chapter.id, this.url).href;
         let imageLinks = await super._getPages(chapter);
-        return imageLinks.map(link => this.createConnectorURI({
-            url: link,
-            referer: referer
-        }));
+        return imageLinks.map((link) =>
+            this.createConnectorURI({
+                url: link,
+                referer: referer,
+            }),
+        );
     }
 
     async _handleConnectorURI(payload) {

@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaYeh extends Connector {
-
     constructor() {
         super();
         super.id = 'mangayeh';
         super.label = 'MangaYeh';
-        this.tags = [ 'manga', 'webtoon', 'english' ];
+        this.tags = ['manga', 'webtoon', 'english'];
         this.url = 'https://mangayeh.com';
     }
 
@@ -20,9 +19,9 @@ export default class MangaYeh extends Connector {
 
     async _getMangas() {
         const mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -31,10 +30,10 @@ export default class MangaYeh extends Connector {
         const uri = new URL('/category/all?page=' + page, this.url);
         const request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, '.column.is-9 div.columns > div > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('.mtitle').textContent.trim()
+                title: element.querySelector('.mtitle').textContent.trim(),
             };
         });
     }
@@ -43,7 +42,7 @@ export default class MangaYeh extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, '#chapterList td:nth-child(1) a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.textContent.trim(),
@@ -56,6 +55,6 @@ export default class MangaYeh extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, '.column source');
-        return data.map(element => element.dataset['src'] || element.src);
+        return data.map((element) => element.dataset['src'] || element.src);
     }
 }

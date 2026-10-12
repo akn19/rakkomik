@@ -136,8 +136,9 @@ describe('connectors that hold novels', () => {
             path.join(root, 'connectors', 'templates', 'NovelCool.mjs'),
             'utf8',
         );
-        expect(source).toContain(
-            'Engine.Request.fetchNovel(request, this.novelContentQuery, { obstacles: this.novelObstaclesQuery })',
+        // the call may be wrapped over lines by the formatter
+        expect(source).toMatch(
+            /Engine\.Request\.fetchNovel\(request,\s*this\.novelContentQuery,\s*\{\s*obstacles:\s*this\.novelObstaclesQuery,?\s*\}\s*\)/u,
         );
         const instance = await connector('NovelCoolEN');
         expect(instance.novelContentQuery).toBe('div.chapter-reading-section.position-relative');

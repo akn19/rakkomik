@@ -5,7 +5,7 @@ export default class MangaWar extends WordPressMadara {
         super();
         super.id = 'mangawar';
         super.label = 'Manga War';
-        this.tags = [ 'manga', 'high-quality', 'english' ];
+        this.tags = ['manga', 'high-quality', 'english'];
         this.url = 'https://mangawar.com';
         this.language = 'en';
     }

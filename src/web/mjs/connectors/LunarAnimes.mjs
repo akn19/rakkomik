@@ -3,7 +3,6 @@ import Manga from '../engine/Manga.mjs';
 import { sha256Bytes, base64ToBytes, bytesToUtf8, aesCbcDecrypt } from '../engine/Crypto.mjs';
 
 export default class LunarAnimes extends Connector {
-
     constructor() {
         super();
         super.id = 'lunaranimes';
@@ -25,7 +24,7 @@ export default class LunarAnimes extends Connector {
 
     async _acquireSlot() {
         while (this._activeRequests >= this._maxConcurrent) {
-            await new Promise(resolve => this._requestQueue.push(resolve));
+            await new Promise((resolve) => this._requestQueue.push(resolve));
         }
         this._activeRequests++;
         await this.wait(this._requestDelay);
@@ -56,20 +55,28 @@ export default class LunarAnimes extends Connector {
         let response = await fetch(request.clone());
         if (response.status !== 403) {
             if (!response.ok) {
-                throw new Error(`Failed to receive content from "${request.url}" (status: ${response.status}) - ${response.statusText}`);
+                throw new Error(
+                    `Failed to receive content from "${request.url}" (status: ${response.status}) - ${response.statusText}`,
+                );
             }
             return await response.json();
         }
         let body = '';
         try {
             body = await response.clone().text();
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            /* ignore */
+        }
         if (!/validate/i.test(body)) {
-            throw new Error(`Failed to receive content from "${request.url}" (status: 403) - Forbidden`);
+            throw new Error(
+                `Failed to receive content from "${request.url}" (status: 403) - Forbidden`,
+            );
         }
         // First 403+validate: enable DPoP for subsequent API calls (like needsCaptcha in Kotlin)
         this._needsDpop = true;
-        const dpop = await this._signDpop(request.method || 'GET', request.url.split('?')[0]).catch(() => '');
+        const dpop = await this._signDpop(request.method || 'GET', request.url.split('?')[0]).catch(
+            () => '',
+        );
         if (!dpop) {
             throw new Error('Solve captcha in webview and retry');
         }
@@ -77,7 +84,9 @@ export default class LunarAnimes extends Connector {
         retry.headers.set('dpop', dpop);
         response = await fetch(retry);
         if (!response.ok) {
-            throw new Error(`Failed to receive content from "${request.url}" (status: ${response.status}) - ${response.statusText}`);
+            throw new Error(
+                `Failed to receive content from "${request.url}" (status: ${response.status}) - ${response.statusText}`,
+            );
         }
         return await response.json();
     }
@@ -214,9 +223,9 @@ export default class LunarAnimes extends Connector {
     }
 
     async _apiFetch(url, init) {
-        const headers = new Headers(init && init.headers || undefined);
+        const headers = new Headers((init && init.headers) || undefined);
         if (this._needsDpop && !headers.has('dpop')) {
-            const method = init && init.method || 'GET';
+            const method = (init && init.method) || 'GET';
             const dpop = await this._signDpop(method, url.split('?')[0]).catch(() => '');
             if (dpop) {
                 headers.set('dpop', dpop);
@@ -226,8 +235,8 @@ export default class LunarAnimes extends Connector {
         try {
             const request = new Request(url, {
                 ...this.requestOptions,
-                ...init || {},
-                headers: this._mergeHeaders(this.requestOptions.headers, headers)
+                ...(init || {}),
+                headers: this._mergeHeaders(this.requestOptions.headers, headers),
             });
             const response = await fetch(request);
             return response;
@@ -249,7 +258,9 @@ export default class LunarAnimes extends Connector {
     async _getMangaFromURI(uri) {
         const slug = uri.pathname.split('/').filter(Boolean).pop();
         try {
-            const { manga } = await this._rateLimitedFetchJSON(`${this.apiUrl}/api/manga/title/${slug}`);
+            const { manga } = await this._rateLimitedFetchJSON(
+                `${this.apiUrl}/api/manga/title/${slug}`,
+            );
             return new Manga(this, slug, manga.title);
         } catch (e) {
             return new Manga(this, slug, slug);
@@ -261,11 +272,15 @@ export default class LunarAnimes extends Connector {
         let page = 1;
         let totalPages = 1;
         do {
-            const data = await this._rateLimitedFetchJSON(`${this.apiUrl}/api/manga/search?page=${page}&limit=30&sort=relevance`);
-            allMangas.push(...data.manga.map(entry => ({
-                id: entry.slug,
-                title: entry.title,
-            })));
+            const data = await this._rateLimitedFetchJSON(
+                `${this.apiUrl}/api/manga/search?page=${page}&limit=30&sort=relevance`,
+            );
+            allMangas.push(
+                ...data.manga.map((entry) => ({
+                    id: entry.slug,
+                    title: entry.title,
+                })),
+            );
             totalPages = data.total_pages || data.totalPages || 1;
             page++;
         } while (page <= totalPages);
@@ -279,20 +294,34 @@ export default class LunarAnimes extends Connector {
         ]);
 
         // Kotlin: LunarPasswordInfoResponse(has_series_password, chapter_passwords)
-        const hasSeriesPassword = passwordInfo.has_series_password !== undefined ? passwordInfo.has_series_password : passwordInfo.hasSeriesPassword !== undefined ? passwordInfo.hasSeriesPassword : false;
-        const chapterPasswords = passwordInfo.chapter_passwords !== undefined ? passwordInfo.chapter_passwords : passwordInfo.chapterPasswords || [];
+        const hasSeriesPassword =
+            passwordInfo.has_series_password !== undefined
+                ? passwordInfo.has_series_password
+                : passwordInfo.hasSeriesPassword !== undefined
+                  ? passwordInfo.hasSeriesPassword
+                  : false;
+        const chapterPasswords =
+            passwordInfo.chapter_passwords !== undefined
+                ? passwordInfo.chapter_passwords
+                : passwordInfo.chapterPasswords || [];
 
-        const chapters = chapterList.data.map(chapter => {
+        const chapters = chapterList.data.map((chapter) => {
             const language = chapter.language;
             // Kotlin compares chapter_number (String) with chapter.chapter
             const num = chapter.chapter;
-            const isLocked = hasSeriesPassword || chapterPasswords.some(
-                cp => (cp.chapter_number !== undefined ? cp.chapter_number : cp.chapterNumber) === num && (cp.language == null || cp.language === language)
-            );
+            const isLocked =
+                hasSeriesPassword ||
+                chapterPasswords.some(
+                    (cp) =>
+                        (cp.chapter_number !== undefined ? cp.chapter_number : cp.chapterNumber) ===
+                            num &&
+                        (cp.language == null || cp.language === language),
+                );
 
             const chapterName = num.replace(/\.00$/, '').replace(/\.0$/, '');
             const chapterNum = `Chapter ${chapterName}`;
-            const chapterTitle = chapter.chapter_title !== undefined ? chapter.chapter_title : chapter.chapterTitle;
+            const chapterTitle =
+                chapter.chapter_title !== undefined ? chapter.chapter_title : chapter.chapterTitle;
             const titleText = chapterTitle && chapterTitle.trim();
 
             let title;
@@ -314,7 +343,12 @@ export default class LunarAnimes extends Connector {
             }
 
             return {
-                id: JSON.stringify({ slug: manga.id, chapter: num, lang: language, locked: isLocked }),
+                id: JSON.stringify({
+                    slug: manga.id,
+                    chapter: num,
+                    lang: language,
+                    locked: isLocked,
+                }),
                 title: title,
                 language: language,
             };
@@ -330,22 +364,32 @@ export default class LunarAnimes extends Connector {
      */
     async _viewChapter(slug, number, lang) {
         try {
-            const statusRes = await this._apiFetch(`${this.apiUrl}/api/manga/rating/status/${slug}/${number}`);
+            const statusRes = await this._apiFetch(
+                `${this.apiUrl}/api/manga/rating/status/${slug}/${number}`,
+            );
             try {
                 await statusRes.arrayBuffer();
-            } catch (e) { /* drain */ }
-        } catch (e) { /* non-fatal */ }
+            } catch (e) {
+                /* drain */
+            }
+        } catch (e) {
+            /* non-fatal */
+        }
         try {
             await this._apiFetch(`${this.apiUrl}/api/manga/chapter/view`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ slug: slug, chapter: number, language: lang })
-            }).then(async res => {
+                body: JSON.stringify({ slug: slug, chapter: number, language: lang }),
+            }).then(async (res) => {
                 try {
                     await res.arrayBuffer();
-                } catch (e) { /* drain */ }
+                } catch (e) {
+                    /* drain */
+                }
             });
-        } catch (e) { /* non-fatal */ }
+        } catch (e) {
+            /* non-fatal */
+        }
     }
 
     async _getPages(chapter) {
@@ -359,7 +403,9 @@ export default class LunarAnimes extends Connector {
         const request = new Request(chapterUrl, this.requestOptions);
         const response = await fetch(request);
         if (!response.ok) {
-            throw new Error(`Failed to fetch chapter page: ${response.status} ${response.statusText}`);
+            throw new Error(
+                `Failed to fetch chapter page: ${response.status} ${response.statusText}`,
+            );
         }
         const html = await response.text();
 
@@ -372,7 +418,7 @@ export default class LunarAnimes extends Connector {
         const token = this._generateToken(rctx0, rctx1, chapterInfo.slug, chapterInfo.chapter);
 
         const { data } = await this._rateLimitedFetchJSON(
-            `${this.apiUrl}/api/manga/r/${token}?lang=${chapterInfo.lang}`
+            `${this.apiUrl}/api/manga/r/${token}?lang=${chapterInfo.lang}`,
         );
 
         let images;
@@ -386,7 +432,7 @@ export default class LunarAnimes extends Connector {
             images = [];
         }
 
-        return images.map(url => {
+        return images.map((url) => {
             // Kotlin imageRequest(): Referer = chapter page; interceptor overwrites
             // CDN host referer to baseUrl/ (Node 16 compatible, no URL parsing pitfalls)
             let referer = chapterUrl;
@@ -420,12 +466,18 @@ export default class LunarAnimes extends Connector {
                     try {
                         const obj = JSON.parse(dictMatch[0]);
                         // Kotlin: parseAs<Map<String, String>>() + keys.any { it.length == 2 }
-                        if (typeof obj === 'object' && obj !== null && !Array.isArray(obj)
-                            && Object.keys(obj).some(k => k.length === 2)
-                            && Object.values(obj).every(v => typeof v === 'string')) {
+                        if (
+                            typeof obj === 'object' &&
+                            obj !== null &&
+                            !Array.isArray(obj) &&
+                            Object.keys(obj).some((k) => k.length === 2) &&
+                            Object.values(obj).every((v) => typeof v === 'string')
+                        ) {
                             seeds.push(obj);
                         }
-                    } catch (e) { /* skip */ }
+                    } catch (e) {
+                        /* skip */
+                    }
                 }
             }
         }
@@ -445,12 +497,15 @@ export default class LunarAnimes extends Connector {
         const decoded = atob(padded);
         const parts = decoded.split('.');
         const xorKey = parseInt(parts[0], 16);
-        const hexStr = parts.slice(1).map(k => seedObj[k] || '').join('');
+        const hexStr = parts
+            .slice(1)
+            .map((k) => seedObj[k] || '')
+            .join('');
 
         let aStr = '';
         for (let i = 0; i < hexStr.length; i += 2) {
             const hexByte = parseInt(hexStr.substring(i, i + 2), 16);
-            const xorByte = xorKey + i / 2 * 7 + 3 & 0xFF;
+            const xorByte = (xorKey + (i / 2) * 7 + 3) & 0xff;
             aStr += String.fromCharCode(hexByte ^ xorByte);
         }
         if (!aStr) return '';
@@ -461,7 +516,9 @@ export default class LunarAnimes extends Connector {
         const h = Array.from({ length: 256 }, (_, i) => i);
         for (let i = 255; i >= 1; i--) {
             const j = rand.nextInt(i + 1);
-            const tmp = h[i]; h[i] = h[j]; h[j] = tmp;
+            const tmp = h[i];
+            h[i] = h[j];
+            h[j] = tmp;
         }
 
         const s = new Array(256);
@@ -469,14 +526,14 @@ export default class LunarAnimes extends Connector {
 
         const u = Array.from({ length: aStr.length }, () => rand.nextInt(256));
 
-        const d = aStr.split('').map(c => c.charCodeAt(0) & 0xFF);
+        const d = aStr.split('').map((c) => c.charCodeAt(0) & 0xff);
 
         for (let round = 0; round < 3; round++) {
             for (let t = 0; t < d.length; t++) {
                 d[t] = d[t] ^ u[(t + 7 * round) % u.length];
                 d[t] = h[d[t]];
-                const shift = (t + 3 * round + 1) % 7 + 1;
-                d[t] = (d[t] << shift | d[t] >>> 8 - shift) & 0xFF;
+                const shift = ((t + 3 * round + 1) % 7) + 1;
+                d[t] = ((d[t] << shift) | (d[t] >>> (8 - shift))) & 0xff;
             }
             for (let t = 1; t < d.length; t++) d[t] = d[t] ^ d[t - 1];
         }
@@ -485,21 +542,22 @@ export default class LunarAnimes extends Connector {
         for (let round = 2; round >= 0; round--) {
             for (let t = e.length - 1; t >= 1; t--) e[t] = e[t] ^ e[t - 1];
             for (let t = 0; t < e.length; t++) {
-                const shift = (t + 3 * round + 1) % 7 + 1;
-                e[t] = (e[t] >>> shift | e[t] << 8 - shift) & 0xFF;
+                const shift = ((t + 3 * round + 1) % 7) + 1;
+                e[t] = ((e[t] >>> shift) | (e[t] << (8 - shift))) & 0xff;
                 e[t] = s[e[t]];
                 e[t] = e[t] ^ u[(t + 7 * round) % u.length];
             }
         }
 
-        return e.map(b => String.fromCharCode(b)).join('');
+        return e.map((b) => String.fromCharCode(b)).join('');
     }
 
     _generateToken(rctx0, rctx1, slug, index) {
         const maxLen = Math.max(rctx0.length, rctx1.length);
         const xorKey = new Uint8Array(maxLen);
         for (let i = 0; i < maxLen; i++) {
-            xorKey[i] = (rctx0.charCodeAt(i % rctx0.length) ^ rctx1.charCodeAt(i % rctx1.length)) & 0xFF;
+            xorKey[i] =
+                (rctx0.charCodeAt(i % rctx0.length) ^ rctx1.charCodeAt(i % rctx1.length)) & 0xff;
         }
 
         const timestamp = Math.floor(Date.now() / 1000).toString(16);
@@ -523,7 +581,11 @@ export default class LunarAnimes extends Connector {
         const b64 = sessionDataB64.replace(/-/g, '+').replace(/_/g, '/');
         const padLen = Math.ceil(b64.length / 4) * 4;
         const paddedB64 = b64.padEnd(padLen, '=');
-        const decrypted = await aesCbcDecrypt(base64ToBytes(paddedB64), sha256Bytes(rctx0), new Uint8Array(16));
+        const decrypted = await aesCbcDecrypt(
+            base64ToBytes(paddedB64),
+            sha256Bytes(rctx0),
+            new Uint8Array(16),
+        );
         return JSON.parse(bytesToUtf8(decrypted)).data.images;
     }
 
@@ -531,7 +593,10 @@ export default class LunarAnimes extends Connector {
         const request = new Request(payload.url, this.requestOptions);
         request.headers.set('x-referer', payload.referer);
         // Kotlin imageRequest(): Accept image/avif,image/webp,...
-        request.headers.set('Accept', 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8');
+        request.headers.set(
+            'Accept',
+            'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        );
         const response = await fetch(request);
         const data = await response.blob();
         return this._blobToBuffer(data);
@@ -553,26 +618,26 @@ class KotlinRandom {
         this.z = 0;
         this.w = 0;
         this.v = ~seed1;
-        this.addend = seed1 << 10 ^ seed2 >>> 4 | 0;
+        this.addend = ((seed1 << 10) ^ (seed2 >>> 4)) | 0;
         for (let i = 0; i < 64; i++) this.nextInt32();
     }
     nextInt32() {
         let t = this.x;
-        t = t ^ t >>> 2 | 0;
+        t = (t ^ (t >>> 2)) | 0;
         this.x = this.y;
         this.y = this.z;
         this.z = this.w;
         const v0 = this.v;
         this.w = v0;
-        t = (t ^ (t << 1 | 0) | 0) ^ v0 ^ (v0 << 4 | 0) | 0;
+        t = (((t ^ ((t << 1) | 0)) | 0) ^ v0 ^ ((v0 << 4) | 0)) | 0;
         this.v = t;
-        this.addend = this.addend + 362437 | 0;
-        return t + this.addend | 0;
+        this.addend = (this.addend + 362437) | 0;
+        return (t + this.addend) | 0;
     }
     _takeUpperBits(value, bitCount) {
         // Int.takeUpperBits: ushr(32 - bitCount) and (-bitCount).shr(31)
         if (bitCount === 0) return 0;
-        return (value >>> 32 - bitCount | 0) & (-bitCount >> 31 | 0) | 0;
+        return (((value >>> (32 - bitCount)) | 0) & ((-bitCount >> 31) | 0)) | 0;
     }
     nextBits(bitCount) {
         return this._takeUpperBits(this.nextInt32(), bitCount);
@@ -593,7 +658,7 @@ class KotlinRandom {
                 bits = this.nextInt32() >>> 1;
                 v = bits % n;
                 // signed 32-bit overflow check like Kotlin: bits - v + (n - 1) < 0
-            } while ((bits - v + (n - 1) | 0) < 0);
+            } while (((bits - v + (n - 1)) | 0) < 0);
             rnd = v;
         }
         return rnd;

@@ -4,7 +4,6 @@ import MangaReaderCMS from './templates/MangaReaderCMS.mjs';
  *
  */
 export default class UniversoYuri extends MangaReaderCMS {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class UniversoYuri extends MangaReaderCMS {
         super();
         super.id = 'universoyuri';
         super.label = 'Universo Yuri';
-        this.tags = [ 'manga', 'spanish' ];
+        this.tags = ['manga', 'spanish'];
         this.url = 'http://www.universoyuri.com';
     }
 }

@@ -1,12 +1,11 @@
 import Connector from '../engine/Connector.mjs';
 
 export default class Qimiaomh extends Connector {
-
     constructor() {
         super();
         super.id = 'qimiaomh';
         super.label = '奇妙漫画 (Qimiaomh)';
-        this.tags = [ 'webtoon', 'chinese' ];
+        this.tags = ['webtoon', 'chinese'];
         this.url = 'https://www.qimiaomh.com';
 
         this.queryMangas = 'div.wrapper div.mt20 div.classification h2 a';
@@ -21,30 +20,30 @@ export default class Qimiaomh extends Connector {
         let checkData = await this.fetchDOM(request, 'div.paging ul li a');
         let result = {
             data: null,
-            check: null
+            check: null,
         };
 
-        result.data = data.map(element => {
+        result.data = data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
 
-        result.check = checkData.find(element => {
-            return element.href == "javascript:void(0)";
+        result.check = checkData.find((element) => {
+            return element.href == 'javascript:void(0)';
         });
 
-        if(page === 1)result.check = null;
+        if (page === 1) result.check = null;
 
         return result;
     }
 
     async _getMangas() {
         let mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let result = await this._getMangasFromPage(page);
-            !result.check ? mangaList.push(...result.data) : run = false;
+            !result.check ? mangaList.push(...result.data) : (run = false);
         }
         return mangaList;
     }
@@ -53,11 +52,11 @@ export default class Qimiaomh extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             const title = element.title;
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: title.replace(manga.title, '').trim()
+                title: title.replace(manga.title, '').trim(),
             };
         });
     }
@@ -78,6 +77,6 @@ export default class Qimiaomh extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         let data = await Engine.Request.fetchUI(request, script);
-        return data.map(element => this.getAbsolutePath(element, request.url));
+        return data.map((element) => this.getAbsolutePath(element, request.url));
     }
 }

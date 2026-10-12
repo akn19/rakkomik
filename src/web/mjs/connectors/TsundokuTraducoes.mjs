@@ -4,7 +4,7 @@ export default class TsundokuTraducoes extends WordPressMangastream {
         super();
         super.id = 'tsundokutraducoes';
         super.label = 'Tsundoku Traduções';
-        this.tags = [ 'webtoon', 'novel', 'portuguese', 'scanlation' ];
+        this.tags = ['webtoon', 'novel', 'portuguese', 'scanlation'];
         this.url = 'https://tsundoku.com.br';
         this.path = '/manga/list-mode/';
         this.novelContent = 'div#readerarea.rdminimal';
@@ -18,6 +18,11 @@ export default class TsundokuTraducoes extends WordPressMangastream {
             return await super._getPages(chapter);
         }
         // the site advertises itself in a paragraph and in its logo
-        return [ await Engine.Request.fetchNovel(request, this.novelContent, { obstacles: this.novelObstaclesQuery, ignoredTexts: [this.url] }) ];
+        return [
+            await Engine.Request.fetchNovel(request, this.novelContent, {
+                obstacles: this.novelObstaclesQuery,
+                ignoredTexts: [this.url],
+            }),
+        ];
     }
 }

@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaIndoWeb extends Connector {
-
     constructor() {
         super();
         super.id = 'mangaindoweb';
         super.label = 'MangaIndoWeb';
-        this.tags = [ 'manga', 'indonesian' ];
+        this.tags = ['manga', 'indonesian'];
         this.url = 'https://mangaindo.web.id';
         this.path = '/manga-list/';
 
@@ -22,23 +21,23 @@ export default class MangaIndoWeb extends Connector {
         const request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas);
 
-        return data.map(element => {
+        return data.map((element) => {
             return {
-                id: this.getRootRelativeOrAbsoluteLink( element, this.url ),
-                title: element.text.trim()
+                id: this.getRootRelativeOrAbsoluteLink(element, this.url),
+                title: element.text.trim(),
             };
         });
     }
 
     async _getChapters(manga) {
         const uri = new URL(manga.id, this.url);
-        const request = new Request( uri, this.requestOptions );
+        const request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapters);
 
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.replace( manga.title, '' ).replace( '–', '' ).trim()
+                title: element.text.replace(manga.title, '').replace('–', '').trim(),
             };
         });
     }
@@ -48,7 +47,7 @@ export default class MangaIndoWeb extends Connector {
         const request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryPages);
 
-        return data.map(element => this.getAbsolutePath( element, request.url ));
+        return data.map((element) => this.getAbsolutePath(element, request.url));
     }
 
     async _getMangaFromURI(uri) {
@@ -58,5 +57,4 @@ export default class MangaIndoWeb extends Connector {
 
         return new Manga(this, uri, title);
     }
-
 }

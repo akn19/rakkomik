@@ -4,7 +4,7 @@ export default class PainfulNightz extends WordPressMadara {
         super();
         super.id = 'painfulnightz';
         super.label = 'PainfulNightz';
-        this.tags = [ 'manga', 'webtoon', 'english' ];
+        this.tags = ['manga', 'webtoon', 'english'];
         this.url = 'https://painfulnightz.com';
     }
 }

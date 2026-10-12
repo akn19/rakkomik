@@ -1,12 +1,11 @@
 import WordPressMadaraNovel from './templates/WordPressMadaraNovel.mjs';
 
 export default class SinensisScan extends WordPressMadaraNovel {
-
     constructor() {
         super();
         super.id = 'sinensisscan';
         super.label = 'SinenSis  Scan';
-        this.tags = [ 'manga', 'webtoon', 'portuguese', 'scanlation' ];
+        this.tags = ['manga', 'webtoon', 'portuguese', 'scanlation'];
         this.url = 'https://sinensisscans.com';
     }
 
@@ -31,5 +30,4 @@ export default class SinensisScan extends WordPressMadaraNovel {
         `;
         return await Engine.Request.fetchUI(request, script);
     }
-
 }

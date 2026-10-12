@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Mangabox extends Connector {
-
     constructor() {
         super();
         super.id = 'mangabox';
         super.label = 'Mangabox';
-        this.tags = [ 'manga', 'japanese' ];
+        this.tags = ['manga', 'japanese'];
         this.url = 'https://www.mangabox.me';
         this.requestOptions.headers.set('X-Requested-With', 'XMLHttpRequest');
     }
@@ -26,7 +25,7 @@ export default class Mangabox extends Connector {
             const data = await this._getMangasFromPage(nextLink);
             nextLink = data.nextLink;
             mangaList.push(...data.mangas);
-            if(!nextLink) {
+            if (!nextLink) {
                 run = false;
             }
         }
@@ -40,15 +39,15 @@ export default class Mangabox extends Connector {
         const data = await res.json();
         const links = this._parseLinkHeader(res.headers.get('Link') || '');
         var result = {
-            mangas: data.map(item => {
+            mangas: data.map((item) => {
                 return {
                     id: item.manga.id,
                     title: item.manga.title,
                 };
-            })
+            }),
         };
-        links.forEach(link => {
-            if(link.rel !== 'next') return;
+        links.forEach((link) => {
+            if (link.rel !== 'next') return;
             result.nextLink = link.url;
         });
         return result;
@@ -58,10 +57,10 @@ export default class Mangabox extends Connector {
         const uri = new URL(`/reader/${manga.id}/episodes/`, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'ul.episodes_list li.episodes_item a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('span.episodes_strong_text').textContent.trim()
+                title: element.querySelector('span.episodes_strong_text').textContent.trim(),
             };
         });
     }
@@ -70,24 +69,26 @@ export default class Mangabox extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'ul.slides li source');
-        return data.map(image => this.getAbsolutePath(image, request.url));
+        return data.map((image) => this.getAbsolutePath(image, request.url));
     }
 
     _parseLinkHeader(value) {
         var values = value.split(/\s*,\s*/);
-        return values.map(val => val.split(/\s*;\s*/).reduce((result, v) => {
-            var keyAndValue;
-            if (v[0] === '<' && v[v.length - 1] === '>') {
-                if (!result.url) {
-                    result.url = v.slice(1, -1);
+        return values.map((val) =>
+            val.split(/\s*;\s*/).reduce((result, v) => {
+                var keyAndValue;
+                if (v[0] === '<' && v[v.length - 1] === '>') {
+                    if (!result.url) {
+                        result.url = v.slice(1, -1);
+                    }
+                } else {
+                    keyAndValue = v.split('=');
+                    if (keyAndValue[1] && !result[keyAndValue[0]]) {
+                        result[keyAndValue[0]] = keyAndValue[1].slice(1, -1);
+                    }
                 }
-            } else {
-                keyAndValue = v.split('=');
-                if (keyAndValue[1] && !result[keyAndValue[0]]) {
-                    result[keyAndValue[0]] = keyAndValue[1].slice(1, -1);
-                }
-            }
-            return result;
-        }, {}));
+                return result;
+            }, {}),
+        );
     }
 }

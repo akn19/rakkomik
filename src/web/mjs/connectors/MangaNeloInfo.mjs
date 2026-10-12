@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaNeloInfo extends Connector {
-
     constructor() {
         super();
         super.id = 'manganeloinfo';
         super.label = 'MangaNeloInfo';
-        this.tags = [ 'manga', 'webtoon', 'english' ];
+        this.tags = ['manga', 'webtoon', 'english'];
         this.url = 'https://manganelo.info';
     }
 
@@ -22,19 +21,19 @@ export default class MangaNeloInfo extends Connector {
         const mangaList = [];
         for (let page = 1, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
 
     async _getMangasFromPage(page) {
-        const uri = new URL("/genre?page=" + page, this.url);
+        const uri = new URL('/genre?page=' + page, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.grid h3.truncate a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -43,11 +42,11 @@ export default class MangaNeloInfo extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'section#chapter-list table tbody tr a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
                 title: element.text.replace(manga.title, ''),
-                language: ''
+                language: '',
             };
         });
     }
@@ -56,10 +55,15 @@ export default class MangaNeloInfo extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.my-5 div source');
-        return data.map(element => this.createConnectorURI({
-            url: this.getRootRelativeOrAbsoluteLink(element.dataset['src'] || element, request.url),
-            referer: request.url
-        }));
+        return data.map((element) =>
+            this.createConnectorURI({
+                url: this.getRootRelativeOrAbsoluteLink(
+                    element.dataset['src'] || element,
+                    request.url,
+                ),
+                referer: request.url,
+            }),
+        );
     }
 
     async _handleConnectorURI(payload) {

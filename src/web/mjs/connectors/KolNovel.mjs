@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 //template/theme LightNovel, basically WordPressMangastreamNovel
 export default class KolNovel extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'kolnovel';
         super.label = 'Kol Novel (ملوك الروايات)';
-        this.tags = [ 'manga', 'webtoon', 'arabic' ];
+        this.tags = ['manga', 'webtoon', 'arabic'];
         this.url = 'https://kolnovel.com';
 
         this.queryChapters = 'div.eplister ul li a';
@@ -20,12 +19,16 @@ export default class KolNovel extends WordPressMangastream {
     async _getChapters(manga) {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             this.adLinkDecrypt(element);
-            const title = this.queryChaptersTitle ? [...element.querySelectorAll(this.queryChaptersTitle)].map(ele => ele.textContent).join(' ') : element.text;
+            const title = this.queryChaptersTitle
+                ? [...element.querySelectorAll(this.queryChaptersTitle)]
+                      .map((ele) => ele.textContent)
+                      .join(' ')
+                : element.text;
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: title.replace(manga.title, '').trim()
+                title: title.replace(manga.title, '').trim(),
             };
         });
     }
@@ -39,6 +42,10 @@ export default class KolNovel extends WordPressMangastream {
     }
 
     async _getPagesNovel(request) {
-        return [ await Engine.Request.fetchNovel(request, 'div.epcontent', { obstacles: this.novelObstaclesQuery }) ];
+        return [
+            await Engine.Request.fetchNovel(request, 'div.epcontent', {
+                obstacles: this.novelObstaclesQuery,
+            }),
+        ];
     }
 }

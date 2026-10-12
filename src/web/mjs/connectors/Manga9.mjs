@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Manga9 extends Connector {
-
     constructor() {
         super();
         super.id = 'manga9';
         super.label = 'Manga Raw (manga9.co)';
-        this.tags = [ 'manga', 'japanese' ];
+        this.tags = ['manga', 'japanese'];
         this.url = 'https://manga9.co';
 
         this.path = '/list/?page=';
@@ -31,7 +30,7 @@ export default class Manga9 extends Connector {
         const request = new Request(new URL(this.path, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangaPages);
         const pageCount = parseInt(data[0].textContent.split('/').pop());
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             const mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -41,10 +40,10 @@ export default class Manga9 extends Connector {
     async _getMangasFromPage(page) {
         const request = new Request(new URL(this.path + page, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.title.replace(/\(Raw( – Free)?\)/, '').trim()
+                title: element.title.replace(/\(Raw( – Free)?\)/, '').trim(),
             };
         });
     }
@@ -52,11 +51,11 @@ export default class Manga9 extends Connector {
     async _getChapters(manga) {
         const request = new Request(new URL(manga.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.text.match(/【([^【】]+)】\s*$/)[1],
-                language: ''
+                language: '',
             };
         });
     }
@@ -64,7 +63,7 @@ export default class Manga9 extends Connector {
     async _getPages(chapter) {
         const request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryPages);
-        return data.map(image => this.createConnectorURI(image.dataset.src));
+        return data.map((image) => this.createConnectorURI(image.dataset.src));
     }
 
     async _handleConnectorURI(payload) {

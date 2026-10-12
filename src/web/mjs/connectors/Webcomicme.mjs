@@ -4,7 +4,7 @@ export default class WebComicMe extends WordPressMadara {
         super();
         super.id = 'webcomicme';
         super.label = 'WebComic (Webcomic.me)';
-        this.tags = [ 'manga', 'webtoon', 'english' ];
+        this.tags = ['manga', 'webtoon', 'english'];
         this.url = 'https://webcomic.me';
     }
 }

@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class SirenKomik extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'sirenkomik';
@@ -20,7 +19,7 @@ export default class SirenKomik extends WordPressMangastream {
     async _getPages(chapter) {
         const url = new URL(chapter.id, this.url);
         const request = new Request(url, this.requestOptions);
-        const [ dom ] = await this.fetchDOM(request, 'body');
+        const [dom] = await this.fetchDOM(request, 'body');
         const matches = dom.innerHTML.match(/"images"\s*:\s*(\[.*\])\s*}/)[1];
         return JSON.parse(matches);
     }

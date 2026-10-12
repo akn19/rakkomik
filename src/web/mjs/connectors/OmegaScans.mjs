@@ -5,11 +5,11 @@ export default class OmegaScans extends HeanCms {
         super();
         super.id = 'omegascans';
         super.label = 'OmegaScans';
-        this.tags = [ 'webtoon', 'scanlation', 'english', 'hentai'];
+        this.tags = ['webtoon', 'scanlation', 'english', 'hentai'];
         this.url = 'https://omegascans.org';
         this.api = 'https://api.omegascans.org';
         this.links = {
-            login: 'https://omegascans.org/login'
+            login: 'https://omegascans.org/login',
         };
     }
 }

@@ -1,12 +1,11 @@
 import TAADD from './TAADD.mjs';
 
 export default class MangaDeep extends TAADD {
-
     constructor() {
         super();
         super.id = 'mangadeep';
         super.label = 'MangaDeep';
-        this.tags = [ 'manga', 'english' ];
+        this.tags = ['manga', 'english'];
         this.url = 'http://www.mangadeep.com';
 
         //this.bypassAdultWarning = true;

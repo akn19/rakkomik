@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Voratoon extends Connector {
-
     constructor() {
         super();
         super.id = 'voratoon';
@@ -35,12 +34,15 @@ export default class Voratoon extends Connector {
     }
 
     async _getMangasFromPage(page) {
-        const request = new Request(new URL(`?take=500&page=${page}`, this.api), this.requestOptions);
+        const request = new Request(
+            new URL(`?take=500&page=${page}`, this.api),
+            this.requestOptions,
+        );
         const data = await this.fetchJSON(request);
-        return data.data.map(series => {
+        return data.data.map((series) => {
             return {
                 id: series.data.slug,
-                title: series.data.title.trim()
+                title: series.data.title.trim(),
             };
         });
     }
@@ -48,16 +50,19 @@ export default class Voratoon extends Connector {
     async _getChapters(manga) {
         const request = new Request(new URL(`${manga.id}/chapters`, this.api), this.requestOptions);
         const data = await this.fetchJSON(request);
-        return data.data.map(entry => {
+        return data.data.map((entry) => {
             return {
                 id: entry.data.index,
-                title: [`Chapter ${entry.data.index}`, entry.data.title || ''].join(' ').trim()
+                title: [`Chapter ${entry.data.index}`, entry.data.title || ''].join(' ').trim(),
             };
         });
     }
 
     async _getPages(chapter) {
-        const request = new Request(new URL(`${chapter.manga.id}/chapters/${chapter.id}`, this.api), this.requestOptions);
+        const request = new Request(
+            new URL(`${chapter.manga.id}/chapters/${chapter.id}`, this.api),
+            this.requestOptions,
+        );
         const data = await this.fetchJSON(request);
         return data.data.data.images;
     }

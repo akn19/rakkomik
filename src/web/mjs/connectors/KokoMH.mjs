@@ -1,12 +1,11 @@
 import SinMH from './templates/SinMH.mjs';
 
 export default class KokoMH extends SinMH {
-
     constructor() {
         super();
         super.id = 'kokomh';
         super.label = '520漫画网 (KokoMH)';
-        this.tags = [ 'manga', 'webtoon', 'chinese' ];
+        this.tags = ['manga', 'webtoon', 'chinese'];
         this.url = 'https://www.kokomh.com';
 
         this.path = '/all/%PAGE%.html';

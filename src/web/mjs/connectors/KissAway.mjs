@@ -1,20 +1,20 @@
 import FlatManga from './templates/FlatManga.mjs';
 
 export default class KissAway extends FlatManga {
-
     constructor() {
         super();
         super.id = 'kissaway';
         super.label = 'KLManga';
-        this.tags = [ 'manga', 'raw', 'japanese' ];
+        this.tags = ['manga', 'raw', 'japanese'];
         this.url = 'https://klz9.com';
         this.requestOptions.headers.set('x-referer', this.url);
     }
 
     generateRandomStr(length) {
         const charmap = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let result ='';
-        for (let o = 0; o < length; o++) result += charmap.charAt(Math.floor(Math.random() * charmap.length));
+        let result = '';
+        for (let o = 0; o < length; o++)
+            result += charmap.charAt(Math.floor(Math.random() * charmap.length));
         return result;
     }
 
@@ -60,6 +60,6 @@ export default class KissAway extends FlatManga {
         `;
         const request = new Request(uri, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script);
-        return data.map(link => this.createConnectorURI(link));
+        return data.map((link) => this.createConnectorURI(link));
     }
 }

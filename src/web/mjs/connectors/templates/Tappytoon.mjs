@@ -42,10 +42,10 @@ export default class Tappytoon extends Connector {
         let uri = new URL('/comics?locale=' + this.lang, this.apiurl);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: element.id,
-                title: element.title.replace(' [DE]', '').replace(' [FR]', '')
+                title: element.title.replace(' [DE]', '').replace(' [FR]', ''),
             };
         });
     }
@@ -55,16 +55,20 @@ export default class Tappytoon extends Connector {
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
         return data
-            .filter(element => {
-                return element.isAccessible && (element.isFree || element.isUserUnlocked || element.isUserRented);
+            .filter((element) => {
+                return (
+                    element.isAccessible &&
+                    (element.isFree || element.isUserUnlocked || element.isUserRented)
+                );
             })
-            .map(element => {
+            .map((element) => {
                 return {
                     id: element.id,
                     title: element.title,
-                    language: ''
+                    language: '',
                 };
-            }).reverse();
+            })
+            .reverse();
     }
 
     async _getPages(chapter) {
@@ -72,11 +76,13 @@ export default class Tappytoon extends Connector {
         let uri = new URL(`/comics/${chapter.manga.id}`, this.apiurl);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
-        const quality = data.isSuperHighQualitySupported ? 'super_high': 'high';
-        uri = new URL(`/content-delivery/contents?chapterId=${chapter.id}&variant=${quality}&locale=${this.lang}`, this.apiurl);
+        const quality = data.isSuperHighQualitySupported ? 'super_high' : 'high';
+        uri = new URL(
+            `/content-delivery/contents?chapterId=${chapter.id}&variant=${quality}&locale=${this.lang}`,
+            this.apiurl,
+        );
         request = new Request(uri, this.requestOptions);
         data = await this.fetchJSON(request);
-        return data.media.map(image => this.createConnectorURI(image.url));
+        return data.media.map((image) => this.createConnectorURI(image.url));
     }
-
 }

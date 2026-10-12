@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class FlatManga extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -33,10 +32,10 @@ export default class FlatManga extends Connector {
         let uri = new URL(this.path, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -46,27 +45,36 @@ export default class FlatManga extends Connector {
         let request = new Request(uri, this.requestOptions);
         let response = await fetch(request);
         if (response.status !== 200) {
-            throw new Error(`Failed to receive chapter list (status: ${response.status}) - ${response.statusText}`);
+            throw new Error(
+                `Failed to receive chapter list (status: ${response.status}) - ${response.statusText}`,
+            );
         }
         let data = await response.text();
         let dom = this.createDOM(data);
         let language = dom.querySelector(this.queryChapterLanguage);
-        language = language ? language.className.match(this.queryChapterLanguageRX)[1] : this.language;
-        return [...dom.querySelectorAll(this.queryChapters)].map(element => {
+        language = language
+            ? language.className.match(this.queryChapterLanguageRX)[1]
+            : this.language;
+        return [...dom.querySelectorAll(this.queryChapters)].map((element) => {
             if (element.dataset.href) {
                 element.setAttribute('href', element.dataset.href + element.getAttribute('href'));
             }
-            let title = (this.queryChapterTitle ? element.querySelector(this.queryChapterTitle) : element).textContent.replace(manga.title, '');
+            let title = (
+                this.queryChapterTitle ? element.querySelector(this.queryChapterTitle) : element
+            ).textContent.replace(manga.title, '');
             let mangaTitle = manga.title.replace(/\s*-\s*RAW$/, '');
             //escape all special characters used in Javascript regexes
-            title = title.replace(new RegExp(mangaTitle.replace(/[*^.|$?+\-()[\]{}\\/]/g, '\\$&')), '');
+            title = title.replace(
+                new RegExp(mangaTitle.replace(/[*^.|$?+\-()[\]{}\\/]/g, '\\$&')),
+                '',
+            );
             title = title.replace(/^\s*-\s*/, '');
             title = title.replace(/-\s*-\s*Read\s*Online\s*$/, '');
             title = title.trim();
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: title,
-                language: language
+                language: language,
             };
         });
     }
@@ -76,25 +84,43 @@ export default class FlatManga extends Connector {
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryPages);
         return data
-            .map(element => {
+            .map((element) => {
                 try {
                     element.dataset.src = atob(element.dataset.src);
-                } catch (_) { /* ignore */ }
+                } catch (_) {
+                    /* ignore */
+                }
                 try {
                     element.dataset.src = atob(element.dataset.srcset);
-                } catch (_) { /* ignore */ }
+                } catch (_) {
+                    /* ignore */
+                }
                 try {
                     element.dataset.original = atob(element.dataset.original);
-                } catch (_) { /* ignore */ }
+                } catch (_) {
+                    /* ignore */
+                }
                 try {
                     element.dataset.pagespeedLazySrc = atob(element.dataset.pagespeedLazySrc);
-                } catch (_) { /* ignore */ }
+                } catch (_) {
+                    /* ignore */
+                }
                 try {
                     element.dataset.aload = atob(element.dataset.aload);
-                } catch (_) { /* ignore */ }
-                return this.getAbsolutePath(element.dataset.aload || element.dataset.src || element.dataset.srcset || element.dataset.original || element.dataset.pagespeedLazySrc || element, request.url);
+                } catch (_) {
+                    /* ignore */
+                }
+                return this.getAbsolutePath(
+                    element.dataset.aload ||
+                        element.dataset.src ||
+                        element.dataset.srcset ||
+                        element.dataset.original ||
+                        element.dataset.pagespeedLazySrc ||
+                        element,
+                    request.url,
+                );
             })
-            .filter(url => !url.includes('3282f6a4b7_o') && !url.includes('donate'))
-            .map(url => this.createConnectorURI(url));
+            .filter((url) => !url.includes('3282f6a4b7_o') && !url.includes('donate'))
+            .map((url) => this.createConnectorURI(url));
     }
 }

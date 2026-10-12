@@ -1,7 +1,6 @@
 import WordPressMadara from './WordPressMadara.mjs';
 
 export default class WordPressMadaraNovel extends WordPressMadara {
-
     constructor() {
         super();
 
@@ -18,6 +17,10 @@ export default class WordPressMadaraNovel extends WordPressMadara {
     }
 
     async _getPagesNovel(request) {
-        return [ await Engine.Request.fetchNovel(request, 'div.entry-content', { obstacles: this.novelObstaclesQuery }) ];
+        return [
+            await Engine.Request.fetchNovel(request, 'div.entry-content', {
+                obstacles: this.novelObstaclesQuery,
+            }),
+        ];
     }
 }

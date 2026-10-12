@@ -1,8 +1,7 @@
-import SpeedBinb from "./templates/SpeedBinb.mjs";
+import SpeedBinb from './templates/SpeedBinb.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaPlaza extends SpeedBinb {
-
     constructor() {
         super();
         super.id = 'mangaplaza';
@@ -11,7 +10,7 @@ export default class MangaPlaza extends SpeedBinb {
         this.url = 'https://mangaplaza.com';
         this.baseURL = 'https://reader.mangaplaza.com/speedreader';
         this.links = {
-            login: 'https://mangaplaza.com/login'
+            login: 'https://mangaplaza.com/login',
         };
         this.apiURL = new URL('/api/', this.url);
         this.requestOptions.headers.set('x-cookie', 'mp_over18_agreement=ON');
@@ -27,30 +26,39 @@ export default class MangaPlaza extends SpeedBinb {
 
     async _getMangas() {
         // Do not retrieve light novels
-        const genres = await this.fetchDOM(new Request(new URL('/genre', this.url), this.requestOptions), 'details:not(:last-child) li:first-child>a');
+        const genres = await this.fetchDOM(
+            new Request(new URL('/genre', this.url), this.requestOptions),
+            'details:not(:last-child) li:first-child>a',
+        );
         const mangaList = Array.from(new Set());
         for (const genre of genres) {
-            mangaList.push(...await this._getMangasFromGenre(genre.pathname));
+            mangaList.push(...(await this._getMangasFromGenre(genre.pathname)));
         }
 
         return mangaList;
     }
 
     async _getMangasFromGenre(path) {
-        const results = await this.fetchDOM(new Request(new URL(path, this.url), this.requestOptions), this.pageNoSelector);
+        const results = await this.fetchDOM(
+            new Request(new URL(path, this.url), this.requestOptions),
+            this.pageNoSelector,
+        );
         const pageCount = results.length != 0 ? parseInt(results[0].text) : 1;
 
         const mangaList = [];
         for (let page = 1; page <= pageCount; page++) {
-            const results = await this.fetchDOM(new Request(new URL(`${path}?page=${page}`, this.url), this.requestOptions), 'ul.listBox li div.titleName a');
+            const results = await this.fetchDOM(
+                new Request(new URL(`${path}?page=${page}`, this.url), this.requestOptions),
+                'ul.listBox li div.titleName a',
+            );
 
             mangaList.push(
-                ...results.map(e => {
+                ...results.map((e) => {
                     return {
                         id: e.pathname.split('/')[2],
-                        title: e.innerText.replace(/^<.*>/, '').trim()
+                        title: e.innerText.replace(/^<.*>/, '').trim(),
                     };
-                })
+                }),
             );
         }
 
@@ -61,24 +69,28 @@ export default class MangaPlaza extends SpeedBinb {
         const chapterList = [];
         const uri = new URL(`title/content_list/?title_id=${manga.id}`, this.apiURL);
 
-        const { data: { html_page}} = await this.fetchJSON(uri, this.requestOptions);
+        const {
+            data: { html_page },
+        } = await this.fetchJSON(uri, this.requestOptions);
         const doc = new DOMParser().parseFromString(html_page, 'text/html');
         const pageBtn = doc.querySelector(this.pageNoSelector);
 
         const pageCount = pageBtn ? parseInt(pageBtn.text) : 1;
         for (let page = 1; page <= pageCount; page++) {
-            chapterList.push(...await this._getChaptersFromPage(uri, page, manga.id));
+            chapterList.push(...(await this._getChaptersFromPage(uri, page, manga.id)));
         }
 
         return chapterList;
     }
 
     async _getChaptersFromPage(uri, page, mangaId) {
-        const { data: { html_content}} = await this.fetchJSON(new Request(new URL(`${uri}&page=${page}`), this.requestOptions));
+        const {
+            data: { html_content },
+        } = await this.fetchJSON(new Request(new URL(`${uri}&page=${page}`), this.requestOptions));
         const doc = new DOMParser().parseFromString(html_content, 'text/html');
         return [...doc.querySelectorAll('.inner_table')]
-            .filter(e => e.querySelector('a[href*="/reader/"]'))
-            .map(e => {
+            .filter((e) => e.querySelector('a[href*="/reader/"]'))
+            .map((e) => {
                 const btn = e.querySelector('a[href*="/reader/"]');
                 const contentId = btn.pathname.split('/')[2];
 

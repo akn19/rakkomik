@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class NeuManga extends Connector {
-
     constructor() {
         super();
         super.id = 'neumanga';
         super.label = 'NeuManga';
-        this.tags = [ 'manga', 'indonesian' ];
+        this.tags = ['manga', 'indonesian'];
         this.url = 'https://neumanga.net';
         this.path = '/manga-list';
         this.queryMangas = 'div.mangalist-blc ul li a.series';
@@ -27,10 +26,10 @@ export default class NeuManga extends Connector {
     async _getMangas() {
         const request = new Request(new URL(this.path, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
-            return{
-                id: this.getRelativeLink( element ),
-                title: element.text.trim()
+        return data.map((element) => {
+            return {
+                id: this.getRelativeLink(element),
+                title: element.text.trim(),
             };
         });
     }
@@ -38,10 +37,10 @@ export default class NeuManga extends Connector {
     async _getChapters(manga) {
         const request = new Request(new URL(manga.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
-            return{
-                id: this.getRelativeLink( element ),
-                title: element.querySelector('span').textContent.trim()
+        return data.map((element) => {
+            return {
+                id: this.getRelativeLink(element),
+                title: element.querySelector('span').textContent.trim(),
             };
         });
     }
@@ -49,6 +48,6 @@ export default class NeuManga extends Connector {
     async _getPages(chapter) {
         const request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryPages);
-        return data.map(element => this.getRootRelativeOrAbsoluteLink(element, this.url));
+        return data.map((element) => this.getRootRelativeOrAbsoluteLink(element, this.url));
     }
 }

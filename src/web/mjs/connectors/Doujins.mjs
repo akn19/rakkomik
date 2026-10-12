@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Doujins extends Connector {
-
     constructor() {
         super();
         super.id = 'doujins';
@@ -20,15 +19,16 @@ export default class Doujins extends Connector {
     }
 
     async _getMangaList(callback) {
-        let msg = 'This website does not provide a manga list, please copy and paste the URL containing the images directly from your browser into HakuNeko.';
+        let msg =
+            'This website does not provide a manga list, please copy and paste the URL containing the images directly from your browser into HakuNeko.';
         callback(new Error(msg), undefined);
     }
 
     async _getChapterList(manga, callback) {
         try {
-            let chapterList = [ Object.assign({ language: '' }, manga) ];
+            let chapterList = [Object.assign({ language: '' }, manga)];
             callback(null, chapterList);
-        } catch(error) {
+        } catch (error) {
             console.error(error, manga);
             callback(error, undefined);
         }
@@ -38,9 +38,11 @@ export default class Doujins extends Connector {
         try {
             let request = new Request(this.url + chapter.id, this.requestOptions);
             let data = await this.fetchDOM(request, 'source.doujin');
-            let pageList = data.map(element => this.getAbsolutePath(element.dataset.file, request.url));
+            let pageList = data.map((element) =>
+                this.getAbsolutePath(element.dataset.file, request.url),
+            );
             callback(null, pageList);
-        } catch(error) {
+        } catch (error) {
             console.error(error, chapter);
             callback(error, undefined);
         }

@@ -5,10 +5,10 @@ export default class Delitoonx extends Delitoon {
         super();
         super.id = 'delitoonx';
         super.label = 'Delitoon X';
-        this.tags = [ 'webtoon', 'french', 'hentai' ];
+        this.tags = ['webtoon', 'french', 'hentai'];
         this.url = 'https://www.delitoonx.com';
         this.links = {
-            login: 'https://www.delitoonx.com/user/login'
+            login: 'https://www.delitoonx.com/user/login',
         };
         this.requestOptions.headers.set('x-balcony-id', 'DELITOONX_COM');
         this.requestOptions.headers.set('x-referer', this.url);

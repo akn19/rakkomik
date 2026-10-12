@@ -1,22 +1,23 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class HentaiRead extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'hentairead';
         super.label = 'HentaiRead';
-        this.tags = [ 'hentai', 'english' ];
+        this.tags = ['hentai', 'english'];
         this.url = 'https://hentairead.com';
     }
 
     async _getChapters(manga) {
         const request = new Request(new URL(manga.id, this.url), this.requestOptions);
-        const [ data ] = await this.fetchDOM(request, 'a.btn-read-now');
-        return [{
-            id : data.pathname,
-            title : manga.title
-        }];
+        const [data] = await this.fetchDOM(request, 'a.btn-read-now');
+        return [
+            {
+                id: data.pathname,
+                title: manga.title,
+            },
+        ];
     }
 
     async _getPages(chapter) {
@@ -40,6 +41,6 @@ export default class HentaiRead extends WordPressMadara {
             });
         `;
         const pages = await Engine.Request.fetchUI(request, script);
-        return pages.map(page => page.replace(/\/i\d+\.wp\.com/, ''));
+        return pages.map((page) => page.replace(/\/i\d+\.wp\.com/, ''));
     }
 }

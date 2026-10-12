@@ -19,10 +19,7 @@ export default class ReadAllComics extends Connector {
     }
 
     async _getMangas() {
-        let request = new Request(
-            this.url + '/?story=&s=&type=comic',
-            this.requestOptions
-        );
+        let request = new Request(this.url + '/?story=&s=&type=comic', this.requestOptions);
         let data = await this.fetchDOM(request, 'ul.categories li a');
         return data.map((element) => {
             return {
@@ -46,10 +43,7 @@ export default class ReadAllComics extends Connector {
 
     async _getPages(chapter) {
         let request = new Request(this.url + chapter.id, this.requestOptions);
-        let data = await this.fetchDOM(
-            request,
-            'body > center > center > div source'
-        );
+        let data = await this.fetchDOM(request, 'body > center > center > div source');
         return data.map((element) => this.getAbsolutePath(element, request.url));
     }
 }

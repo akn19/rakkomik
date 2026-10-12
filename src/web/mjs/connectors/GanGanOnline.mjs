@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class GanGanOnline extends Connector {
-
     constructor() {
         super();
         super.id = 'ganganonline';
         super.label = 'ガンガンONLINE (Gangan Online)';
-        this.tags = [ 'manga', 'japanese' ];
+        this.tags = ['manga', 'japanese'];
         this.url = 'https://www.ganganonline.com';
     }
 
@@ -25,8 +24,8 @@ export default class GanGanOnline extends Connector {
 
     async _getMangas() {
         let mangaList = [];
-        const slugs = [ '/finish', '/rensai' ];
-        for(const slug of slugs) {
+        const slugs = ['/finish', '/rensai'];
+        for (const slug of slugs) {
             const mangas = await this._getMangasFromPage(slug);
             mangaList.push(...mangas);
         }
@@ -37,10 +36,10 @@ export default class GanGanOnline extends Connector {
         const uri = new URL(path, this.url);
         const data = await this._getEmbeddedJSON(uri);
         return data.titleSections.reduce((accumulator, section) => {
-            const mangas = section.titles.map(title => {
+            const mangas = section.titles.map((title) => {
                 return {
                     id: title.titleId,
-                    title: title.header
+                    title: title.header,
                 };
             });
             return accumulator.concat(mangas);
@@ -51,19 +50,19 @@ export default class GanGanOnline extends Connector {
         const uri = new URL('/title/' + manga.id, this.url);
         const data = await this._getEmbeddedJSON(uri);
         return data.default.chapters
-            .filter(chapter => {
-                if(!chapter.id) {
+            .filter((chapter) => {
+                if (!chapter.id) {
                     return false;
                 }
-                if(chapter.status !== undefined && chapter.status < 4) {
+                if (chapter.status !== undefined && chapter.status < 4) {
                     return false;
                 }
                 return true;
             })
-            .map(chapter => {
+            .map((chapter) => {
                 return {
                     id: chapter.id,
-                    title: chapter.mainText + (chapter.subText ? ' - ' + chapter.subText : '')
+                    title: chapter.mainText + (chapter.subText ? ' - ' + chapter.subText : ''),
                 };
             });
     }
@@ -71,6 +70,8 @@ export default class GanGanOnline extends Connector {
     async _getPages(chapter) {
         const uri = new URL(`/title/${chapter.manga.id}/chapter/${chapter.id}`, this.url);
         const data = await this._getEmbeddedJSON(uri);
-        return data.pages.map(page => this.getAbsolutePath((page.image || page.linkImage).imageUrl, uri.href));
+        return data.pages.map((page) =>
+            this.getAbsolutePath((page.image || page.linkImage).imageUrl, uri.href),
+        );
     }
 }

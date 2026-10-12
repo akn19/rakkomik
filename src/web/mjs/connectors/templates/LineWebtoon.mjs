@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class LineWebtoon extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -16,12 +15,13 @@ export default class LineWebtoon extends Connector {
         this.config = {
             throttle: {
                 label: 'Throttle Requests [ms]',
-                description: 'Enter the timespan in [ms] to delay consecuitive HTTP requests.\nThe website may reject to many consecuitive requests',
+                description:
+                    'Enter the timespan in [ms] to delay consecuitive HTTP requests.\nThe website may reject to many consecuitive requests',
                 input: 'numeric',
                 min: 250,
                 max: 5000,
-                value: 750
-            }
+                value: 750,
+            },
         };
     }
 
@@ -39,7 +39,8 @@ export default class LineWebtoon extends Connector {
     }
 
     async _getMangas() {
-        let msg = 'This website does not provide a manga list, please copy and paste the URL containing the chapters directly from your browser into HakuNeko.';
+        let msg =
+            'This website does not provide a manga list, please copy and paste the URL containing the chapters directly from your browser into HakuNeko.';
         throw new Error(msg);
     }
 
@@ -47,14 +48,17 @@ export default class LineWebtoon extends Connector {
         let request = new Request(uri, this.requestOptions);
         await this.wait(this.config.throttle.value);
         let data = await this.fetchDOM(request, 'div.detail_body div.detail_lst ul li > a');
-        return data.map(element => {
+        return data.map((element) => {
             let chapter = element.querySelector('span.tx');
             let title = chapter ? chapter.textContent.trim() + ' - ' : '';
             title += element.querySelector('span.subj span').textContent.trim();
             return {
-                id: this.getRootRelativeOrAbsoluteLink(/'/.test(element.href) ? element.href.match(/'([^']+)'/)[1] : element, this.baseURL),
+                id: this.getRootRelativeOrAbsoluteLink(
+                    /'/.test(element.href) ? element.href.match(/'([^']+)'/)[1] : element,
+                    this.baseURL,
+                ),
                 title: title,
-                language: ''
+                language: '',
             };
         });
     }
@@ -63,17 +67,21 @@ export default class LineWebtoon extends Connector {
         try {
             let chapterList = [];
             let uri = new URL(manga.id, this.baseURL);
-            for(let page = 1; page < 999; page++) {
+            for (let page = 1; page < 999; page++) {
                 uri.searchParams.set('page', page);
                 let chapters = await this._getChapterListPage(uri);
-                if(chapters.length > 0 && (chapterList.length === 0 || chapters[chapters.length - 1].id !== chapterList[chapterList.length - 1].id)) {
+                if (
+                    chapters.length > 0 &&
+                    (chapterList.length === 0 ||
+                        chapters[chapters.length - 1].id !== chapterList[chapterList.length - 1].id)
+                ) {
                     chapterList.push(...chapters);
                 } else {
                     break;
                 }
             }
             callback(null, chapterList);
-        } catch(error) {
+        } catch (error) {
             console.error(error, manga);
             callback(error, undefined);
         }
@@ -162,9 +170,9 @@ export default class LineWebtoon extends Connector {
             await this.wait(this.config.throttle.value);
 
             let data = await Engine.Request.fetchUI(request, script);
-            let pageList = data.map(payload => this.createConnectorURI(payload));
+            let pageList = data.map((payload) => this.createConnectorURI(payload));
             callback(null, pageList);
-        } catch(error) {
+        } catch (error) {
             console.error(error, chapter);
             callback(error, undefined);
         }
@@ -175,7 +183,7 @@ export default class LineWebtoon extends Connector {
          * TODO: only perform requests when from download manager
          * or when from browser for preview and selected chapter matches
          */
-        if(typeof payload === 'string') {
+        if (typeof payload === 'string') {
             let uri = new URL(payload);
             uri.searchParams.delete('type');
             await this.wait(this.config.throttle.value);
@@ -189,7 +197,7 @@ export default class LineWebtoon extends Connector {
             canvas.width = payload.width;
             canvas.height = payload.height;
             let ctx = canvas.getContext('2d');
-            if(payload.background.image) {
+            if (payload.background.image) {
                 await this.wait(this.config.throttle.value);
 
                 let image = await this._loadImage(payload.background.image);
@@ -197,21 +205,27 @@ export default class LineWebtoon extends Connector {
                 canvas.height = image.height;
                 ctx.drawImage(image, 0, 0);
             }
-            if(payload.background.color) {
+            if (payload.background.color) {
                 ctx.fillStyle = payload.background.color;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
-            for(let layer of payload.layers) {
+            for (let layer of payload.layers) {
                 let type = layer.type.split('|');
-                if(type[0] === 'image') {
+                if (type[0] === 'image') {
                     await this.wait(this.config.throttle.value);
 
                     let image = await this._loadImage(layer.asset);
-                    if(type[1] === 'text') {
+                    if (type[1] === 'text') {
                         this._adjustTextLayerVisibility(layer, image, canvas);
                     }
                     // TODO: process layer.keyframes in case top/left/width/height is animated?
-                    ctx.drawImage(image, layer.left, layer.top, layer.width || image.width, layer.height || image.height);
+                    ctx.drawImage(
+                        image,
+                        layer.left,
+                        layer.top,
+                        layer.width || image.width,
+                        layer.height || image.height,
+                    );
                 }
                 // TODO: process layer.effects?
             }
@@ -226,43 +240,47 @@ export default class LineWebtoon extends Connector {
             uri.searchParams.delete('type');
             let image = new Image();
             image.onload = () => resolve(image);
-            image.onerror = error => reject(error);
+            image.onerror = (error) => reject(error);
             image.src = uri.href;
         });
     }
 
     async _adjustTextLayerVisibility(layer, text, canvas) {
-        if(text.height > canvas.height) {
+        if (text.height > canvas.height) {
             layer.top = 0;
             layer.height = canvas.height;
-            layer.width = parseInt(layer.width * canvas.height / text.height);
+            layer.width = parseInt((layer.width * canvas.height) / text.height);
         } else {
-            if(layer.top + text.height > canvas.height) {
+            if (layer.top + text.height > canvas.height) {
                 layer.top = canvas.height - text.height;
             }
-            if(layer.top < 0) {
+            if (layer.top < 0) {
                 layer.top = 0;
             }
         }
-        if(text.width > canvas.width) {
+        if (text.width > canvas.width) {
             layer.left = 0;
             layer.width = canvas.width;
-            layer.height = parseInt(layer.height * canvas.width / text.width);
+            layer.height = parseInt((layer.height * canvas.width) / text.width);
         } else {
-            if(layer.left + text.width > canvas.width) {
+            if (layer.left + text.width > canvas.width) {
                 layer.left = canvas.width - text.width;
             }
-            if(layer.left < 0) {
+            if (layer.left < 0) {
                 layer.left = 0;
             }
         }
     }
 
     async _canvasToBlob(canvas) {
-        return new Promise(resolve => {
-            canvas.toBlob(data => {
-                resolve(data);
-            }, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value)/100);
+        return new Promise((resolve) => {
+            canvas.toBlob(
+                (data) => {
+                    resolve(data);
+                },
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
         });
     }
 }

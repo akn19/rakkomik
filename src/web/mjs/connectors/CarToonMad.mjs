@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class CarToonMad extends Connector {
-
     constructor() {
         super();
         super.id = 'cartoonmad';
@@ -17,7 +16,7 @@ export default class CarToonMad extends Connector {
         const request = new Request(new URL('/comic99.html', this.url), this.requestOptions);
         const data = await this.fetchDOM(request, 'td[align] > a:last-child.pages');
         const pageCount = parseInt(data[0].href.match(/(\d+)\.html/)[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -25,19 +24,27 @@ export default class CarToonMad extends Connector {
     }
 
     async _getMangasFromPage(page) {
-        const request = new Request(new URL('/comic99.' + String(page).padStart(2, '0') + '.html', this.url), this.requestOptions);
+        const request = new Request(
+            new URL('/comic99.' + String(page).padStart(2, '0') + '.html', this.url),
+            this.requestOptions,
+        );
         const data = await this.fetchDOM(request, 'a.a1', 0, 'big5');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.textContent.trim()
+                title: element.textContent.trim(),
             };
         });
     }
 
     async _getMangaFromURI(uri) {
         const request = new Request(uri, this.requestOptions);
-        const data = await this.fetchDOM(request, 'td:nth-child(2)  tr:nth-child(3) > td:nth-child(2) > a:last-child', 0, 'big5');
+        const data = await this.fetchDOM(
+            request,
+            'td:nth-child(2)  tr:nth-child(3) > td:nth-child(2) > a:last-child',
+            0,
+            'big5',
+        );
         const id = uri.pathname + uri.search;
         const title = data[0].textContent.trim();
         return new Manga(this, id, title);
@@ -46,10 +53,10 @@ export default class CarToonMad extends Connector {
     async _getChapters(manga) {
         const request = new Request(new URL(manga.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, '#info td > a', 0, 'big5');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.textContent.trim()
+                title: element.textContent.trim(),
             };
         });
     }
@@ -59,10 +66,13 @@ export default class CarToonMad extends Connector {
         const data = await this.fetchDOM(request, 'body');
         const maxpage = parseInt(data[0].querySelector('a:nth-last-of-type(2).pages').textContent);
         const pageone = data[0].querySelector('a > source[oncontextmenu]').src;
-        return [...new Array(maxpage).keys()].map(index => {
+        return [...new Array(maxpage).keys()].map((index) => {
             return this.createConnectorURI({
-                url: pageone.replace(/\d+(&|$)/g, (_match, g1) => String(index + 1).padStart(3, '0') + g1),
-                referer: request.url
+                url: pageone.replace(
+                    /\d+(&|$)/g,
+                    (_match, g1) => String(index + 1).padStart(3, '0') + g1,
+                ),
+                referer: request.url,
             });
         });
     }

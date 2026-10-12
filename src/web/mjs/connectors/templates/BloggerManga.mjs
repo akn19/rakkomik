@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class BloggerManga extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -13,7 +12,8 @@ export default class BloggerManga extends Connector {
         this.feed = 'summary';
         this.queryMangaTitleRemove = 'Bahasa Indonesia';
         this.queryMangasPerPage = 20;
-        this.queryMangasPageCount = 'div#main div#blog-pager span.showpageNum:nth-last-of-type(2) a';
+        this.queryMangasPageCount =
+            'div#main div#blog-pager span.showpageNum:nth-last-of-type(2) a';
     }
 
     async _getMangaFromURI(uri) {
@@ -27,49 +27,57 @@ export default class BloggerManga extends Connector {
     /**
      *
      */
-    _getMangaListFromPages( mangaPageLinks, index ) {
+    _getMangaListFromPages(mangaPageLinks, index) {
         index = index || 0;
-        let request = new Request( mangaPageLinks[ index ], this.requestOptions );
-        return this.fetchJSON( request )
-            .then( data => {
-                let mangaList = data.feed.entry.map( entry => {
-                    return {
-                        id: this.getRootRelativeOrAbsoluteLink( entry.link.find( a => a.rel === 'alternate' ).href, request.url ),
-                        title: entry.title.$t.replace( this.queryMangaTitleRemove, '' ).trim()
-                    };
-                } );
-                if( index < mangaPageLinks.length - 1 ) {
-                    return this._getMangaListFromPages( mangaPageLinks, index + 1 )
-                        .then( mangas => mangaList.concat( mangas ) );
-                } else {
-                    return Promise.resolve( mangaList );
-                }
-            } );
+        let request = new Request(mangaPageLinks[index], this.requestOptions);
+        return this.fetchJSON(request).then((data) => {
+            let mangaList = data.feed.entry.map((entry) => {
+                return {
+                    id: this.getRootRelativeOrAbsoluteLink(
+                        entry.link.find((a) => a.rel === 'alternate').href,
+                        request.url,
+                    ),
+                    title: entry.title.$t.replace(this.queryMangaTitleRemove, '').trim(),
+                };
+            });
+            if (index < mangaPageLinks.length - 1) {
+                return this._getMangaListFromPages(mangaPageLinks, index + 1).then((mangas) =>
+                    mangaList.concat(mangas),
+                );
+            } else {
+                return Promise.resolve(mangaList);
+            }
+        });
     }
 
     /**
      *
      */
-    _getMangaList( callback ) {
+    _getMangaList(callback) {
         let script = `
         new Promise( resolve => {
             let result = document.querySelector( '${this.queryMangasPageCount}' );
             resolve( result.textContent.trim() );
         } );
         `;
-        let request = new Request( this.url + this.path, this.requestOptions );
-        Engine.Request.fetchUI( request, script )
-            .then( data => {
-                let pageCount = parseInt( data );
-                let pageLinks = [... new Array( pageCount ).keys()].map( page => this.url + `/feeds/posts/${this.feed}?alt=json&max-results=${this.queryMangasPerPage}&start-index=` + ( this.queryMangasPerPage * page + 1 ) );
-                return this._getMangaListFromPages( pageLinks );
-            } )
-            .then( data => {
-                callback( null, data );
-            } )
-            .catch( error => {
-                console.error( error, this );
-                callback( error, undefined );
-            } );
+        let request = new Request(this.url + this.path, this.requestOptions);
+        Engine.Request.fetchUI(request, script)
+            .then((data) => {
+                let pageCount = parseInt(data);
+                let pageLinks = [...new Array(pageCount).keys()].map(
+                    (page) =>
+                        this.url +
+                        `/feeds/posts/${this.feed}?alt=json&max-results=${this.queryMangasPerPage}&start-index=` +
+                        (this.queryMangasPerPage * page + 1),
+                );
+                return this._getMangaListFromPages(pageLinks);
+            })
+            .then((data) => {
+                callback(null, data);
+            })
+            .catch((error) => {
+                console.error(error, this);
+                callback(error, undefined);
+            });
     }
 }

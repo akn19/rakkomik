@@ -2,15 +2,13 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ManhuaPlus extends Connector {
-
     constructor() {
         super();
         super.id = 'manhuaplus';
         super.label = 'ManhuaPlus';
-        this.tags = [ 'webtoon', 'english' ];
+        this.tags = ['webtoon', 'english'];
         this.url = 'https://manhuaplus.org';
         this.path = '/all-manga/';
-
     }
 
     async _getMangaFromURI(uri) {
@@ -25,7 +23,7 @@ export default class ManhuaPlus extends Connector {
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.blog-pager span:last-of-type a');
         const pageCount = parseInt(data[0].href.match(/\/(\d)+\//)[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             const mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -36,10 +34,10 @@ export default class ManhuaPlus extends Connector {
         const uri = new URL(this.path + page, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.grid div.text-center > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -48,10 +46,10 @@ export default class ManhuaPlus extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'li.chapter > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }

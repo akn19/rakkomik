@@ -1,12 +1,11 @@
 import MojoPortalComic from './templates/MojoPortalComic.mjs';
 
 export default class MangaSect extends MojoPortalComic {
-
     constructor() {
         super();
         super.id = 'mangasect';
         super.label = 'MangaSect';
-        this.tags = [ 'webtoon', 'english' ];
+        this.tags = ['webtoon', 'english'];
         this.url = 'https://mangasect.net';
         this.path = '/all-manga/';
     }
@@ -36,5 +35,4 @@ export default class MangaSect extends MojoPortalComic {
         `;
         return Engine.Request.fetchUI(request, script);
     }
-
 }

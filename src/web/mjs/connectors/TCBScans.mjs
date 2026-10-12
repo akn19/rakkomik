@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class TCBScans extends Connector {
-
     constructor() {
         super();
         super.id = 'tcbscans';
         super.label = 'TCB Scans';
-        this.tags = [ 'manga', 'english', 'scanlation' ];
+        this.tags = ['manga', 'english', 'scanlation'];
         this.url = 'https://tcbscans.me';
     }
 
@@ -21,10 +20,10 @@ export default class TCBScans extends Connector {
         const uri = new URL('/projects', this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.justify-between > div.flex.flex-col > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.textContent.trim()
+                title: element.textContent.trim(),
             };
         });
     }
@@ -33,11 +32,14 @@ export default class TCBScans extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, 'div.col-span-2 > a.block.border.border-border');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('div.text-lg').textContent.trim().split(manga.title + ' ')[1],
-                language: ''
+                title: element
+                    .querySelector('div.text-lg')
+                    .textContent.trim()
+                    .split(manga.title + ' ')[1],
+                language: '',
             };
         });
     }
@@ -48,16 +50,17 @@ export default class TCBScans extends Connector {
         const data = await this.fetchDOM(chapterRequest, 'picture > source');
 
         const promises = [];
-        for(const image of data) {
-            const promise = new Promise( (resolve, reject) => {
-                const pageUrl= this.getAbsolutePath(image, chapterRequest.url);
+        for (const image of data) {
+            const promise = new Promise((resolve, reject) => {
+                const pageUrl = this.getAbsolutePath(image, chapterRequest.url);
                 const request = new Request(pageUrl, {
-                    method : 'HEAD',
+                    method: 'HEAD',
                 });
                 try {
-                    fetch(request)
-                        .then(response => response.status == 200 ? resolve(pageUrl) : reject());
-                } catch(error) {
+                    fetch(request).then((response) =>
+                        response.status == 200 ? resolve(pageUrl) : reject(),
+                    );
+                } catch (error) {
                     reject();
                 }
             });
@@ -65,6 +68,8 @@ export default class TCBScans extends Connector {
         }
 
         const results = await Promise.allSettled(promises);
-        return results.filter(promise => /fulfilled/i.test(promise.status)).map(promise => promise.value);
+        return results
+            .filter((promise) => /fulfilled/i.test(promise.status))
+            .map((promise) => promise.value);
     }
 }

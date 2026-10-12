@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class KomikStation extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'komikstation';
         super.label = 'KomikStation';
-        this.tags = [ 'manga', 'indonesian' ];
+        this.tags = ['manga', 'indonesian'];
         this.url = 'https://www.komikstation.com';
         this.path = '/manga/?list';
 

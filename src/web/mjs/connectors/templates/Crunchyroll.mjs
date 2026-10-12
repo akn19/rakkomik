@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 
 // See: https://github.com/CloudMax94/crunchyroll-api/wiki/Api
 export default class Crunchyroll extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -15,21 +14,22 @@ export default class Crunchyroll extends Connector {
         this.config = {
             device: {
                 label: 'Device',
-                description: 'Select what device should be pretended when connecting to Crunchyroll.',
+                description:
+                    'Select what device should be pretended when connecting to Crunchyroll.',
                 input: 'select',
                 options: [
                     { value: 'windows', name: 'Windows' },
                     { value: 'crunchyroid', name: 'Crunchydroid' },
                     { value: 'android', name: 'Android' },
-                    { value: 'ios', name: 'iOS' }
+                    { value: 'ios', name: 'iOS' },
                 ],
-                value: 'windows'
+                value: 'windows',
             },
             locale: {
                 label: 'Locale',
                 description: [
                     'Select what locale should be used when connecting to Crunchyroll.',
-                    'Localized media will be preferred, if unavailable use English (US).'
+                    'Localized media will be preferred, if unavailable use English (US).',
                 ].join('\n'),
                 input: 'select',
                 options: [
@@ -41,29 +41,31 @@ export default class Crunchyroll extends Connector {
                     { value: 'ptBR', name: 'Portuguese (BR)' },
                     { value: 'ptPT', name: 'Portuguese (PT)' },
                     { value: 'esES', name: 'Spanish (ES)' },
-                    { value: 'esLA', name: 'Spanish (LA)' }
+                    { value: 'esLA', name: 'Spanish (LA)' },
                 ],
-                value: 'enUS'
+                value: 'enUS',
             },
             username: {
                 label: 'Username',
-                description: 'Username for login with Crunchyroll premium account.\n\nDisclaimer: HakuNeko may drop Crunchyroll support at any time.',
+                description:
+                    'Username for login with Crunchyroll premium account.\n\nDisclaimer: HakuNeko may drop Crunchyroll support at any time.',
                 input: 'text',
-                value: ''
+                value: '',
             },
             password: {
                 label: 'Password',
-                description: 'Password for login with Crunchyroll premium account.\n\nDisclaimer: HakuNeko may drop Crunchyroll support at any time.',
+                description:
+                    'Password for login with Crunchyroll premium account.\n\nDisclaimer: HakuNeko may drop Crunchyroll support at any time.',
                 input: 'password',
-                value: ''
-            }
+                value: '',
+            },
         };
     }
 
     async _initializeConnector() {
         this._credentials = {
             username: this.config.username.value,
-            password: this.config.password.value
+            password: this.config.password.value,
         };
         await this._logout();
     }
@@ -72,20 +74,20 @@ export default class Crunchyroll extends Connector {
         return {
             windows: {
                 type: 'com.crunchyroll.windows.desktop',
-                token: 'LNDJgOit5yaRIWN'
+                token: 'LNDJgOit5yaRIWN',
             },
             crunchyroid: {
                 type: 'com.crunchyroll.crunchyroid',
-                token: 'WveH9VkPLrXvuNm' // 'Scwg9PRRZ19iVwD'
+                token: 'WveH9VkPLrXvuNm', // 'Scwg9PRRZ19iVwD'
             },
             android: {
                 type: 'com.crunchyroll.manga.android',
-                token: 'FLpcfZH4CbW4muO'
+                token: 'FLpcfZH4CbW4muO',
             },
             ios: {
                 type: 'com.crunchyroll.iphone',
-                token: 'QWjz212GspMHH9h'
-            }
+                token: 'QWjz212GspMHH9h',
+            },
         };
     }
 
@@ -96,12 +98,12 @@ export default class Crunchyroll extends Connector {
         let identifier = '2fa9e3886d132f87'; // Date.now().toString(16); // random HEX (16 char)
         uri.searchParams.set('device_id', identifier);
         uri.searchParams.set('device_type', device.type);
-        if(this._sessionID) {
+        if (this._sessionID) {
             uri.searchParams.set('session_id', this._sessionID);
         } else {
             uri.searchParams.set('access_token', device.token);
         }
-        if(this._authToken) {
+        if (this._authToken) {
             uri.searchParams.set('auth', this._authToken);
         }
         uri.searchParams.set('locale', this.config.locale.value);
@@ -110,12 +112,12 @@ export default class Crunchyroll extends Connector {
 
     async _updateCredentials() {
         let updated = false;
-        if(this._credentials.username !== this.config.username.value) {
+        if (this._credentials.username !== this.config.username.value) {
             await this._logout();
             this._credentials.username = this.config.username.value;
             updated = true;
         }
-        if(this._credentials.password !== this.config.password.value) {
+        if (this._credentials.password !== this.config.password.value) {
             await this._logout();
             this._credentials.password = this.config.password.value;
             updated = true;
@@ -128,21 +130,23 @@ export default class Crunchyroll extends Connector {
     }
 
     async _isLoggedIn() {
-        if(!this._sessionID || !this._authToken) {
+        if (!this._sessionID || !this._authToken) {
             return false;
         }
         let uri = this._createURI(this.api, '/start_session.0.json');
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
-        return !data.error && data.data.user && data.data.user.username === this._credentials.username;
+        return (
+            !data.error && data.data.user && data.data.user.username === this._credentials.username
+        );
     }
 
     async _startSession() {
-        if(!this._sessionID) {
+        if (!this._sessionID) {
             let uri = this._createURI(this.api, '/start_session.0.json');
             let request = new Request(uri, this.requestOptions);
             let data = await this.fetchJSON(request);
-            if(data.error) {
+            if (data.error) {
                 console.warn('Session failed!', this);
             } else {
                 this._sessionID = data.data.session_id;
@@ -151,11 +155,11 @@ export default class Crunchyroll extends Connector {
     }
 
     async _logout() {
-        if(await this._isLoggedIn()) {
+        if (await this._isLoggedIn()) {
             let uri = this._createURI(this.api, '/logout.0.json');
             let request = new Request(uri, this.requestOptions);
             let data = await this.fetchJSON(request);
-            if(data.error) {
+            if (data.error) {
                 console.warn('Logout failed!', this);
             }
         }
@@ -167,10 +171,10 @@ export default class Crunchyroll extends Connector {
     async _login() {
         let isCredentialsUpdated = await this._updateCredentials();
         let isLoggedIn = await this._isLoggedIn();
-        if(!this._validateCredentials()) {
+        if (!this._validateCredentials()) {
             throw new Error('No username/password provided!');
         }
-        if(isCredentialsUpdated || !isLoggedIn) {
+        if (isCredentialsUpdated || !isLoggedIn) {
             await this._startSession();
             let uri = this._createURI(this.api, '/login.0.json');
             let form = new URLSearchParams(uri.search);
@@ -178,11 +182,11 @@ export default class Crunchyroll extends Connector {
             form.set('password', this._credentials.password);
             let request = new Request(uri, {
                 method: 'POST',
-                body: form.toString()
+                body: form.toString(),
             });
             request.headers.set('Content-Type', 'application/x-www-form-urlencoded');
             let data = await this.fetchJSON(request);
-            if(data.error) {
+            if (data.error) {
                 throw new Error(data.message);
             } else {
                 this._authToken = data.data.auth;

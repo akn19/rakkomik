@@ -5,7 +5,7 @@ export default class VortexScans extends Iken {
         super();
         super.id = 'vortexscans';
         super.label = 'VortexScans';
-        this.tags = [ 'manga', 'english', 'scanlation' ];
+        this.tags = ['manga', 'english', 'scanlation'];
         this.url = 'https://vortexscans.org';
         this.links = {
             login: 'https://vortexscans.org/auth/signin',

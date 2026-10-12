@@ -3,7 +3,6 @@ import Manga from '../../engine/Manga.mjs';
 
 // almost exactly the same as ZYMK, but as cloud service
 export default class MHXK extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -18,19 +17,20 @@ export default class MHXK extends Connector {
         this.product = {
             id: 0,
             name: '',
-            platform: 'pc'
+            platform: 'pc',
         };
 
         this.config = {
             format: {
                 label: 'Image Format',
-                description: 'In general JPEG is considered for premium users, however in some mangas JPEG might still work.',
+                description:
+                    'In general JPEG is considered for premium users, however in some mangas JPEG might still work.',
                 input: 'select',
                 options: [
                     { value: 'webp', name: 'WEBP' },
-                    { value: 'jpg', name: 'JPEG (Premium Only)' }
+                    { value: 'jpg', name: 'JPEG (Premium Only)' },
                 ],
-                value: 'webp'
+                value: 'webp',
             },
             quality: {
                 label: 'Image Quality',
@@ -39,10 +39,10 @@ export default class MHXK extends Connector {
                 options: [
                     { value: 'low', name: 'Low' },
                     { value: 'middle', name: 'Medium' },
-                    { value: 'high', name: 'High (Premium Only)' }
+                    { value: 'high', name: 'High (Premium Only)' },
                 ],
-                value: 'middle'
-            }
+                value: 'middle',
+            },
         };
     }
 
@@ -71,10 +71,10 @@ export default class MHXK extends Connector {
         let uri = this._createCustomerURI('/getComicList/');
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
-        return data.data.map(manga => {
+        return data.data.map((manga) => {
             return {
                 id: manga.comic_id, // manga.comic_newid
-                title: manga.comic_name
+                title: manga.comic_name,
             };
         });
     }
@@ -84,11 +84,11 @@ export default class MHXK extends Connector {
         uri.searchParams.set('comic_id', manga.id);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
-        return data.data.comic_chapter.map(chapter => {
+        return data.data.comic_chapter.map((chapter) => {
             return {
                 id: chapter.chapter_newid, // chapter.chapter_id
                 title: chapter.chapter_name,
-                language: ''
+                language: '',
             };
         });
     }
@@ -97,10 +97,10 @@ export default class MHXK extends Connector {
         let uri = this._createCustomerURI('/getchapterinfo');
         uri.searchParams.set('comic_id', chapter.manga.id);
         uri.searchParams.set('chapter_newid', chapter.id);
-        let request = new Request(uri, this.requestOptions );
+        let request = new Request(uri, this.requestOptions);
         let data = (await this.fetchJSON(request)).data.current_chapter;
         let pages = [];
-        for(let index = data.start_num; index <= data.end_num; index++) {
+        for (let index = data.start_num; index <= data.end_num; index++) {
             let page = new URL(data.rule.replace('$$', index), request.url);
             page.hostname = this.subdomain + data.chapter_domain;
             page.pathname += `-${this.product.name}.${this.config.quality.value}.${this.config.format.value}`;

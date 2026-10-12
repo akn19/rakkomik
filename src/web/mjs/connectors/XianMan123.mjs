@@ -1,12 +1,11 @@
 import MH from './templates/MH.mjs';
 
 export default class xianman123 extends MH {
-
     constructor() {
         super();
         super.id = 'xianman123';
         super.label = 'XianMan123';
-        this.tags = [ 'manga', 'webtoon', 'chinese' ];
+        this.tags = ['manga', 'webtoon', 'chinese'];
         this.url = 'https://www.xianmanwang.com';
 
         this.path = '/f-1-0-0-0-0-2-%PAGE%.html';
@@ -31,7 +30,7 @@ export default class xianman123 extends MH {
         `;
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
-        const [ picdata, imgDomain ] = await Engine.Request.fetchUI(request, script);
-        return picdata.map(element => this.createConnectorURI(new URL(element, imgDomain).href));
+        const [picdata, imgDomain] = await Engine.Request.fetchUI(request, script);
+        return picdata.map((element) => this.createConnectorURI(new URL(element, imgDomain).href));
     }
 }

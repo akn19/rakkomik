@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class LuminousScans extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'luminousscans';
         super.label = 'Luminous Scans';
-        this.tags = [ 'webtoon', 'english' ];
+        this.tags = ['webtoon', 'english'];
         this.url = 'https://luminous-scans.com';
         this.path = '/series/list-mode/';
 
@@ -14,6 +13,8 @@ export default class LuminousScans extends WordPressMangastream {
     }
 
     async _getPages(chapter) {
-        return (await super._getPages(chapter)).filter(image => !/\/NovelBanner[^.]+\.(png|jpeg|jpg|gif)$/i.test(image));
+        return (await super._getPages(chapter)).filter(
+            (image) => !/\/NovelBanner[^.]+\.(png|jpeg|jpg|gif)$/i.test(image),
+        );
     }
 }

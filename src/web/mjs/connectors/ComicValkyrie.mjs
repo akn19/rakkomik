@@ -2,7 +2,6 @@ import SpeedBinb from './templates/SpeedBinb.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ComicValkyrie extends SpeedBinb {
-
     constructor() {
         super();
         super.id = 'comicvalkyrie';
@@ -15,12 +14,12 @@ export default class ComicValkyrie extends SpeedBinb {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, '#new_story .title, #back_number .title');
-        return data.map(element => {
+        return data.map((element) => {
             const a = element.parentElement.querySelector('a.read_bt');
             return {
                 id: a.href,
                 title: element.textContent,
-                language: ''
+                language: '',
             };
         });
     }
@@ -36,7 +35,7 @@ export default class ComicValkyrie extends SpeedBinb {
     async _getMangas() {
         let request = new Request(this.url + '/list', this.requestOptions);
         let data = await this.fetchDOM(request, '.box_wrap .box');
-        return data.map(element => ({
+        return data.map((element) => ({
             id: new URL(element.querySelector('a').href).pathname.replace('/new.html', '').slice(1),
             title: this.cleanMangaTitle(element.querySelector('.title').textContent),
         }));

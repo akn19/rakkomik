@@ -12,12 +12,13 @@ export default class Allanimesite extends Connector {
         this.config = {
             throttle: {
                 label: 'Manga list Throttle [ms]',
-                description: 'Enter the timespan in [ms] to delay consecutive requests to the website api for manga list fetching',
+                description:
+                    'Enter the timespan in [ms] to delay consecutive requests to the website api for manga list fetching',
                 input: 'numeric',
                 min: 100,
                 max: 10000,
-                value: 1000
-            }
+                value: 1000,
+            },
         };
     }
     canHandleURI(uri) {
@@ -32,12 +33,15 @@ export default class Allanimesite extends Connector {
     }
     async _getMangas() {
         const mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
             await this.wait(this.config.throttle.value);
-            if(mangas.length == 0) {
+            if (mangas.length == 0) {
                 run = false;
-            } else if (mangaList.length == 0 || mangas[mangas.length - 1].id !== mangaList[mangaList.length - 1].id) {
+            } else if (
+                mangaList.length == 0 ||
+                mangas[mangas.length - 1].id !== mangaList[mangaList.length - 1].id
+            ) {
                 mangaList.push(...mangas);
             } else {
                 run = false;
@@ -46,32 +50,34 @@ export default class Allanimesite extends Connector {
         return mangaList;
     }
     async _getMangasFromPage(page) {
-
         const jsonVariables = {
-            search : {
-                isManga : true,
-                allowAdult : true,
-                allowUnknown : true
+            search: {
+                isManga: true,
+                allowAdult: true,
+                allowUnknown: true,
             },
-            limit : 26, //no matter what i do, changing variable is useless as i suspect query is determined by the hash
-            page : page,
-            translationType : "sub",
-            countryOrigin : "ALL"
+            limit: 26, //no matter what i do, changing variable is useless as i suspect query is determined by the hash
+            page: page,
+            translationType: 'sub',
+            countryOrigin: 'ALL',
         };
 
         const jsonExtensions = {
-            persistedQuery : {
-                version  : 1,
-                sha256Hash : "a27e57ef5de5bae714db701fb7b5cf57e13d57938fc6256f7d5c70a975d11f3d"
-            }
+            persistedQuery: {
+                version: 1,
+                sha256Hash: 'a27e57ef5de5bae714db701fb7b5cf57e13d57938fc6256f7d5c70a975d11f3d',
+            },
         };
 
-        const params = new URLSearchParams({ variables : JSON.stringify(jsonVariables), extensions : JSON.stringify(jsonExtensions) });
-        const uri = new URL(this.path + '?'+ params.toString(), this.url);
+        const params = new URLSearchParams({
+            variables: JSON.stringify(jsonVariables),
+            extensions: JSON.stringify(jsonExtensions),
+        });
+        const uri = new URL(this.path + '?' + params.toString(), this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSON(request);
         if (!data.data) return [];
-        return data.data.mangas.edges.map(element => {
+        return data.data.mangas.edges.map((element) => {
             return {
                 id: element._id,
                 title: element.englishName ? element.englishName : element.name,
@@ -79,8 +85,7 @@ export default class Allanimesite extends Connector {
         });
     }
     async _getChapters(manga) {
-
-        const request = new Request(new URL('/manga/'+manga.id, this.url), this.requestOptions);
+        const request = new Request(new URL('/manga/' + manga.id, this.url), this.requestOptions);
         const script = `
         new Promise(resolve => {
             resolve(__NUXT__);
@@ -89,19 +94,19 @@ export default class Allanimesite extends Connector {
         const data = await Engine.Request.fetchUI(request, script);
         let chapterlist = [];
         let subchapters = data.fetch['manga:0'].manga.availableChaptersDetail.sub;
-        subchapters.forEach(chapter => {
+        subchapters.forEach((chapter) => {
             chapterlist.push({
-                id : '/read/'+manga.id+'/chapter-'+chapter+'-sub',
-                title : 'Chapter '+ chapter+' [SUB]',
-                language : 'SUB',
+                id: '/read/' + manga.id + '/chapter-' + chapter + '-sub',
+                title: 'Chapter ' + chapter + ' [SUB]',
+                language: 'SUB',
             });
         });
         let rawchapters = data.fetch['manga:0'].manga.availableChaptersDetail.raw;
-        rawchapters.forEach(chapter => {
+        rawchapters.forEach((chapter) => {
             chapterlist.push({
-                id : '/read/'+manga.id+'/chapter-'+chapter+'-raw',
-                title : 'Chapter '+ chapter +' [RAW]',
-                language : 'RAW',
+                id: '/read/' + manga.id + '/chapter-' + chapter + '-raw',
+                title: 'Chapter ' + chapter + ' [RAW]',
+                language: 'RAW',
             });
         });
         return chapterlist;
@@ -116,9 +121,9 @@ export default class Allanimesite extends Connector {
         const data = await Engine.Request.fetchUI(request, script);
         const sourcename = data.fetch['chapter:0'].selectedSourceName;
         const sourcesArray = data.fetch['chapter:0'].chapters;
-        const goodSource = sourcesArray.find(source => source.sourceName == sourcename);
+        const goodSource = sourcesArray.find((source) => source.sourceName == sourcename);
 
-        const pageslist = goodSource.pictureUrls.map( element => {
+        const pageslist = goodSource.pictureUrls.map((element) => {
             return new URL(element.url, goodSource.pictureUrlHead).href;
         });
         return pageslist;

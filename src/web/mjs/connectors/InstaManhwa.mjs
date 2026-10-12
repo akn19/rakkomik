@@ -1,12 +1,11 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class InstaManhwa extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'instamanhwa';
         super.label = 'InstaManhwa';
-        this.tags = [ 'webtoon', 'hentai', 'english' ];
+        this.tags = ['webtoon', 'hentai', 'english'];
         this.url = 'https://www.instamanhwa.com';
 
         this.queryTitleForURI = 'div.profile-manga div.post-title h1';
@@ -16,7 +15,7 @@ export default class InstaManhwa extends WordPressMadara {
         let mangaList = [];
         for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -25,10 +24,10 @@ export default class InstaManhwa extends WordPressMadara {
         const uri = new URL('/latest?page=' + page, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }

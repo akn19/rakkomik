@@ -22,9 +22,9 @@ export default class MadTheme extends Connector {
     }
     async _getMangas() {
         const mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
-            mangas.length ? mangaList.push(...mangas) : run = false;
+            mangas.length ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -32,22 +32,22 @@ export default class MadTheme extends Connector {
         const uri = new URL(this.path + '?page=' + page, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: element.pathname,
-                title: element.title.trim()
+                title: element.title.trim(),
             };
         });
     }
     async _getChapters(manga) {
         const mangaid = manga.id.split('/').pop();
-        const uri = new URL('/api/manga/'+mangaid+'/chapters?source=detail', this.url);
+        const uri = new URL('/api/manga/' + mangaid + '/chapters?source=detail', this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: element.pathname,
-                title: element.querySelector(this.queryChapterTitle).textContent.trim()
+                title: element.querySelector(this.queryChapterTitle).textContent.trim(),
             };
         });
     }
@@ -60,7 +60,9 @@ export default class MadTheme extends Connector {
         `;
         const request = new Request(this.url + chapter.id, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, scriptPages);
-        return data.map(element => this.createConnectorURI(this.getAbsolutePath(element, request.url)));
+        return data.map((element) =>
+            this.createConnectorURI(this.getAbsolutePath(element, request.url)),
+        );
     }
     async _handleConnectorURI(payload) {
         let request = new Request(payload, this.requestOptions);

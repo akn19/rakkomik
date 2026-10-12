@@ -4,7 +4,6 @@ import FoolSlide from './templates/FoolSlide.mjs';
  *
  */
 export default class YaoiIsLife extends FoolSlide {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class YaoiIsLife extends FoolSlide {
         super();
         super.id = 'yaoiislife';
         super.label = 'YaoiIsLife';
-        this.tags = [ 'manga', 'high-quality', 'english', 'scanlation' ];
+        this.tags = ['manga', 'high-quality', 'english', 'scanlation'];
         this.url = 'http://yaoislife.shounen-ai.net';
         this.path = '/reader/directory/';
         this.language = 'english';

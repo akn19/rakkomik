@@ -1,5 +1,4 @@
 export default class InterProcessCommunication {
-
     constructor() {
         // Main-to-renderer subscriptions go through the preload bridge.
         // Replies use the dynamic response channel created by the main side.
@@ -10,7 +9,7 @@ export default class InterProcessCommunication {
             try {
                 let data = await handler(payload);
                 window.hakuneko.send(responseChannelID, data);
-            } catch(error) {
+            } catch (error) {
                 console.error(error);
                 window.hakuneko.send(responseChannelID, undefined);
             }

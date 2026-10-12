@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ComicBoost extends Connector {
-
     constructor() {
         super();
         super.id = 'comicboost';
         super.label = 'comicブースト (Comic Boost)';
-        this.tags = [ 'manga', 'japanese' ];
+        this.tags = ['manga', 'japanese'];
         this.url = 'https://comic-boost.com';
     }
 
@@ -25,7 +24,7 @@ export default class ComicBoost extends Connector {
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'ul.pagination-list.right li.to-last a');
         const pageCount = parseInt(data[0].href.match(/(\d+)$/)[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             const mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -36,10 +35,13 @@ export default class ComicBoost extends Connector {
         const uri = new URL('/genre/?p=' + page, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.book-list-item-inner');
-        return data.map(element => {
+        return data.map((element) => {
             return {
-                id: this.getRootRelativeOrAbsoluteLink(element.querySelector('a.book-list-item-thum-wrapper'), this.url),
-                title: element.querySelector('source.thum').getAttribute('title').trim()
+                id: this.getRootRelativeOrAbsoluteLink(
+                    element.querySelector('a.book-list-item-thum-wrapper'),
+                    this.url,
+                ),
+                title: element.querySelector('source.thum').getAttribute('title').trim(),
             };
         });
     }
@@ -47,31 +49,30 @@ export default class ComicBoost extends Connector {
     async _getChapters(manga) {
         const chapterList = [];
         const request = new Request(new URL(manga.id, this.url), this.requestOptions);
-        const [ data ] = await this.fetchDOM(request, 'ul.pagination-list.right li.to-last a');
-        const pageCount = data ?parseInt(new URL(data.href).searchParams.get('p')) : 1;
-        for(let page = 1; page <= pageCount; page++) {
+        const [data] = await this.fetchDOM(request, 'ul.pagination-list.right li.to-last a');
+        const pageCount = data ? parseInt(new URL(data.href).searchParams.get('p')) : 1;
+        for (let page = 1; page <= pageCount; page++) {
             const chapters = await this._getChaptersFromPage(manga, page);
             chapterList.push(...chapters);
         }
-        return chapterList.filter(el => !el.id.includes('?coin=')); //exclude not accessible chapters
+        return chapterList.filter((el) => !el.id.includes('?coin=')); //exclude not accessible chapters
     }
 
     async _getChaptersFromPage(manga, page) {
         const url = new URL(manga.id, this.url);
         url.searchParams.set('p', page.toString());
-        const request = new Request(url, this.requestOptions );
+        const request = new Request(url, this.requestOptions);
         const data = await this.fetchDOM(request, 'a.book-product-list-item');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.dataset.title.trim(),
-                language: ''
+                language: '',
             };
         });
     }
 
     async _getPages(chapter) {
-
         const script = `
             new Promise((resolve, reject) => {
 
@@ -158,10 +159,12 @@ export default class ComicBoost extends Connector {
             });
         `;
 
-        const uri = new URL( chapter.id, this.url );
-        const request = new Request( uri, this.requestOptions );
+        const uri = new URL(chapter.id, this.url);
+        const request = new Request(uri, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script, 60000, true);
-        return data.map(page => page.mode === 'raw' ? page.imageUrl : this.createConnectorURI(page));
+        return data.map((page) =>
+            page.mode === 'raw' ? page.imageUrl : this.createConnectorURI(page),
+        );
     }
 
     async _handleConnectorURI(payload) {
@@ -183,7 +186,7 @@ export default class ComicBoost extends Connector {
 
     async _descrambleImage(scrambled, blocks) {
         let bitmap = await createImageBitmap(scrambled);
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
             let canvas = document.createElement('canvas');
             canvas.width = bitmap.width;
             canvas.height = bitmap.height;
@@ -191,11 +194,25 @@ export default class ComicBoost extends Connector {
             const blockz = JSON.parse(blocks);
 
             for (let q of blockz) {
-                ctx.drawImage(bitmap, q.destX, q.destY, q.width, q.height, q.srcX, q.srcY, q.width, q.height);
+                ctx.drawImage(
+                    bitmap,
+                    q.destX,
+                    q.destY,
+                    q.width,
+                    q.height,
+                    q.srcX,
+                    q.srcY,
+                    q.width,
+                    q.height,
+                );
             }
-            canvas.toBlob(data => {
-                resolve(data);
-            }, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value)/100);
-        } );
+            canvas.toBlob(
+                (data) => {
+                    resolve(data);
+                },
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
+        });
     }
 }

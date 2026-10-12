@@ -5,12 +5,12 @@ export default class Manhwa18cc extends WordPressMadara {
         super();
         super.id = 'manhwa18cc';
         super.label = 'Manhwa 18 (.cc)';
-        this.tags = [ 'webtoon', 'hentai', 'multi-lingual' ];
+        this.tags = ['webtoon', 'hentai', 'multi-lingual'];
         this.url = 'https://manhwa18.cc';
-        this.path ='/webtoons';
+        this.path = '/webtoons';
         this.queryMangas = 'div.manga-item div.thumb a';
         this.mangaNumberPerPage = 24;
-        this.queryChapters ='div#chapterlist li a';
+        this.queryChapters = 'div#chapterlist li a';
         this.queryPages = 'div.read-manga div.read-content source';
     }
     async _getMangaFromURI(uri) {
@@ -41,17 +41,16 @@ export default class Manhwa18cc extends WordPressMadara {
             if (mangaList[mangaList.length - 1].id != mangas[mangas.length - 1].id) {
                 mangaList.push(...mangas);
             } else run = false;
-
         }
         return mangaList;
     }
     async _getMangasFromPage(page) {
-        let request = new Request(new URL(this.path+'/'+page, this.url), this.requestOptions);
+        let request = new Request(new URL(this.path + '/' + page, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.title.trim()
+                title: element.title.trim(),
             };
         });
     }

@@ -1,7 +1,6 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class MangaEclipse extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'mangaeclipse';
@@ -11,5 +10,4 @@ export default class MangaEclipse extends WordPressMadara {
 
         this.requestOptions.headers.set('x-referer', this.url);
     }
-
 }

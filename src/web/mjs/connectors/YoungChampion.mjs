@@ -12,7 +12,7 @@ export default class YoungChampion extends Connector {
         this.apiUrl = this.url;
         this.defaultOrder = [];
         this.links = {
-            login: 'https://youngchampion.jp/signin'
+            login: 'https://youngchampion.jp/signin',
         };
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
@@ -40,33 +40,37 @@ export default class YoungChampion extends Connector {
         let mangaList = [];
         for (let page = 1, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
 
     async _getMangasFromPage(page) {
-        const uri = new URL( this.mangaListPath.replace('{page}', page), this.url);
+        const uri = new URL(this.mangaListPath.replace('{page}', page), this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryManga);
-        return data.map(element => {
+        return data.map((element) => {
             const titleElement = element.querySelector(this.queryMangaTitle);
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: titleElement ? (titleElement.textContent || titleElement.text).trim() : element.text.trim()
+                title: titleElement
+                    ? (titleElement.textContent || titleElement.text).trim()
+                    : element.text.trim(),
             };
         });
     }
 
     async _getChapters(manga) {
-        const uri = new URL(manga.id+'/list', this.url);
+        const uri = new URL(manga.id + '/list', this.url);
         const request = new Request(uri);
-        const data = await this.fetchDOM(request, this.queryChapter );
-        return data.map(element => {
+        const data = await this.fetchDOM(request, this.queryChapter);
+        return data.map((element) => {
             const titleElement = element.querySelector(this.queryChapterTitle);
             return {
-                id : new URL(element.dataset['href']).pathname,
-                title: titleElement ? (titleElement.textContent ||titleElement.text).trim() : element.text.trim()
+                id: new URL(element.dataset['href']).pathname,
+                title: titleElement
+                    ? (titleElement.textContent || titleElement.text).trim()
+                    : element.text.trim(),
             };
         });
     }
@@ -79,7 +83,7 @@ export default class YoungChampion extends Connector {
             throw new Error(`The chapter '${chapter.title}' is neither public, nor purchased!`);
         }
         const coord = await this._fetchCoordInfo(viewer);
-        return coord.result.map(image => {
+        return coord.result.map((image) => {
             return this.createConnectorURI({
                 url: image.imageUrl,
                 scramble: image.scramble,
@@ -147,8 +151,19 @@ export default class YoungChampion extends Connector {
         const tileHeight = Math.floor(height / 4);
         for (let k = 0, i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
-                const x = decodedArray[k][0], y = decodedArray[k][1];
-                context.drawImage(imageDom, tileWidth * x, tileHeight * y, tileWidth, tileHeight, tileWidth * i, tileHeight * j, tileWidth, tileHeight);
+                const x = decodedArray[k][0],
+                    y = decodedArray[k][1];
+                context.drawImage(
+                    imageDom,
+                    tileWidth * x,
+                    tileHeight * y,
+                    tileWidth,
+                    tileHeight,
+                    tileWidth * i,
+                    tileHeight * j,
+                    tileWidth,
+                    tileHeight,
+                );
                 k++;
             }
         }
@@ -156,10 +171,14 @@ export default class YoungChampion extends Connector {
     }
 
     _canvasToBlob(canvas) {
-        return new Promise(resolve => {
-            canvas.toBlob(data => {
-                resolve(data);
-            }, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value) / 100);
+        return new Promise((resolve) => {
+            canvas.toBlob(
+                (data) => {
+                    resolve(data);
+                },
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
         });
     }
 }

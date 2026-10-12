@@ -2,7 +2,6 @@ import Manga from '../engine/Manga.mjs';
 import Connector from '../engine/Connector.mjs';
 
 export default class ComicGrast extends Connector {
-
     constructor() {
         super();
         super.id = 'comicgrast';
@@ -22,10 +21,10 @@ export default class ComicGrast extends Connector {
     async _getMangas() {
         const request = new Request(new URL('/comic/serial', this.url), this.requestOptions);
         const data = await this.fetchDOM(request, 'ul.comicList a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('dt p.line-clamp').textContent.trim()
+                title: element.querySelector('dt p.line-clamp').textContent.trim(),
             };
         });
     }
@@ -33,10 +32,10 @@ export default class ComicGrast extends Connector {
     async _getChapters(manga) {
         const request = new Request(new URL(manga.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, 'div.comicSerialList article a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('span.storyTitle').textContent.trim()
+                title: element.querySelector('span.storyTitle').textContent.trim(),
             };
         });
     }
@@ -44,14 +43,19 @@ export default class ComicGrast extends Connector {
     async _getPages(chapter) {
         const comicData = await this._fetchComicData(chapter);
         const comicContent = await this._fetchComicContent(comicData);
-        return comicContent.map(content => this.createConnectorURI({
-            data: comicData,
-            content,
-        }));
+        return comicContent.map((content) =>
+            this.createConnectorURI({
+                data: comicData,
+                content,
+            }),
+        );
     }
 
     async _handleConnectorURI(payload) {
-        const uri = new URL(`/img/serial-comic/${payload.data.serial_comic_id}/${payload.data.story_number}/content/${payload.content.name}?t=${payload.data.story_updated_at}`, this.url);
+        const uri = new URL(
+            `/img/serial-comic/${payload.data.serial_comic_id}/${payload.data.story_number}/content/${payload.content.name}?t=${payload.data.story_updated_at}`,
+            this.url,
+        );
         const image = await this._loadImage(uri.href);
         const size = Math.max(image.width, image.height) / payload.content.size;
         const canvas = this._unscramble(image, size, payload.content.seed);
@@ -66,16 +70,23 @@ export default class ComicGrast extends Connector {
     }
 
     async _fetchComicContent(comicData) {
-        const uri = new URL(`/img/serial-comic/${comicData.serial_comic_id}/${comicData.story_number}/content/index.json?t=${comicData.story_updated_at}`, this.url);
+        const uri = new URL(
+            `/img/serial-comic/${comicData.serial_comic_id}/${comicData.story_number}/content/index.json?t=${comicData.story_updated_at}`,
+            this.url,
+        );
         const request = new Request(uri, this.requestOptions);
         return this.fetchJSON(request);
     }
 
     async _canvasToBlob(canvas) {
-        return new Promise(resolve => {
-            canvas.toBlob(data => {
-                resolve(data);
-            }, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value) / 100);
+        return new Promise((resolve) => {
+            canvas.toBlob(
+                (data) => {
+                    resolve(data);
+                },
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
         });
     }
 
@@ -83,7 +94,7 @@ export default class ComicGrast extends Connector {
         return new Promise((resolve, reject) => {
             const image = new Image();
             image.onload = () => resolve(image);
-            image.onerror = error => reject(error);
+            image.onerror = (error) => reject(error);
             image.src = url;
         });
     }
@@ -94,7 +105,7 @@ export default class ComicGrast extends Connector {
 
 // from https://github.com/webcaetano/image-scramble/blob/master/unscrambleImg.js
 function unscrambleImg(img, sliceSize, seed) {
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = img.width;
     canvas.height = img.height;
@@ -127,7 +138,7 @@ function unscrambleImg(img, sliceSize, seed) {
                 slices[g][i].x,
                 slices[g][i].y,
                 slices[g][i].width,
-                slices[g][i].height
+                slices[g][i].height,
             );
         }
     }
@@ -156,8 +167,10 @@ function getSlices(img, sliceSize) {
         const col = i - row * verticalSlices;
         slice.x = col * sliceSize;
         slice.y = row * sliceSize;
-        slice.width = sliceSize - (slice.x + sliceSize <= img.width ? 0 : slice.x + sliceSize - img.width);
-        slice.height = sliceSize - (slice.y + sliceSize <= img.height ? 0 : slice.y + sliceSize - img.height);
+        slice.width =
+            sliceSize - (slice.x + sliceSize <= img.width ? 0 : slice.x + sliceSize - img.width);
+        slice.height =
+            sliceSize - (slice.y + sliceSize <= img.height ? 0 : slice.y + sliceSize - img.height);
         const key = `${slice.width}-${slice.height}`;
         if (slices[key] == null) {
             slices[key] = [];
@@ -232,8 +245,12 @@ function _seedrandom_(seed) {
 }
 
 function ARC4(key) {
-    var t, keylen = key.length,
-        me = this, i = 0, j = me.i = me.j = 0, s = me.S = [];
+    var t,
+        keylen = key.length,
+        me = this,
+        i = 0,
+        j = (me.i = me.j = 0),
+        s = (me.S = []);
 
     if (!keylen) {
         key = [keylen++];
@@ -243,27 +260,32 @@ function ARC4(key) {
         s[i] = i++;
     }
     for (i = 0; i < width; i++) {
-        s[i] = s[j = mask & j + key[i % keylen] + (t = s[i])];
+        s[i] = s[(j = mask & (j + key[i % keylen] + (t = s[i])))];
         s[j] = t;
     }
 
     (me.g = function (count) {
-        var t, r = 0,
-            i = me.i, j = me.j, s = me.S;
+        var t,
+            r = 0,
+            i = me.i,
+            j = me.j,
+            s = me.S;
         while (count--) {
-            t = s[i = mask & i + 1];
-            r = r * width + s[mask & (s[i] = s[j = mask & j + t]) + (s[j] = t)];
+            t = s[(i = mask & (i + 1))];
+            r = r * width + s[mask & ((s[i] = s[(j = mask & (j + t))]) + (s[j] = t))];
         }
-        me.i = i; me.j = j;
+        me.i = i;
+        me.j = j;
         return r;
     })(width);
 }
 
 function mixkey(seed, key) {
-    var stringseed = seed + '', smear, j = 0;
+    var stringseed = seed + '',
+        smear,
+        j = 0;
     while (j < stringseed.length) {
-        key[mask & j] =
-            mask & (smear ^= key[mask & j] * 19) + stringseed.charCodeAt(j++);
+        key[mask & j] = mask & ((smear ^= key[mask & j] * 19) + stringseed.charCodeAt(j++));
     }
     return String.fromCharCode.apply(0, key);
 }

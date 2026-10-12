@@ -12,13 +12,15 @@ const CHAR_SLASH = 47;
 const CHAR_BACKSLASH = 92;
 const CHAR_COLON = 58;
 
-const isPosixSeparator = code => code === CHAR_SLASH;
-const isWin32Separator = code => code === CHAR_SLASH || code === CHAR_BACKSLASH;
-const isDeviceRoot = code => code >= 65 && code <= 90 || code >= 97 && code <= 122;
+const isPosixSeparator = (code) => code === CHAR_SLASH;
+const isWin32Separator = (code) => code === CHAR_SLASH || code === CHAR_BACKSLASH;
+const isDeviceRoot = (code) => (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
 
 function validateString(value, name) {
     if (typeof value !== 'string') {
-        throw new TypeError(`The "${name}" argument must be of type string. Received ${typeof value}`);
+        throw new TypeError(
+            `The "${name}" argument must be of type string. Received ${typeof value}`,
+        );
     }
 }
 
@@ -43,7 +45,12 @@ function normalizeString(path, allowAboveRoot, separator, isSeparator) {
             if (lastSlash === i - 1 || dots === 1) {
                 // empty segment or "."
             } else if (dots === 2) {
-                if (result.length < 2 || lastSegmentLength !== 2 || result.charCodeAt(result.length - 1) !== CHAR_DOT || result.charCodeAt(result.length - 2) !== CHAR_DOT) {
+                if (
+                    result.length < 2 ||
+                    lastSegmentLength !== 2 ||
+                    result.charCodeAt(result.length - 1) !== CHAR_DOT ||
+                    result.charCodeAt(result.length - 2) !== CHAR_DOT
+                ) {
                     if (result.length > 2) {
                         const lastSlashIndex = result.lastIndexOf(separator);
                         if (lastSlashIndex === -1) {
@@ -69,7 +76,10 @@ function normalizeString(path, allowAboveRoot, separator, isSeparator) {
                     lastSegmentLength = 2;
                 }
             } else {
-                result += result.length > 0 ? `${separator}${path.slice(lastSlash + 1, i)}` : path.slice(lastSlash + 1, i);
+                result +=
+                    result.length > 0
+                        ? `${separator}${path.slice(lastSlash + 1, i)}`
+                        : path.slice(lastSlash + 1, i);
                 lastSegmentLength = i - lastSlash - 1;
             }
             lastSlash = i;
@@ -220,7 +230,11 @@ function createShared(isSeparator, deviceLength, rootLength, parseStart) {
             }
         }
         // no dot, a leading dot only (".bashrc") or the segment ".." have no extension
-        const noExtension = startDot === -1 || end === -1 || preDotState === 0 || preDotState === 1 && startDot === end - 1 && startDot === startPart + 1;
+        const noExtension =
+            startDot === -1 ||
+            end === -1 ||
+            preDotState === 0 ||
+            (preDotState === 1 && startDot === end - 1 && startDot === startPart + 1);
         return { startPart, startDot, end, noExtension };
     }
 
@@ -242,14 +256,19 @@ function createShared(isSeparator, deviceLength, rootLength, parseStart) {
             return result;
         }
         result.root = path.slice(0, rootEnd);
-        const { startPart, startDot, end, noExtension } = scanLastSegment(path, rootEnd, parseStart(rootEnd));
+        const { startPart, startDot, end, noExtension } = scanLastSegment(
+            path,
+            rootEnd,
+            parseStart(rootEnd),
+        );
         if (end !== -1) {
             const start = startPart === 0 ? rootEnd : startPart;
             result.base = path.slice(start, end);
             result.name = noExtension ? result.base : path.slice(start, startDot);
             result.ext = noExtension ? '' : path.slice(startDot, end);
         }
-        result.dir = startPart > 0 && startPart !== rootEnd ? path.slice(0, startPart - 1) : result.root;
+        result.dir =
+            startPart > 0 && startPart !== rootEnd ? path.slice(0, startPart - 1) : result.root;
         return result;
     }
 
@@ -317,7 +336,12 @@ export const posix = {
         return path.slice(0, end);
     },
 
-    ...createShared(isPosixSeparator, () => 0, path => path.charCodeAt(0) === CHAR_SLASH ? 1 : 0, () => 0)
+    ...createShared(
+        isPosixSeparator,
+        () => 0,
+        (path) => (path.charCodeAt(0) === CHAR_SLASH ? 1 : 0),
+        () => 0,
+    ),
 };
 
 export const win32 = {
@@ -376,7 +400,10 @@ export const win32 = {
                 rootEnd = 3;
             }
         }
-        let tail = rootEnd < length ? normalizeString(path.slice(rootEnd), !isAbsolute, '\\', isWin32Separator) : '';
+        let tail =
+            rootEnd < length
+                ? normalizeString(path.slice(rootEnd), !isAbsolute, '\\', isWin32Separator)
+                : '';
         if (tail.length === 0 && !isAbsolute) {
             tail = '.';
         }
@@ -499,7 +526,17 @@ export const win32 = {
         return path.slice(0, end);
     },
 
-    ...createShared(isWin32Separator, path => path.length >= 2 && isDeviceRoot(path.charCodeAt(0)) && path.charCodeAt(1) === CHAR_COLON ? 2 : 0, win32RootLength, rootEnd => rootEnd)
+    ...createShared(
+        isWin32Separator,
+        (path) =>
+            path.length >= 2 &&
+            isDeviceRoot(path.charCodeAt(0)) &&
+            path.charCodeAt(1) === CHAR_COLON
+                ? 2
+                : 0,
+        win32RootLength,
+        (rootEnd) => rootEnd,
+    ),
 };
 
 /**

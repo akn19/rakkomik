@@ -3,12 +3,11 @@ import Manga from '../engine/Manga.mjs';
 
 // Similar to AsmHentai, IMHentai
 export default class HentaiFox extends Connector {
-
     constructor() {
         super();
         super.id = 'hentaifox';
         super.label = 'HentaiFox';
-        this.tags = [ 'hentai', 'english' ];
+        this.tags = ['hentai', 'english'];
         this.url = 'https://hentaifox.com';
     }
 
@@ -21,12 +20,13 @@ export default class HentaiFox extends Connector {
     }
 
     async _getMangas() {
-        let msg = 'This website provides a manga list that is to large to scrape, please copy and paste the URL containing the images directly from your browser into HakuNeko.';
+        let msg =
+            'This website provides a manga list that is to large to scrape, please copy and paste the URL containing the images directly from your browser into HakuNeko.';
         throw new Error(msg);
     }
 
     async _getChapters(manga) {
-        return [ { ...manga, language: '' } ];
+        return [{ ...manga, language: '' }];
     }
 
     async _getPages(chapter) {

@@ -1,12 +1,11 @@
 import SinMH from './templates/SinMH.mjs';
 
 export default class SixMH7 extends SinMH {
-
     constructor() {
         super();
         super.id = '6mh7';
         super.label = '6漫画 (6mh7)';
-        this.tags = [ 'manga', 'webtoon', 'chinese' ];
+        this.tags = ['manga', 'webtoon', 'chinese'];
         this.url = 'http://www.sixmh7.com';
 
         this.path = '/sort/1-%PAGE%.html';

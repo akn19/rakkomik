@@ -23,7 +23,7 @@ export function bytesToUtf8(bytes) {
 }
 
 export function bytesToHex(bytes) {
-    return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+    return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export function hexToBytes(hex) {
@@ -67,12 +67,18 @@ const SHA256_K = [
     0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
     0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
     0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ];
 
 function sha256BytesSyncInternal(bytes) {
-    let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
-    let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+    let h0 = 0x6a09e667,
+        h1 = 0xbb67ae85,
+        h2 = 0x3c6ef372,
+        h3 = 0xa54ff53a;
+    let h4 = 0x510e527f,
+        h5 = 0x9b05688c,
+        h6 = 0x1f83d9ab,
+        h7 = 0x5be0cd19;
     let bitLen = bytes.length * 8;
     let paddedLen = (((bytes.length + 8) >> 6) + 1) << 6;
     let padded = new Uint8Array(paddedLen);
@@ -88,22 +94,41 @@ function sha256BytesSyncInternal(bytes) {
             w[i] = view.getInt32(chunk + i * 4);
         }
         for (let i = 16; i < 64; i++) {
-            let s0 = (w[i - 15] >>> 7 | w[i - 15] << 25) ^ (w[i - 15] >>> 18 | w[i - 15] << 14) ^ w[i - 15] >>> 3;
-            let s1 = (w[i - 2] >>> 17 | w[i - 2] << 15) ^ (w[i - 2] >>> 19 | w[i - 2] << 13) ^ w[i - 2] >>> 10;
-            w[i] = w[i - 16] + s0 + w[i - 7] + s1 | 0;
+            let s0 =
+                ((w[i - 15] >>> 7) | (w[i - 15] << 25)) ^
+                ((w[i - 15] >>> 18) | (w[i - 15] << 14)) ^
+                (w[i - 15] >>> 3);
+            let s1 =
+                ((w[i - 2] >>> 17) | (w[i - 2] << 15)) ^
+                ((w[i - 2] >>> 19) | (w[i - 2] << 13)) ^
+                (w[i - 2] >>> 10);
+            w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
         }
         let [a, b, c, d, e, f, g, h] = [h0, h1, h2, h3, h4, h5, h6, h7];
         for (let i = 0; i < 64; i++) {
-            let S1 = (e >>> 6 | e << 26) ^ (e >>> 11 | e << 21) ^ (e >>> 25 | e << 7);
-            let ch = e & f ^ ~e & g;
-            let t1 = h + S1 + ch + SHA256_K[i] + w[i] | 0;
-            let S0 = (a >>> 2 | a << 30) ^ (a >>> 13 | a << 19) ^ (a >>> 22 | a << 10);
-            let maj = a & b ^ a & c ^ b & c;
-            let t2 = S0 + maj | 0;
-            h = g; g = f; f = e; e = d + t1 | 0; d = c; c = b; b = a; a = t1 + t2 | 0;
+            let S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+            let ch = (e & f) ^ (~e & g);
+            let t1 = (h + S1 + ch + SHA256_K[i] + w[i]) | 0;
+            let S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+            let maj = (a & b) ^ (a & c) ^ (b & c);
+            let t2 = (S0 + maj) | 0;
+            h = g;
+            g = f;
+            f = e;
+            e = (d + t1) | 0;
+            d = c;
+            c = b;
+            b = a;
+            a = (t1 + t2) | 0;
         }
-        h0 = h0 + a | 0; h1 = h1 + b | 0; h2 = h2 + c | 0; h3 = h3 + d | 0;
-        h4 = h4 + e | 0; h5 = h5 + f | 0; h6 = h6 + g | 0; h7 = h7 + h | 0;
+        h0 = (h0 + a) | 0;
+        h1 = (h1 + b) | 0;
+        h2 = (h2 + c) | 0;
+        h3 = (h3 + d) | 0;
+        h4 = (h4 + e) | 0;
+        h5 = (h5 + f) | 0;
+        h6 = (h6 + g) | 0;
+        h7 = (h7 + h) | 0;
     }
     let out = new Uint8Array(32);
     let outView = new DataView(out.buffer);
@@ -121,7 +146,13 @@ export function sha256Hex(data) {
 
 export async function hmacSha256Hex(data, key) {
     const keyBytes = typeof key === 'string' ? utf8ToBytes(key) : key;
-    const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const cryptoKey = await crypto.subtle.importKey(
+        'raw',
+        keyBytes,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign'],
+    );
     const bytes = typeof data === 'string' ? utf8ToBytes(data) : data;
     const signature = await crypto.subtle.sign('HMAC', cryptoKey, bytes);
     return bytesToHex(new Uint8Array(signature));
@@ -137,7 +168,11 @@ export async function sha512Hex(data) {
 // MD5 (sync, RFC 1321) — only for the OpenSSL EVP_BytesToKey KDF below
 // ---------------------------------------------------------------------------
 function md5BytesSyncInternal(bytes) {
-    const s = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
+    const s = [
+        7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5, 9, 14, 20, 5,
+        9, 14, 20, 5, 9, 14, 20, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 6, 10,
+        15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
+    ];
     const K = [];
     for (let i = 0; i < 64; i++) {
         K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 0x100000000) >>> 0;
@@ -160,19 +195,28 @@ function md5BytesSyncInternal(bytes) {
         for (let i = 0; i < 64; i++) {
             let F, g;
             if (i < 16) {
-                F = B & C | ~B & D; g = i;
+                F = (B & C) | (~B & D);
+                g = i;
             } else if (i < 32) {
-                F = D & B | ~D & C; g = (5 * i + 1) % 16;
+                F = (D & B) | (~D & C);
+                g = (5 * i + 1) % 16;
             } else if (i < 48) {
-                F = B ^ C ^ D; g = (3 * i + 5) % 16;
+                F = B ^ C ^ D;
+                g = (3 * i + 5) % 16;
             } else {
-                F = C ^ (B | ~D); g = 7 * i % 16;
+                F = C ^ (B | ~D);
+                g = (7 * i) % 16;
             }
             F = (F + A + K[i] + M[g]) >>> 0;
-            A = D; D = C; C = B;
-            B = (B + ((F << s[i] | F >>> 32 - s[i]) >>> 0)) >>> 0;
+            A = D;
+            D = C;
+            C = B;
+            B = (B + (((F << s[i]) | (F >>> (32 - s[i]))) >>> 0)) >>> 0;
         }
-        a0 = a0 + A >>> 0; b0 = b0 + B >>> 0; c0 = c0 + C >>> 0; d0 = d0 + D >>> 0;
+        a0 = (a0 + A) >>> 0;
+        b0 = (b0 + B) >>> 0;
+        c0 = (c0 + C) >>> 0;
+        d0 = (d0 + D) >>> 0;
     }
     let out = new Uint8Array(16);
     let outView = new DataView(out.buffer);
@@ -205,7 +249,10 @@ function evpBytesToKey(passwordBytes, saltBytes, keySize, ivSize) {
 // AES-CBC via WebCrypto (async, clean call sites)
 // ---------------------------------------------------------------------------
 async function importAesKey(keyBytes) {
-    return crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['encrypt', 'decrypt']);
+    return crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, [
+        'encrypt',
+        'decrypt',
+    ]);
 }
 
 export async function aesCbcDecrypt(cipherBytes, keyBytes, ivBytes) {

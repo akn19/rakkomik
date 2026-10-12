@@ -1,13 +1,13 @@
-import Connector from "../engine/Connector.mjs";
-import Manga from "../engine/Manga.mjs";
+import Connector from '../engine/Connector.mjs';
+import Manga from '../engine/Manga.mjs';
 
 export default class ToCoronaEx extends Connector {
     constructor() {
         super();
-        super.id = "to-corona-ex";
-        super.label = "コロナ (to-corona-ex)";
-        this.tags = ["manga", "japanese"];
-        this.url = "https://to-corona-ex.com/";
+        super.id = 'to-corona-ex';
+        super.label = 'コロナ (to-corona-ex)';
+        this.tags = ['manga', 'japanese'];
+        this.url = 'https://to-corona-ex.com/';
         this.apiurl = 'https://api.to-corona-ex.com';
         this.cdnurl = 'https://cdn.to-corona-ex.com';
         this.apikey = 'K4FWy7Iqott9mrw37hDKfZ2gcLOwO-kiLHTwXT8ad1E=';
@@ -44,13 +44,16 @@ export default class ToCoronaEx extends Connector {
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
         return {
-            mangas: data.resources.map(element => {
+            mangas: data.resources.map((element) => {
                 return {
                     id: element.id,
-                    title: element.title.trim().replace('@COMIC', '')
+                    title: element.title.trim().replace('@COMIC', ''),
                 };
             }),
-            nextCursor: data.next_cursor != null ? '/comics?order=asc&sort=title_yomigana&after_than=' + data.next_cursor : null
+            nextCursor:
+                data.next_cursor != null
+                    ? '/comics?order=asc&sort=title_yomigana&after_than=' + data.next_cursor
+                    : null,
         };
     }
 
@@ -65,7 +68,7 @@ export default class ToCoronaEx extends Connector {
                 let uri = new URL(suburl, this.apiurl);
                 let request = new Request(uri, this.requestOptions);
                 let subdata = await this.fetchJSON(request);
-                hasSubscription = subdata.subscription_service_status == "enabled";
+                hasSubscription = subdata.subscription_service_status == 'enabled';
             } catch (_e) {
                 //page will give 401 if not loggedin
                 hasSubscription = false;
@@ -73,7 +76,7 @@ export default class ToCoronaEx extends Connector {
         }
         let nextCursor = `/episodes?comic_id=${manga.id}&order=asc&sort=episode_order`;
         if (hasSubscription) {
-            nextCursor += "&episode_status=free_viewing%2Conly_for_subscription";
+            nextCursor += '&episode_status=free_viewing%2Conly_for_subscription';
         }
         for (let run = true; run;) {
             const data = await this._getChaptersFromPage(manga, nextCursor, hasSubscription);
@@ -127,18 +130,22 @@ export default class ToCoronaEx extends Connector {
         let uri = new URL(nextCursor, this.apiurl);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
-        let extraparameters = "";
+        let extraparameters = '';
         if (hasSubscription) {
-            extraparameters += "&episode_status=free_viewing%2Conly_for_subscription";
+            extraparameters += '&episode_status=free_viewing%2Conly_for_subscription';
         }
         return {
-            chapters: data.resources.map(element => {
+            chapters: data.resources.map((element) => {
                 return {
                     id: element.id,
-                    title: element.title
+                    title: element.title,
                 };
             }),
-            nextCursor: data.next_cursor != null ? `/episodes?comic_id=${manga.id}&order=asc&sort=episode_order&after_than=${data.next_cursor}` + extraparameters : null
+            nextCursor:
+                data.next_cursor != null
+                    ? `/episodes?comic_id=${manga.id}&order=asc&sort=episode_order&after_than=${data.next_cursor}` +
+                      extraparameters
+                    : null,
         };
     }
 
@@ -146,7 +153,7 @@ export default class ToCoronaEx extends Connector {
         let uri = new URL(`/episodes/${chapter.id}/begin_reading`, this.apiurl);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
-        return data.pages.map(element => this.createConnectorURI(element.page_image_url));
+        return data.pages.map((element) => this.createConnectorURI(element.page_image_url));
     }
 
     async _handleConnectorURI(payload) {
@@ -161,7 +168,7 @@ export default class ToCoronaEx extends Connector {
 
     async prepareForDescramble(scrambledImageURL) {
         let uri = new URL(scrambledImageURL);
-        let descrambleKey = uri.search.substring(10, uri.search.indexOf("&"));
+        let descrambleKey = uri.search.substring(10, uri.search.indexOf('&'));
         let res = await fetch(scrambledImageURL, this.requestOptions);
         let data = await res.blob();
         let bitmap = await createImageBitmap(data);
@@ -169,21 +176,21 @@ export default class ToCoronaEx extends Connector {
     }
 
     descramble(bitmap, key) {
-        return new Promise(resolve => {
-            var r = function (e) {
+        return new Promise((resolve) => {
+            var r = (function (e) {
                     for (var t = atob(e), n = [], r = 0; r < t.length; r += 1) {
                         n[r] = t.charCodeAt(r);
                     }
                     return n;
-                }(key),
+                })(key),
                 i = r[0],
                 o = r[1],
                 a = r.slice(2),
                 s = bitmap.width,
                 u = bitmap.height,
                 c = i * o,
-                l = Math.floor((s - s % 8) / i),
-                f = Math.floor((u - u % 8) / o);
+                l = Math.floor((s - (s % 8)) / i),
+                f = Math.floor((u - (u % 8)) / o);
             let canvas = document.createElement('canvas');
             canvas.width = bitmap.width;
             canvas.height = bitmap.height;
@@ -198,9 +205,13 @@ export default class ToCoronaEx extends Connector {
                     v = Math.floor(d / i);
                 ctx.drawImage(bitmap, p * l, m * f, l, f, g * l, v * f, l, f);
             }
-            canvas.toBlob(data => {
-                resolve(data);
-            }, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value) / 100);
+            canvas.toBlob(
+                (data) => {
+                    resolve(data);
+                },
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
         });
     }
 }

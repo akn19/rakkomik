@@ -1,7 +1,6 @@
 import FoolSlide from './templates/FoolSlide.mjs';
 
 export default class WantedTeam extends FoolSlide {
-
     constructor() {
         super();
         super.id = 'wantedteam';

@@ -2,10 +2,9 @@ import Crunchyroll from './templates/Crunchyroll.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class CrunchyManga extends Crunchyroll {
-
     constructor() {
         super();
-        this.url = "https://www.crunchyroll.com";
+        this.url = 'https://www.crunchyroll.com';
         super.id = 'crunchymanga';
         super.label = 'Crunchyroll* (Manga)';
         this.tags = ['manga', 'high-quality', 'multi-lingual'];
@@ -14,22 +13,29 @@ export default class CrunchyManga extends Crunchyroll {
 
     async _getMangas() {
         let mangaList = [];
-        let uriList = ['https://www.crunchyroll.com/comics/manga',
+        let uriList = [
+            'https://www.crunchyroll.com/comics/manga',
             'https://www.crunchyroll.com/comics/manga/popular',
             'https://www.crunchyroll.com/comics/manga/joint_promo',
             'https://www.crunchyroll.com/comics/manga/simulpub',
             'https://www.crunchyroll.com/comics/manga/updated',
-            'https://www.crunchyroll.com/comics/manga/alpha?group=all'];
+            'https://www.crunchyroll.com/comics/manga/alpha?group=all',
+        ];
 
         for (const scanUri of uriList) {
             let scanRequest = new Request(scanUri, this.requestOptions);
-            let scanData = await this.fetchDOM(scanRequest, '.portrait-grid.cf li, .videos-column-container.cf > .videos-column.left li');
-            mangaList.push(...scanData.map(manga => {
-                return {
-                    id: manga.getAttribute('group_id').trim(),
-                    title: manga.children[0].textContent.trim()
-                };
-            }));
+            let scanData = await this.fetchDOM(
+                scanRequest,
+                '.portrait-grid.cf li, .videos-column-container.cf > .videos-column.left li',
+            );
+            mangaList.push(
+                ...scanData.map((manga) => {
+                    return {
+                        id: manga.getAttribute('group_id').trim(),
+                        title: manga.children[0].textContent.trim(),
+                    };
+                }),
+            );
         }
 
         return mangaList;
@@ -41,18 +47,23 @@ export default class CrunchyManga extends Crunchyroll {
         uri.searchParams.set('series_id', manga.id);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
-        return data.chapters.reverse().filter(chapter => {
-            return this._subscriptions.includes('manga') || chapter.viewable;
-        }).map(chapter => {
-            // chapter.volume_number
-            let title = chapter.locale ? chapter.locale[this.config.locale.value] || chapter.locale.enUS || '' : '';
-            title = title ? ' - ' + title.name : '';
-            return {
-                id: chapter.chapter_id,
-                title: chapter.number.padStart(7, '0') + title,
-                language: ''
-            };
-        });
+        return data.chapters
+            .reverse()
+            .filter((chapter) => {
+                return this._subscriptions.includes('manga') || chapter.viewable;
+            })
+            .map((chapter) => {
+                // chapter.volume_number
+                let title = chapter.locale
+                    ? chapter.locale[this.config.locale.value] || chapter.locale.enUS || ''
+                    : '';
+                title = title ? ' - ' + title.name : '';
+                return {
+                    id: chapter.chapter_id,
+                    title: chapter.number.padStart(7, '0') + title,
+                    language: '',
+                };
+            });
     }
 
     async _getPages(chapter) {
@@ -61,7 +72,7 @@ export default class CrunchyManga extends Crunchyroll {
         uri.searchParams.set('chapter_id', chapter.id);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchJSON(request);
-        return data.pages.map(page => {
+        return data.pages.map((page) => {
             /*
              *let uri = new URL( page['image_url'] ); // sometimes invalid
              *let uri = new URL( page.locale.enUS['image_url'] ); // this seems to be the raw image (png), but access is forbidden
@@ -70,11 +81,13 @@ export default class CrunchyManga extends Crunchyroll {
              */
             let links = {
                 invariant: page['image_url'],
-                locale: page['image_url']
+                locale: page['image_url'],
             };
             let culture = page.locale[this.config.locale.value] || page.locale.enUS;
             if (culture) {
-                links.locale = culture['encrypted_composed_image_url'] || culture['encrypted_mobile_image_url'];
+                links.locale =
+                    culture['encrypted_composed_image_url'] ||
+                    culture['encrypted_mobile_image_url'];
             }
             return this.createConnectorURI(links);
         });
@@ -93,7 +106,7 @@ export default class CrunchyManga extends Crunchyroll {
         let data = await response.arrayBuffer();
         return {
             mimeType: response.headers.get('content-type'),
-            data: this._decryptImage(data, 0x42)
+            data: this._decryptImage(data, 0x42),
         };
     }
 

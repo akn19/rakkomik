@@ -10,18 +10,21 @@ export default class HeanCms extends Connector {
         this.api = undefined;
         this.path = '';
         this.novelContentQuery = 'div#reader-container';
-
     }
 
     async _getMangaFromURI(uri) {
         const slug = uri.pathname.split('/')[2];
         const url = new URL(`${this.api}/series/${slug}`);
         const request = new Request(url, this.requestOptions);
-        const {title, series_slug, id} = await this.fetchJSON(request, this.requestOptions);
-        return new Manga(this, JSON.stringify({
-            id: id,
-            slug:series_slug
-        }), title);
+        const { title, series_slug, id } = await this.fetchJSON(request, this.requestOptions);
+        return new Manga(
+            this,
+            JSON.stringify({
+                id: id,
+                slug: series_slug,
+            }),
+            title,
+        );
     }
 
     async _getMangas() {
@@ -29,26 +32,29 @@ export default class HeanCms extends Connector {
 
         for (let page = 1, run = true; run; page++) {
             let list = await this._getMangasFromPage(page, true);
-            list.length > 0 ? mangaList.push(...list) : run = false;
+            list.length > 0 ? mangaList.push(...list) : (run = false);
         }
 
         for (let page = 1, run = true; run; page++) {
             let list = await this._getMangasFromPage(page, false);
-            list.length > 0 ? mangaList.push(...list) : run = false;
+            list.length > 0 ? mangaList.push(...list) : (run = false);
         }
 
         return mangaList;
     }
 
     async _getMangasFromPage(page, adult) {
-        const request = new Request(new URL(`${this.api}/query?perPage=100&page=${page}&adult=${adult}`), this.requestOptions);
-        const {data} = await this.fetchJSON(request);
+        const request = new Request(
+            new URL(`${this.api}/query?perPage=100&page=${page}&adult=${adult}`),
+            this.requestOptions,
+        );
+        const { data } = await this.fetchJSON(request);
 
         if (data.length) {
             return data.map((manga) => {
                 return {
-                    id : JSON.stringify({id : manga.id, slug : manga.series_slug}),
-                    title: manga.title
+                    id: JSON.stringify({ id: manga.id, slug: manga.series_slug }),
+                    title: manga.title,
                 };
             });
         }
@@ -57,9 +63,8 @@ export default class HeanCms extends Connector {
 
     async _getChapters(manga) {
         let chapterList = await this.getchaptersV1(manga);
-        if (chapterList.length == 0 ) chapterList = await this.getchaptersV2(manga);
+        if (chapterList.length == 0) chapterList = await this.getchaptersV2(manga);
         return chapterList;
-
     }
 
     async getchaptersV1(manga) {
@@ -67,39 +72,41 @@ export default class HeanCms extends Connector {
             const slug = JSON.parse(manga.id).slug;
             const uri = new URL(`${this.api}/series/${slug}`);
             const request = new Request(uri, this.requestOptions);
-            const {seasons} = await this.fetchJSON(request);
+            const { seasons } = await this.fetchJSON(request);
             const chapterList = [];
-            seasons.map((season) => season.chapters.map((chapter) => {
-                chapterList.push({
-                    id: JSON.stringify({
-                        id: chapter.id,
-                        slug: chapter.chapter_slug
-                    }),
-                    title: `${seasons.length > 1 ? 'S' + season.index : ''} ${chapter.chapter_name} ${chapter.chapter_title || ''}`.trim()
-                });
-            }));
+            seasons.map((season) =>
+                season.chapters.map((chapter) => {
+                    chapterList.push({
+                        id: JSON.stringify({
+                            id: chapter.id,
+                            slug: chapter.chapter_slug,
+                        }),
+                        title: `${seasons.length > 1 ? 'S' + season.index : ''} ${chapter.chapter_name} ${chapter.chapter_title || ''}`.trim(),
+                    });
+                }),
+            );
             return chapterList;
         } catch (error) {
             return [];
         }
-
     }
 
     async getchaptersV2(manga) {
         const mangaid = JSON.parse(manga.id);
-        const uri = new URL(`${this.api}/chapter/query?series_id=${mangaid.id}&perPage=9999&page=1)`);
+        const uri = new URL(
+            `${this.api}/chapter/query?series_id=${mangaid.id}&perPage=9999&page=1)`,
+        );
         const request = new Request(uri, this.requestOptions);
         const { data } = await this.fetchJSON(request, this.requestOptions);
-        return data.map( chapter => {
+        return data.map((chapter) => {
             return {
                 id: JSON.stringify({
                     slug: chapter.chapter_slug,
-                    id: chapter.id}),
-                title: `${chapter.chapter_name} ${chapter.chapter_title || ''}`.trim()
-
+                    id: chapter.id,
+                }),
+                title: `${chapter.chapter_name} ${chapter.chapter_title || ''}`.trim(),
             };
         });
-
     }
 
     async _getPages(chapter) {
@@ -120,25 +127,26 @@ export default class HeanCms extends Connector {
         }
 
         const listImages = data.data || data.chapter.chapter_data.images;
-        return listImages.map(image => {
+        return listImages.map((image) => {
             let link = this.computePageUrl(image, data.chapter.storage);
             link = this.DeProxifyStatically(link);
             return this.createConnectorURI(link);
         });
-
     }
 
     computePageUrl(image, storage) {
         switch (storage) {
-            case "s3": return new URL(image).href;
-            case "local": return new URL(image, this.api).href;
+            case 's3':
+                return new URL(image).href;
+            case 'local':
+                return new URL(image, this.api).href;
         }
     }
 
     async _getNovel(seriesId, chapterId) {
         const uri = new URL(`/series/${seriesId}/${chapterId}`, this.url);
         const request = new Request(uri, this.requestOptions);
-        return [ await Engine.Request.fetchNovel(request, this.novelContentQuery) ];
+        return [await Engine.Request.fetchNovel(request, this.novelContentQuery)];
     }
 
     async _handleConnectorURI(payload) {

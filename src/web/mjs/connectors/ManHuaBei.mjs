@@ -1,12 +1,11 @@
 import SinMH from './templates/SinMH.mjs';
 
 export default class ManHuaBei extends SinMH {
-
     constructor() {
         super();
         super.id = 'manhuabei';
         super.label = '漫画呗 (ManHuaBei)';
-        this.tags = [ 'manga', 'webtoon', 'chinese' ];
+        this.tags = ['manga', 'webtoon', 'chinese'];
         this.url = 'https://www.manhuabei.com';
 
         this.queryManga = 'div.wrap_intro_l div.wrap_intro_l_comic div.comic_deCon h1';

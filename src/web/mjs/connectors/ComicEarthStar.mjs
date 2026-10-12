@@ -1,12 +1,11 @@
 import CoreView from './templates/CoreView.mjs';
 
 export default class ComicEarthStar extends CoreView {
-
     constructor() {
         super();
         super.id = 'comicearthstar';
         super.label = 'コミック アース・スター (Comic Earth Star)';
-        this.tags = [ 'manga', 'japanese' ];
+        this.tags = ['manga', 'japanese'];
         this.apiURL = 'https://comic-earthstar.com/graphql';
         this.url = 'https://comic-earthstar.com';
     }
@@ -33,11 +32,11 @@ export default class ComicEarthStar extends CoreView {
         let uri = new URL(this.apiURL);
         uri.searchParams.set('opname', operationName);
         let request = new Request(uri, this.requestOptions);
-        let data = await this.fetchGraphQL(request, operationName, query, {} );
-        data.seriesOneshot.seriesSlice.seriesList.forEach(manga => {
+        let data = await this.fetchGraphQL(request, operationName, query, {});
+        data.seriesOneshot.seriesSlice.seriesList.forEach((manga) => {
             mangalist.push({
                 id: new URL(manga.firstEpisode.permalink).pathname,
-                title: manga.title.trim()
+                title: manga.title.trim(),
             });
         });
 
@@ -71,24 +70,22 @@ export default class ComicEarthStar extends CoreView {
         uri = new URL(this.apiURL);
         uri.searchParams.set('opname', operationName);
         request = new Request(uri, this.requestOptions);
-        data = await this.fetchGraphQL(request, operationName, query, {} );
+        data = await this.fetchGraphQL(request, operationName, query, {});
 
-        data.seriesOngoing.seriesSlice.seriesList.forEach(manga => {
+        data.seriesOngoing.seriesSlice.seriesList.forEach((manga) => {
             mangalist.push({
                 id: new URL(manga.firstEpisode.permalink).pathname,
-                title: manga.title.trim()
+                title: manga.title.trim(),
             });
         });
 
-        data.seriesFinished.seriesSlice.seriesList.forEach(manga => {
+        data.seriesFinished.seriesSlice.seriesList.forEach((manga) => {
             mangalist.push({
                 id: new URL(manga.firstEpisode.permalink).pathname,
-                title: manga.title.trim()
+                title: manga.title.trim(),
             });
         });
 
         return mangalist;
-
     }
-
 }

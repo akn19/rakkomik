@@ -1,7 +1,6 @@
 import GnuBoard5BootstrapBasic2 from './templates/GnuBoard5BootstrapBasic2.mjs';
 
 export default class NewToki extends GnuBoard5BootstrapBasic2 {
-
     constructor() {
         super();
         super.id = 'newtoki';
@@ -23,13 +22,14 @@ export default class NewToki extends GnuBoard5BootstrapBasic2 {
         this.config = {
             url: {
                 label: 'URL',
-                description: 'This website changes their URL regularly.\nThis is the last known URL which can also be manually set by the user.',
+                description:
+                    'This website changes their URL regularly.\nThis is the last known URL which can also be manually set by the user.',
                 input: 'text',
-                value: 'https://newtoki154.com'
-            }
+                value: 'https://newtoki154.com',
+            },
         };
         this.links = {
-            login: this.url + '/bbs/login.php'
+            login: this.url + '/bbs/login.php',
         };
     }
 
@@ -79,7 +79,6 @@ export default class NewToki extends GnuBoard5BootstrapBasic2 {
         const mangaid = chapter.manga.id.match(/(comic|webtoon)\/([\d]+)/)[2];
         const path = `/${mangaid}/${chapid}/`; //makes sure image path matches chapter and manga
         const images = await super._getPages(chapter);
-        return images.filter(image => image.includes(path));
-
+        return images.filter((image) => image.includes(path));
     }
 }

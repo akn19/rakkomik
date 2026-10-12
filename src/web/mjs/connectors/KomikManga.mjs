@@ -4,7 +4,6 @@ import MangaReaderCMS from './templates/MangaReaderCMS.mjs';
  *
  */
 export default class KomikManga extends MangaReaderCMS {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class KomikManga extends MangaReaderCMS {
         super();
         super.id = 'komikmanga';
         super.label = 'KomikManga';
-        this.tags = [ 'manga', 'indonesian' ];
+        this.tags = ['manga', 'indonesian'];
         this.url = 'https://komikmanga.com';
 
         this.language = 'in';

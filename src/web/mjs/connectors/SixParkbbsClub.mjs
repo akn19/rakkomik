@@ -1,12 +1,11 @@
 import SixParkbbs from './templates/SixParkbbs.mjs';
 
 export default class SixParkbbsClub extends SixParkbbs {
-
     constructor() {
         super();
         super.id = 'sixparkbbsclub';
         super.label = '6parkbbs (卡通漫画)';
-        this.tags = [ 'manga', 'webtoon', 'chinese', 'english', 'korean', 'raw' ];
+        this.tags = ['manga', 'webtoon', 'chinese', 'english', 'korean', 'raw'];
         this.url = 'https://club.6parkbbs.com';
         this.sub = '/enter6';
 

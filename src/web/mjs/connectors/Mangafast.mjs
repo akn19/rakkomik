@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Mangafast extends Connector {
-
     constructor() {
         super();
         super.id = 'mangafast';
@@ -14,12 +13,13 @@ export default class Mangafast extends Connector {
         this.config = {
             throttle: {
                 label: 'Throttle Requests [ms]',
-                description: 'Enter the timespan in [ms] to delay consecuitive HTTP requests.\nThe website may block images for to many consecuitive requests.',
+                description:
+                    'Enter the timespan in [ms] to delay consecuitive HTTP requests.\nThe website may block images for to many consecuitive requests.',
                 input: 'numeric',
                 min: 100,
                 max: 1000,
-                value: 100
-            }
+                value: 100,
+            },
         };
     }
 
@@ -48,10 +48,10 @@ export default class Mangafast extends Connector {
         const nextLink = body.querySelector('main section div.btn-w > a:last-of-type');
         const hasNextLink = nextLink ? /next/i.test(nextLink.text) : false;
         const data = [...body.querySelectorAll('div.list-content div.ls4j h3 a')];
-        const mangas = data.map(element => {
+        const mangas = data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
         mangas['continue'] = hasNextLink;
@@ -62,10 +62,10 @@ export default class Mangafast extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'table.lsch a.chapter-link');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -74,6 +74,13 @@ export default class Mangafast extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div#Read source.lazy');
-        return data.map(element => this.getAbsolutePath(element.dataset['src'] || element.dataset['data-src'] || element, request.url)).filter(link => !link.includes('adskeeper.co.uk'));
+        return data
+            .map((element) =>
+                this.getAbsolutePath(
+                    element.dataset['src'] || element.dataset['data-src'] || element,
+                    request.url,
+                ),
+            )
+            .filter((link) => !link.includes('adskeeper.co.uk'));
     }
 }

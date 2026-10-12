@@ -4,7 +4,7 @@ export default class InfraFandub extends WordPressMadara {
         super();
         super.id = 'infrafandub';
         super.label = 'Infra Fandub';
-        this.tags = [ 'webtoon', 'manga', 'spanish' ];
+        this.tags = ['webtoon', 'manga', 'spanish'];
         this.url = 'https://infrafandub.xyz';
     }
 }

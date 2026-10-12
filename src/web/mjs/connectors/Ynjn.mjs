@@ -2,7 +2,6 @@ import Manga from '../engine/Manga.mjs';
 import Connector from '../engine/Connector.mjs';
 
 export default class YnJn extends Connector {
-
     constructor() {
         super();
         super.id = 'ynjn';
@@ -21,7 +20,8 @@ export default class YnJn extends Connector {
     }
 
     async _getMangas() {
-        let msg = 'This website does not provide a manga list, please copy and paste the URL containing the chapters directly from your browser into HakuNeko.';
+        let msg =
+            'This website does not provide a manga list, please copy and paste the URL containing the chapters directly from your browser into HakuNeko.';
         throw new Error(msg);
     }
 
@@ -34,7 +34,7 @@ export default class YnJn extends Connector {
             uri.searchParams.set('is_reverse', 'false');
             const request = new Request(uri, this.requestOptions);
             const json = await this.fetchJSON(request);
-            json.data.episodes.forEach(episode => {
+            json.data.episodes.forEach((episode) => {
                 chapters.push({
                     id: episode.id,
                     title: episode.name,
@@ -54,8 +54,8 @@ export default class YnJn extends Connector {
         const json = await this.fetchJSON(request);
 
         pages = json.data.pages
-            .filter(page=> page.manga_page)
-            .map(page => this.createConnectorURI(page.manga_page.page_image_url ));
+            .filter((page) => page.manga_page)
+            .map((page) => this.createConnectorURI(page.manga_page.page_image_url));
         return pages;
     }
 
@@ -71,8 +71,7 @@ export default class YnJn extends Connector {
 
     async _descrambleImage(data) {
         let bitmap = await createImageBitmap(data);
-        return new Promise(resolve => {
-
+        return new Promise((resolve) => {
             let canvas = document.createElement('canvas');
             canvas.width = bitmap.width;
             canvas.height = bitmap.height;
@@ -85,19 +84,22 @@ export default class YnJn extends Connector {
             ctx.drawImage(bitmap, 0, 0, imageWidth, imageHeight);
             let y = undefined;
 
-            for ( let blockIndex = 0; blockIndex < 16; blockIndex++) {
+            for (let blockIndex = 0; blockIndex < 16; blockIndex++) {
                 const A = Math.floor(blockIndex / 4) * blockHeight;
-                const P = blockIndex % 4 * blockWidth;
+                const P = (blockIndex % 4) * blockWidth;
                 const s = Math.floor(blockIndex / 4);
-                const C = (y = blockIndex % 4 * 4 + s) % 4 * blockWidth;
+                const C = ((y = (blockIndex % 4) * 4 + s) % 4) * blockWidth;
                 const k = Math.floor(y / 4) * blockHeight;
-                ctx.drawImage(bitmap, P, A, blockWidth, blockHeight, C, k, blockWidth, blockHeight );
+                ctx.drawImage(bitmap, P, A, blockWidth, blockHeight, C, k, blockWidth, blockHeight);
             }
 
-            canvas.toBlob(data => {
-                resolve(data);
-            }, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value)/100);
-        } );
+            canvas.toBlob(
+                (data) => {
+                    resolve(data);
+                },
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
+        });
     }
-
 }

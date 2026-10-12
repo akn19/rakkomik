@@ -13,7 +13,7 @@ export default class Yurineko extends Connector {
 
     async _getMangaFromURI(uri) {
         const mangaid = uri.href.match(/manga\/([\d]+)/)[1];
-        const request = new Request(new URL('/manga/'+mangaid, this.api), this.requestOptions);
+        const request = new Request(new URL('/manga/' + mangaid, this.api), this.requestOptions);
         const data = await this.fetchJSON(request);
         return new Manga(this, uri.pathname, data.originalName.trim());
     }
@@ -22,10 +22,10 @@ export default class Yurineko extends Connector {
         const uri = new URL('/directory/general', this.api);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSON(request);
-        return data.map (element => {
+        return data.map((element) => {
             return {
-                id: '/manga/'+element.id,
-                title : element.originalName.trim()
+                id: '/manga/' + element.id,
+                title: element.originalName.trim(),
             };
         });
     }
@@ -34,10 +34,10 @@ export default class Yurineko extends Connector {
         const uri = new URL(manga.id, this.api);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSON(request);
-        return data.chapters.map (element => {
+        return data.chapters.map((element) => {
             return {
-                id: '/read/'+element.mangaID+'/'+element.id,
-                title : element.name.trim()
+                id: '/read/' + element.mangaID + '/' + element.id,
+                title: element.name.trim(),
             };
         });
     }
@@ -47,7 +47,11 @@ export default class Yurineko extends Connector {
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, '#__NEXT_DATA__');
         const jsonData = JSON.parse(data[0].text);
-        return jsonData.props.pageProps.chapterData.url.map( element => this.createConnectorURI({url : new URL(element, 'https://storage.yurineko.site').href}));
+        return jsonData.props.pageProps.chapterData.url.map((element) =>
+            this.createConnectorURI({
+                url: new URL(element, 'https://storage.yurineko.site').href,
+            }),
+        );
     }
 
     async _handleConnectorURI(payload) {

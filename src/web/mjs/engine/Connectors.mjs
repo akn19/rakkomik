@@ -1,6 +1,6 @@
 const events = {
     registered: 'registered',
-    ready: 'ready'
+    ready: 'ready',
 };
 
 // Modules are imported concurrently in batches (the files are small static
@@ -8,7 +8,6 @@ const events = {
 const BATCH_SIZE = 128;
 
 export default class Connectors extends EventTarget {
-
     constructor(ipc) {
         super();
         ipc.listen('on-connector-protocol-handler', this._onConnectorProtocolHandler.bind(this));
@@ -23,8 +22,10 @@ export default class Connectors extends EventTarget {
         try {
             let response = await fetch(uri);
             let data = await response.json();
-            return data.filter(plugin => !plugin.startsWith('.') && plugin.endsWith('.mjs')).map(plugin => uri + plugin);
-        } catch(error) {
+            return data
+                .filter((plugin) => !plugin.startsWith('.') && plugin.endsWith('.mjs'))
+                .map((plugin) => uri + plugin);
+        } catch (error) {
             //console.warn(error);
             return [];
         }
@@ -38,7 +39,7 @@ export default class Connectors extends EventTarget {
         const systemPlugins = [
             '../connectors/system/BookmarkConnector.mjs',
             '../connectors/system/FolderConnector.mjs',
-            '../connectors/system/ClipboardConnector.mjs'
+            '../connectors/system/ClipboardConnector.mjs',
         ];
         await this.register(systemPlugins);
     }
@@ -50,7 +51,7 @@ export default class Connectors extends EventTarget {
     async load() {
         let [userPlugins, internalPlugins] = await Promise.all([
             this._loadPlugins('hakuneko://plugins/'),
-            this._loadPlugins('hakuneko://cache/mjs/connectors/')
+            this._loadPlugins('hakuneko://cache/mjs/connectors/'),
         ]);
         // user plugins first, so they win over internal connectors with the same ID
         await this.register(userPlugins);
@@ -77,37 +78,44 @@ export default class Connectors extends EventTarget {
 
     async register(files) {
         try {
-            for(let offset = 0; offset < files.length; offset += BATCH_SIZE) {
+            for (let offset = 0; offset < files.length; offset += BATCH_SIZE) {
                 let batch = files.slice(offset, offset + BATCH_SIZE);
-                let loaded = await Promise.all(batch.map(file => {
-                    return import(file).then(module => ({ file, module }), error => ({ file, error }));
-                }));
+                let loaded = await Promise.all(
+                    batch.map((file) => {
+                        return import(file).then(
+                            (module) => ({ file, module }),
+                            (error) => ({ file, error }),
+                        );
+                    }),
+                );
                 // instantiate in the original order, so the first connector with a given ID always wins
-                for(let { file, module, error } of loaded) {
+                for (let { file, module, error } of loaded) {
                     try {
-                        if(error) {
+                        if (error) {
                             throw error;
                         }
                         let connector = new module.default();
                         // the list is sorted by label below: one without a label would end the registration of all that follow
-                        if(typeof connector.label !== 'string') {
+                        if (typeof connector.label !== 'string') {
                             throw new Error('The connector has no label!');
                         }
-                        if(this._list.find(c => c.id === connector.id)) {
-                            console.warn(`The connector "${connector.label}" with ID "${connector.id}" is already registered`);
+                        if (this._list.find((c) => c.id === connector.id)) {
+                            console.warn(
+                                `The connector "${connector.label}" with ID "${connector.id}" is already registered`,
+                            );
                         } else {
                             this._list.push(connector);
                         }
-                    } catch(error) {
+                    } catch (error) {
                         console.warn(`Failed to load connector "${file}"`, error);
                     }
                 }
-                this._list.sort( ( a, b ) => {
+                this._list.sort((a, b) => {
                     return a.label.toLowerCase() < b.label.toLowerCase() ? -1 : 1;
-                } );
+                });
                 this.dispatchEvent(new CustomEvent(events.registered, { detail: this._list }));
             }
-        } catch(error) {
+        } catch (error) {
             console.warn(`Failed to load connector`, error);
         }
     }
@@ -115,11 +123,11 @@ export default class Connectors extends EventTarget {
     async _onConnectorProtocolHandler(request) {
         try {
             let uri = new URL(request.url);
-            let find = () => this._list.find(connector => connector.id === uri.hostname);
+            let find = () => this._list.find((connector) => connector.id === uri.hostname);
             // requests may arrive before the (background) registration reached their connector
             let connector = find() || (this._isReady ? undefined : (await this._ready, find()));
             return connector.handleConnectorURI(uri);
-        } catch(error) {
+        } catch (error) {
             console.error(error);
             return undefined;
         }

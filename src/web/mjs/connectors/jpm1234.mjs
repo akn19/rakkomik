@@ -5,7 +5,7 @@ export default class jpm1234 extends SinMH {
         super();
         super.id = 'jpm1234';
         super.label = 'jpm1234';
-        this.tags = [ 'manga', 'webtoon', 'chinese' ];
+        this.tags = ['manga', 'webtoon', 'chinese'];
         this.url = 'http://jpm1234.com';
         this.requestOptions.headers.set('x-referer', this.url);
 
@@ -21,12 +21,13 @@ export default class jpm1234 extends SinMH {
         this.config = {
             throttle: {
                 label: 'Throttle Requests [ms]',
-                description: 'Enter the timespan in [ms] to delay consecuitive HTTP requests.\nThe website may reject to many consecuitive requests.\nChapters with lots of pages may require a longer delay',
+                description:
+                    'Enter the timespan in [ms] to delay consecuitive HTTP requests.\nThe website may reject to many consecuitive requests.\nChapters with lots of pages may require a longer delay',
                 input: 'numeric',
                 min: 0,
                 max: 5000,
-                value: 1000
-            }
+                value: 1000,
+            },
         };
     }
 }

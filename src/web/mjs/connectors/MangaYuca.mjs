@@ -1,7 +1,6 @@
-import WordPressMadara from "./templates/WordPressMadara.mjs";
+import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class MangaYuca extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'mangayuca';

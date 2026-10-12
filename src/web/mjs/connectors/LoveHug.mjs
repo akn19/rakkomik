@@ -2,12 +2,11 @@ import FlatManga from './templates/FlatManga.mjs';
 
 // Similar to WeLoMa
 export default class WeLoveManga extends FlatManga {
-
     constructor() {
         super();
         super.id = 'lovehug';
         super.label = 'WeLoveManga';
-        this.tags = [ 'manga', 'hentai', 'raw', 'japanese' ];
+        this.tags = ['manga', 'hentai', 'raw', 'japanese'];
         this.url = 'https://welovemanga.one';
         this.path = '/manga-list.html';
         this.requestOptions.headers.set('x-referer', this.url);
@@ -19,7 +18,7 @@ export default class WeLoveManga extends FlatManga {
     }
 
     async _initializeConnector() {
-        for(let path of [this.path, '/0/0/']) {
+        for (let path of [this.path, '/0/0/']) {
             const uri = new URL(path, this.url);
             const request = new Request(uri, this.requestOptions);
             return Engine.Request.fetchUI(request, '', 30000, true);
@@ -32,7 +31,7 @@ export default class WeLoveManga extends FlatManga {
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'ul.pagination li:nth-last-of-type(2) a');
         const pageCount = parseInt(data[0].text.trim());
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
             await this.wait(5000);
@@ -45,10 +44,10 @@ export default class WeLoveManga extends FlatManga {
         uri.searchParams.set('page', page);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -74,8 +73,13 @@ export default class WeLoveManga extends FlatManga {
         const uri = new URL(chapter.id, this.url);
         let request = new Request(uri, this.requestOptions);
         const chapterid = (await this.fetchDOM(request, 'input#chapter'))[0].value;
-        request = new Request(new URL(`/app/manga/controllers/cont.listImg.php?cid=${chapterid}`, this.url), this.requestOptions);
+        request = new Request(
+            new URL(`/app/manga/controllers/cont.listImg.php?cid=${chapterid}`, this.url),
+            this.requestOptions,
+        );
         const nodes = await this.fetchDOM(request, 'source.chapter-img:not([alt*="nicoscan"])');
-        return nodes.map(image => this.createConnectorURI(image.dataset.srcset.replace(/\n/g, '')));
+        return nodes.map((image) =>
+            this.createConnectorURI(image.dataset.srcset.replace(/\n/g, '')),
+        );
     }
 }

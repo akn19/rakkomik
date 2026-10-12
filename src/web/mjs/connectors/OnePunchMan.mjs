@@ -1,12 +1,11 @@
 import Connector from '../engine/Connector.mjs';
 
 export default class OnePunchMan extends Connector {
-
     constructor() {
         super();
         super.id = 'onepunchman';
         super.label = 'One-Punch Man';
-        this.tags = [ 'manga', 'english', 'high-quality' ];
+        this.tags = ['manga', 'english', 'high-quality'];
         this.url = 'https://onepunch-man.com';
     }
 
@@ -14,8 +13,8 @@ export default class OnePunchMan extends Connector {
         return [
             {
                 id: this.url,
-                title: this.label
-            }
+                title: this.label,
+            },
         ];
     }
 
@@ -23,11 +22,11 @@ export default class OnePunchMan extends Connector {
         let request = new Request(new URL(manga.id), this.requestOptions);
         let data = await this.fetchDOM(request, '#Chapters_List a');
 
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getAbsolutePath(element, this.url),
                 title: element.text.split(', ')[1],
-                language: 'en'
+                language: 'en',
             };
         });
     }
@@ -36,7 +35,7 @@ export default class OnePunchMan extends Connector {
         let request = new Request(new URL(chapter.id), this.requestOptions);
         let data = await this.fetchDOM(request, 'source.lazyload');
 
-        return data.map(element => {
+        return data.map((element) => {
             return this.getAbsolutePath(element.dataset.src, request.url);
         });
     }

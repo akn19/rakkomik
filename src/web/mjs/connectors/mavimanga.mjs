@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MaviManga extends Connector {
-
     constructor() {
         super();
         super.id = 'mavimanga';
         super.label = 'Mavi Manga';
-        this.tags = [ 'manga', 'turkish' ];
+        this.tags = ['manga', 'turkish'];
         this.url = 'https://mavimanga.com';
     }
 
@@ -26,14 +25,19 @@ export default class MaviManga extends Connector {
 
         let mangas = [];
         for (let page = 0; page <= pages; page++) {
-            request = new Request(new URL('/manga-listesi/sayfa/' + page, this.url), this.requestOptions);
+            request = new Request(
+                new URL('/manga-listesi/sayfa/' + page, this.url),
+                this.requestOptions,
+            );
             let data = await this.fetchDOM(request, 'ul.manga-list li a');
-            mangas.push( ...data.map(element => {
-                return {
-                    id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                    title: element.text.trim()
-                };
-            }));
+            mangas.push(
+                ...data.map((element) => {
+                    return {
+                        id: this.getRootRelativeOrAbsoluteLink(element, this.url),
+                        title: element.text.trim(),
+                    };
+                }),
+            );
         }
 
         return mangas;
@@ -42,11 +46,11 @@ export default class MaviManga extends Connector {
     async _getChapters(manga) {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'div.mangaep-list tbody tr td:first-of-type a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.textContent.trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -54,6 +58,6 @@ export default class MaviManga extends Connector {
     async _getPages(chapter) {
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'div.viewer-cnt div#all source.img-responsive');
-        return data.map(element => this.getAbsolutePath(element.dataset.src, this.url));
+        return data.map((element) => this.getAbsolutePath(element.dataset.src, this.url));
     }
 }

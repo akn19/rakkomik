@@ -1,7 +1,6 @@
 import Connector from '../../engine/Connector.mjs';
 
 export default class FoolSlide extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -21,45 +20,51 @@ export default class FoolSlide extends Connector {
     /**
      *
      */
-    _getMangaListFromPages( mangaPageLinks, index ) {
-        if( index === undefined ) {
+    _getMangaListFromPages(mangaPageLinks, index) {
+        if (index === undefined) {
             index = 0;
         }
-        return this.wait( 0 )
-            .then ( () => this.fetchDOM( mangaPageLinks[ index ], this.queryMangas, 5 ) )
-            .then( data => {
-                let mangaList = data.map( element => {
+        return this.wait(0)
+            .then(() => this.fetchDOM(mangaPageLinks[index], this.queryMangas, 5))
+            .then((data) => {
+                let mangaList = data.map((element) => {
                     return {
-                        id: this.getRelativeLink( element ),
-                        title: element.text.trim()
+                        id: this.getRelativeLink(element),
+                        title: element.text.trim(),
                     };
-                } );
-                if( index < mangaPageLinks.length - 1 ) {
-                    return this._getMangaListFromPages( mangaPageLinks, index + 1 )
-                        .then( mangas => mangas.concat( mangaList ) );
+                });
+                if (index < mangaPageLinks.length - 1) {
+                    return this._getMangaListFromPages(mangaPageLinks, index + 1).then((mangas) =>
+                        mangas.concat(mangaList),
+                    );
                 } else {
-                    return Promise.resolve( mangaList );
+                    return Promise.resolve(mangaList);
                 }
-            } );
+            });
     }
 
     /**
      *
      */
-    _getMangaList( callback ) {
-        this.fetchDOM( this.url + this.path, this.queryMangasPageCount )
-            .then( data => {
-                let pageCount = data.length === 0 ? this.defaultPageCount : parseInt( data[0].href.match(/(\d+)\/$/)[1] );
-                let pageLinks = [... new Array( pageCount ).keys()].map( page => this.url + this.path + ( page + 1 ) + '/' );
-                return this._getMangaListFromPages( pageLinks );
-            } )
-            .then( data => {
-                callback( null, data );
-            } )
-            .catch( error => {
-                console.error( error, this );
-                callback( error, undefined );
-            } );
+    _getMangaList(callback) {
+        this.fetchDOM(this.url + this.path, this.queryMangasPageCount)
+            .then((data) => {
+                let pageCount =
+                    data.length === 0
+                        ? this.defaultPageCount
+                        : parseInt(data[0].href.match(/(\d+)\/$/)[1]);
+                let pageLinks = [...new Array(pageCount).keys()].map(
+                    (page) => this.url + this.path + (page + 1) + '/',
+                );
+                return this._getMangaListFromPages(pageLinks);
+            })
+            .then((data) => {
+                callback(null, data);
+            })
+            .catch((error) => {
+                console.error(error, this);
+                callback(error, undefined);
+            });
     }
 
     async _getChapters(manga) {
@@ -68,15 +73,15 @@ export default class FoolSlide extends Connector {
             method: 'POST',
             body: 'adult=true',
             headers: {
-                'content-type': 'application/x-www-form-urlencoded'
-            }
+                'content-type': 'application/x-www-form-urlencoded',
+            },
         });
         let data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.text.trim(),
-                language: this.language
+                language: this.language,
             };
         });
     }
@@ -87,23 +92,23 @@ export default class FoolSlide extends Connector {
             method: 'POST',
             body: 'adult=true',
             headers: {
-                'content-type': 'application/x-www-form-urlencoded'
-            }
+                'content-type': 'application/x-www-form-urlencoded',
+            },
         });
         let response = await fetch(request);
         let data = await response.text();
         let pages = undefined;
         let pagesRAW = data.match(/pages\s*=\s*(\[.*?\])\s*;/);
-        if(pagesRAW instanceof Array) {
+        if (pagesRAW instanceof Array) {
             pages = pagesRAW[1];
         }
         let pagesB64 = data.match(/pages\s*=\s*JSON.parse\s*\(\s*atob\s*\("(.*?)"\s*\)\s*\)\s*;/);
-        if( pagesB64 instanceof Array ) {
+        if (pagesB64 instanceof Array) {
             pages = atob(pagesB64[1]);
         }
-        if(!pages) {
+        if (!pages) {
             throw new Error(`Failed to extract page list!`);
         }
-        return JSON.parse(pages).map(page => this.getAbsolutePath(page.url, request.url));
+        return JSON.parse(pages).map((page) => this.getAbsolutePath(page.url, request.url));
     }
 }

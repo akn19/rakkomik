@@ -3,7 +3,7 @@ import { createPath } from './Path.mjs';
 
 const events = {
     loaded: 'loaded',
-    saved: 'saved'
+    saved: 'saved',
 };
 
 const extensions = {
@@ -15,13 +15,13 @@ const extensions = {
     // history formats
     none: '',
     json: '.json',
-    csv: '.csv'
+    csv: '.csv',
 };
 
 const mimes = {
     webp: 'image/webp',
     jpeg: 'image/jpeg',
-    png: 'image/png'
+    png: 'image/png',
 };
 
 // Stored per-connector settings of the last load(), so save() never drops the
@@ -36,11 +36,10 @@ const types = {
     select: 'select',
     checkbox: 'checkbox',
     file: 'file',
-    directory: 'directory'
+    directory: 'directory',
 };
 
 export default class Settings extends EventTarget {
-
     // TODO: use dependency injection instead of globals for Engine.Storage, Engine.Conenctors
     constructor() {
         super();
@@ -58,38 +57,39 @@ export default class Settings extends EventTarget {
             label: 'Enable Reader',
             description: 'Show a preview panel and a basic reader for the chapters',
             input: types.checkbox,
-            value: true
+            value: true,
         };
 
         this.baseDirectory = {
             label: 'Manga Directory',
             description: 'The base directory where all downloaded mangas will be stored',
             input: types.directory,
-            value: path.join(docs, 'Mangas')
+            value: path.join(docs, 'Mangas'),
         };
 
         this.bookmarkDirectory = {
             label: 'Bookmarks Directory',
             description: [
                 'The directory where the bookmark and chaptermark files will be stored.',
-                'This setting has no effect when the application is in portable mode!'
+                'This setting has no effect when the application is in portable mode!',
             ].join('\n'),
             input: window.hakuneko.env.HAKUNEKO_PORTABLE ? types.disabled : types.directory,
-            value: app.getPath('userData')
+            value: app.getPath('userData'),
         };
 
         this.useSubdirectory = {
             label: 'Use Sub-Directories',
             description: 'Create sub-directories for each website (e.g. "/downloads/mangadex/...")',
             input: types.checkbox,
-            value: false
+            value: false,
         };
 
         this.ignoreErrorOnDownload = {
             label: 'Ignore errors on download',
-            description: 'The download will be treated as successful, even if all or some files failed to download and the chapter is in a broken state',
+            description:
+                'The download will be treated as successful, even if all or some files failed to download and the chapter is in a broken state',
             input: types.checkbox,
-            value: false
+            value: false,
         };
 
         this.chapterTitleFormat = {
@@ -105,10 +105,10 @@ export default class Settings extends EventTarget {
                 '  %VOL% - Volume number',
                 '  %CH% - Chapter number',
                 '  %T% - Chapter title (without volume/chapter number)',
-                '  %O% - Chapter title (original)'
+                '  %O% - Chapter title (original)',
             ].join('\n'),
             input: types.text,
-            value: ''
+            value: '',
         };
 
         this.chapterFormat = {
@@ -120,21 +120,21 @@ export default class Settings extends EventTarget {
                 { value: extensions.cbz, name: 'Comic Book Archive (*.cbz)' },
                 { value: extensions.epub, name: 'Ebook Reader (*.epub)' },
             ],
-            value: extensions.img
+            value: extensions.img,
         };
 
         this.novelFormat = {
             label: 'Novel File Format',
             description: [
                 'Store novels in the selected file format.',
-                'A novel is always saved as text, whatever the chapter file format is.'
+                'A novel is always saved as text, whatever the chapter file format is.',
             ].join('\n'),
             input: types.select,
             options: [
                 { value: extensions.epub, name: 'Ebook Reader (*.epub)' },
                 { value: extensions.pdf, name: 'Portable Document (*.pdf)' },
             ],
-            value: extensions.epub
+            value: extensions.epub,
         };
 
         this.recompressionFormat = {
@@ -142,7 +142,7 @@ export default class Settings extends EventTarget {
             description: [
                 'Select the re-compression format that shall be used for scrambled images.',
                 'Only applies to scrambled images!',
-                'Unscrambled images are stored natively (no re-compression will be applied).'
+                'Unscrambled images are stored natively (no re-compression will be applied).',
             ].join('\n'),
             input: types.select,
             options: [
@@ -150,26 +150,27 @@ export default class Settings extends EventTarget {
                 { value: mimes.jpeg, name: 'JPEG (*.jpg)' },
                 { value: mimes.png, name: 'PNG (*.png)' },
             ],
-            value: mimes.jpeg
+            value: mimes.jpeg,
         };
 
         this.recompressionQuality = {
             label: 'De-Scrambling Quality',
             description: [
                 'Select the re-compression quality that shall be used for scrambled images.',
-                'Only applies to WEBP and JPEG, has no effect on PNG (which is lossless).'
+                'Only applies to WEBP and JPEG, has no effect on PNG (which is lossless).',
             ].join('\n'),
             input: types.numeric,
             min: 50,
             max: 100,
-            value: 90
+            value: 90,
         };
 
         this.useSequentialMediaDownloads = {
             label: 'Disable Concurrent Downloads',
-            description: 'Media will be downloaded one after another instead of concurrently. Enable this in case of holding a slow internet connection, or regularly encountering failed downloads due to network errors.',
+            description:
+                'Media will be downloaded one after another instead of concurrently. Enable this in case of holding a slow internet connection, or regularly encountering failed downloads due to network errors.',
             input: types.checkbox,
-            value: false
+            value: false,
         };
 
         this.proxyRules = {
@@ -182,10 +183,10 @@ export default class Settings extends EventTarget {
                 '  http=proxy.web:80',
                 '  http=127.0.0.1:8080;https=127.0.0.1:8080;socks=127.0.0.1:8081',
                 '',
-                'More info: https://git.io/hakuneko-proxy'
+                'More info: https://git.io/hakuneko-proxy',
             ].join('\n'),
             input: types.text,
-            value: ''
+            value: '',
         };
 
         this.proxyAuth = {
@@ -196,10 +197,10 @@ export default class Settings extends EventTarget {
                 'Only basic auth is supported!',
                 '',
                 'Examples:',
-                '  username:password'
+                '  username:password',
             ].join('\n'),
             input: types.password,
-            value: ''
+            value: '',
         };
 
         this.hCaptchaAccessibilityUUID = {
@@ -213,17 +214,17 @@ export default class Settings extends EventTarget {
                 'Example:',
                 '  68e89cc3-4c2d-4539-b80b-49ba4bec76c4',
                 '',
-                'More info: https://www.hcaptcha.com/accessibility'
+                'More info: https://www.hcaptcha.com/accessibility',
             ].join('\n'),
             input: types.text,
-            value: ''
+            value: '',
         };
 
         this.downloadHistoryLogFormat = {
             label: 'Download History Format',
             description: [
                 'Log the history of completed chapter downloads.',
-                'The log file(s) can be found in HakuNeko\'s user data directory.'
+                "The log file(s) can be found in HakuNeko's user data directory.",
             ].join('\n'),
             input: types.select,
             options: [
@@ -233,7 +234,7 @@ export default class Settings extends EventTarget {
                  *{ value: extensions.csv, name: 'CSV (*.csv)' },
                  */
             ],
-            value: extensions.none
+            value: extensions.none,
         };
 
         this.postChapterDownloadCommand = {
@@ -253,10 +254,10 @@ export default class Settings extends EventTarget {
                 'by _ before the command runs. %PATH% is not changed, put it in quotes.',
                 '',
                 'Examples:',
-                '  echo "%C% | %M% | %O%" > "%PATH%.txt"'
+                '  echo "%C% | %M% | %O%" > "%PATH%.txt"',
             ].join('\n'),
             input: types.text,
-            value: ''
+            value: '',
         };
 
         this.discordPresence = {
@@ -264,34 +265,36 @@ export default class Settings extends EventTarget {
             description: [
                 'Provides what you are currently reading as discord activity',
                 'information to the public.',
-                ''
+                '',
             ].join('\n'),
             input: types.select,
             options: [
                 { value: 'none', name: 'No presence' },
                 { value: 'nohentai', name: 'All, but NO hentai' },
-                { value: 'hentai', name: 'All INCLUDING hentai' }
+                { value: 'hentai', name: 'All INCLUDING hentai' },
             ],
-            value: 'none'
+            value: 'none',
         };
 
         this.NovelColorProfiles = {
             label: 'Light/Dark mode for Novels',
             description: [
                 'Choose between light and dark mode for novels.',
-                'This changes the reader view, the files of downloaded novels are not affected.'
+                'This changes the reader view, the files of downloaded novels are not affected.',
             ].join('\n'),
             input: types.select,
             options: [
-                {val: { background: 'black', text: 'white' }, value: 'Dark', name: 'Dark' },
-                {val: { background: 'white', text: 'black' }, value: 'Light', name: 'Light' }
+                { val: { background: 'black', text: 'white' }, value: 'Dark', name: 'Dark' },
+                { val: { background: 'white', text: 'black' }, value: 'Light', name: 'Light' },
             ],
             value: 'Light',
         };
     }
 
     NovelColorProfile() {
-        return this.NovelColorProfiles.options.find(ele => ele.value.toLowerCase() == this.NovelColorProfiles.value.toLowerCase()).val;
+        return this.NovelColorProfiles.options.find(
+            (ele) => ele.value.toLowerCase() == this.NovelColorProfiles.value.toLowerCase(),
+        ).val;
     }
 
     *[Symbol.iterator]() {
@@ -306,13 +309,13 @@ export default class Settings extends EventTarget {
     *_getCategorizedSettings() {
         yield {
             category: 'General',
-            settings: [...this]
+            settings: [...this],
         };
         for (let connector of Engine.Connectors) {
             if (connector.config instanceof Object) {
                 yield {
                     category: connector.label,
-                    settings: Object.keys(connector.config).map(key => connector.config[key])
+                    settings: Object.keys(connector.config).map((key) => connector.config[key]),
                 };
             }
         }
@@ -328,11 +331,13 @@ export default class Settings extends EventTarget {
             storedConnectorSettings.set(this, (data && data.connectors) || {});
             // apply general settings
             for (let key in this) {
-                if (data
-                    && data[key] !== undefined
-                    && this[key]
-                    && this[key].input
-                    && this[key].input !== types.disabled) {
+                if (
+                    data &&
+                    data[key] !== undefined &&
+                    this[key] &&
+                    this[key].input &&
+                    this[key].input !== types.disabled
+                ) {
                     let value = await this._getDecryptedValue(this[key].input, data[key]);
                     // a choice that is not offered (any more: the PDF of the chapter format that HakuNeko had) keeps the default
                     if (!this._isOffered(this[key], value)) {
@@ -345,18 +350,27 @@ export default class Settings extends EventTarget {
             // apply settings to each connector
             for (let connector of Engine.Connectors) {
                 for (let key in connector.config) {
-                    if (data
-                        && data.connectors
-                        && data.connectors[connector.id]
-                        && data.connectors[connector.id][key] !== undefined
-                        && connector.config[key]
-                        && connector.config[key].input) {
-                        let value = await this._getDecryptedValue(connector.config[key].input, data.connectors[connector.id][key]);
+                    if (
+                        data &&
+                        data.connectors &&
+                        data.connectors[connector.id] &&
+                        data.connectors[connector.id][key] !== undefined &&
+                        connector.config[key] &&
+                        connector.config[key].input
+                    ) {
+                        let value = await this._getDecryptedValue(
+                            connector.config[key].input,
+                            data.connectors[connector.id][key],
+                        );
                         if (!this._isOffered(connector.config[key], value)) {
                             continue;
                         }
                         connector.config[key].value = value;
-                        connector.config[key].value = this._getValidValue(connector.label, connector.config[key], true);
+                        connector.config[key].value = this._getValidValue(
+                            connector.label,
+                            connector.config[key],
+                            true,
+                        );
                     }
                 }
             }
@@ -380,7 +394,10 @@ export default class Settings extends EventTarget {
             for (let connector of Engine.Connectors) {
                 data.connectors[connector.id] = {};
                 for (let key in connector.config) {
-                    data.connectors[connector.id][key] = await this._getEncryptedValue(connector.config[key].input, connector.config[key].value);
+                    data.connectors[connector.id][key] = await this._getEncryptedValue(
+                        connector.config[key].input,
+                        connector.config[key].value,
+                    );
                 }
             }
             await Engine.Storage.saveConfig('settings', data, 2);
@@ -427,7 +444,11 @@ export default class Settings extends EventTarget {
      * A choice is only taken when it is one of the options that the setting offers.
      */
     _isOffered(setting, value) {
-        return setting.input !== types.select || !Array.isArray(setting.options) || setting.options.some(option => option.value === value);
+        return (
+            setting.input !== types.select ||
+            !Array.isArray(setting.options) ||
+            setting.options.some((option) => option.value === value)
+        );
     }
 
     _getValidValue(scope, setting, silent) {
@@ -442,19 +463,18 @@ export default class Settings extends EventTarget {
                 }
                 return value;
             case types.directory:
-                Engine.Storage.directoryExist(value)
-                    .catch(error => {
-                        // A directory that does not exist yet is fine: Storage creates it on the first write.
-                        if (/ENOENT/.test(error.message)) {
-                            return;
-                        }
-                        let message = `WARNING: Cannot access the directory for "${setting.label}" from "${scope}" settings!\n\n${error.message}`;
-                        if (silent) {
-                            console.warn(message, error);
-                        } else {
-                            alert(message);
-                        }
-                    });
+                Engine.Storage.directoryExist(value).catch((error) => {
+                    // A directory that does not exist yet is fine: Storage creates it on the first write.
+                    if (/ENOENT/.test(error.message)) {
+                        return;
+                    }
+                    let message = `WARNING: Cannot access the directory for "${setting.label}" from "${scope}" settings!\n\n${error.message}`;
+                    if (silent) {
+                        console.warn(message, error);
+                    } else {
+                        alert(message);
+                    }
+                });
                 return value;
             default:
                 return value;

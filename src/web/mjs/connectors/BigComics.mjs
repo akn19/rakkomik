@@ -10,7 +10,7 @@ export default class BigComics extends YoungChampion {
         this.url = 'https://bigcomics.jp';
         this.apiUrl = this.url;
         this.links = {
-            login: 'https://bigcomics.jp/signin'
+            login: 'https://bigcomics.jp/signin',
         };
     }
 }

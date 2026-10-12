@@ -6,8 +6,7 @@ import Connector from '../../engine/Connector.mjs';
  * e.g. for backward compatibility of bookmarked connectors that no longer exist.
  */
 export default class InvalidConnector extends Connector {
-
-    constructor( id, label ) {
+    constructor(id, label) {
         super();
         super.id = id;
         super.label = label;
@@ -23,21 +22,21 @@ export default class InvalidConnector extends Connector {
     /**
      *
      */
-    _getMangaList( callback ) {
-        callback( new Error( `${this.label} is no longer available!` ), [] );
+    _getMangaList(callback) {
+        callback(new Error(`${this.label} is no longer available!`), []);
     }
 
     /**
      *
      */
-    _getChapterList( manga, callback ) {
-        callback( new Error( `${this.label} is no longer available!` ), [] );
+    _getChapterList(manga, callback) {
+        callback(new Error(`${this.label} is no longer available!`), []);
     }
 
     /**
      *
      */
-    _getPageList( manga, chapter, callback ) {
-        callback( new Error( `${this.label} is no longer available!` ), [] );
+    _getPageList(manga, chapter, callback) {
+        callback(new Error(`${this.label} is no longer available!`), []);
     }
 }

@@ -1,7 +1,6 @@
 import MH from './templates/MH.mjs';
 
 export default class iqiyi extends MH {
-
     constructor() {
         super();
         super.id = 'iqiyi';
@@ -15,30 +14,34 @@ export default class iqiyi extends MH {
         this.queryMangaTitle = '.detail-tit h1';
         this.queryMangas = 'ul.cartoon-hot-ul li.cartoon-hot-list a.cartoon-cover';
         this.queryPages = 'ul.main-container li.main-item source';
-
     }
 
     async _getChapters(manga) {
         let manhuaId = new URL(manga.id, this.url).href.match(/_(([a-z]|[0-9])*)/)[1];
-        let requestChaps = new Request("https://www.iqiyi.com/manhua/catalog/" + manhuaId + "/", this.requestOptions);
+        let requestChaps = new Request(
+            'https://www.iqiyi.com/manhua/catalog/' + manhuaId + '/',
+            this.requestOptions,
+        );
         let data = await this.fetchJSON(requestChaps);
-        return data.data.episodes.map(element => {
+        return data.data.episodes.map((element) => {
             return {
-                id: "/manhua/reader/" + manhuaId + "_" + element.episodeId + ".html",
-                title: element.episodeOrder + " " + element.episodeTitle.trim()
+                id: '/manhua/reader/' + manhuaId + '_' + element.episodeId + '.html',
+                title: element.episodeOrder + ' ' + element.episodeTitle.trim(),
             };
         });
     }
 
     async _getMangasFromPage(page) {
-        let request = new Request(new URL(this.path.replace('%PAGE%', page), this.url), this.requestOptions);
+        let request = new Request(
+            new URL(this.path.replace('%PAGE%', page), this.url),
+            this.requestOptions,
+        );
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element.pathname, this.url),
-                title: element.nextElementSibling.textContent.trim()
+                title: element.nextElementSibling.textContent.trim(),
             };
         });
     }
-
 }

@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Samples extends Connector {
-
     constructor() {
         super();
         super.id = 'template';
         super.label = 'Template';
-        this.tags = [ 'manga', 'english' ];
+        this.tags = ['manga', 'english'];
         this.url = 'https://template.net';
     }
 
@@ -35,10 +34,10 @@ export default class Samples extends Connector {
         const uri = new URL('/manga-list', this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.mangas > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -91,10 +90,10 @@ export default class Samples extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.chapters > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -107,6 +106,6 @@ export default class Samples extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.images > source');
-        return data.map(image => this.getAbsolutePath(image, request.url));
+        return data.map((image) => this.getAbsolutePath(image, request.url));
     }
 }

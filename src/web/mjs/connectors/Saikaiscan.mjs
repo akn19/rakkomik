@@ -2,18 +2,17 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class SaikaiScan extends Connector {
-
     constructor() {
         super();
         super.id = 'saikaiscan';
         super.label = 'Saikaiscan';
-        this.tags = [ 'manga', 'portuguese', 'webtoon', 'novel' ];
+        this.tags = ['manga', 'portuguese', 'webtoon', 'novel'];
         this.url = 'https://saikaiscans.net';
         this.api = 'https://api.saikaiscans.net/api/stories';
         this.imagesurl = 'https://s3-alpha.saikaiscans.net';
         this.novelContentQuery = 'div#leitor-serie-body';
         this.links = {
-            login: 'https://saikaiscan.net/login'
+            login: 'https://saikaiscan.net/login',
         };
     }
 
@@ -28,31 +27,39 @@ export default class SaikaiScan extends Connector {
         let mangaList = [];
         for (let page = 0, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
 
     async _getMangasFromPage(page) {
-        let request = new Request(new URL(this.api+'?page='+page, this.url), this.requestOptions);
+        let request = new Request(
+            new URL(this.api + '?page=' + page, this.url),
+            this.requestOptions,
+        );
         let data = await this.fetchJSON(request);
-        return data.data.map(element => {
+        return data.data.map((element) => {
             return {
-                id: '/'+element.format.slug+'/'+element.slug,
-                title: element.title.trim()
+                id: '/' + element.format.slug + '/' + element.slug,
+                title: element.title.trim(),
             };
         });
     }
 
     async _getChapters(manga) {
-        let request = new Request(new URL(manga.id+'?tab=capitulos', this.url), this.requestOptions);
+        let request = new Request(
+            new URL(manga.id + '?tab=capitulos', this.url),
+            this.requestOptions,
+        );
         let data = await this.fetchDOM(request, 'ul.__chapters li a');
-        return data.map(element => {
-            return {
-                id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('span.__chapters--number').textContent.trim(),
-            };
-        }).reverse();
+        return data
+            .map((element) => {
+                return {
+                    id: this.getRootRelativeOrAbsoluteLink(element, this.url),
+                    title: element.querySelector('span.__chapters--number').textContent.trim(),
+                };
+            })
+            .reverse();
     }
 
     async _getPages(chapter) {
@@ -68,13 +75,13 @@ export default class SaikaiScan extends Connector {
             `;
             let pageList = await Engine.Request.fetchUI(request, script);
             pageList = pageList.data[0].release.data;
-            return pageList.release_images.map( element => {
+            return pageList.release_images.map((element) => {
                 return new URL(element.image, this.imagesurl).href;
             });
         }
     }
 
     async _getPagesNovel(request) {
-        return [ await Engine.Request.fetchNovel(request, this.novelContentQuery) ];
+        return [await Engine.Request.fetchNovel(request, this.novelContentQuery)];
     }
 }

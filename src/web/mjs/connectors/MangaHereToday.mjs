@@ -6,7 +6,7 @@ export default class MangaHereToday extends AnyACG {
         super();
         super.id = 'mangaheretoday';
         super.label = 'MangaHereToday';
-        this.tags = [ 'manga', 'english' ];
+        this.tags = ['manga', 'english'];
         this.url = 'http://mangahere.today';
         this.queryMangas = 'div.row div.media-body';
         this.queryMangaLink = 'a';
@@ -20,7 +20,10 @@ export default class MangaHereToday extends AnyACG {
         let data = await this.fetchDOM(request, this.queryMangaTitle);
         let id = uri.pathname + uri.search;
         //HACK We need to remove trailing "Manga" from the title
-        let title = data[0].querySelector(this.queryMangaTitleText).textContent.replace(/\s+Manga$/i, '').trim();
+        let title = data[0]
+            .querySelector(this.queryMangaTitleText)
+            .textContent.replace(/\s+Manga$/i, '')
+            .trim();
         return new Manga(this, id, title);
     }
 }

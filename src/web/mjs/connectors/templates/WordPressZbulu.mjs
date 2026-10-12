@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class WordPressZbulu extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -36,7 +35,7 @@ export default class WordPressZbulu extends Connector {
         let request = new Request(this.url + this.path, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangasPageCount);
         let pageCount = parseInt(data[0].href.match(/(\d+)\/?$/)[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -48,10 +47,10 @@ export default class WordPressZbulu extends Connector {
         uri.pathname = uri.pathname.replace(/\/+/g, '/');
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: new URL(element.href, request.url).pathname,
-                title: element.text.replace(this.mangaTitleFilter, '').trim()
+                title: element.text.replace(this.mangaTitleFilter, '').trim(),
             };
         });
     }
@@ -61,7 +60,7 @@ export default class WordPressZbulu extends Connector {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChaptersPageCount);
         let pageCount = data.length === 0 ? 1 : parseInt(data[0].href.match(/(\d+)$/)[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let chapters = await this._getChaptersFromPage(manga, page);
             chapterList.push(...chapters);
         }
@@ -73,11 +72,14 @@ export default class WordPressZbulu extends Connector {
         uri.pathname = uri.pathname.replace(/\/+/g, '/');
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: new URL(element.href, request.url).pathname,
-                title: element.text.replace(manga.title, '').replace(this.chapterTitleFilter, '').trim(),
-                language: 'en'
+                title: element.text
+                    .replace(manga.title, '')
+                    .replace(this.chapterTitleFilter, '')
+                    .trim(),
+                language: 'en',
             };
         });
     }
@@ -86,6 +88,6 @@ export default class WordPressZbulu extends Connector {
         let uri = new URL(chapter.id, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryPages);
-        return data.map(element => this.getAbsolutePath(element, request.url));
+        return data.map((element) => this.getAbsolutePath(element, request.url));
     }
 }

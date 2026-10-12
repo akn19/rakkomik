@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Class-driven dark variant (the toggle adds `.dark` on the shell root).
  * Default follows classic-light; dark is an opt-in superset. */
@@ -212,7 +212,9 @@
     --input-disabled-border-color: #202225;
 }
 
-html, body, #react-root {
+html,
+body,
+#react-root {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -222,9 +224,9 @@ html, body, #react-root {
 
 body {
     /* Classic system stack (Arial/Helvetica), CJK fallback for JP titles. */
-    font-family: Arial, Helvetica, system-ui, "Segoe UI", "Hiragino Sans",
-        "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP",
-        sans-serif;
+    font-family:
+        Arial, Helvetica, system-ui, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
+        'Noto Sans JP', 'Noto Sans CJK JP', sans-serif;
     font-size: 10pt;
     color: #404040;
     background-color: #d6d6d6;
@@ -260,11 +262,11 @@ body {
 
     /* The option that the keyboard is on in a list box (`aria-activedescendant`): the list has the focus, the ring
      * goes around the option. */
-    [role="listbox"]:focus-visible {
+    [role='listbox']:focus-visible {
         outline: none;
     }
 
-    [role="listbox"]:focus-visible .rk-active {
+    [role='listbox']:focus-visible .rk-active {
         outline: 2px solid var(--focus-ring-color);
         outline-offset: -2px;
     }

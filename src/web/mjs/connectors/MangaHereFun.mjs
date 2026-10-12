@@ -4,7 +4,6 @@ import MangaHub from './MangaHub.mjs';
  *
  */
 export default class MangaHereFun extends MangaHub {
-
     /**
      *
      */

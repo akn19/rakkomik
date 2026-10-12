@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class KomikPlay extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'komikplay';
         super.label = 'KomikPlay';
-        this.tags = [ 'manga', 'webtoon', 'indonesian' ];
+        this.tags = ['manga', 'webtoon', 'indonesian'];
         this.url = 'https://komikplay.com';
         this.path = '/daftar-komik/';
 

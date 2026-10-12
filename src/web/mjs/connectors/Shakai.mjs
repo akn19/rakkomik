@@ -4,7 +4,6 @@ import Connector from '../engine/Connector.mjs';
  *
  */
 export default class Shakai extends Connector {
-
     /**
      *
      */
@@ -16,13 +15,22 @@ export default class Shakai extends Connector {
         this.url = 'http://shakai.ru';
     }
 
-    _getMangaList( callback ) {
-        callback( new Error( 'Please report this broken website on HakuNeko\'s GitHub project page.' ), undefined );
+    _getMangaList(callback) {
+        callback(
+            new Error("Please report this broken website on HakuNeko's GitHub project page."),
+            undefined,
+        );
     }
-    _getChapterList( manga, callback ) {
-        callback( new Error( 'Please report this broken website on HakuNeko\'s GitHub project page.' ), undefined );
+    _getChapterList(manga, callback) {
+        callback(
+            new Error("Please report this broken website on HakuNeko's GitHub project page."),
+            undefined,
+        );
     }
-    _getPageList( manga, chapter, callback ) {
-        callback( new Error( 'Please report this broken website on HakuNeko\'s GitHub project page.' ), undefined );
+    _getPageList(manga, chapter, callback) {
+        callback(
+            new Error("Please report this broken website on HakuNeko's GitHub project page."),
+            undefined,
+        );
     }
 }

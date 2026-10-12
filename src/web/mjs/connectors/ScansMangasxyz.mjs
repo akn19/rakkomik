@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class ScansMangasxyz extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'scansmangasxyz';
         super.label = 'ScansMangas (ME)';
-        this.tags = [ 'manga', 'french' ];
+        this.tags = ['manga', 'french'];
         this.url = 'https://scansmangas.me';
         this.path = '/tous-nos-mangas/';
         this.queryMangas = 'div.bigor > a';
@@ -22,7 +21,7 @@ export default class ScansMangasxyz extends WordPressMangastream {
         `;
         const request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script);
-        return data.map(element => this.createConnectorURI(element.page_image ));
+        return data.map((element) => this.createConnectorURI(element.page_image));
     }
 
     async _handleConnectorURI(payload) {

@@ -1,12 +1,11 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class MangaSY extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'mangasy';
         super.label = 'Manga SY';
-        this.tags = [ 'webtoon', 'english' ];
+        this.tags = ['webtoon', 'english'];
         this.url = 'https://www.mangasy.com';
 
         this.queryTitleForURI = 'meta[property="og:title"]';
@@ -24,6 +23,6 @@ export default class MangaSY extends WordPressMadara {
             });
         `;
         const data = await Engine.Request.fetchUI(request, script);
-        return data.map(picture => this.createConnectorURI({url : picture, referer : url}));
+        return data.map((picture) => this.createConnectorURI({ url: picture, referer: url }));
     }
 }

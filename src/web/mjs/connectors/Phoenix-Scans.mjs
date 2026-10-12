@@ -5,7 +5,7 @@ export default class PhoenixScans extends MangaReaderCMS {
         super();
         super.id = 'phoenix-scans';
         super.label = 'Phoenix-Scans';
-        this.tags = [ 'manga', 'high-quality', 'polish', 'scanlation' ];
+        this.tags = ['manga', 'high-quality', 'polish', 'scanlation'];
         this.url = 'http://phoenix-scans.pl';
 
         this.language = 'pl';

@@ -3,7 +3,6 @@ import Manga from '../../engine/Manga.mjs';
 
 // almost exactly the same as MHXK, but as local installation
 export default class ZYMK extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -26,14 +25,15 @@ export default class ZYMK extends Connector {
         this.config = {
             format: {
                 label: 'Image Format',
-                description: 'In general JPEG is considered for premium users, however in some mangas JPEG might still work.',
+                description:
+                    'In general JPEG is considered for premium users, however in some mangas JPEG might still work.',
                 input: 'select',
                 options: [
                     { value: '', name: 'default' },
                     { value: 'webp', name: 'WEBP' },
-                    { value: 'jpg', name: 'JPEG (Premium Only)' }
+                    { value: 'jpg', name: 'JPEG (Premium Only)' },
                 ],
-                value: ''
+                value: '',
             },
             quality: {
                 label: 'Image Quality',
@@ -43,10 +43,10 @@ export default class ZYMK extends Connector {
                     { value: '', name: 'default' },
                     { value: 'low', name: 'Low' },
                     { value: 'middle', name: 'Medium' },
-                    { value: 'high', name: 'High (Premium Only)' }
+                    { value: 'high', name: 'High (Premium Only)' },
                 ],
-                value: ''
-            }
+                value: '',
+            },
         };
     }
 
@@ -63,8 +63,10 @@ export default class ZYMK extends Connector {
         let uri = new URL(this.path + '1' + this.pathSuffix, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangasPageCount);
-        let pageCount = parseInt((data[0].href.match(/(\d+)\.html$/) || data.pop().text.match(/(\d+)/))[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        let pageCount = parseInt(
+            (data[0].href.match(/(\d+)\.html$/) || data.pop().text.match(/(\d+)/))[1],
+        );
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -75,10 +77,10 @@ export default class ZYMK extends Connector {
         let uri = new URL(this.path + page + this.pathSuffix, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas, 3);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -87,11 +89,11 @@ export default class ZYMK extends Connector {
         let uri = new URL(manga.id, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
                 title: element.text.trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -100,7 +102,7 @@ export default class ZYMK extends Connector {
         let uri = new URL(chapter.id, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await Engine.Request.fetchUI(request, this.queryPage, 60000, false);
-        return data.map(image => {
+        return data.map((image) => {
             let parts = image.split('.');
             let format = parts.pop();
             let quality = parts.pop();

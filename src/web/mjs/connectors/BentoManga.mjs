@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class BentoManga extends Connector {
-
     constructor() {
         super();
         super.id = 'bentomanga';
@@ -25,7 +24,7 @@ export default class BentoManga extends Connector {
 
     async _getMangas() {
         const mangaList = [];
-        const request = new Request(new URL('/manga_list', this.url), this.requestOptions );
+        const request = new Request(new URL('/manga_list', this.url), this.requestOptions);
         let pageCount = await this.fetchDOM(request, 'p.paginator');
         pageCount = pageCount.length > 0 ? parseInt(pageCount[0].dataset['max_limit']) : 1;
         for (let page = 1; page <= pageCount; page++) {
@@ -36,7 +35,10 @@ export default class BentoManga extends Connector {
     }
 
     async _getMangasFromPage(page) {
-        const request = new Request(new URL('/manga_list?limit='+ (page-1) + '&cb='+ Date.now(), this.url), this.requestOptions );
+        const request = new Request(
+            new URL('/manga_list?limit=' + (page - 1) + '&cb=' + Date.now(), this.url),
+            this.requestOptions,
+        );
         request.headers.set('X-Requested-With', 'XMLHttpRequest');
         let data = await this.fetchJSON(request);
         const dom = this.createDOM(data.mangas);
@@ -44,14 +46,14 @@ export default class BentoManga extends Connector {
         return nodes.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
 
     async _getChapters(manga) {
         const chapterList = [];
-        const request = new Request(new URL(manga.id, this.url), this.requestOptions );
+        const request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let pageCount = await this.fetchDOM(request, 'p.paginator');
         pageCount = pageCount.length > 0 ? parseInt(pageCount[0].dataset['max_limit']) : 1;
         for (let page = 1; page <= pageCount; page++) {
@@ -62,7 +64,10 @@ export default class BentoManga extends Connector {
     }
 
     async _getChaptersFromPage(id, page) {
-        const request = new Request( new URL(id+'?limit='+ (page-1) + '&cb='+ Date.now(), this.url), this.requestOptions );
+        const request = new Request(
+            new URL(id + '?limit=' + (page - 1) + '&cb=' + Date.now(), this.url),
+            this.requestOptions,
+        );
         request.headers.set('X-Requested-With', 'XMLHttpRequest');
         const data = await this.fetchJSON(request);
         const dom = this.createDOM(data.datas);
@@ -70,8 +75,11 @@ export default class BentoManga extends Connector {
         return nodes.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('span.chapter_volume').innerText.trim() + ' ' + element.querySelector('span.chapter_title').innerText.trim(),
-                language: ''
+                title:
+                    element.querySelector('span.chapter_volume').innerText.trim() +
+                    ' ' +
+                    element.querySelector('span.chapter_title').innerText.trim(),
+                language: '',
             };
         });
     }
@@ -93,10 +101,12 @@ export default class BentoManga extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script);
-        return data.map(image => this.createConnectorURI({
-            url: image,
-            referer: request.url
-        }));
+        return data.map((image) =>
+            this.createConnectorURI({
+                url: image,
+                referer: request.url,
+            }),
+        );
     }
 
     async _handleConnectorURI(payload) {

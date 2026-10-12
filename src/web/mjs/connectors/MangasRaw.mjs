@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class MangasRaw extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'mangasraw';
         super.label = 'MangasRaw';
-        this.tags = [ 'manga', 'japanese', 'raw' ];
+        this.tags = ['manga', 'japanese', 'raw'];
         this.url = 'https://mangas-raw.com';
         this.path = '/manga/list-mode/';
     }
@@ -28,12 +27,12 @@ export default class MangasRaw extends WordPressMangastream {
         const next = content[0].querySelector('ul.pagination a.next.page-numbers');
         return {
             path: next ? next.pathname + next.search : null,
-            mangas: data.map(element => {
+            mangas: data.map((element) => {
                 return {
                     id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                    title: element.title.trim()
+                    title: element.title.trim(),
                 };
-            })
+            }),
         };
     }
 }

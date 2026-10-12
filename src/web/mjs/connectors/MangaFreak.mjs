@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaFreak extends Connector {
-
     constructor() {
         super();
         super.id = 'mangafreak';
         super.label = 'MangaFreak';
-        this.tags = [ 'manga', 'english' ];
+        this.tags = ['manga', 'english'];
         this.url = 'https://mangafreak.me';
     }
 
@@ -36,7 +35,7 @@ export default class MangaFreak extends Connector {
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, 'div.list_main div.pagination a.last_p');
         let pageCount = parseInt(data[0].href.match(/\d+$/)[0]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -47,10 +46,10 @@ export default class MangaFreak extends Connector {
         let uri = new URL('/Mangalist/All/' + page, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, 'div.list_main div.list_item_info h3 a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -58,12 +57,15 @@ export default class MangaFreak extends Connector {
     async _getChapters(manga) {
         let uri = new URL(manga.id, this.url);
         let request = new Request(uri, this.requestOptions);
-        let data = await this.fetchDOM(request, 'div.manga_series_list table tbody tr td:first-of-type a');
-        return data.map(element => {
+        let data = await this.fetchDOM(
+            request,
+            'div.manga_series_list table tbody tr td:first-of-type a',
+        );
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.text.replace(manga.title, '').trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -72,6 +74,6 @@ export default class MangaFreak extends Connector {
         let uri = new URL(chapter.id, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, 'div.read_image div.mySlides source');
-        return data.map(element => this.getAbsolutePath(element, request.url));
+        return data.map((element) => this.getAbsolutePath(element, request.url));
     }
 }

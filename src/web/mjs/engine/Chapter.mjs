@@ -1,9 +1,9 @@
 const events = {
-    updated: 'updated'
+    updated: 'updated',
 };
 
 const extensions = {
-    img: 'img'
+    img: 'img',
 };
 
 const statusDefinitions = {
@@ -13,20 +13,22 @@ const statusDefinitions = {
 };
 
 export default class Chapter extends EventTarget {
-
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Storage, all Enums
-    constructor( manga, id, title, language, status ) {
+    constructor(manga, id, title, language, status) {
         super();
         this.manga = manga;
         this.id = id;
         this.title = title;
-        this.file = status === statusDefinitions.offline ? this._getRawFileName( title ) : this._getSanatizedFileName( title );
+        this.file =
+            status === statusDefinitions.offline
+                ? this._getRawFileName(title)
+                : this._getSanatizedFileName(title);
         this.language = language;
         this.status = status;
         this.pageProcess = false;
         this.pageCache = undefined;
 
-        if( !this.status ) {
+        if (!this.status) {
             this.updateStatus();
         }
     }
@@ -34,37 +36,42 @@ export default class Chapter extends EventTarget {
     /**
      *
      */
-    setStatus( status ) {
-        if( this.status !== status ) {
+    setStatus(status) {
+        if (this.status !== status) {
             this.status = status;
-            this.dispatchEvent( new CustomEvent( events.updated, { detail: this } ) );
-            document.dispatchEvent( new CustomEvent( EventListener.onChapterStatusChanged, { detail: this } ) );
+            this.dispatchEvent(new CustomEvent(events.updated, { detail: this }));
+            document.dispatchEvent(
+                new CustomEvent(EventListener.onChapterStatusChanged, { detail: this }),
+            );
         }
     }
 
     /**
      *
      */
-    _getRawFileName( title ) {
+    _getRawFileName(title) {
         return {
             name: title,
             extension: '',
-            full: title
+            full: title,
         };
     }
 
     /**
      *
      */
-    _getSanatizedFileName( title ) {
-        let name = Engine.Storage.sanatizePath( title );
-        let extension = Engine.Settings.chapterFormat.value !== extensions.img ? Engine.Settings.chapterFormat.value : '';
+    _getSanatizedFileName(title) {
+        let name = Engine.Storage.sanatizePath(title);
+        let extension =
+            Engine.Settings.chapterFormat.value !== extensions.img
+                ? Engine.Settings.chapterFormat.value
+                : '';
         return {
             name: name,
             extension: extension,
             full: name + extension,
             // a novel is stored in the novel format, whatever the format of the other chapters is (see Storage)
-            novel: name + Engine.Settings.novelFormat.value
+            novel: name + Engine.Settings.novelFormat.value,
         };
     }
 
@@ -73,14 +80,18 @@ export default class Chapter extends EventTarget {
      */
     updateStatus() {
         // do not overwrite download status ...
-        if( !this.status || this.status === statusDefinitions.available || this.status === statusDefinitions.completed ) {
-            if( !this.manga ) {
+        if (
+            !this.status ||
+            this.status === statusDefinitions.available ||
+            this.status === statusDefinitions.completed
+        ) {
+            if (!this.manga) {
                 return;
             }
-            if( this.manga.isChapterFileExisting( this ) ) {
-                this.setStatus( statusDefinitions.completed );
+            if (this.manga.isChapterFileExisting(this)) {
+                this.setStatus(statusDefinitions.completed);
             } else {
-                this.setStatus( statusDefinitions.available );
+                this.setStatus(statusDefinitions.available);
             }
         }
     }
@@ -90,42 +101,50 @@ export default class Chapter extends EventTarget {
      * Callback will be executed after completion and provided with an error (or null when no error occured)
      * and a reference to the page list (undefined on error).
      */
-    getPages( callback ) {
+    getPages(callback) {
         document.dispatchEvent(new CustomEvent(EventListener.onSelectChapter, { detail: this }));
-        if( this.status === statusDefinitions.offline || this.status === statusDefinitions.completed ) {
-            Engine.Storage.loadChapterPages( this )
-                .then( pages => {
-                    callback( null, pages );
-                } )
-                .catch( error => {
-                    console.error( error, this );
-                    callback( error, undefined );
-                } );
+        if (
+            this.status === statusDefinitions.offline ||
+            this.status === statusDefinitions.completed
+        ) {
+            Engine.Storage.loadChapterPages(this)
+                .then((pages) => {
+                    callback(null, pages);
+                })
+                .catch((error) => {
+                    console.error(error, this);
+                    callback(error, undefined);
+                });
         } else {
             // check if page list is cached
-            if( this.pageCache && this.pageCache.length ) {
-                callback( null, this.pageCache );
+            if (this.pageCache && this.pageCache.length) {
+                callback(null, this.pageCache);
                 return;
             }
-            this.manga.connector.initialize()
-                .then( () => {
-                // get page list directly from the connector interface and cache them
-                    this.manga.connector._getPageList( this.manga, this, ( error, pages ) => {
+            this.manga.connector
+                .initialize()
+                .then(() => {
+                    // get page list directly from the connector interface and cache them
+                    this.manga.connector._getPageList(this.manga, this, (error, pages) => {
                         this.pageCache = [];
-                        if( !error ) {
-                            if(pages.length) {
+                        if (!error) {
+                            if (pages.length) {
                                 // HACK: bypass 'i0.wp.com' image CDN to ensure original images are loaded directly from host
-                                this.pageCache = Array.isArray(pages) ? pages.map(page => page.replace(/\/i\d+\.wp\.com/, '')) : pages;
+                                this.pageCache = Array.isArray(pages)
+                                    ? pages.map((page) => page.replace(/\/i\d+\.wp\.com/, ''))
+                                    : pages;
                             } else {
-                                error = new Error(`There was no content found for '${this.title}', make sure it is accessible (login, purchase, ...)!`);
+                                error = new Error(
+                                    `There was no content found for '${this.title}', make sure it is accessible (login, purchase, ...)!`,
+                                );
                             }
                         }
-                        callback( error, this.pageCache );
-                    } );
-                } )
-                .catch( error => {
-                    callback( error, undefined );
-                } );
+                        callback(error, this.pageCache);
+                    });
+                })
+                .catch((error) => {
+                    callback(error, undefined);
+                });
         }
     }
 }

@@ -4,7 +4,6 @@ import LineWebtoon from './templates/LineWebtoon.mjs';
  *
  */
 export default class LineWebtoonEN extends LineWebtoon {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class LineWebtoonEN extends LineWebtoon {
         super();
         super.id = 'linewebtoon-en';
         super.label = 'Line Webtoon (English)';
-        this.tags = [ 'webtoon', 'english' ];
+        this.tags = ['webtoon', 'english'];
         this.url = 'https://www.webtoons.com/en';
     }
 }

@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Gntai extends Connector {
-
     constructor() {
         super();
         super.id = 'gntai';
         super.label = 'GNTAI';
-        this.tags = [ 'hentai', 'spanish' ];
+        this.tags = ['hentai', 'spanish'];
         this.url = 'http://www.gntai.net';
     }
 
@@ -22,7 +21,7 @@ export default class Gntai extends Connector {
         let request = new Request(new URL(this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'div.navigation ul li:last-of-type a');
         let pageCount = parseInt(data[0].text.trim());
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -32,20 +31,20 @@ export default class Gntai extends Connector {
     async _getMangasFromPage(page) {
         let request = new Request(new URL(`/page/${page}/`, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'main article div.chapter-thumb > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.title.trim()
+                title: element.title.trim(),
             };
         });
     }
 
     async _getChapters(manga) {
-        return [ Object.assign({ language: '' }, manga) ];
+        return [Object.assign({ language: '' }, manga)];
     }
 
     async _getPages(chapter) {
-        let request = new Request(new URL(chapter.id, this.url), this.requestOptions );
+        let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         return await this.fetchRegex(request, /['"]page_image['"]\s*:\s*['"]([^'"]+)['"]/g);
     }
 }

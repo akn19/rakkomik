@@ -5,10 +5,10 @@ export default class Puzzmos extends MangaReaderCMS {
         super();
         super.id = 'puzzmos';
         super.label = 'Puzzmos';
-        this.tags = [ 'manga', 'turkish' ];
+        this.tags = ['manga', 'turkish'];
         this.url = 'https://puzzmos.com';
         this.links = {
-            login: 'https://puzzmos.com/auth/login'
+            login: 'https://puzzmos.com/auth/login',
         };
         this.language = 'tr';
     }

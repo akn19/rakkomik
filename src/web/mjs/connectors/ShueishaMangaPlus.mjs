@@ -2,12 +2,11 @@ import Publus from './templates/Publus.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ShueishaMangaPlus extends Publus {
-
     constructor() {
         super();
         super.id = 'shueishamangaplus';
         super.label = 'MANGA Plus by Shueisha';
-        this.tags = [ 'manga', 'high-quality', 'english', 'spanish' ];
+        this.tags = ['manga', 'high-quality', 'english', 'spanish'];
         this.url = 'https://mangaplus.shueisha.co.jp';
         this.apiURL = 'https://jumpg-webapi.tokyo-cdn.com';
         this.protoTypes = '/mjs/connectors/ShueishaMangaPlus.proto';
@@ -16,7 +15,12 @@ export default class ShueishaMangaPlus extends Publus {
 
     _getLanguage(language) {
         const languages = {
-            1: '[es]', 2: '[fr]', 3: '[id]', 4: '[pt-br]', 5: '[ru]', 6: '[th]'
+            1: '[es]',
+            2: '[fr]',
+            3: '[id]',
+            4: '[pt-br]',
+            5: '[ru]',
+            6: '[th]',
         };
         return languages[language] || '[en]';
     }
@@ -35,10 +39,10 @@ export default class ShueishaMangaPlus extends Publus {
     async _getMangas() {
         let request = new Request(new URL('/api/title_list/all', this.apiURL), this.requestOptions);
         let data = await this.fetchPROTO(request, this.protoTypes, this.rootType);
-        return data.success.allTitlesView.titles.map(manga => {
+        return data.success.allTitlesView.titles.map((manga) => {
             return {
                 id: manga.titleId,
-                title: `${manga.name} ${this._getLanguage(manga.language)}`
+                title: `${manga.name} ${this._getLanguage(manga.language)}`,
             };
         });
     }
@@ -49,15 +53,17 @@ export default class ShueishaMangaPlus extends Publus {
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchPROTO(request, this.protoTypes, this.rootType);
         return [
-            ...data.success.titleDetailView.firstChapterList || [],
-            ...data.success.titleDetailView.lastChapterList || []
-        ].map(chapter => {
-            return {
-                id: chapter.chapterId,
-                title: chapter.subTitle || chapter.name,
-                language: ''
-            };
-        }).reverse();
+            ...(data.success.titleDetailView.firstChapterList || []),
+            ...(data.success.titleDetailView.lastChapterList || []),
+        ]
+            .map((chapter) => {
+                return {
+                    id: chapter.chapterId,
+                    title: chapter.subTitle || chapter.name,
+                    language: '',
+                };
+            })
+            .reverse();
     }
 
     async _getPages(chapter) {
@@ -68,15 +74,15 @@ export default class ShueishaMangaPlus extends Publus {
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchPROTO(request, this.protoTypes, this.rootType);
         return data.success.mangaViewer.pages
-            .filter(page => page.mangaPage)
-            .map(page => {
+            .filter((page) => page.mangaPage)
+            .map((page) => {
                 let image = page.mangaPage;
                 image = Object.assign(image, {
                     mode: image.encryptionKey ? 'xor' : 'raw',
                     encryption: {
                         pattern: null,
-                        key: image.encryptionKey
-                    }
+                        key: image.encryptionKey,
+                    },
                 });
                 return image.mode === 'raw' ? image.imageUrl : this.createConnectorURI(image);
             });

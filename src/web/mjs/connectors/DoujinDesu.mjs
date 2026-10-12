@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class DoujinDesu extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'doujindesu';
@@ -19,10 +18,10 @@ export default class DoujinDesu extends WordPressMangastream {
 
     async _getMangas() {
         let mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             const path = page > 1 ? this.path : '/manga/';
             let mangas = await this._getMangasFromPage(path, page);
-            mangas.length ? mangaList.push(...mangas) : run = false;
+            mangas.length ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -31,10 +30,10 @@ export default class DoujinDesu extends WordPressMangastream {
         const uri = new URL(path.replace('%PAGE%', page), this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.title.trim()
+                title: element.title.trim(),
             };
         });
     }
@@ -60,9 +59,13 @@ export default class DoujinDesu extends WordPressMangastream {
         let request = new Request(uri, this.requestOptions);
         let data = await Engine.Request.fetchUI(request, script);
         // HACK: bypass 'i0.wp.com' image CDN to ensure original images are loaded directly from host
-        return data.map(link => {
-            return this.createConnectorURI(this.getAbsolutePath(link, request.url).replace(/\/i\d+\.wp\.com/, ''));
-        }).filter(link => !link.includes('histats.com'));
+        return data
+            .map((link) => {
+                return this.createConnectorURI(
+                    this.getAbsolutePath(link, request.url).replace(/\/i\d+\.wp\.com/, ''),
+                );
+            })
+            .filter((link) => !link.includes('histats.com'));
     }
 
     async _handleConnectorURI(payload) {

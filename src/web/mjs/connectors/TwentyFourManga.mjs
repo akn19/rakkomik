@@ -1,12 +1,12 @@
-import Connector from "../engine/Connector.mjs";
-import Manga from "../engine/Manga.mjs";
+import Connector from '../engine/Connector.mjs';
+import Manga from '../engine/Manga.mjs';
 
 export default class TwentyFourManga extends Connector {
     constructor() {
         super();
         super.id = '24manga';
         super.label = '24Manga';
-        this.tags = [ 'webtoon', 'english', 'scanlation' ];
+        this.tags = ['webtoon', 'english', 'scanlation'];
         this.url = 'https://24manga.net';
     }
 
@@ -23,11 +23,11 @@ export default class TwentyFourManga extends Connector {
         let uri = new URL('/manga/', this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, '.wp-block-coblocks-posts__content a');
-        for(let element of data) {
+        for (let element of data) {
             let title = element.textContent.trim();
             mangaList.push({
                 id: element.pathname,
-                title: title
+                title: title,
             });
         }
         return mangaList;
@@ -37,21 +37,23 @@ export default class TwentyFourManga extends Connector {
         let uri = new URL(manga.id, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, '.wp-block-latest-posts__list li a');
-        return data.filter(x => x.pathname.includes('chapter')).map(element => {
-            let title = element.textContent.split(' – ')[1];
-            return {
-                id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: title,
-                language: ''
-            };
-        });
+        return data
+            .filter((x) => x.pathname.includes('chapter'))
+            .map((element) => {
+                let title = element.textContent.split(' – ')[1];
+                return {
+                    id: this.getRootRelativeOrAbsoluteLink(element, request.url),
+                    title: title,
+                    language: '',
+                };
+            });
     }
 
     async _getPages(chapter) {
         let uri = new URL(chapter.id, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, 'figure > div > div > source');
-        return data.map(element => {
+        return data.map((element) => {
             return element.src.split('?')[0].replace(/https:\/\/i\d+.wp.com\//, 'http://');
         });
     }

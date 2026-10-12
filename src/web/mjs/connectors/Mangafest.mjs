@@ -2,30 +2,37 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Mangafest extends Connector {
-
     constructor() {
         super();
         super.id = 'mangafest';
         super.label = 'Mangafest X';
-        this.tags = [ 'indonesian', 'webtoon'];
+        this.tags = ['indonesian', 'webtoon'];
         this.url = 'https://mangafest.net';
     }
 
     async _getMangas() {
         let request = new Request(new URL('/category/manga/', this.url), this.requestOptions);
-        let data = await this.fetchDOM(request, 'nav.navigation.pagination div.nav-links a.page-numbers:not(.next)');
-        const pages = parseInt(data[data.length-1].pathname.match(/\d+\/$/));
+        let data = await this.fetchDOM(
+            request,
+            'nav.navigation.pagination div.nav-links a.page-numbers:not(.next)',
+        );
+        const pages = parseInt(data[data.length - 1].pathname.match(/\d+\/$/));
 
         let mangas = [];
         for (let page = 1; page <= pages; page++) {
-            request = new Request(new URL(`/category/manga/page/${page}/`, this.url), this.requestOptions);
+            request = new Request(
+                new URL(`/category/manga/page/${page}/`, this.url),
+                this.requestOptions,
+            );
             data = await this.fetchDOM(request, 'div.post_image a');
-            mangas.push(...data.map(manga => {
-                return {
-                    id: this.getRootRelativeOrAbsoluteLink(manga.pathname, this.url),
-                    title: manga.getAttribute('aria-label').trim()
-                };
-            }));
+            mangas.push(
+                ...data.map((manga) => {
+                    return {
+                        id: this.getRootRelativeOrAbsoluteLink(manga.pathname, this.url),
+                        title: manga.getAttribute('aria-label').trim(),
+                    };
+                }),
+            );
         }
 
         return mangas;
@@ -33,7 +40,7 @@ export default class Mangafest extends Connector {
 
     async _getChapters(manga) {
         // website provides mangas as whole
-        return [ manga ];
+        return [manga];
     }
 
     async _getPages(manga) {

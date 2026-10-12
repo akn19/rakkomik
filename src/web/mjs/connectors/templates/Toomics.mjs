@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class Toomics extends Connector {
-
     constructor() {
         super();
         super.id = 'toomics';
@@ -44,10 +43,12 @@ export default class Toomics extends Connector {
         let uri = new URL(this.path, this.baseURL);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
-                id: this.getRootRelativeOrAbsoluteLink(element, this.baseURL).match(/.+\/toon\/\d+/)[0],
-                title: element.querySelector(this.queryMangaTitle).innerText.trim()
+                id: this.getRootRelativeOrAbsoluteLink(element, this.baseURL).match(
+                    /.+\/toon\/\d+/,
+                )[0],
+                title: element.querySelector(this.queryMangaTitle).innerText.trim(),
             };
         });
     }
@@ -57,14 +58,20 @@ export default class Toomics extends Connector {
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapters);
         return data
-            .filter(element => element.querySelector(this.queryChapterFilterInclude) && !element.querySelector(this.queryChapterFilterExclude))
-            .map(element => {
+            .filter(
+                (element) =>
+                    element.querySelector(this.queryChapterFilterInclude) &&
+                    !element.querySelector(this.queryChapterFilterExclude),
+            )
+            .map((element) => {
                 let action = element.getAttribute('onclick');
-                if(action) {
-                    if(action.includes('location.href=')) {
+                if (action) {
+                    if (action.includes('location.href=')) {
                         element.href = action.match(/href='([^']+)'/)[1];
                     } else {
-                        element.href = action.match(/popup\s*\(\s*'[^']+'\s*,\s*'[^']*'\s*,\s*'([^']+)'/)[1];
+                        element.href = action.match(
+                            /popup\s*\(\s*'[^']+'\s*,\s*'[^']*'\s*,\s*'([^']+)'/,
+                        )[1];
                     }
                 }
                 let chapter = element.querySelector(this.queryChapterNumber).innerText.trim();
@@ -72,7 +79,7 @@ export default class Toomics extends Connector {
                 return {
                     id: this.getRootRelativeOrAbsoluteLink(element, this.baseURL),
                     title: 'Chapter: ' + chapter,
-                    language: ''
+                    language: '',
                 };
             });
     }
@@ -81,7 +88,14 @@ export default class Toomics extends Connector {
         let uri = new URL(chapter.id, this.baseURL);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryPages);
-        return data.map(element => this.createConnectorURI(this.getAbsolutePath(element.dataset['src'] || element.dataset['original'] || element, this.baseURL)));
+        return data.map((element) =>
+            this.createConnectorURI(
+                this.getAbsolutePath(
+                    element.dataset['src'] || element.dataset['original'] || element,
+                    this.baseURL,
+                ),
+            ),
+        );
     }
 
     async _handleConnectorURI(payload) {

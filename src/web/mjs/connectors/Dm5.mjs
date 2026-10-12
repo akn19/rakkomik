@@ -4,12 +4,11 @@ import Manga from '../engine/Manga.mjs';
 // NOTE: Use Modified version of MangaFox reader
 // NOTE: Reference SinMH
 export default class Dm5 extends Connector {
-
     constructor() {
         super();
         super.id = 'dm5';
         super.label = 'DM5 漫画';
-        this.tags = [ 'manga', 'webtoon', 'chinese' ];
+        this.tags = ['manga', 'webtoon', 'chinese'];
         this.url = 'https://www.dm5.com';
         this.path = '/manhua-list-p%PAGE%/';
         this.requestOptions.headers.set('x-cookie', 'isAdult=1');
@@ -21,9 +20,9 @@ export default class Dm5 extends Connector {
 
     async _getMangas() {
         let mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length ? mangaList.push(...mangas) : run = false;
+            mangas.length ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -32,10 +31,10 @@ export default class Dm5 extends Connector {
         const uri = new URL(this.path.replace('%PAGE%', page), this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.title.trim()
+                title: element.title.trim(),
             };
         });
     }
@@ -45,10 +44,13 @@ export default class Dm5 extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: (element.text || element.title ).replace(/（[0-9]+P）/gim, '').replace(manga.title, '').trim()
+                title: (element.text || element.title)
+                    .replace(/（[0-9]+P）/gim, '')
+                    .replace(manga.title, '')
+                    .trim(),
             };
         });
     }
@@ -73,7 +75,9 @@ export default class Dm5 extends Connector {
         uri.hostname = uri.hostname.replace('www', 'm');
         const request = new Request(uri, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script);
-        return data.filter((item, index) => data.indexOf(item) === index).map(element => this.createConnectorURI(this.getAbsolutePath(element, request.url)));
+        return data
+            .filter((item, index) => data.indexOf(item) === index)
+            .map((element) => this.createConnectorURI(this.getAbsolutePath(element, request.url)));
     }
 
     async _handleConnectorURI(payload) {

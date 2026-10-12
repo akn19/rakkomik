@@ -4,7 +4,6 @@ import WordPressLightPro from './templates/WordPressLightPro.mjs';
  *
  */
 export default class ReadHentaiManga extends WordPressLightPro {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class ReadHentaiManga extends WordPressLightPro {
         super();
         super.id = 'readhentaimanga';
         super.label = 'ReadHentaiManga';
-        this.tags = [ 'hentai', 'english' ];
+        this.tags = ['hentai', 'english'];
         this.url = 'http://readhentaimanga.com';
         this.path = '/hentai-manga-list/all/any/name-az/';
 

@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class MangaindoMe extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'mangaindoMe';

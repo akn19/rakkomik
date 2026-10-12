@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class ErosScan extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'erosscans';
@@ -11,10 +10,11 @@ export default class ErosScan extends WordPressMangastream {
         this.config = {
             url: {
                 label: 'URL',
-                description: 'This website changes their URL regularly.\nThis is the last known URL which can also be manually set by the user.',
+                description:
+                    'This website changes their URL regularly.\nThis is the last known URL which can also be manually set by the user.',
                 input: 'text',
-                value: 'https://doomcomic.xyz'
-            }
+                value: 'https://doomcomic.xyz',
+            },
         };
     }
 

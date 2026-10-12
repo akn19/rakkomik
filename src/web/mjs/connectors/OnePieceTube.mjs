@@ -1,4 +1,4 @@
-import Connector from "../engine/Connector.mjs";
+import Connector from '../engine/Connector.mjs';
 
 export default class OnePieceTube extends Connector {
     constructor() {
@@ -13,8 +13,8 @@ export default class OnePieceTube extends Connector {
         return [
             {
                 id: 'onepiece',
-                title: 'One Piece'
-            }
+                title: 'One Piece',
+            },
         ];
     }
 
@@ -23,20 +23,24 @@ export default class OnePieceTube extends Connector {
         let request = new Request(`${this.url}/kapitel-mangaliste#oben`, this.requestOptions);
         let data = await this.fetchDOM(request, 'div.sagatable table.list tbody tr');
 
-        return data.filter(e => e.rowIndex !== 0).map(element => {
-            let number = element.cells[0].innerText;
-            let title = element.cells[1].innerText;
-            return {
-                id: `kapitel/${number}`,
-                title: `${number} - ${title}`
-            };
-        });
+        return data
+            .filter((e) => e.rowIndex !== 0)
+            .map((element) => {
+                let number = element.cells[0].innerText;
+                let title = element.cells[1].innerText;
+                return {
+                    id: `kapitel/${number}`,
+                    title: `${number} - ${title}`,
+                };
+            });
     }
 
     async _getPages(chapter) {
         let request = new Request(`${this.url}/${chapter.id}/1`, this.requestOptions);
         let data = await this.fetchDOM(request, 'td#tablecontrols a');
-        return data.map(d => this.createConnectorURI(this.getAbsolutePath(d.pathname, request.url)));
+        return data.map((d) =>
+            this.createConnectorURI(this.getAbsolutePath(d.pathname, request.url)),
+        );
     }
 
     async _handleConnectorURI(payload) {

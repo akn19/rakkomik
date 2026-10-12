@@ -9,7 +9,7 @@ export default class Yanmaga extends SpeedBinb {
         this.tags = ['manga', 'japanese'];
         this.url = 'https://yanmaga.jp';
         this.links = {
-            login: 'https://yanmaga.jp/customers/sign-in'
+            login: 'https://yanmaga.jp/customers/sign-in',
         };
     }
 
@@ -24,7 +24,7 @@ export default class Yanmaga extends SpeedBinb {
     async _getMangas() {
         const request = new Request(new URL('comics', this.url));
         const data = await this.fetchDOM(request, '.ga-comics-book-item');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: element.querySelector('.mod-book-title').textContent.trim(),
@@ -57,20 +57,24 @@ export default class Yanmaga extends SpeedBinb {
         return Engine.Request.fetchUI(request, chapterScript, 10000);
     }
 
-    _getPageList( manga, chapter, callback ) {
+    _getPageList(manga, chapter, callback) {
         const uri = new URL(chapter.id, this.url);
         fetch(uri)
-            .then(response => {
+            .then((response) => {
                 if (response.redirected) {
                     const newurl = new URL(response.url);
-                    return super._getPageList(manga, { id: newurl.pathname+newurl.search }, callback);
+                    return super._getPageList(
+                        manga,
+                        { id: newurl.pathname + newurl.search },
+                        callback,
+                    );
                 }
                 if (!uri.searchParams.get('cid')) {
                     throw new Error(`You need to login to see ${chapter.title}`);
                 }
                 return super._getPageList(manga, chapter, callback);
             })
-            .catch(error => {
+            .catch((error) => {
                 console.error(error, chapter);
                 callback(error, undefined);
             });

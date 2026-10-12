@@ -93,8 +93,12 @@ pnpm exec electron . --update-url=DISABLED --cache-directory=./build/web --user-
 
 ## Code style
 
-- Lint with `pnpm run lint`. Format only the files you change (`pnpm exec oxfmt --write <file>`); `pnpm run format` over
-  the whole tree would rewrite about a thousand connectors.
+- Lint with `pnpm run lint`. All code is formatted with oxfmt (`.oxfmtrc.json`): run `pnpm run format` before you
+  commit, or `pnpm exec oxfmt --write <file>` for the files you changed. Two kinds of file are left out in
+  `ignorePatterns` on purpose: `src/app/package.json` and `pnpm-workspace.yaml` (the formatter reorders and re-indents
+  what pnpm manages), and seven connectors that hold minified code (`CrunchyScan`, `JapScan`, `MangAs`, `MangaGo`,
+  `MangaKu`, `TencentComic`, `TuMangaOnline`): when they were formatted, the application took about five seconds longer
+  to start. Do not format them, and add a connector with minified code to the list.
 - New and changed code does not use deprecated APIs or dependencies; `check:deprecated` is the gate.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org) (`feat`, `fix`, `perf`,
   `refactor`, `docs`, `test`, `build`, `ci`, `chore`, with an optional scope), because the release notes are

@@ -2,11 +2,10 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class HqNow extends Connector {
-
     constructor() {
         super();
         super.id = 'hqnow';
-        super.label ='Hq-Now';
+        super.label = 'Hq-Now';
         this.url = 'https://www.hq-now.com';
         this.tags = ['comics', 'spanish', 'high-quality'];
         this.apiURL = 'https://admin.hq-now.com';
@@ -17,7 +16,7 @@ export default class HqNow extends Connector {
         const gql = {
             operationName: 'getHqsById',
             variables: {
-                id: id
+                id: id,
             },
             query: `query getHqsById($id: Int!) {
                 getHqsById(id: $id) {
@@ -36,9 +35,14 @@ export default class HqNow extends Connector {
                     }
                 }
             }
-            `
+            `,
         };
-        const data = await this.fetchGraphQL(this.apiURL+'/graphql', gql.operationName, gql.query, gql.variables );
+        const data = await this.fetchGraphQL(
+            this.apiURL + '/graphql',
+            gql.operationName,
+            gql.query,
+            gql.variables,
+        );
         return new Manga(this, id, data[gql.operationName][0].name.trim());
     }
 
@@ -46,7 +50,7 @@ export default class HqNow extends Connector {
         const gql = {
             operationName: 'getHqsByNameStartingLetter',
             variables: {
-                letter: '0-z'
+                letter: '0-z',
             },
             query: `query getHqsByNameStartingLetter($letter: String!) {
                 getHqsByNameStartingLetter(letter: $letter) {
@@ -58,13 +62,18 @@ export default class HqNow extends Connector {
                     impressionsCount
                 }
             }
-            `
+            `,
         };
-        const data = await this.fetchGraphQL(this.apiURL+'/graphql', gql.operationName, gql.query, gql.variables );
-        return data[gql.operationName].map(manga => {
+        const data = await this.fetchGraphQL(
+            this.apiURL + '/graphql',
+            gql.operationName,
+            gql.query,
+            gql.variables,
+        );
+        return data[gql.operationName].map((manga) => {
             return {
                 id: manga.id,
-                title: manga.name.trim()
+                title: manga.name.trim(),
             };
         });
     }
@@ -73,7 +82,7 @@ export default class HqNow extends Connector {
         const gql = {
             operationName: 'getHqsById',
             variables: {
-                id: manga.id
+                id: manga.id,
             },
             query: `query getHqsById($id: Int!) {
                 getHqsById(id: $id) {
@@ -92,22 +101,31 @@ export default class HqNow extends Connector {
                     }
                 }
             }
-            `
+            `,
         };
-        const data = await this.fetchGraphQL(this.apiURL+'/graphql', gql.operationName, gql.query, gql.variables );
-        return data[gql.operationName][0].capitulos.map(chapter => {
-            return {
-                id: chapter.id,
-                title: chapter.name ? chapter.number + ' : '+chapter.name.trim() : chapter.number,
-            };
-        }).reverse();
+        const data = await this.fetchGraphQL(
+            this.apiURL + '/graphql',
+            gql.operationName,
+            gql.query,
+            gql.variables,
+        );
+        return data[gql.operationName][0].capitulos
+            .map((chapter) => {
+                return {
+                    id: chapter.id,
+                    title: chapter.name
+                        ? chapter.number + ' : ' + chapter.name.trim()
+                        : chapter.number,
+                };
+            })
+            .reverse();
     }
 
     async _getPages(chapter) {
         const gql = {
             operationName: 'getChapterById',
             variables: {
-                chapterId: chapter.id
+                chapterId: chapter.id,
             },
             query: `query getChapterById($chapterId: Int!) {
                 getChapterById(chapterId: $chapterId) {
@@ -127,9 +145,16 @@ export default class HqNow extends Connector {
                     }
                 }
             }
-            `
+            `,
         };
-        const data = await this.fetchGraphQL(this.apiURL+'/graphql', gql.operationName, gql.query, gql.variables );
-        return data[gql.operationName].pictures.map(picture => this.getRootRelativeOrAbsoluteLink(picture.pictureUrl, this.url));
+        const data = await this.fetchGraphQL(
+            this.apiURL + '/graphql',
+            gql.operationName,
+            gql.query,
+            gql.variables,
+        );
+        return data[gql.operationName].pictures.map((picture) =>
+            this.getRootRelativeOrAbsoluteLink(picture.pictureUrl, this.url),
+        );
     }
 }

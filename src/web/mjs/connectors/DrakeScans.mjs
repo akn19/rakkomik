@@ -5,7 +5,7 @@ export default class DrakeScans extends WordPressMangastream {
         super();
         super.id = 'drakescans';
         super.label = 'DrakeScans';
-        this.tags = [ 'webtoon', 'english'];
+        this.tags = ['webtoon', 'english'];
         this.url = 'https://drakecomic.org';
         this.path = '/manga/list-mode/';
     }

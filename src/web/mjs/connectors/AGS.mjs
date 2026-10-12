@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class AGS extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'ags';
         super.label = 'AGS (Animated Glitched Scans)';
-        this.tags = [ 'manga', 'english', 'scanlation' ];
+        this.tags = ['manga', 'english', 'scanlation'];
         this.url = 'https://agscomics.com';
         this.path = '/series/?list';
     }
@@ -17,7 +16,7 @@ export default class AGS extends WordPressMangastream {
 
     async _getPages(chapter) {
         const data = await super._getPages(chapter);
-        return data.map(element => this.createConnectorURI(element));
+        return data.map((element) => this.createConnectorURI(element));
     }
 
     async _handleConnectorURI(payload) {

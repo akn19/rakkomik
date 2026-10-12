@@ -1,7 +1,6 @@
 import Manga9 from './Manga9.mjs';
 
 export default class Mangarawto extends Manga9 {
-
     constructor() {
         super();
         super.id = 'mangarawto';
@@ -25,8 +24,6 @@ export default class Mangarawto extends Manga9 {
         `;
         const request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script);
-        return data.map(image => this.createConnectorURI(image));
-
+        return data.map((image) => this.createConnectorURI(image));
     }
-
 }

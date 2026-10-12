@@ -1,5 +1,5 @@
 const events = {
-    updated: 'updated'
+    updated: 'updated',
 };
 
 const statusDefinitions = {
@@ -10,24 +10,26 @@ const statusDefinitions = {
     downloading: 'downloading', // chapter/manga that is currently downloaded to the users device
     completed: 'completed', // chapter/manga that already exist on the users device
     failed: 'failed', // chapter/manga that failed to be downloaded
-    canceled: 'canceled' // download that was stopped by the user (only a status of the job: the chapter is what it was before)
+    canceled: 'canceled', // download that was stopped by the user (only a status of the job: the chapter is what it was before)
 };
 
 export default class DownloadJob extends EventTarget {
-
     // TODO: use dependency injection instead of globals for Engine.Storage, Enums
-    constructor( chapter ) {
+    constructor(chapter) {
         super();
         this.id = Symbol();
         this.chapter = chapter;
         this.labels = {
             connector: chapter.manga.connector.label,
             manga: chapter.manga.title,
-            chapter: chapter.title
+            chapter: chapter.title,
         };
         this.requestOptions = chapter.manga.connector.requestOptions || {};
         // TODO: initialize requestOptions.headers = new Headers() if not set
-        this.throttle = chapter.manga.connector.config && chapter.manga.connector.config['throttle'] ? chapter.manga.connector.config['throttle'].value : 0;
+        this.throttle =
+            chapter.manga.connector.config && chapter.manga.connector.config['throttle']
+                ? chapter.manga.connector.config['throttle'].value
+                : 0;
         this.status = undefined;
         this.progress = 0;
         this.errors = [];
@@ -41,7 +43,7 @@ export default class DownloadJob extends EventTarget {
     /**
      *
      */
-    isSame( job ) {
+    isSame(job) {
         // comparing chapter objects works, because chapters for each manga are cached
         return this.chapter === job.chapter;
         //return ( this.chapter.id === job.chapter.id && this.chapter.manga.id === job.chapter.manga.id && this.chapter.manga.connector.id === job.chapter.manga.connector.id );
@@ -50,22 +52,22 @@ export default class DownloadJob extends EventTarget {
     /**
      * Apply a new status for the job and publish the corresponding event.
      */
-    setStatus( status ) {
-        if( status !== this.status ) {
+    setStatus(status) {
+        if (status !== this.status) {
             this.status = status;
-            this.chapter.setStatus( status );
+            this.chapter.setStatus(status);
             this.chapter.manga.updateStatus();
-            this.dispatchEvent( new CustomEvent( events.updated, { detail: this } ) );
+            this.dispatchEvent(new CustomEvent(events.updated, { detail: this }));
         }
     }
 
     /**
      * Apply a new status for the job and publish the corresponding event.
      */
-    setProgress( progress ) {
-        if( progress !== this.progress ) {
+    setProgress(progress) {
+        if (progress !== this.progress) {
             this.progress = progress;
-            this.dispatchEvent( new CustomEvent( events.updated, { detail: this } ) );
+            this.dispatchEvent(new CustomEvent(events.updated, { detail: this }));
         }
     }
 
@@ -76,17 +78,25 @@ export default class DownloadJob extends EventTarget {
      * @returns {boolean} whether the job was stopped
      */
     cancel() {
-        if( ( this.status !== statusDefinitions.queued && this.status !== statusDefinitions.downloading ) || this._saving ) {
+        if (
+            (this.status !== statusDefinitions.queued &&
+                this.status !== statusDefinitions.downloading) ||
+            this._saving
+        ) {
             return false;
         }
         this.status = statusDefinitions.canceled;
-        this.chapter.setStatus( this.chapter.manga.isChapterFileExisting( this.chapter ) ? statusDefinitions.completed : statusDefinitions.available );
+        this.chapter.setStatus(
+            this.chapter.manga.isChapterFileExisting(this.chapter)
+                ? statusDefinitions.completed
+                : statusDefinitions.available,
+        );
         this.chapter.manga.updateStatus();
-        if( this._abort ) {
+        if (this._abort) {
             this._abort.abort();
         }
-        this.dispatchEvent( new CustomEvent( events.updated, { detail: this } ) );
-        if( this._over ) {
+        this.dispatchEvent(new CustomEvent(events.updated, { detail: this }));
+        if (this._over) {
             this._over();
         }
         return true;
@@ -95,52 +105,54 @@ export default class DownloadJob extends EventTarget {
     /**
      *
      */
-    downloadPages( directory, callback ) {
+    downloadPages(directory, callback) {
         // the manager gets the place of the job back when the job is over, once: when it ends, fails or is canceled
         let over = false;
         this._over = () => {
-            if( !over ) {
+            if (!over) {
                 over = true;
                 callback();
             }
         };
         this._abort = new AbortController();
-        this.setStatus( statusDefinitions.downloading );
-        this.chapter.getPages( ( error, data ) => {
+        this.setStatus(statusDefinitions.downloading);
+        this.chapter.getPages((error, data) => {
             // canceled while the connector collected the pages: nothing is downloaded, the place was given back already
-            if( this.status === statusDefinitions.canceled ) {
+            if (this.status === statusDefinitions.canceled) {
                 return;
             }
-            if( !error && data ) {
+            if (!error && data) {
                 // manga pages (a chapter without any is no chapter: it fails below, like a missing list)
-                if( data instanceof Array && data.length > 0 ) {
-                    this._downloadPages( data, directory, this._over );
+                if (data instanceof Array && data.length > 0) {
+                    this._downloadPages(data, directory, this._over);
                     return;
                 }
             }
 
-            if( error ) {
-                this.errors.push( error );
+            if (error) {
+                this.errors.push(error);
             } else {
-                this.errors.push( new Error( 'Page list is empty' ) );
+                this.errors.push(new Error('Page list is empty'));
             }
-            this.setStatus( statusDefinitions.failed );
-            this.setProgress( 100 );
+            this.setStatus(statusDefinitions.failed);
+            this.setProgress(100);
             this._over();
-        } );
+        });
     }
 
     async _wait(delay) {
-        return new Promise(resolve => setTimeout(resolve, delay));
+        return new Promise((resolve) => setTimeout(resolve, delay));
     }
 
     async _downloadPages(pages, directory, callback) {
         // the requests of the pages share one signal: when a page fails, or the job is canceled, the others are stopped
         const abort = this._abort || new AbortController();
         try {
-            const content = Engine.Settings.useSequentialMediaDownloads.value ? await this._downloadPagesSequential(pages, abort.signal) : await this._downloadPagesConcurrent(pages, abort.signal);
+            const content = Engine.Settings.useSequentialMediaDownloads.value
+                ? await this._downloadPagesSequential(pages, abort.signal)
+                : await this._downloadPagesConcurrent(pages, abort.signal);
             // canceled while the last pages were on their way: nothing is written
-            if(this.status === statusDefinitions.canceled) {
+            if (this.status === statusDefinitions.canceled) {
                 return;
             }
             this._saving = true;
@@ -148,10 +160,10 @@ export default class DownloadJob extends EventTarget {
             this.setProgress(100);
             this.setStatus(statusDefinitions.completed);
             callback();
-        } catch(error) {
+        } catch (error) {
             abort.abort();
             // a job that was canceled has not failed: the requests that were stopped end with an error of their own
-            if(this.status === statusDefinitions.canceled) {
+            if (this.status === statusDefinitions.canceled) {
                 return;
             }
             this.errors.push(error);
@@ -164,19 +176,24 @@ export default class DownloadJob extends EventTarget {
 
     async _downloadPagesSequential(pages, signal = new AbortController().signal) {
         const result = [];
-        for(let page of pages) {
+        for (let page of pages) {
             await this._wait(this.throttle);
             // the job was canceled: the pages that are left are not requested
             signal.throwIfAborted();
             // NOTE: bounded per-page timeout — a stalled connection must fail
             // the job instead of leaking activeCount and starving the queue.
-            const response = await fetch(page, { ...this.requestOptions, signal: AbortSignal.any([signal, AbortSignal.timeout(120000)]) });
-            if(response.status !== 200 && !Engine.Settings.ignoreErrorOnDownload.value) {
-                throw new Error(`Page "${page}" returned status: ${response.status} - ${response.statusText}`);
+            const response = await fetch(page, {
+                ...this.requestOptions,
+                signal: AbortSignal.any([signal, AbortSignal.timeout(120000)]),
+            });
+            if (response.status !== 200 && !Engine.Settings.ignoreErrorOnDownload.value) {
+                throw new Error(
+                    `Page "${page}" returned status: ${response.status} - ${response.statusText}`,
+                );
             }
             result.push(await response.blob());
             signal.throwIfAborted();
-            this.setProgress(this.progress + (pages.length ? 100/pages.length : 0));
+            this.setProgress(this.progress + (pages.length ? 100 / pages.length : 0));
         }
         return result;
     }
@@ -189,13 +206,18 @@ export default class DownloadJob extends EventTarget {
             // a page that comes after a failed one is not requested, and one that is on its way is stopped
             signal.throwIfAborted();
             // NOTE: bounded per-page timeout — see _downloadPagesSequential.
-            const response = await fetch(page, { ...this.requestOptions, signal: AbortSignal.any([signal, AbortSignal.timeout(120000)]) });
-            if(response.status !== 200 && !Engine.Settings.ignoreErrorOnDownload.value) {
-                throw new Error(`Page "${page}" returned status: ${response.status} - ${response.statusText}`);
+            const response = await fetch(page, {
+                ...this.requestOptions,
+                signal: AbortSignal.any([signal, AbortSignal.timeout(120000)]),
+            });
+            if (response.status !== 200 && !Engine.Settings.ignoreErrorOnDownload.value) {
+                throw new Error(
+                    `Page "${page}" returned status: ${response.status} - ${response.statusText}`,
+                );
             }
             // the job has failed already: its progress is not moved on, and nobody is told
             signal.throwIfAborted();
-            this.setProgress(this.progress + (pages.length ? 100/pages.length : 0));
+            this.setProgress(this.progress + (pages.length ? 100 / pages.length : 0));
             return response.blob();
         });
         return Promise.all(promises);

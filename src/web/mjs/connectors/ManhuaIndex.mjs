@@ -1,12 +1,11 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class ManhuaIndex extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'manhuaindex';
         super.label = 'ManhuaIndex';
-        this.tags = [ 'webtoon', 'english', 'manga' ];
+        this.tags = ['webtoon', 'english', 'manga'];
         this.url = 'https://manhuaindex.com';
     }
 
@@ -16,10 +15,16 @@ export default class ManhuaIndex extends WordPressMadara {
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryPages);
 
-        data = data.filter(element => !element.id.match(/image-end/) && !element.id.match(/image-start/));
+        data = data.filter(
+            (element) => !element.id.match(/image-end/) && !element.id.match(/image-start/),
+        );
 
-        return data.map(element => {
-            element.src = element.dataset['url'] || element.dataset['src'] || element['srcset'] || element.src;
+        return data.map((element) => {
+            element.src =
+                element.dataset['url'] ||
+                element.dataset['src'] ||
+                element['srcset'] ||
+                element.src;
             element.setAttribute('src', element.src);
             if (element.src.includes('data:image')) {
                 return element.src.match(/data:image[^\s'"]*/)[0];
@@ -33,7 +38,7 @@ export default class ManhuaIndex extends WordPressMadara {
                 return this.createConnectorURI({
                     // HACK: bypass 'i0.wp.com' image CDN to ensure original images are loaded directly from host
                     url: uri.href.replace(/\/i\d+\.wp\.com/, ''),
-                    referer: request.url
+                    referer: request.url,
                 });
             }
         });

@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class GremoryMangas extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'gremorymangas';
@@ -19,6 +18,6 @@ export default class GremoryMangas extends WordPressMangastream {
         if (data.length == 0) {
             return await super._getPages(chapter);
         }
-        return [ await Engine.Request.fetchNovel(request, this.novelContent) ];
+        return [await Engine.Request.fetchNovel(request, this.novelContent)];
     }
 }

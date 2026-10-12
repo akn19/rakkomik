@@ -5,5 +5,15 @@
     "semi": true,
     "singleQuote": true,
     "endOfLine": "lf",
-    "ignorePatterns": []
+    "ignorePatterns": [
+        "src/web/mjs/connectors/CrunchyScan.mjs",
+        "src/web/mjs/connectors/JapScan.mjs",
+        "src/web/mjs/connectors/MangAs.mjs",
+        "src/web/mjs/connectors/MangaGo.mjs",
+        "src/web/mjs/connectors/MangaKu.mjs",
+        "src/web/mjs/connectors/TencentComic.mjs",
+        "src/web/mjs/connectors/TuMangaOnline.mjs",
+        "src/app/package.json",
+        "src/app/pnpm-workspace.yaml"
+    ]
 }

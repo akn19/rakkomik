@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaHub extends Connector {
-
     constructor() {
         super();
         super.id = 'mangahub';
         super.label = 'MangaHub';
-        this.tags = [ 'manga', 'english' ];
+        this.tags = ['manga', 'english'];
         this.url = 'https://mangahub.io';
         this.apiURL = 'https://api.mghcdn.com/graphql';
         this.cdnURL = 'https://imgx.mghcdn.com';
@@ -23,7 +22,9 @@ export default class MangaHub extends Connector {
     async _initializeConnector() {
         await this._fetchApiKey(null, null);
         if (!this.requestOptions.headers.get('x-mhub-access')) {
-            throw new Error(`${this.label}: Can't initialize the API key! Try selecting another manga from this connector!`);
+            throw new Error(
+                `${this.label}: Can't initialize the API key! Try selecting another manga from this connector!`,
+            );
         }
     }
 
@@ -35,7 +36,10 @@ export default class MangaHub extends Connector {
         request.headers.delete('x-origin');
         request.headers.delete('x-mhub-access');
         const data = await this.fetchDOM(request, 'div#mangadetail div.container-fluid div.row h1');
-        const id = uri.pathname.split('/').filter(e => e).pop();
+        const id = uri.pathname
+            .split('/')
+            .filter((e) => e)
+            .pop();
         const title = data[0].firstChild.textContent.trim();
         return new Manga(this, id, title);
     }
@@ -50,8 +54,12 @@ export default class MangaHub extends Connector {
                     }
                 }
             }`;
-            const { search: { rows } } = await this.fetchGraphQL(this.apiURL, undefined, gql, undefined);
-            rows.length > 0 ? mangaList.push(...rows.map(manga => ({ id: manga.slug, title: manga.title }))) : run = false;
+            const {
+                search: { rows },
+            } = await this.fetchGraphQL(this.apiURL, undefined, gql, undefined);
+            rows.length > 0
+                ? mangaList.push(...rows.map((manga) => ({ id: manga.slug, title: manga.title })))
+                : (run = false);
         }
         return mangaList;
     }
@@ -65,12 +73,12 @@ export default class MangaHub extends Connector {
             }
         }`;
         const data = await this.fetchGraphQL(this.apiURL, undefined, gql, undefined);
-        return data.manga.chapters.map(chapter => {
+        return data.manga.chapters.map((chapter) => {
             const title = `Ch. ${chapter.number} - ${chapter.title}`;
             return {
                 id: chapter.number, // chapter.id, chapter.slug,
                 title: title.trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -81,11 +89,15 @@ export default class MangaHub extends Connector {
                 pages
             }
         }`;
-        const { chapter: { pages } } = await this.fetchGraphQL(this.apiURL, undefined, gql, undefined);
+        const {
+            chapter: { pages },
+        } = await this.fetchGraphQL(this.apiURL, undefined, gql, undefined);
         const data = JSON.parse(pages);
         const images = data.i ? data.i : Object.values(data);
         const prefix = data.p || '';
-        return images.map(page => this.createConnectorURI(new URL(prefix + page, this.cdnURL).href));
+        return images.map((page) =>
+            this.createConnectorURI(new URL(prefix + page, this.cdnURL).href),
+        );
     }
 
     async _handleConnectorURI(payload) {
@@ -117,9 +129,11 @@ export default class MangaHub extends Connector {
         const recently = {
             url: this.url,
             name: 'recently',
-            value: encodeURIComponent(`{"${now - this._randomInteger(0, 1200)}":{"mangaID":${this._randomInteger(1, 30000)},"number":${chapterNumber}}}`),
+            value: encodeURIComponent(
+                `{"${now - this._randomInteger(0, 1200)}":{"mangaID":${this._randomInteger(1, 30000)},"number":${chapterNumber}}}`,
+            ),
             path: '/',
-            expirationDate: now / 1000 + 3 * 31 * 24 * 60 * 60
+            expirationDate: now / 1000 + 3 * 31 * 24 * 60 * 60,
         };
         await window.hakuneko.session.setCookie(recently);
     }
@@ -128,7 +142,7 @@ export default class MangaHub extends Connector {
         let cookie = await window.hakuneko.session.getCookies({
             url: this.url,
             name: name,
-            path: '/'
+            path: '/',
         });
         cookie = cookie.shift();
         return !cookie ? null : cookie.value;
@@ -144,8 +158,7 @@ export default class MangaHub extends Connector {
         }
 
         const uri = new URL(path);
-        if (this.useReloadKeyParam)
-            uri.searchParams.append('reloadKey', '1');
+        if (this.useReloadKeyParam) uri.searchParams.append('reloadKey', '1');
         const request = new Request(uri, this.requestOptions);
         request.headers.set('x-sec-fetch-dest', 'document');
         request.headers.set('x-sec-fetch-mode', 'navigate');
@@ -179,8 +192,13 @@ export default class MangaHub extends Connector {
         for (let i = 0; i < 3; i++) {
             try {
                 return await super.fetchGraphQL(request, operationName, query, variables);
-            } catch(error) {
-                if (error.message.includes(' errors: ') && /(api)?\s*rate\s*limit\s*(excessed)?|api\s*key\s*(invalid)?/i.test(error.message)) {
+            } catch (error) {
+                if (
+                    error.message.includes(' errors: ') &&
+                    /(api)?\s*rate\s*limit\s*(excessed)?|api\s*key\s*(invalid)?/i.test(
+                        error.message,
+                    )
+                ) {
                     // In case they will give different expired API keys in cookies
                     if (i > 0 && initReloadKeyValue === this.useReloadKeyParam) {
                         this.useReloadKeyParam = !this.useReloadKeyParam;
@@ -209,5 +227,4 @@ export default class MangaHub extends Connector {
     /*****************/
     /* END  MangaHub */
     /*****************/
-
 }

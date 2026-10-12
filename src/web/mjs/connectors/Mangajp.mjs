@@ -13,6 +13,6 @@ export default class Mangajp extends WordPressMangastream {
 
     async _getPages(chapter) {
         const pages = await super._getPages(chapter);
-        return pages.map(page => this.createConnectorURI(page));
+        return pages.map((page) => this.createConnectorURI(page));
     }
 }

@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ScantradUnion extends Connector {
-
     constructor() {
         super();
         super.id = 'scantradunion';
         super.label = 'Scantrad Union';
-        this.tags = [ 'manga', 'webtoon', 'french' ];
+        this.tags = ['manga', 'webtoon', 'french'];
         this.url = 'https://scantrad-union.com';
         this.language = 'fr';
     }
@@ -22,12 +21,14 @@ export default class ScantradUnion extends Connector {
         for (let page = 0; page <= pages; page++) {
             request = new Request(this.url + '/manga/page/' + page + '/');
             data = await this.fetchDOM(request, 'main article div.entry-post > h2 > a');
-            mangas.push( ...data.map(element => {
-                return {
-                    id: this.getRootRelativeOrAbsoluteLink(element.href, this.url),
-                    title: element.text.trim().replace(/^(\[Partenaire\])/, "")
-                };
-            }));
+            mangas.push(
+                ...data.map((element) => {
+                    return {
+                        id: this.getRootRelativeOrAbsoluteLink(element.href, this.url),
+                        title: element.text.trim().replace(/^(\[Partenaire\])/, ''),
+                    };
+                }),
+            );
         }
 
         return mangas;
@@ -35,8 +36,11 @@ export default class ScantradUnion extends Connector {
 
     async _getChapters(manga) {
         let request = new Request(this.url + manga.id, this.requestOptions);
-        let data = await this.fetchDOM(request, 'div.chapter-list div.accordionItem div.name-chapter');
-        return data.map(element => {
+        let data = await this.fetchDOM(
+            request,
+            'div.chapter-list div.accordionItem div.name-chapter',
+        );
+        return data.map((element) => {
             let number = element.querySelector('span.chapter-number').innerText.trim();
             let title = element.querySelector('span.chapter-name').innerText.trim();
             title = title.length ? ' - ' + title : title;
@@ -68,6 +72,10 @@ export default class ScantradUnion extends Connector {
     async _getMangaFromURI(uri) {
         let request = new Request(new URL(uri.href), this.requestOptions);
         let data = await this.fetchDOM(request, 'div.projet-description > h2');
-        return new Manga(this, uri.pathname, data[0].textContent.trim().replace(/^(\[Partenaire\])/, ""));
+        return new Manga(
+            this,
+            uri.pathname,
+            data[0].textContent.trim().replace(/^(\[Partenaire\])/, ''),
+        );
     }
 }

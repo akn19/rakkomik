@@ -2,18 +2,17 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ComicKiba extends Connector {
-
     constructor() {
         super();
         super.id = 'comickiba';
         super.label = 'ManhuaGold';
-        this.tags = [ 'manga', 'webtoon', 'english' ];
+        this.tags = ['manga', 'webtoon', 'english'];
         this.url = 'https://manhuagold.top';
     }
 
     async _getMangaFromURI(uri) {
         const request = new Request(uri, this.requestOptions);
-        const [ data ] = await this.fetchDOM(request, 'article header h1');
+        const [data] = await this.fetchDOM(request, 'article header h1');
         return new Manga(this, uri.pathname, data.textContent.trim());
     }
 
@@ -21,7 +20,7 @@ export default class ComicKiba extends Connector {
         const mangaList = [];
         for (let page = 1, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -30,10 +29,10 @@ export default class ComicKiba extends Connector {
         const uri = new URL(`/all-manga/${page}/`, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.grid div.text-center a.clamp');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -42,10 +41,10 @@ export default class ComicKiba extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'ul#myUL li a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }

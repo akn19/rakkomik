@@ -6,7 +6,6 @@ function clip(text) {
 }
 
 export default class DiscordPresence {
-
     constructor(settings) {
         this.updater = null;
         // the request for a new connection that waits (see startDiscordPresence)
@@ -24,13 +23,16 @@ export default class DiscordPresence {
         // Current status
         this.status = {
             largeImageKey: 'logo',
-            largeImageText: 'Manga & Anime Downloader for Linux, Windows & MacOS'
+            largeImageText: 'Manga & Anime Downloader for Linux, Windows & MacOS',
         };
 
         // EventListener
-        document.addEventListener( EventListener.onSelectConnector, this._onSelectConnector.bind(this) );
-        document.addEventListener( EventListener.onSelectManga, this._onSelectManga.bind(this) );
-        document.addEventListener( EventListener.onSelectChapter, this._onSelectChapter.bind(this) );
+        document.addEventListener(
+            EventListener.onSelectConnector,
+            this._onSelectConnector.bind(this),
+        );
+        document.addEventListener(EventListener.onSelectManga, this._onSelectManga.bind(this));
+        document.addEventListener(EventListener.onSelectChapter, this._onSelectChapter.bind(this));
     }
 
     async _onSettingsChanged() {
@@ -49,7 +51,7 @@ export default class DiscordPresence {
         this.isThisHentai(event.detail.tags);
         this.status['details'] = clip('Browsing ' + event.detail.label);
         if (this.status.state) delete this.status.state;
-        this.status.startTimestamp = + new Date();
+        this.status.startTimestamp = +new Date();
         this.statusNew = true;
         if (this.enabled) this.startDiscordPresence();
     }
@@ -58,7 +60,7 @@ export default class DiscordPresence {
         this.isThisHentai(event.detail.connector.tags);
         this.status['details'] = clip('Browsing ' + event.detail.connector.label);
         this.status['state'] = clip('Looking at ' + event.detail.title);
-        this.status.startTimestamp = + new Date();
+        this.status.startTimestamp = +new Date();
         this.statusNew = true;
         if (this.enabled) this.startDiscordPresence();
     }
@@ -67,15 +69,15 @@ export default class DiscordPresence {
         this.isThisHentai(event.detail.manga.connector.tags);
         this.status['details'] = clip('Viewing ' + event.detail.manga.title);
         this.status['state'] = clip(event.detail.title.padEnd(2)); // State min. length is 2 char
-        this.status.startTimestamp = + new Date();
+        this.status.startTimestamp = +new Date();
         this.statusNew = true;
         if (this.enabled) this.startDiscordPresence();
     }
 
     isThisHentai(tags) {
         // Hentai check
-        tags = tags.map(t => t.toLowerCase());
-        if(tags.includes('hentai') || tags.includes('porn')) {
+        tags = tags.map((t) => t.toLowerCase());
+        if (tags.includes('hentai') || tags.includes('porn')) {
             this.hentai = true;
         } else {
             this.hentai = false;
@@ -83,11 +85,11 @@ export default class DiscordPresence {
     }
 
     async updateStatus() {
-        if(this.enabled && this.statusNew) {
-            if(!this.hentai || this.hentai && this.enabledHentai) {
+        if (this.enabled && this.statusNew) {
+            if (!this.hentai || (this.hentai && this.enabledHentai)) {
                 // The transport lives in the main process (DiscordBridge);
                 // success clears the pending flag.
-                if(await window.hakuneko.presence.setActivity(this.status)) {
+                if (await window.hakuneko.presence.setActivity(this.status)) {
                     this.statusNew = false;
                 }
             } else {
@@ -107,8 +109,8 @@ export default class DiscordPresence {
 
     async startDiscordPresence() {
         // NOTE: main side is idempotent, safe to call on every selection event
-        if(await window.hakuneko.presence.ensureStarted()) {
-            this.status.startTimestamp = + new Date();
+        if (await window.hakuneko.presence.ensureStarted()) {
+            this.status.startTimestamp = +new Date();
 
             // some delay for Discord to be receptive
             setTimeout(() => {
@@ -116,14 +118,14 @@ export default class DiscordPresence {
             }, 2000);
 
             // activity can only be set every 15 seconds (API limit)
-            if(!this.updater) {
+            if (!this.updater) {
                 this.updater = setInterval(() => {
                     this.updateStatus();
                 }, 15200);
             }
         } else {
             // Waiting delay for Discord API to allow new connection (one request waits, however often this is asked)
-            if(!this.retry) {
+            if (!this.retry) {
                 this.retry = setTimeout(() => {
                     this.retry = null;
                     // Re-evaluate if enabled

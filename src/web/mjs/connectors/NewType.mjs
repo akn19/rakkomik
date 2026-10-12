@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class NewType extends Connector {
-
     constructor() {
         super();
         super.id = 'newtype';
@@ -13,7 +12,10 @@ export default class NewType extends Connector {
 
     async _getMangaFromURI(uri) {
         let request = new Request(uri, this.requestOptions);
-        let data = await this.fetchDOM(request, 'div.section_item--contents ul li h1.contents__ttl');
+        let data = await this.fetchDOM(
+            request,
+            'div.section_item--contents ul li h1.contents__ttl',
+        );
         let id = uri.pathname + uri.search;
         let title = data[0].textContent.trim();
         return new Manga(this, id, title);
@@ -32,12 +34,15 @@ export default class NewType extends Connector {
     }
 
     async _getMangas() {
-        const request = new Request(new URL('contents/?refind_search=all/', this.url), this.requestOptions);
+        const request = new Request(
+            new URL('contents/?refind_search=all/', this.url),
+            this.requestOptions,
+        );
         const data = await this.fetchDOM(request, 'li.detail__txt--ttl');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element.closest('a'), request.url),
-                title: element.textContent.trim()
+                title: element.textContent.trim(),
             };
         });
     }
@@ -46,21 +51,24 @@ export default class NewType extends Connector {
         let chapterList = [];
         for (let page = 1, run = true; run; page++) {
             let chapters = await this._getChaptersFromPage(manga, page);
-            chapters.length > 0 ? chapterList.push(...chapters) : run = false;
+            chapters.length > 0 ? chapterList.push(...chapters) : (run = false);
         }
         return chapterList.filter((chapter, index) => {
-            return index === chapterList.findIndex(item => chapter.id === item.id);
+            return index === chapterList.findIndex((item) => chapter.id === item.id);
         });
     }
 
     async _getChaptersFromPage(manga, page) {
-        let request = new Request(new URL(`${manga.id}/more/${page}/`, this.url), this.requestOptions);
+        let request = new Request(
+            new URL(`${manga.id}/more/${page}/`, this.url),
+            this.requestOptions,
+        );
         let data = await this._fetchJsonDOM(request, page, 'li a h2.detail__txt--ttl-sub');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element.closest('a'), request.url),
                 title: element.textContent.replace(manga.title, '').trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -70,11 +78,10 @@ export default class NewType extends Connector {
         let data = await this.fetchDOM(request, 'div#viewerContainer');
         let link = this.getAbsolutePath(data[0].dataset.url, request.url);
         data = await this.fetchJSON(new Request(link, this.requestOptions));
-        return data.map(image => {
-            if (Array.isArray(image))
-                image = image.filter(url => url.startsWith('/'))[0];
-            if (image.includes("/h1200"))
-                image = image.slice(0, Math.max(0, image.indexOf("/h1200")));
+        return data.map((image) => {
+            if (Array.isArray(image)) image = image.filter((url) => url.startsWith('/'))[0];
+            if (image.includes('/h1200'))
+                image = image.slice(0, Math.max(0, image.indexOf('/h1200')));
             return this.getAbsolutePath(image, request.url);
         });
     }

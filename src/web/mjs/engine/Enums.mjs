@@ -1,15 +1,14 @@
 export default class Enums {
-
     /**
      * Enumeration of available UI event listeners that can be used to register/dispatch events in document.
      */
     static get EventListener() {
         return {
-            onMangaStatusChanged:     'onMangaStatusChanged', // ...
-            onChapterStatusChanged:   'onChapterStatusChanged', // ...
-            onSelectChapter:          'onSelectChapter',
-            onSelectConnector:        'onSelectConnector',
-            onSelectManga:            'onSelectManga'
+            onMangaStatusChanged: 'onMangaStatusChanged', // ...
+            onChapterStatusChanged: 'onChapterStatusChanged', // ...
+            onSelectChapter: 'onSelectChapter',
+            onSelectConnector: 'onSelectConnector',
+            onSelectManga: 'onSelectManga',
         };
     }
 }

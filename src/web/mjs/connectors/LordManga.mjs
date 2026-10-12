@@ -1,7 +1,6 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class LordManga extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'lordmanga';

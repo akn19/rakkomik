@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ElevenToon extends Connector {
-
     constructor() {
         super();
         super.id = '11toon';
@@ -30,19 +29,25 @@ export default class ElevenToon extends Connector {
     }
 
     async _getMangasFromPage(page) {
-        let request = new Request(this.url + '/bbs/board.php?bo_table=toon_c&type=upd&page=' + page, this.requestOptions);
+        let request = new Request(
+            this.url + '/bbs/board.php?bo_table=toon_c&type=upd&page=' + page,
+            this.requestOptions,
+        );
         let data = await this.fetchDOM(request, 'ul.homelist li a div.homelist-title span', 5);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element.closest('a'), request.url),
-                title: element.textContent.trim()
+                title: element.textContent.trim(),
             };
         });
     }
 
     async _getMangas() {
         let mangaList = [];
-        let request = new Request(this.url + '/bbs/board.php?bo_table=toon_c&type=upd&page=', this.requestOptions);
+        let request = new Request(
+            this.url + '/bbs/board.php?bo_table=toon_c&type=upd&page=',
+            this.requestOptions,
+        );
         let data = await this.fetchDOM(request, 'main.main nav.pg_wrap span.pg a.pg_end');
         let pageCount = parseInt(data[0].href.match(/\d+$/)[0]);
         for (let page = 1; page <= pageCount; page++) {
@@ -57,11 +62,17 @@ export default class ElevenToon extends Connector {
         url.searchParams.set('page', page);
         let request = new Request(url, this.requestOptions);
         let data = await this.fetchDOM(request, 'ul#comic-episode-list li button.episode', 5);
-        return data.map(element => {
+        return data.map((element) => {
             return {
-                id: this.getRootRelativeOrAbsoluteLink(element.getAttribute('onclick').split('\'')[1], request.url),
-                title: element.querySelector('div.episode-title').textContent.replace(manga.title, '').trim(),
-                language: ''
+                id: this.getRootRelativeOrAbsoluteLink(
+                    element.getAttribute('onclick').split("'")[1],
+                    request.url,
+                ),
+                title: element
+                    .querySelector('div.episode-title')
+                    .textContent.replace(manga.title, '')
+                    .trim(),
+                language: '',
             };
         });
     }
@@ -81,7 +92,10 @@ export default class ElevenToon extends Connector {
 
     async _getPages(chapter) {
         let request = new Request(this.url + chapter.id, this.requestOptions);
-        const data = await Engine.Request.fetchUI(request, `new Promise( resolve => resolve( img_list ) )`);
-        return data.map(element => this.getRootRelativeOrAbsoluteLink(element, this.url));
+        const data = await Engine.Request.fetchUI(
+            request,
+            `new Promise( resolve => resolve( img_list ) )`,
+        );
+        return data.map((element) => this.getRootRelativeOrAbsoluteLink(element, this.url));
     }
 }

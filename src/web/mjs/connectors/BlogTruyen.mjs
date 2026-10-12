@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class BlogTruyen extends Connector {
-
     constructor() {
         super();
         super.id = 'blogtruyen';
         super.label = 'BlogTruyen';
-        this.tags = [ 'manga', 'webtoon', 'vietnamese' ];
+        this.tags = ['manga', 'webtoon', 'vietnamese'];
         this.url = 'https://blogtruyenmoi.com';
         this.requestOptions.headers.set('x-referer', this.url);
     }
@@ -23,9 +22,12 @@ export default class BlogTruyen extends Connector {
     async _getMangas() {
         let mangaList = [];
         let request = new Request(new URL('/danhsach/tatca', this.url), this.requestOptions);
-        let data = await this.fetchDOM(request, 'section.list-manga-bycate div.paging span.page:last-of-type a');
+        let data = await this.fetchDOM(
+            request,
+            'section.list-manga-bycate div.paging span.page:last-of-type a',
+        );
         let pageCount = parseInt(data[0].href.match(/\d+/).pop().trim());
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -40,10 +42,10 @@ export default class BlogTruyen extends Connector {
         let request = new Request(uri, this.requestOptions);
         request.headers.set('X-Requested-With', 'XMLHttpRequest');
         let data = await this.fetchDOM(request, 'div.list p span.tiptip a', 3);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -51,11 +53,11 @@ export default class BlogTruyen extends Connector {
     async _getChapters(manga) {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'div#list-chapters span.title a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
                 title: element.text.replace(manga.title, '').trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -63,10 +65,10 @@ export default class BlogTruyen extends Connector {
     async _getPages(chapter) {
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, 'article#content source');
-        return data.map(element => {
+        return data.map((element) => {
             let payload = {
                 url: this.getAbsolutePath(element, request.url),
-                referer: request.url
+                referer: request.url,
             };
             return this.createConnectorURI(payload);
         });

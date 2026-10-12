@@ -6,5 +6,5 @@ export default {
     revision: {
         label: 'HEAD',
         link: 'https://github.com/akn19/rakkomik/commits/HEAD',
-    }
+    },
 };

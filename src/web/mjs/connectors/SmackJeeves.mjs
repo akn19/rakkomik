@@ -1,16 +1,15 @@
 import Connector from '../engine/Connector.mjs';
 //dead?
 export default class SmackJeeves extends Connector {
-
     constructor() {
         super();
         super.id = 'smackjeeves';
         super.label = 'Smack Jeeves';
-        this.tags = [ 'webtoon', 'english' ];
+        this.tags = ['webtoon', 'english'];
         this.url = 'https://www.smackjeeves.com';
     }
 
-    async _getCategories( url) {
+    async _getCategories(url) {
         const script = `
             new Promise(resolve => resolve(cmnData.navigation.items.map(item => item.val)));
         `;
@@ -19,7 +18,7 @@ export default class SmackJeeves extends Connector {
     }
 
     async _getMangas() {
-        const categories = await this._getCategories( new URL('/discover?type=genre', this.url));
+        const categories = await this._getCategories(new URL('/discover?type=genre', this.url));
 
         let manga_list = [];
         for (const category of categories) {
@@ -30,18 +29,23 @@ export default class SmackJeeves extends Connector {
             let pages = 1;
             for (let page = 1; page <= pages; page++) {
                 form.set('page', page);
-                const data = await this._fetchPOST(new URL('/api/getTitleListByGenreDiscover', this.url), form);
+                const data = await this._fetchPOST(
+                    new URL('/api/getTitleListByGenreDiscover', this.url),
+                    form,
+                );
                 pages = data.result.totalPageCnt;
 
-                manga_list.push(...data.result.list.map(item => {
-                    // decode html entities
-                    let title = document.createElement('div');
-                    title.innerHTML = item.title;
-                    return {
-                        id: this.getRootRelativeOrAbsoluteLink(item.titleUrl, this.url),
-                        title: title.textContent.trim()
-                    };
-                }));
+                manga_list.push(
+                    ...data.result.list.map((item) => {
+                        // decode html entities
+                        let title = document.createElement('div');
+                        title.innerHTML = item.title;
+                        return {
+                            id: this.getRootRelativeOrAbsoluteLink(item.titleUrl, this.url),
+                            title: title.textContent.trim(),
+                        };
+                    }),
+                );
             }
         }
 
@@ -49,16 +53,16 @@ export default class SmackJeeves extends Connector {
     }
 
     async _getChapters(manga) {
-        const url = new URL('/api'+manga.id, this.url);
+        const url = new URL('/api' + manga.id, this.url);
         const data = await this._fetchPOST(url, url.searchParams);
 
-        return data.result.list.map(item => {
+        return data.result.list.map((item) => {
             // decode html entities
             let title = document.createElement('div');
             title.innerHTML = `#${item.articleNo} - ${item.articleTitle}`;
             return {
                 id: item.articleUrl,
-                title: title.textContent.trim()
+                title: title.textContent.trim(),
             };
         });
     }
@@ -71,13 +75,13 @@ export default class SmackJeeves extends Connector {
         return await Engine.Request.fetchUI(request, script);
     }
 
-    async _fetchPOST( uri, form) {
+    async _fetchPOST(uri, form) {
         const request = new Request(new URL(uri, this.url), {
             method: 'POST',
             body: form.toString(),
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
         });
         const data = await fetch(request);
         return data.json();

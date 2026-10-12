@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ZeurelScan extends Connector {
-
     constructor() {
         super();
         super.id = 'zeurelscan';
         super.label = 'ZeurelScan';
-        this.tags = [ 'manga', 'webtoon', 'italian' ];
+        this.tags = ['manga', 'webtoon', 'italian'];
         this.url = 'https://zeurelscan.com';
     }
 
@@ -22,10 +21,10 @@ export default class ZeurelScan extends Connector {
         const uri = new URL(this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, '.titoliSerie');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.textContent.trim()
+                title: element.textContent.trim(),
             };
         });
     }
@@ -34,10 +33,13 @@ export default class ZeurelScan extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, '.rigaCap a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('.titolo').textContent.replace(manga.title + ' - ', '').trim()
+                title: element
+                    .querySelector('.titolo')
+                    .textContent.replace(manga.title + ' - ', '')
+                    .trim(),
             };
         });
     }
@@ -46,6 +48,6 @@ export default class ZeurelScan extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, '.Immag source');
-        return data.map(image => image.src);
+        return data.map((image) => image.src);
     }
 }

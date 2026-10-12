@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class OremangaNet extends Connector {
-
     constructor() {
         super();
         super.id = 'oremanga';
         super.label = 'Oremanga';
-        this.tags = [ 'manga', 'webtoon', 'thai' ];
+        this.tags = ['manga', 'webtoon', 'thai'];
         this.url = 'https://www.oremanga.net';
         this.path = '/manga-list/';
         this.queryMangas = 'div.mangalist-blc ul li a.series';
@@ -27,10 +26,10 @@ export default class OremangaNet extends Connector {
     async _getMangas() {
         const request = new Request(new URL(this.path, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
-            return{
-                id: this.getRelativeLink( element ),
-                title: element.text.trim()
+        return data.map((element) => {
+            return {
+                id: this.getRelativeLink(element),
+                title: element.text.trim(),
             };
         });
     }
@@ -38,13 +37,13 @@ export default class OremangaNet extends Connector {
     async _getChapters(manga) {
         const request = new Request(new URL(manga.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             const titleElement = element.querySelector('span');
             const bloat = titleElement.querySelector('.date');
             if (bloat) titleElement.removeChild(bloat);
-            return{
-                id: this.getRelativeLink( element ),
-                title: element.querySelector('span').textContent.trim()
+            return {
+                id: this.getRelativeLink(element),
+                title: element.querySelector('span').textContent.trim(),
             };
         });
     }
@@ -52,6 +51,6 @@ export default class OremangaNet extends Connector {
     async _getPages(chapter) {
         const request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, this.queryPages);
-        return data.map(element => this.getRootRelativeOrAbsoluteLink(element, this.url));
+        return data.map((element) => this.getRootRelativeOrAbsoluteLink(element, this.url));
     }
 }

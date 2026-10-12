@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 //template/theme LightNovel, basically WordPressMangastreamNovel
 export default class SakuraNovel extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'sakuranovel';
@@ -21,7 +20,9 @@ export default class SakuraNovel extends WordPressMangastream {
 
     async _getChapters(novel) {
         const novels = await super._getChapters(novel);
-        novels.forEach(novel => novel.title = novel.title.replace(/Bahasa Indonesia$/i, '').trim());
+        novels.forEach(
+            (novel) => (novel.title = novel.title.replace(/Bahasa Indonesia$/i, '').trim()),
+        );
         return novels;
     }
 
@@ -32,6 +33,10 @@ export default class SakuraNovel extends WordPressMangastream {
     }
 
     async _getPagesNovel(request) {
-        return [ await Engine.Request.fetchNovel(request, this.novelContentQuery, { obstacles: this.novelObstaclesQuery }) ];
+        return [
+            await Engine.Request.fetchNovel(request, this.novelContentQuery, {
+                obstacles: this.novelObstaclesQuery,
+            }),
+        ];
     }
 }

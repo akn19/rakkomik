@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaFire extends Connector {
-
     constructor() {
         super();
         super.id = 'mangafire';
         super.label = 'MangaFire';
-        this.tags = [ 'manga', 'english', 'french', 'japanese', 'portuguese', 'spanish' ];
+        this.tags = ['manga', 'english', 'french', 'japanese', 'portuguese', 'spanish'];
         this.url = 'https://mangafire.to';
         this.path = '/az-list?page=';
 
@@ -25,9 +24,9 @@ export default class MangaFire extends Connector {
 
     async _getMangas() {
         const mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
-            mangas.length ? mangaList.push(...mangas) : run = false;
+            mangas.length ? mangaList.push(...mangas) : (run = false);
             await this.wait(250);
         }
         return mangaList;
@@ -64,22 +63,21 @@ export default class MangaFire extends Connector {
         let request = new Request(uri, this.requestOptions);
         let response = await fetch(request);
         let data = await response.text();
-        if(/waf-js-run/i.test(data)) {
+        if (/waf-js-run/i.test(data)) {
             request = new Request(uri, this.requestOptions);
             return await Engine.Request.fetchUI(request, script);
         } else {
             const dom = this.createDOM(data);
             const nodes = [...dom.querySelectorAll(this.queryMangas)];
-            nodes.map(element => {
+            nodes.map((element) => {
                 mangas.push({
                     id: element.pathname,
-                    title : element.text.trim()
+                    title: element.text.trim(),
                 });
             });
 
             return mangas;
         }
-
     }
 
     async _getChapters(manga) {
@@ -88,27 +86,30 @@ export default class MangaFire extends Connector {
         const mangauri = new URL(manga.id, this.url);
         const request = new Request(mangauri, this.requestOptions);
         const data = await this.fetchDOM(request, 'section.m-list div.dropdown-menu a');
-        let listsByLanguage = data.map(element => element.dataset.code.toLowerCase());
+        let listsByLanguage = data.map((element) => element.dataset.code.toLowerCase());
         listsByLanguage = [...new Set(listsByLanguage)];
 
         let chapterList = [];
         const types = ['chapter', 'volume'];
-        for (const language of listsByLanguage) { //For each language
-            for (const type of types) { //for chapters / volumes
+        for (const language of listsByLanguage) {
+            //For each language
+            for (const type of types) {
+                //for chapters / volumes
                 //https://mangafire.to/ajax/read/XXXXX/volume/en
                 const uri = new URL(`ajax/read/${id}/${type}/${language}`, this.url);
                 const request = new Request(uri, this.requestOptions);
                 const data = await this.fetchJSON(request);
                 const dom = this.createDOM(data.result.html);
                 const chaptersNodes = [...dom.querySelectorAll('a')];
-                chaptersNodes.filter(anchor=> anchor.pathname.includes(`/${type}-`))
-                    .forEach(chapter => {
-                        const id = {itemid : chapter.dataset.id, itemtype : type};
+                chaptersNodes
+                    .filter((anchor) => anchor.pathname.includes(`/${type}-`))
+                    .forEach((chapter) => {
+                        const id = { itemid: chapter.dataset.id, itemtype: type };
                         const title = chapter.text.trim();
-                        chapterList.push ({
-                            id : JSON.stringify(id),
-                            title : title,
-                            language : language
+                        chapterList.push({
+                            id: JSON.stringify(id),
+                            title: title,
+                            language: language,
                         });
                     });
             }
@@ -123,7 +124,7 @@ export default class MangaFire extends Connector {
         const uri = new URL(`ajax/read/${chapterid.itemtype}/${chapterid.itemid}`, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSON(request);
-        return data.result.images.map(imageArray => {
+        return data.result.images.map((imageArray) => {
             if (imageArray[2] < 1) {
                 return imageArray[0];
             }
@@ -135,13 +136,12 @@ export default class MangaFire extends Connector {
         const type = Engine.Settings.recompressionFormat.value;
         const quality = parseFloat(Engine.Settings.recompressionQuality.value) / 100;
         let canvas = await this.reverseImage(payload);
-        const blob = await new Promise(resolve => {
+        const blob = await new Promise((resolve) => {
             canvas.toBlob(resolve, type, quality);
         });
         let data = await this._blobToBuffer(blob);
         this._applyRealMime(data);
         return data;
-
     }
 
     /******************/
@@ -153,7 +153,7 @@ export default class MangaFire extends Connector {
             const uri = new URL(url);
             let image = new Image();
             image.onload = () => resolve(image);
-            image.onerror = error => reject(error);
+            image.onerror = (error) => reject(error);
             image.src = uri.href;
         });
     }
@@ -195,7 +195,7 @@ export default class MangaFire extends Connector {
                     m * s,
                     y * h,
                     Math.min(s, image.width - m * s),
-                    Math.min(h, image.height - y * h)
+                    Math.min(h, image.height - y * h),
                 );
             }
         }
@@ -205,5 +205,4 @@ export default class MangaFire extends Connector {
     /*****************/
     /* END  MangaFire*/
     /*****************/
-
 }

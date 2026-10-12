@@ -3,7 +3,6 @@ import Manga from '../engine/Manga.mjs';
 
 // also base class for readhentai
 export default class HentaiShark extends Connector {
-
     constructor() {
         super();
         super.id = 'hentaishark';
@@ -17,7 +16,7 @@ export default class HentaiShark extends Connector {
         const request = new Request(this.url, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.type-content li:nth-last-of-type(2) > a');
         const pageCount = parseInt(data[0].href.match(/(\d+)$/)[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -25,12 +24,15 @@ export default class HentaiShark extends Connector {
     }
 
     async _getMangasFromPage(page) {
-        const request = new Request(new URL(`/manga-list?page=${page}`, this.url), this.requestOptions);
+        const request = new Request(
+            new URL(`/manga-list?page=${page}`, this.url),
+            this.requestOptions,
+        );
         const data = await this.fetchDOM(request, 'div.item > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('div.caption').textContent.trim()
+                title: element.querySelector('div.caption').textContent.trim(),
             };
         });
     }
@@ -42,12 +44,12 @@ export default class HentaiShark extends Connector {
     }
 
     async _getChapters(manga) {
-        return [ Object.assign({ language: '' }, manga) ];
+        return [Object.assign({ language: '' }, manga)];
     }
 
     async _getPages(chapter) {
         const request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, 'a > source.lazy');
-        return data.map(ele => ele.src.replace('thumb_', ''));
+        return data.map((ele) => ele.src.replace('thumb_', ''));
     }
 }

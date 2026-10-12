@@ -1,18 +1,23 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
-import { sha256Hex, utf8ToBytes, bytesToUtf8, base64ToBytes, aesCbcDecrypt } from '../engine/Crypto.mjs';
+import {
+    sha256Hex,
+    utf8ToBytes,
+    bytesToUtf8,
+    base64ToBytes,
+    aesCbcDecrypt,
+} from '../engine/Crypto.mjs';
 
 export default class Comico extends Connector {
-
     constructor() {
         super();
         super.id = 'comico';
         super.label = 'Comico (コミコ)';
-        this.tags = [ 'webtoon', 'japanese' ];
+        this.tags = ['webtoon', 'japanese'];
         this.url = 'https://www.comico.jp';
         this.api = 'https://api.comico.jp';
         this.links = {
-            login: 'https://www.comico.jp/login'
+            login: 'https://www.comico.jp/login',
         };
     }
 
@@ -27,7 +32,7 @@ export default class Comico extends Connector {
             headers: {
                 'x-referer': this.url,
                 'x-origin': this.url,
-                'accept' : 'application/json, text/plain, */*',
+                accept: 'application/json, text/plain, */*',
                 'Accept-Language': 'ja-JP',
                 'X-comico-client-os': 'other',
                 'X-comico-client-store': 'other',
@@ -37,7 +42,7 @@ export default class Comico extends Connector {
                 'X-comico-client-immutable-uid': '0.0.0.0',
                 'X-comico-client-platform': 'web',
                 'X-comico-client-accept-mature': 'Y',
-            }
+            },
         });
         let response = await fetch(request);
         return response.json();
@@ -46,50 +51,65 @@ export default class Comico extends Connector {
     async _getMangaFromURI(uri) {
         let id = uri.pathname;
         const data = await this._fetchPOST(id);
-        let title = data.data.volume.content != null ? data.data.volume.content.name : data.data.episode.content.name;
+        let title =
+            data.data.volume.content != null
+                ? data.data.volume.content.name
+                : data.data.episode.content.name;
         return new Manga(this, id, title);
     }
 
     async _getMangas() {
         let mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
 
     async _getMangasFromPage(page) {
-        let data = await this._fetchPOST('/all_comic/new_release?pageNo='+page +'&pageSize=50');
-        return !data.result ? [] : data.data.contents.map(manga => {
-            return {
-                id: '/'+manga.type+'/'+manga.id,
-                title: manga.name
-            };
-        });
+        let data = await this._fetchPOST('/all_comic/new_release?pageNo=' + page + '&pageSize=50');
+        return !data.result
+            ? []
+            : data.data.contents.map((manga) => {
+                  return {
+                      id: '/' + manga.type + '/' + manga.id,
+                      title: manga.name,
+                  };
+              });
     }
 
     async _getChapters(manga) {
         const data = await this._fetchPOST(manga.id);
         //episode or volume?
-        const element = data.data.episode.content != null ? data.data.episode.content : data.data.volume.content;
+        const element =
+            data.data.episode.content != null
+                ? data.data.episode.content
+                : data.data.volume.content;
         return element.chapters
-            .filter(chapter => chapter.activity.rented || chapter.activity.unlocked || chapter.salesConfig.free)
-            .map(chapter => {
+            .filter(
+                (chapter) =>
+                    chapter.activity.rented ||
+                    chapter.activity.unlocked ||
+                    chapter.salesConfig.free,
+            )
+            .map((chapter) => {
                 return {
                     id: chapter.id,
                     title: chapter.name,
-                    language: ''
+                    language: '',
                 };
             });
     }
 
     async _getPages(chapter) {
-        const data = await this._fetchPOST(chapter.manga.id+'/chapter/' +chapter.id+'/product');
+        const data = await this._fetchPOST(
+            chapter.manga.id + '/chapter/' + chapter.id + '/product',
+        );
         if (data.data.content.chapterFileFormat == 'epub') {
             throw Error('This chapter is an Epub :/');
         }
-        return Promise.all(data.data.chapter.images.map(image => this.cookPictureUrl(image)));
+        return Promise.all(data.data.chapter.images.map((image) => this.cookPictureUrl(image)));
     }
 
     async cookPictureUrl(image) {
@@ -99,6 +119,6 @@ export default class Comico extends Connector {
         const iv = new Uint8Array(16);
         const passPhrase = utf8ToBytes(AESKey);
         const decrypted = await aesCbcDecrypt(base64ToBytes(image.url), passPhrase, iv);
-        return new URL(bytesToUtf8(decrypted))+'?'+image.parameter;
+        return new URL(bytesToUtf8(decrypted)) + '?' + image.parameter;
     }
 }

@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class KomikIndoId extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'komikindoid';
         super.label = 'KomikIndoId';
-        this.tags = [ 'manga', 'indonesian' ];
+        this.tags = ['manga', 'indonesian'];
         this.url = 'https://komikindo.id';
         this.path = '/daftar-komik/?list';
 

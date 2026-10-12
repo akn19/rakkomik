@@ -5,7 +5,7 @@ export default class kuman5 extends MH {
         super();
         super.id = 'kuman5';
         super.label = '酷漫屋 (Kuman57)';
-        this.tags = [ 'manga', 'chinese' ];
+        this.tags = ['manga', 'chinese'];
         this.url = 'http://www.kmwu6.com';
 
         this.queryChapter = 'div#chapterlistload ul#detail-list-select-1 li a';
@@ -14,9 +14,9 @@ export default class kuman5 extends MH {
 
     async _getMangas() {
         let mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -29,6 +29,6 @@ export default class kuman5 extends MH {
     async _getPages(chapter) {
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         let data = await this.fetchRegex(request, /km5_img_url\s*=\s*['"]([^'"]+)['"]/g);
-        return JSON.parse(atob(data[0])).map(page => page.split('|')[1]);
+        return JSON.parse(atob(data[0])).map((page) => page.split('|')[1]);
     }
 }

@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Desu extends Connector {
-
     constructor() {
         super();
         super.id = 'desu';
@@ -23,7 +22,7 @@ export default class Desu extends Connector {
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.PageNav');
         const pageCount = parseInt(data[0].dataset['last']);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             const mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -34,27 +33,27 @@ export default class Desu extends Connector {
         const uri = new URL('/manga/?page=' + page, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'h3 a.animeTitle.oTitle');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.title.trim()
+                title: element.title.trim(),
             };
         });
     }
 
-    async _getChapters( manga ) {
+    async _getChapters(manga) {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div#animeView div.expandable ul.chlist li h4 a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
 
-    async _getPages( chapter ) {
+    async _getPages(chapter) {
         let script = `
             new Promise((resolve, reject) => {
                 setTimeout(() => {
@@ -69,7 +68,9 @@ export default class Desu extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const pages = await Engine.Request.fetchUI(request, script);
-        return pages.map(element => this.createConnectorURI(this.getAbsolutePath(element.url, this.url)));
+        return pages.map((element) =>
+            this.createConnectorURI(this.getAbsolutePath(element.url, this.url)),
+        );
     }
 
     async _handleConnectorURI(payload) {

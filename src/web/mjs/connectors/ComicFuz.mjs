@@ -4,7 +4,6 @@ import Manga from '../engine/Manga.mjs';
 import { hexToBytes, aesCbcDecrypt } from '../engine/Crypto.mjs';
 
 export default class ComicFuz extends Connector {
-
     constructor() {
         super();
         super.id = 'comicfuz';
@@ -28,9 +27,9 @@ export default class ComicFuz extends Connector {
         const responseType = 'ComicFuz.MangasByDayOfWeekResponse';
         const payload = {
             deviceInfo: {
-                deviceType: 2
+                deviceType: 2,
             },
-            dayOfWeek: 0
+            dayOfWeek: 0,
         };
         const request = await this._createPROTORequest(uri, requestType, payload);
         const data = await this.fetchPROTO(request, this.protoTypes, responseType);
@@ -40,7 +39,7 @@ export default class ComicFuz extends Connector {
     async _getChapters(manga) {
         const data = await this._fetchMangaDetail(manga.id);
         const chapters = [];
-        data.chapters.forEach(chapterGroup => {
+        data.chapters.forEach((chapterGroup) => {
             chapters.push(...chapterGroup.chapters);
         });
         return chapters;
@@ -52,14 +51,14 @@ export default class ComicFuz extends Connector {
         const responseType = 'ComicFuz.MangaViewerResponse';
         const payload = {
             deviceInfo: {
-                deviceType: 2
+                deviceType: 2,
             },
             chapterId: chapter.id,
             useTicket: false,
             consumePoint: {
                 event: 0,
-                paid: 0
-            }
+                paid: 0,
+            },
         };
         const request = await this._createPROTORequest(uri, requestType, payload);
         let data;
@@ -69,8 +68,8 @@ export default class ComicFuz extends Connector {
             throw new Error(`The chapter '${chapter.title}' is neither public, nor purchased!`);
         }
         return data.pages
-            .filter(page => page.image && page.image.imageUrl)
-            .map(page => this.createConnectorURI(page.image));
+            .filter((page) => page.image && page.image.imageUrl)
+            .map((page) => this.createConnectorURI(page.image));
     }
 
     async _handleConnectorURI(payload) {
@@ -84,17 +83,16 @@ export default class ComicFuz extends Connector {
             const decrypted = await aesCbcDecrypt(new Uint8Array(buffer), key, iv);
             buffer = {
                 mimeType: response.headers.get('content-type'),
-                data: decrypted
+                data: decrypted,
             };
         } else {
             buffer = {
                 mimeType: response.headers.get('content-type'),
-                data: new Uint8Array(buffer)
+                data: new Uint8Array(buffer),
             };
         }
         this._applyRealMime(buffer);
         return buffer;
-
     }
 
     async _createPROTORequest(uri, rootType, payload) {
@@ -104,7 +102,7 @@ export default class ComicFuz extends Connector {
         return new Request(uri, {
             ...this.requestOptions,
             body: message.finish(),
-            method: 'POST'
+            method: 'POST',
         });
     }
 
@@ -116,7 +114,7 @@ export default class ComicFuz extends Connector {
             deviceInfo: {
                 deviceType: 2,
             },
-            mangaId: id
+            mangaId: id,
         };
         const request = await this._createPROTORequest(uri, requestType, payload);
         return this.fetchPROTO(request, this.protoTypes, responseType);

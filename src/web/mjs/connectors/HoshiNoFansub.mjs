@@ -4,7 +4,6 @@ import FoolSlide from './templates/FoolSlide.mjs';
  *
  */
 export default class HoshiNoFansub extends FoolSlide {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class HoshiNoFansub extends FoolSlide {
         super();
         super.id = 'hoshinofansub';
         super.label = 'HoshiNoFansub';
-        this.tags = [ 'manga', 'high-quality', 'spanish', 'scanlation' ];
+        this.tags = ['manga', 'high-quality', 'spanish', 'scanlation'];
         this.url = 'http://manga.animefrontline.com';
         //this.path        = '/directory/';
         this.language = 'spanish';
@@ -21,14 +20,14 @@ export default class HoshiNoFansub extends FoolSlide {
     /**
      *
      */
-    _getMangaList( callback ) {
-        super._getMangaList( ( error, mangas ) => {
-            if( !error && mangas instanceof Array ) {
-                mangas.forEach( m => {
-                    m.title = m.title.replace( /\s*[([](completa|one[\s-]?shot)[\])]\s*$/i, '' );
-                } );
+    _getMangaList(callback) {
+        super._getMangaList((error, mangas) => {
+            if (!error && mangas instanceof Array) {
+                mangas.forEach((m) => {
+                    m.title = m.title.replace(/\s*[([](completa|one[\s-]?shot)[\])]\s*$/i, '');
+                });
             }
-            callback( error, mangas );
-        } );
+            callback(error, mangas);
+        });
     }
 }

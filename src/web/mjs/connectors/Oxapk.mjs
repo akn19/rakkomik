@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class Oxapk extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'oxapk';

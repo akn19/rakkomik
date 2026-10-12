@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class YumeKomik extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'yumekomik';
@@ -15,10 +14,12 @@ export default class YumeKomik extends WordPressMangastream {
     async _getMangas() {
         let request = new Request(new URL(this.path, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.title ? element.title.replace(this.queryMangaTitleRemove, '').trim() : element.text.replace(this.queryMangaTitleRemove, '').trim()
+                title: element.title
+                    ? element.title.replace(this.queryMangaTitleRemove, '').trim()
+                    : element.text.replace(this.queryMangaTitleRemove, '').trim(),
             };
         });
     }
@@ -33,7 +34,8 @@ export default class YumeKomik extends WordPressMangastream {
         let request = new Request(uri, this.requestOptions);
         let data = await Engine.Request.fetchUI(request, script);
         // HACK: bypass 'i0.wp.com' image CDN to ensure original images are loaded directly from host
-        return data.map(link => this.getAbsolutePath(link, request.url).replace(/\/i\d+\.wp\.com/, '')).filter(link => !link.includes('histats.com'));
+        return data
+            .map((link) => this.getAbsolutePath(link, request.url).replace(/\/i\d+\.wp\.com/, ''))
+            .filter((link) => !link.includes('histats.com'));
     }
-
 }

@@ -4,7 +4,6 @@ import MangaReaderCMS from './templates/MangaReaderCMS.mjs';
  *
  */
 export default class MangaZukiScans extends MangaReaderCMS {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class MangaZukiScans extends MangaReaderCMS {
         super();
         super.id = 'mangazuki-scans';
         super.label = 'Mangazuki Scans';
-        this.tags = [ 'manga', 'high-quality', 'english', 'scanlation' ];
+        this.tags = ['manga', 'high-quality', 'english', 'scanlation'];
         this.url = 'https://mangazuki.co';
 
         this.queryMangas = 'ul.price-list li a';

@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Sadscans extends Connector {
-
     constructor() {
         super();
         super.id = 'sadscans';
         super.label = 'Sadscans';
-        this.tags = [ 'manga', 'turkish', 'scanlation' ];
+        this.tags = ['manga', 'turkish', 'scanlation'];
         this.url = 'https://sadscans.com';
     }
 
@@ -22,10 +21,10 @@ export default class Sadscans extends Connector {
         const uri = new URL('/series', this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.series-list');
-        return data.map(item => {
+        return data.map((item) => {
             return {
                 id: item.querySelector('a').pathname,
-                title: item.querySelector('h2').textContent.trim()
+                title: item.querySelector('h2').textContent.trim(),
             };
         });
     }
@@ -34,11 +33,11 @@ export default class Sadscans extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.chap-link div.link a');
-        return data.map(item => {
+        return data.map((item) => {
             return {
                 id: item.pathname,
                 title: item.textContent.trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -47,6 +46,6 @@ export default class Sadscans extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.swiper-slide source');
-        return data.map(x => x.src);
+        return data.map((x) => x.src);
     }
 }

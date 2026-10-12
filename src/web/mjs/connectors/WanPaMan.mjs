@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class WanPaMan extends Connector {
-
     constructor() {
         super();
         super.id = 'wanpaman';
         super.label = 'Wan-Pa Man';
-        this.tags = [ 'manga', 'japanese'];
+        this.tags = ['manga', 'japanese'];
         this.url = 'http://galaxyheavyblow.web.fc2.com';
     }
 
@@ -15,8 +14,8 @@ export default class WanPaMan extends Connector {
         return [
             {
                 id: this.url,
-                title: this.label
-            }
+                title: this.label,
+            },
         ];
     }
 
@@ -32,24 +31,23 @@ export default class WanPaMan extends Connector {
             resolve(chapters.reverse());
         });`;
 
-        return Engine.Request.fetchUI( request, script );
+        return Engine.Request.fetchUI(request, script);
     }
 
     async _getPages(chapter) {
         let uri = new URL(chapter.id, this.url);
-        let rest = [uri.pathname+uri.searchParams.get('aid')];
+        let rest = [uri.pathname + uri.searchParams.get('aid')];
         rest.push(uri.searchParams.get('iid'));
-        rest.push( 'metadata.json?_=' + Date.now() );
+        rest.push('metadata.json?_=' + Date.now());
 
-        let request = new Request( new URL(rest.join('/'), this.url), this.requestOptions );
+        let request = new Request(new URL(rest.join('/'), this.url), this.requestOptions);
         let data = await this.fetchJSON(request);
 
-        return data.imageItemList.map(page => {
+        return data.imageItemList.map((page) => {
             rest.pop();
             rest.push(page.fileName);
             return this.getAbsolutePath(rest.join('/'), this.url);
         });
-
     }
 
     async _getMangaFromURI() {

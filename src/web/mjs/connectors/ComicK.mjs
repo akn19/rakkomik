@@ -2,17 +2,15 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ComicK extends Connector {
-
     constructor() {
         super();
         super.id = 'comick';
         super.label = 'ComicK';
-        this.tags = [ 'manga', 'english' ];
+        this.tags = ['manga', 'english'];
         this.url = 'https://comick.io';
         this.apiurl = 'https://api.comick.io';
-        this.requestOptions.headers.set('x-origin', this.url );
-        this.requestOptions.headers.set('x-referer', this.apiurl );
-
+        this.requestOptions.headers.set('x-origin', this.url);
+        this.requestOptions.headers.set('x-referer', this.apiurl);
     }
 
     canHandleURI(uri) {
@@ -35,7 +33,7 @@ export default class ComicK extends Connector {
         let mangaList = [];
         for (let page = 1, run = true; run; page++) {
             const mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -46,12 +44,14 @@ export default class ComicK extends Connector {
             const request = new Request(uri, this.requestOptions);
             await this.wait(500);
             const data = await this.fetchJSONEx(request);
-            return data.message ? [] : data.map(item => {
-                return {
-                    id: item.hid,
-                    title: item.title.trim()
-                };
-            });
+            return data.message
+                ? []
+                : data.map((item) => {
+                      return {
+                          id: item.hid,
+                          title: item.title.trim(),
+                      };
+                  });
         } catch (error) {
             return [];
         }
@@ -61,7 +61,7 @@ export default class ComicK extends Connector {
         let chapterList = [];
         for (let page = 1, run = true; run; page++) {
             const chapters = await this._getChaptersFromPage(manga, page);
-            chapters.length > 0 ? chapterList.push(...chapters) : run = false;
+            chapters.length > 0 ? chapterList.push(...chapters) : (run = false);
         }
         return chapterList;
     }
@@ -70,23 +70,23 @@ export default class ComicK extends Connector {
         const uri = new URL(`/comic/${manga.id}/chapters?page=${page}`, this.apiurl);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSONEx(request);
-        return data.chapters.map(item => {
+        return data.chapters.map((item) => {
             let title = '';
-            if(item.vol) {
+            if (item.vol) {
                 title += `Vol. ${item.vol} `;
             }
             title += `Ch. ${item.chap}`;
-            if(item.title) {
+            if (item.title) {
                 title += ` - ${item.title}`;
             }
             title += ` (${item.lang})`;
-            if(item.group_name && item.group_name.length) {
+            if (item.group_name && item.group_name.length) {
                 title += ` [${item.group_name.join(', ')}]`;
             }
             return {
                 id: item.hid,
                 title: title,
-                language: item.lang
+                language: item.lang,
             };
         });
     }
@@ -95,15 +95,15 @@ export default class ComicK extends Connector {
         const uri = new URL('/chapter/' + chapter.id, this.apiurl);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSONEx(request);
-        return data.chapter.md_images.map(image => `https://meo.comick.pictures/${image.b2key}`);
+        return data.chapter.md_images.map((image) => `https://meo.comick.pictures/${image.b2key}`);
     }
 
     async fetchJSONEx(request, retries) {
         try {
             var data = await this.fetchJSON(request, retries);
             return data;
-        } catch(error) {
-            if(error.message.includes('status: 400')) {
+        } catch (error) {
+            if (error.message.includes('status: 400')) {
                 return { message: 'not found' };
             }
         }

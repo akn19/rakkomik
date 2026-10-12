@@ -1,12 +1,11 @@
 import SinMH from './templates/SinMH.mjs';
 
 export default class ManHuaGui extends SinMH {
-
     constructor() {
         super();
         super.id = 'manhuagui';
         super.label = '看漫画 (ManHuaGui)';
-        this.tags = [ 'webtoon', 'chinese' ];
+        this.tags = ['webtoon', 'chinese'];
         this.url = 'https://www.manhuagui.com';
         this.requestOptions.headers.set('x-referer', this.url);
 
@@ -17,14 +16,15 @@ export default class ManHuaGui extends SinMH {
         this.config = {
             throttle: {
                 label: 'Page Throttle Requests [ms]',
-                description: 'Enter the timespan in [ms] to delay consecuitive HTTP requests while downloading Pages.\nThe website may ban your IP for to many consecuitive requests.',
+                description:
+                    'Enter the timespan in [ms] to delay consecuitive HTTP requests while downloading Pages.\nThe website may ban your IP for to many consecuitive requests.',
                 input: 'numeric',
                 min: 500,
                 max: 10000,
-                value: 2500
-            }
+                value: 2500,
+            },
         };
-        this.queryPagesScript =`
+        this.queryPagesScript = `
             new Promise( (resolve, reject) => {
                 ${this.api}.imgData = function(data) {
                     let origin = pVars.manga.filePath;
@@ -52,7 +52,8 @@ export default class ManHuaGui extends SinMH {
     }
 
     async _getMangas() {
-        let msg = 'This function was disabled to prevent of being IP banned by the website owner, please copy and paste the URL containing the chapters directly from your browser into HakuNeko.';
+        let msg =
+            'This function was disabled to prevent of being IP banned by the website owner, please copy and paste the URL containing the chapters directly from your browser into HakuNeko.';
         throw new Error(msg);
     }
 }

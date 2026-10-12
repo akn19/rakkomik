@@ -149,9 +149,9 @@ export default class Blacklist {
         ];
     }
 
-    addPattern( pattern ) {
-        if( !this.patterns.includes( pattern ) ) {
-            this.patterns.push( pattern );
+    addPattern(pattern) {
+        if (!this.patterns.includes(pattern)) {
+            this.patterns.push(pattern);
         }
     }
 }

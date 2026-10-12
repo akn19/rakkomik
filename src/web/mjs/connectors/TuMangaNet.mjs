@@ -1,12 +1,11 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class TuMangaNet extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'tumanganet';
         super.label = 'Tu Manga Online';
-        this.tags = [ 'manga', 'webtoon', 'spanish' ];
+        this.tags = ['manga', 'webtoon', 'spanish'];
         this.url = 'https://tumanga.net';
     }
 

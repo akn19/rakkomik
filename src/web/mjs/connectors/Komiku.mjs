@@ -22,12 +22,15 @@ export default class Komiku extends Connector {
         //using the genres list because the full list isnt really full
         let mangaList = [];
         for (const genre of this.paths) {
-            let request = new Request(new URL('/daftar-komik/?tipe='+genre, this.url), this.requestOptions);
+            let request = new Request(
+                new URL('/daftar-komik/?tipe=' + genre, this.url),
+                this.requestOptions,
+            );
             let data = await this.fetchDOM(request, 'div.ls4 div.ls4j h4 a');
-            let mangas = data.map(element => {
+            let mangas = data.map((element) => {
                 return {
                     id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                    title: element.text.trim()
+                    title: element.text.trim(),
                 };
             });
             mangaList.push(...mangas);
@@ -39,10 +42,10 @@ export default class Komiku extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'table#Daftar_Chapter td.judulseries a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.replace(manga.title, '').trim()
+                title: element.text.replace(manga.title, '').trim(),
             };
         });
     }
@@ -51,6 +54,8 @@ export default class Komiku extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div#Baca_Komik source');
-        return data.map(element => this.getAbsolutePath(element.dataset.src || element, this.url));
+        return data.map((element) =>
+            this.getAbsolutePath(element.dataset.src || element, this.url),
+        );
     }
 }

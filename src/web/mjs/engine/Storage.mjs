@@ -10,7 +10,7 @@ const extensions = {
     img: 'img',
     cbz: '.cbz',
     pdf: '.pdf',
-    epub: '.epub'
+    epub: '.epub',
 };
 
 const statusDefinitions = {
@@ -35,7 +35,6 @@ function plainText(text) {
 }
 
 export default class Storage {
-
     // TODO: use dependency injection instead of globals for EbookGenerator
     constructor() {
         // The filesystem is reached through the preload bridge (window.hakuneko), paths are computed here (Path.mjs).
@@ -53,11 +52,11 @@ export default class Storage {
         this.fileURISubstitutions = {
             rgx: /['#?;]/g,
             map: {
-                '\'': '%27',
+                "'": '%27',
                 '#': '%23',
                 '?': '%3F',
-                ';': '%3B'
-            }
+                ';': '%3B',
+            },
         };
     }
 
@@ -72,16 +71,20 @@ export default class Storage {
      * Execute a post-download command in the main process (over IPC).
      */
     exec(command, options, callback) {
-        window.hakuneko.exec(command, options)
-            .then(result => callback(result.error ? new Error(result.error) : undefined))
-            .catch(error => callback(error));
+        window.hakuneko
+            .exec(command, options)
+            .then((result) => callback(result.error ? new Error(result.error) : undefined))
+            .catch((error) => callback(error));
     }
 
     /**
      * Save the given value for the given key in the persistant storage
      */
     saveConfig(key, value, indentation) {
-        return this._writeFileAtomic(this.config + key, JSON.stringify(value, undefined, indentation)).then(() => undefined);
+        return this._writeFileAtomic(
+            this.config + key,
+            JSON.stringify(value, undefined, indentation),
+        ).then(() => undefined);
     }
 
     /**
@@ -115,7 +118,7 @@ export default class Storage {
             title: 'Download Directory for Mangas',
             //message: 'MESSAGE',
             defaultPath: rootPath,
-            properties: ['openDirectory']
+            properties: ['openDirectory'],
         });
         // preload bridge returns the dialog result unchanged (or undefined when unsupported)
         result = result || { canceled: true, filePaths: [] };
@@ -154,15 +157,14 @@ export default class Storage {
      */
     getExistingMangaTitles(connector) {
         let directory = this._connectorOutputPath(connector);
-        return this._readDirectoryEntries(directory)
-            .then(entries => {
-                let titleMap = [];
-                // use key value pairs instead of plain titles to increase performance when looking up a certain manga title
-                entries.forEach(entry => {
-                    titleMap[entry] = true;
-                });
-                return Promise.resolve(titleMap);
+        return this._readDirectoryEntries(directory).then((entries) => {
+            let titleMap = [];
+            // use key value pairs instead of plain titles to increase performance when looking up a certain manga title
+            entries.forEach((entry) => {
+                titleMap[entry] = true;
             });
+            return Promise.resolve(titleMap);
+        });
     }
 
     /**
@@ -172,30 +174,29 @@ export default class Storage {
      */
     getExistingChapterTitles(manga) {
         let directory = this._mangaOutputPath(manga);
-        return this._readDirectoryEntries(directory)
-            .then(entries => {
-                /*
-                 * TODO: only add supported files / folders
-                 * file that ends with any of the supported extension,
-                 * folders that contains any image?
-                 */
-                /*
-                 * entries = entries.filter( path => {
-                 * return (
-                 * path.endsWith( extensions.epub ) ||
-                 * path.endsWith( extensions.cbz ) ||
-                 * path.endsWith( extensions.pdf )
-                 * // what about directory with images ???
-                 * );
-                 * } );
-                 */
-                let titleMap = [];
-                // use key value pairs instead of plain titles to increase performance when looking up a certain manga title
-                entries.forEach(entry => {
-                    titleMap[entry] = true;
-                });
-                return Promise.resolve(titleMap);
+        return this._readDirectoryEntries(directory).then((entries) => {
+            /*
+             * TODO: only add supported files / folders
+             * file that ends with any of the supported extension,
+             * folders that contains any image?
+             */
+            /*
+             * entries = entries.filter( path => {
+             * return (
+             * path.endsWith( extensions.epub ) ||
+             * path.endsWith( extensions.cbz ) ||
+             * path.endsWith( extensions.pdf )
+             * // what about directory with images ???
+             * );
+             * } );
+             */
+            let titleMap = [];
+            // use key value pairs instead of plain titles to increase performance when looking up a certain manga title
+            entries.forEach((entry) => {
+                titleMap[entry] = true;
             });
+            return Promise.resolve(titleMap);
+        });
     }
 
     /**
@@ -206,7 +207,9 @@ export default class Storage {
     loadChapterPages(chapter) {
         let path = chapter instanceof Chapter ? this._downloadedChapterPath(chapter) : chapter;
         if (typeof path !== 'string') {
-            return Promise.reject(new Error('Invalid parameter "chapter", must be <String> or <Chapter> type!'));
+            return Promise.reject(
+                new Error('Invalid parameter "chapter", must be <String> or <Chapter> type!'),
+            );
         }
         // the extension of a file that was not made by this application may be in capitals
         let name = path.toLowerCase();
@@ -235,7 +238,8 @@ export default class Storage {
     async _extractZipEntry(archive, file) {
         let name = this.path.join(this.temp, this.path.basename(file));
         // attach timestamp to force reload of already existing, but overwritten temp files
-        let page = this._makeValidFileURL(this.temp, this.path.basename(file)) + '?ts=' + Date.now();
+        let page =
+            this._makeValidFileURL(this.temp, this.path.basename(file)) + '?ts=' + Date.now();
         await this._createDirectoryChain(this.temp);
         await this.fs.writeFile(name, archive[file]);
         return page;
@@ -247,18 +251,20 @@ export default class Storage {
      * and a reference to the page list (undefined on error).
      */
     _loadChapterPagesEPUB(ebook) {
-        return this._openZipArchive(ebook)
-            .then(archive => {
-                if (archive[EbookGenerator.novelChapterPath]) {
-                    return this._loadChapterNovelEPUB(archive).then(page => [page]);
-                }
-                let promises = Object.keys(archive).filter(file => {
+        return this._openZipArchive(ebook).then((archive) => {
+            if (archive[EbookGenerator.novelChapterPath]) {
+                return this._loadChapterNovelEPUB(archive).then((page) => [page]);
+            }
+            let promises = Object.keys(archive)
+                .filter((file) => {
                     return /^OEBPS[/\\]img[/\\][^/\\]+$/.test(file);
-                }).sort(pageOrder.compare).map(file => {
+                })
+                .sort(pageOrder.compare)
+                .map((file) => {
                     return this._extractZipEntry(archive, file);
                 });
-                return Promise.all(promises);
-            });
+            return Promise.all(promises);
+        });
     }
 
     /**
@@ -277,7 +283,7 @@ export default class Storage {
             }
         }
         // an illustration that is not in the archive is left out
-        return createNovelPage(replaceNovelImages(text, source => sources.get(source)));
+        return createNovelPage(replaceNovelImages(text, (source) => sources.get(source)));
     }
 
     /**
@@ -285,7 +291,7 @@ export default class Storage {
      * Callback will be executed after completion and provided with an array of errors (or an empty array when no errors occured)
      * and a reference to the page list (undefined on error).
      */
-    _loadChapterPagesPDF( /*pdf*/) {
+    _loadChapterPagesPDF(/*pdf*/) {
         return Promise.reject(new Error('PDF preview not yet supported!'));
     }
 
@@ -295,15 +301,17 @@ export default class Storage {
      * and a reference to the page list (undefined on error).
      */
     _loadChapterPagesCBZ(cbz) {
-        return this._openZipArchive(cbz)
-            .then(archive => {
-                let promises = Object.keys(archive).filter(file => {
+        return this._openZipArchive(cbz).then((archive) => {
+            let promises = Object.keys(archive)
+                .filter((file) => {
                     return pageFile.test(file);
-                }).sort(pageOrder.compare).map(file => {
+                })
+                .sort(pageOrder.compare)
+                .map((file) => {
                     return this._extractZipEntry(archive, file);
                 });
-                return Promise.all(promises);
-            });
+            return Promise.all(promises);
+        });
     }
 
     /**
@@ -312,11 +320,13 @@ export default class Storage {
      * and a reference to the page list (undefined on error).
      */
     _loadChapterPagesFolder(directory) {
-        return this.fs.readdir(directory)
-            .then(files => {
-                let pages = files.filter(file => pageFile.test(file)).sort(pageOrder.compare).map(file => this._makeValidFileURL(directory, file));
-                return Promise.resolve(pages);
-            });
+        return this.fs.readdir(directory).then((files) => {
+            let pages = files
+                .filter((file) => pageFile.test(file))
+                .sort(pageOrder.compare)
+                .map((file) => this._makeValidFileURL(directory, file));
+            return Promise.resolve(pages);
+        });
     }
 
     /**
@@ -328,9 +338,11 @@ export default class Storage {
         if (this.path.sep === '\\') {
             location = location.replace(/\\/g, '/');
         }
-        return encodeURI('file://' + location)
-            // some special cases are not covered with encodeURI and needs to be replaced manually
-            .replace(this.fileURISubstitutions.rgx, m => this.fileURISubstitutions.map[m]);
+        return (
+            encodeURI('file://' + location)
+                // some special cases are not covered with encodeURI and needs to be replaced manually
+                .replace(this.fileURISubstitutions.rgx, (m) => this.fileURISubstitutions.map[m])
+        );
     }
 
     /**
@@ -343,7 +355,7 @@ export default class Storage {
      */
     saveChapterPages(chapter, content) {
         try {
-            if (content.some(page => isNovelBlob(page))) {
+            if (content.some((page) => isNovelBlob(page))) {
                 return this._saveChapterNovel(chapter, content);
             }
             let leadingZeroes = String(content.length).length;
@@ -351,7 +363,7 @@ export default class Storage {
                 return {
                     name: this._pageFileName(index + 1, page.type, leadingZeroes),
                     type: page.type,
-                    data: page
+                    data: page,
                 };
             });
 
@@ -364,7 +376,14 @@ export default class Storage {
             }
             if (Engine.Settings.chapterFormat.value === extensions.cbz) {
                 promise = this._createDirectoryChain(this.path.dirname(output))
-                    .then(() => this._saveChapterPagesCBZ(output, pageData, chapter.manga.title, chapter.title))
+                    .then(() =>
+                        this._saveChapterPagesCBZ(
+                            output,
+                            pageData,
+                            chapter.manga.title,
+                            chapter.title,
+                        ),
+                    )
                     .then(() => this._runPostChapterDownloadCommand(chapter, output));
             }
             if (Engine.Settings.chapterFormat.value === extensions.epub) {
@@ -372,7 +391,12 @@ export default class Storage {
                     .then(() => this._saveChapterPagesEPUB(output, pageData))
                     .then(() => this._runPostChapterDownloadCommand(chapter, output));
             }
-            return promise || Promise.reject(new Error('Unsupported output format: ' + Engine.Settings.chapterFormat.value));
+            return (
+                promise ||
+                Promise.reject(
+                    new Error('Unsupported output format: ' + Engine.Settings.chapterFormat.value),
+                )
+            );
         } catch (error) {
             return Promise.reject(error);
         }
@@ -385,7 +409,11 @@ export default class Storage {
      */
     async _saveChapterNovel(chapter, content) {
         let output = this._novelOutputPath(chapter);
-        let text = (await Promise.all(content.filter(page => isNovelBlob(page)).map(page => page.text()))).join('\n');
+        let text = (
+            await Promise.all(
+                content.filter((page) => isNovelBlob(page)).map((page) => page.text()),
+            )
+        ).join('\n');
         let images = await this._downloadNovelImages(chapter, text);
         await this._createDirectoryChain(this.path.dirname(output));
         if (output.endsWith(extensions.pdf)) {
@@ -403,17 +431,27 @@ export default class Storage {
      */
     async _downloadNovelImages(chapter, text) {
         let images = new Map();
-        let options = (chapter.manga && chapter.manga.connector && chapter.manga.connector.requestOptions) || {};
+        let options =
+            (chapter.manga && chapter.manga.connector && chapter.manga.connector.requestOptions) ||
+            {};
         for (let source of listNovelImages(text)) {
             try {
-                let response = await fetch(source, { ...options, signal: AbortSignal.timeout(60000) });
+                let response = await fetch(source, {
+                    ...options,
+                    signal: AbortSignal.timeout(60000),
+                });
                 let blob = await response.blob();
                 if (!response.ok || !blob.type.startsWith('image/')) {
-                    throw new Error(`The answer is no image (status: ${response.status}, type: "${blob.type}")`);
+                    throw new Error(
+                        `The answer is no image (status: ${response.status}, type: "${blob.type}")`,
+                    );
                 }
                 images.set(source, blob);
             } catch (error) {
-                console.warn(`The illustration "${source.slice(0, 200)}" of "${chapter.title}" was left out!`, error);
+                console.warn(
+                    `The illustration "${source.slice(0, 200)}" of "${chapter.title}" was left out!`,
+                    error,
+                );
             }
         }
         return images;
@@ -427,24 +465,30 @@ export default class Storage {
         let language = this._novelLanguage(chapter);
         let files = {
             // the EPUB container requires the mimetype as uncompressed first entry
-            'mimetype': [ strToU8(EbookGenerator.createMimetype()), { level: 0 } ],
+            mimetype: [strToU8(EbookGenerator.createMimetype()), { level: 0 }],
             'META-INF/container.xml': strToU8(EbookGenerator.createContainerXML()),
-            'OEBPS/css/style.css': strToU8(EbookGenerator.createNovelStyleCSS())
+            'OEBPS/css/style.css': strToU8(EbookGenerator.createNovelStyleCSS()),
         };
         let illustrations = [];
         let names = new Map();
         let leadingZeroes = String(images.size).length;
-        for (let [ source, blob ] of images) {
+        for (let [source, blob] of images) {
             let name = this._pageFileName(names.size + 1, blob.type, leadingZeroes);
             names.set(source, name);
             illustrations.push({ name: name, mime: blob.type.split(';')[0] });
             // images are compressed already: store them
-            files['OEBPS/img/' + name] = [ await this._blobToBytes(blob), { level: 0 } ];
+            files['OEBPS/img/' + name] = [await this._blobToBytes(blob), { level: 0 }];
         }
-        let body = replaceNovelImages(text, source => names.has(source) ? '../img/' + names.get(source) : undefined);
+        let body = replaceNovelImages(text, (source) =>
+            names.has(source) ? '../img/' + names.get(source) : undefined,
+        );
         let uid = btoa(encodeURIComponent(ebook)).replace(/[^a-zA-Z]/g, '');
-        files[EbookGenerator.novelChapterPath] = strToU8(EbookGenerator.createNovelChapterXHTML(title, chapter.title, body, language));
-        files['OEBPS/content.opf'] = strToU8(EbookGenerator.createNovelContentOPF(uid, title, language, illustrations));
+        files[EbookGenerator.novelChapterPath] = strToU8(
+            EbookGenerator.createNovelChapterXHTML(title, chapter.title, body, language),
+        );
+        files['OEBPS/content.opf'] = strToU8(
+            EbookGenerator.createNovelContentOPF(uid, title, language, illustrations),
+        );
         files['OEBPS/toc.ncx'] = strToU8(EbookGenerator.createNovelTocNCX(uid, title));
         return this._writeFile(ebook, zipSync(files));
     }
@@ -455,11 +499,19 @@ export default class Storage {
      */
     async _saveChapterNovelPDF(pdf, chapter, text, images) {
         let sources = new Map();
-        for (let [ source, blob ] of images) {
-            sources.set(source, `data:${blob.type};base64,${bytesToBase64(await this._blobToBytes(blob))}`);
+        for (let [source, blob] of images) {
+            sources.set(
+                source,
+                `data:${blob.type};base64,${bytesToBase64(await this._blobToBytes(blob))}`,
+            );
         }
-        let body = replaceNovelImages(text, source => sources.get(source));
-        let page = EbookGenerator.createNovelPrintHTML(this._novelTitle(chapter), chapter.title, body, this._novelLanguage(chapter));
+        let body = replaceNovelImages(text, (source) => sources.get(source));
+        let page = EbookGenerator.createNovelPrintHTML(
+            this._novelTitle(chapter),
+            chapter.title,
+            body,
+            this._novelLanguage(chapter),
+        );
         return this._writeFile(pdf, await this.pdf.render(page));
     }
 
@@ -471,18 +523,20 @@ export default class Storage {
         let params = [];
         let files = {
             // the EPUB container requires the mimetype as uncompressed first entry
-            'mimetype': [ strToU8(EbookGenerator.createMimetype()), { level: 0 } ],
+            mimetype: [strToU8(EbookGenerator.createMimetype()), { level: 0 }],
             'META-INF/container.xml': strToU8(EbookGenerator.createContainerXML()),
-            'OEBPS/css/style.css': strToU8(EbookGenerator.createStyleCSS())
+            'OEBPS/css/style.css': strToU8(EbookGenerator.createStyleCSS()),
         };
-        for (let [ index, page ] of pageData.entries()) {
+        for (let [index, page] of pageData.entries()) {
             files['OEBPS/img/' + page.name] = await this._blobToBytes(page.data);
-            files['OEBPS/xhtml/' + index + '.xhtml'] = strToU8(EbookGenerator.createPageXHTML(page.name));
+            files['OEBPS/xhtml/' + index + '.xhtml'] = strToU8(
+                EbookGenerator.createPageXHTML(page.name),
+            );
             params.push({
                 img: page.name,
                 xhtml: index + '.xhtml',
                 // a media type of the manifest has no parameters, like the one of a novel
-                mime: page.type.split(';')[0]
+                mime: page.type.split(';')[0],
             });
         }
         let uid = btoa(encodeURIComponent(ebook)).replace(/[^a-zA-Z]/g, '');
@@ -525,17 +579,20 @@ export default class Storage {
             canvas.height = bitmap.height;
             let ctx = canvas.getContext('2d');
             ctx.drawImage(bitmap, 0, 0);
-            blob = await new Promise(resolve => {
-                canvas.toBlob(data => resolve(data), 'image/jpeg', 0.90);
+            blob = await new Promise((resolve) => {
+                canvas.toBlob((data) => resolve(data), 'image/jpeg', 0.9);
             });
         } else {
             blob = page.data;
         }
 
         let bytes = await this._blobToBytes(blob);
-        let pdfTargetWidth = this.pdfTargetHeight * bitmap.width / bitmap.height;
+        let pdfTargetWidth = (this.pdfTargetHeight * bitmap.width) / bitmap.height;
         pdfDocument.addPage({ size: [pdfTargetWidth, this.pdfTargetHeight] });
-        pdfDocument.image(bytes.buffer, 0, 0, { width: pdfTargetWidth, height: this.pdfTargetHeight });
+        pdfDocument.image(bytes.buffer, 0, 0, {
+            width: pdfTargetWidth,
+            height: this.pdfTargetHeight,
+        });
     }
 
     /**
@@ -544,7 +601,13 @@ export default class Storage {
      */
     async _saveChapterPagesCBZ(archive, pageData, mangaName = '', chapterName = '') {
         let files = {
-            'ComicInfo.xml': strToU8(Engine.ComicInfoGenerator.createComicInfoXML(mangaName, chapterName, pageData.length))
+            'ComicInfo.xml': strToU8(
+                Engine.ComicInfoGenerator.createComicInfoXML(
+                    mangaName,
+                    chapterName,
+                    pageData.length,
+                ),
+            ),
         };
         for (let page of pageData) {
             files[page.name] = await this._blobToBytes(page.data);
@@ -558,11 +621,10 @@ export default class Storage {
      * Callback will be executed after completion and provided with an array of errors (or an empty array when no errors occured).
      */
     _saveChapterPagesFolder(directory, pageData) {
-        let promises = pageData.map(page => {
-            return this._blobToBytes(page.data)
-                .then(data => {
-                    return this._writeFile(this.path.join(directory, page.name), data);
-                });
+        let promises = pageData.map((page) => {
+            return this._blobToBytes(page.data).then((data) => {
+                return this._writeFile(this.path.join(directory, page.name), data);
+            });
         });
         return Promise.all(promises);
     }
@@ -576,9 +638,14 @@ export default class Storage {
             // one pass with a function: a replacement string would expand "$&" and the like in a title, and a title
             // that holds a placeholder would be replaced again. The path is the real one of the chapter and stays as it
             // is: it belongs in the quotes of the command.
-            let values = { PATH: path, C: plainText(chapter.manga.connector.label), M: plainText(chapter.manga.title), O: plainText(chapter.title) };
+            let values = {
+                PATH: path,
+                C: plainText(chapter.manga.connector.label),
+                M: plainText(chapter.manga.title),
+                O: plainText(chapter.title),
+            };
             command = command.replace(/%(PATH|C|M|O)%/g, (placeholder, name) => values[name]);
-            this.exec(command, { cwd: this.path.dirname(path), windowsHide: true }, error => {
+            this.exec(command, { cwd: this.path.dirname(path), windowsHide: true }, (error) => {
                 if (error) {
                     console.error(error);
                 }
@@ -678,7 +745,12 @@ export default class Storage {
     _novelOutputPath(chapter) {
         let output = this._mangaOutputPath(chapter.manga);
         output = this.path.join(output, this.sanatizePath(chapter.title));
-        return output + (Engine.Settings.novelFormat.value === extensions.pdf ? extensions.pdf : extensions.epub);
+        return (
+            output +
+            (Engine.Settings.novelFormat.value === extensions.pdf
+                ? extensions.pdf
+                : extensions.epub)
+        );
     }
 
     /**
@@ -689,7 +761,11 @@ export default class Storage {
     _downloadedChapterPath(chapter) {
         let output = this._chapterOutputPath(chapter);
         let existing = chapter.manga && chapter.manga.existingChapters;
-        if (!existing || chapter.status === statusDefinitions.offline || existing[this.path.basename(output)]) {
+        if (
+            !existing ||
+            chapter.status === statusDefinitions.offline ||
+            existing[this.path.basename(output)]
+        ) {
             return output;
         }
         let novel = this._novelOutputPath(chapter);
@@ -729,9 +805,8 @@ export default class Storage {
 
     /**
      * Create a path without forbidden characters.
-    */
+     */
     sanatizePath(path) {
-
         //replace C0 && C1 control codes
         // eslint-disable-next-line no-control-regex
         path = path.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
@@ -837,7 +912,12 @@ export default class Storage {
             let file = this._bookmarkOutputPath + key;
             let data = JSON.stringify(value, undefined, indentation);
             // the directory may be gone (deleted, or a drive that is not there): it is created like the one of the downloads
-            this._createDirectoryChain(this.path.dirname(file)).then(() => this._writeFileAtomic(file, data)).then(() => resolve(), error => reject(error));
+            this._createDirectoryChain(this.path.dirname(file))
+                .then(() => this._writeFileAtomic(file, data))
+                .then(
+                    () => resolve(),
+                    (error) => reject(error),
+                );
         });
     }
 
@@ -845,6 +925,8 @@ export default class Storage {
      * Load the value for the given key from the bookmark storage
      */
     async loadBookmarks(key) {
-        return this.fs.readFile(this._bookmarkOutputPath + key, 'utf8').then(data => JSON.parse(data));
+        return this.fs
+            .readFile(this._bookmarkOutputPath + key, 'utf8')
+            .then((data) => JSON.parse(data));
     }
 }

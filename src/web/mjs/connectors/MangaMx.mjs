@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaMx extends Connector {
-
     constructor() {
         super();
         super.id = 'mangamx';
@@ -30,11 +29,14 @@ export default class MangaMx extends Connector {
             //await this.wait(this.config.throttle.value);
             uri.searchParams.set('p', page + 1);
             let request = new Request(uri, this.requestOptions);
-            let data = await this.fetchDOM(request, 'div#content div#content-left div#article-div a');
-            let mangas = data.map(element => {
+            let data = await this.fetchDOM(
+                request,
+                'div#content div#content-left div#article-div a',
+            );
+            let mangas = data.map((element) => {
                 return {
                     id: this.getRootRelativeOrAbsoluteLink(element.closest('a'), request.url),
-                    title: element.querySelector('span').textContent.trim()
+                    title: element.querySelector('span').textContent.trim(),
                 };
             });
             mangaList = mangaList.concat(mangas);
@@ -45,13 +47,13 @@ export default class MangaMx extends Connector {
     async _getChapters(manga) {
         let uri = new URL(manga.id, this.url);
         let data = await this.fetchDOM(uri, 'div#entry-manga div#c_list a');
-        return data.map(element => {
+        return data.map((element) => {
             let id = this.getRootRelativeOrAbsoluteLink(element, this.url);
             if (id.endsWith('cascada/')) id = id.slice(0, -8);
             return {
                 id: id,
                 title: element.querySelector('div.entry-title h3.entry-title-h2').innerText.trim(),
-                language: 'es'
+                language: 'es',
             };
         });
     }

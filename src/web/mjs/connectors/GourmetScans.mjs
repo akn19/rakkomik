@@ -1,12 +1,11 @@
 import WordPressMadara from './templates/WordPressMadara.mjs';
 
 export default class GourmetScans extends WordPressMadara {
-
     constructor() {
         super();
         super.id = 'gourmetscans';
         super.label = 'Gourmet Scans';
-        this.tags = [ 'webtoon', 'english' ];
+        this.tags = ['webtoon', 'english'];
         this.url = 'https://gourmetsupremacy.com';
     }
 
@@ -40,6 +39,6 @@ export default class GourmetScans extends WordPressMadara {
             });
         `;
         const data = await Engine.Request.fetchUI(request, script);
-        return data.map(picture => this.createConnectorURI({url : picture, referer : url}));
+        return data.map((picture) => this.createConnectorURI({ url: picture, referer: url }));
     }
 }

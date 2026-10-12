@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaLife extends Connector {
-
     constructor() {
         super();
         super.id = 'mangalife';
         super.label = 'MangaLife';
-        this.tags = [ 'manga', 'webtoon', 'english' ];
+        this.tags = ['manga', 'webtoon', 'english'];
         this.url = 'https://manga4life.com';
         this.requestOptions.headers.set('x-cookie', 'FullPage=yes');
         this.requestOptions.headers.set('x-referer', this.url);
@@ -24,13 +23,13 @@ export default class MangaLife extends Connector {
     async _getMangas() {
         let request = new Request(new URL('/directory/', this.url), this.requestOptions);
         let data = await this.fetchRegex(request, /vm\.FullDirectory\s*=\s*(.+\})\s*/g);
-        return JSON.parse(data[0]).Directory.map(manga => {
+        return JSON.parse(data[0]).Directory.map((manga) => {
             // resolve html entities
             let element = document.createElement('div');
             element.innerHTML = manga.s;
             return {
                 id: manga.i,
-                title: element.textContent
+                title: element.textContent,
             };
         });
     }
@@ -84,6 +83,8 @@ export default class MangaLife extends Connector {
         `;
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         let data = await Engine.Request.fetchUI(request, script);
-        return data.map(element => this.createConnectorURI(this.getAbsolutePath(element, request.url)));
+        return data.map((element) =>
+            this.createConnectorURI(this.getAbsolutePath(element, request.url)),
+        );
     }
 }

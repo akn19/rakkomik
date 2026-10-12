@@ -4,7 +4,7 @@ export default class Manga1st extends WordPressMadara {
         super();
         super.id = 'manga1st';
         super.label = 'MangaVisa';
-        this.tags = [ 'manga', 'webtoon', 'english' ];
+        this.tags = ['manga', 'webtoon', 'english'];
         this.url = 'https://mangavisa.com';
     }
 

@@ -125,17 +125,17 @@ export default class XBatCat extends Connector {
                     origStatus: '',
                     siteStatus: '',
                     chapCount: '',
-                    ignoreGlobalGenres: false
-                }
+                    ignoreGlobalGenres: false,
+                },
             };
 
             const data = await this._graphQLRequest(variables, COMIC_SEARCH_QUERY);
             const response = data.get_comic_browse;
 
-            const mangas = response.items.map(item => {
+            const mangas = response.items.map((item) => {
                 return {
                     id: item.data.id,
-                    title: item.data.name.trim()
+                    title: item.data.name.trim(),
                 };
             });
 
@@ -153,48 +153,50 @@ export default class XBatCat extends Connector {
     async _getChapters(manga) {
         const variables = {
             comicId: manga.id,
-            start: -1
+            start: -1,
         };
 
         const data = await this._graphQLRequest(variables, CHAPTER_LIST_QUERY);
         const chapters = data.get_comic_chapterList;
 
-        return chapters.map(chapter => {
-            const chapterData = chapter.data;
-            let chapterName = '';
+        return chapters
+            .map((chapter) => {
+                const chapterData = chapter.data;
+                let chapterName = '';
 
-            // Build chapter name
-            if (chapterData.serial != null) {
-                const number = chapterData.serial.toString().replace('.0', '');
-                if (!chapterData.dname.includes(number)) {
-                    chapterName += `Chapter ${number}: `;
+                // Build chapter name
+                if (chapterData.serial != null) {
+                    const number = chapterData.serial.toString().replace('.0', '');
+                    if (!chapterData.dname.includes(number)) {
+                        chapterName += `Chapter ${number}: `;
+                    }
                 }
-            }
 
-            chapterName += chapterData.dname;
+                chapterName += chapterData.dname;
 
-            if (chapterData.title) {
-                chapterName += `: ${chapterData.title}`;
-            }
+                if (chapterData.title) {
+                    chapterName += `: ${chapterData.title}`;
+                }
 
-            return {
-                id: chapterData.id,
-                title: chapterName,
-                language: ''
-            };
-        }).reverse();
+                return {
+                    id: chapterData.id,
+                    title: chapterName,
+                    language: '',
+                };
+            })
+            .reverse();
     }
 
     async _getPages(chapter) {
         const variables = {
-            id: chapter.id
+            id: chapter.id,
         };
 
         const data = await this._graphQLRequest(variables, CHAPTER_NODE_QUERY);
         const chapterData = data.get_chapterNode.data;
         const imageUrls = chapterData.imageFile.urlList;
 
-        return imageUrls.map(url => this.getAbsolutePath(url, this.url));
+        return imageUrls.map((url) => this.getAbsolutePath(url, this.url));
     }
 
     async _graphQLRequest(variables, query) {
@@ -202,12 +204,12 @@ export default class XBatCat extends Connector {
             method: 'POST',
             body: JSON.stringify({
                 variables: variables,
-                query: query
+                query: query,
             }),
             headers: {
                 'Content-Type': 'application/json',
-                'Referer': this.url + '/'
-            }
+                Referer: this.url + '/',
+            },
         });
 
         const response = await fetch(request);

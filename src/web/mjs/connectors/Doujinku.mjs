@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class Doujinku extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'doujinku';

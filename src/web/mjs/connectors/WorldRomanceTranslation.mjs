@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class WorldRomanceTranslation extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'worldromancetranslation';
@@ -15,10 +14,12 @@ export default class WorldRomanceTranslation extends WordPressMangastream {
 
     async _getPages(chapter) {
         const images = await super._getPages(chapter);
-        return images.map(link => this.createConnectorURI({
-            url: link,
-            referer: this.url
-        }));
+        return images.map((link) =>
+            this.createConnectorURI({
+                url: link,
+                referer: this.url,
+            }),
+        );
     }
 
     async _handleConnectorURI(payload) {

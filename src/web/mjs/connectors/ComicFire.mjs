@@ -2,19 +2,17 @@ import SpeedBinb from './templates/SpeedBinb.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ComicFire extends SpeedBinb {
-
     constructor() {
         super();
         super.id = 'comicfire';
         super.label = 'COMIC ファイア (Comic Fire/Hobby Japan)';
-        this.tags = [ 'manga', 'japanese' ];
+        this.tags = ['manga', 'japanese'];
         this.url = 'https://www.hobbyjapan.co.jp/comic';
 
         this.queryManga = 'div.series_list_box div.cover_contents dl dt a';
 
         this.queryChapters = 'li.pconly h3 a';
         this.queryChapterTitles = 'li.episode';
-
     }
 
     async _getMangaFromURI(uri) {
@@ -28,12 +26,12 @@ export default class ComicFire extends SpeedBinb {
     async _getMangas() {
         let request = new Request(this.url + '/series', this.requestOptions); //ongoing series
         let data = await this.fetchDOM(request, this.queryManga);
-        request = new Request(this.url + "/series/series_end.html"); //completed series
+        request = new Request(this.url + '/series/series_end.html'); //completed series
         data = data.concat(await this.fetchDOM(request, this.queryManga));
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url).slice(6),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -42,39 +40,43 @@ export default class ComicFire extends SpeedBinb {
         let request = new Request(this.url + manga.id, this.requestOptions);
         let titles = await this.fetchDOM(request, this.queryChapterTitles);
         let data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: titles.shift().textContent.trim()
+                title: titles.shift().textContent.trim(),
             };
         });
     }
 
-    _getPageList( manga, chapter, callback ) {
+    _getPageList(manga, chapter, callback) {
         let ch = {
             id: chapter.id,
             title: chapter.title,
-            language: chapter.language
+            language: chapter.language,
         };
-        if(chapter.id.includes("SWF")) { //legacy format; older chapters may use this
-            ch.id = "http://tachiyomi.yomeru-hj.net/comic/" + ch.id.slice(17).replace("_SWF_Window.html", "");
+        if (chapter.id.includes('SWF')) {
+            //legacy format; older chapters may use this
+            ch.id =
+                'http://tachiyomi.yomeru-hj.net/comic/' +
+                ch.id.slice(17).replace('_SWF_Window.html', '');
             let request = new Request(ch.id + 'books/db/book.xml', this.requestOptions);
             this.fetchDOM(request, 'total:first-of-type')
                 .then((element) => {
                     let total = parseInt(element[0].textContent);
                     let pageList = [];
-                    for(let i = 1; i <= total; i++) {
-                        pageList.push(ch.id + "books/images/3.5/" + i + ".jpg");
+                    for (let i = 1; i <= total; i++) {
+                        pageList.push(ch.id + 'books/images/3.5/' + i + '.jpg');
                     }
                     callback(undefined, pageList);
                 })
-                .catch(error => {
+                .catch((error) => {
                     console.error(error, chapter);
                     callback(error, undefined);
                 });
-        }else{ //speedbinb
+        } else {
+            //speedbinb
             this.baseURL = ch.id;
-            super._getPageList( manga, ch, callback );
+            super._getPageList(manga, ch, callback);
         }
     }
 }

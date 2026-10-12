@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class KuManga extends Connector {
-
     constructor() {
         super();
         super.id = 'kumanga';
         super.label = 'KuManga';
-        this.tags = [ 'manga', 'spanish' ];
+        this.tags = ['manga', 'spanish'];
         this.url = 'https://www.kumanga.com';
         this.requestOptions.headers.set('x-referer', this.url);
     }
@@ -36,9 +35,9 @@ export default class KuManga extends Connector {
         let uri = new URL('/mangalist?&page=1', this.url);
         let request = new Request(uri, this.requestOptions);
         let token = await Engine.Request.fetchUI(request, script);
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(token, page);
-            mangas.length > 1 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 1 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -56,35 +55,35 @@ export default class KuManga extends Connector {
             method: 'POST',
             body: form.toString(),
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
         });
         let data = await this.fetchJSON(request);
-        return data.contents.map(entry => {
+        return data.contents.map((entry) => {
             return {
-                id: ['/manga', entry.id/*, entry.slug*/].join('/'),
-                title: entry.name.trim()
+                id: ['/manga', entry.id /*, entry.slug*/].join('/'),
+                title: entry.name.trim(),
             };
         });
     }
 
     async _getChapters(manga) {
         let chapterList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let chapters = await this._getChaptersFromPage(manga, page);
-            chapters.length > 0 ? chapterList.push(...chapters) : run = false;
+            chapters.length > 0 ? chapterList.push(...chapters) : (run = false);
         }
         return chapterList;
     }
 
     async _getChaptersFromPage(manga, page) {
-        let request = new Request( this.url + manga.id + '/p/' + page, this.requestOptions );
+        let request = new Request(this.url + manga.id + '/p/' + page, this.requestOptions);
         let data = await this.fetchDOM(request, 'div.media-body h5 > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url).replace('/c/', '/leer/'),
                 title: element.text.replace(manga.title, '').trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -101,13 +100,13 @@ export default class KuManga extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script);
-        const promises = data.images.map(async link => {
+        const promises = data.images.map(async (link) => {
             let redirector = new URL(link, this.url);
-            if(redirector.pathname.endsWith('/img.php')) {
+            if (redirector.pathname.endsWith('/img.php')) {
                 const controller = new AbortController();
                 const redirect = new Request(redirector, {
                     signal: controller.signal,
-                    ...this.requestOptions
+                    ...this.requestOptions,
                 });
                 redirect.headers.set('x-referer', data.referer);
                 const response = await fetch(redirect);

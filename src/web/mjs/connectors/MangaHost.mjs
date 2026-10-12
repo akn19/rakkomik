@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class MangaHost extends Connector {
-
     constructor() {
         super();
         super.id = 'mangahost';
@@ -13,12 +12,13 @@ export default class MangaHost extends Connector {
         this.config = {
             mangaListThrottle: {
                 label: 'Throttle Requests [ms]',
-                description: 'Enter the timespan in [ms] to delay consecuitive HTTP requests.\nThe website may reject to many consecuitive requests.\nSlightly increase the value when getting 403 errors during manga list update.',
+                description:
+                    'Enter the timespan in [ms] to delay consecuitive HTTP requests.\nThe website may reject to many consecuitive requests.\nSlightly increase the value when getting 403 errors during manga list update.',
                 input: 'numeric',
                 min: 0,
                 max: 5000,
-                value: 1000
-            }
+                value: 1000,
+            },
         };
     }
 
@@ -40,15 +40,22 @@ export default class MangaHost extends Connector {
     }
 
     async _getMangas() {
-        const pageData = await this.fetchDOM(this.url + '/mangas', 'div.paginador div.wp-pagenavi a.last');
+        const pageData = await this.fetchDOM(
+            this.url + '/mangas',
+            'div.paginador div.wp-pagenavi a.last',
+        );
         let pageCount = parseInt(pageData[0].href.match(/(\d+)$/)[1]);
         let mangaList = [];
         for (let page = 1; page <= pageCount; page++) {
-            const data = await this.fetchDOM(this.url + '/mangas/page/' + page, 'a.manga-block-title-link', 5);
-            const pageList = data.map(element => {
+            const data = await this.fetchDOM(
+                this.url + '/mangas/page/' + page,
+                'a.manga-block-title-link',
+                5,
+            );
+            const pageList = data.map((element) => {
                 return {
                     id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                    title: element.text.trim()
+                    title: element.text.trim(),
                 };
             });
             await this.wait(this.config.mangaListThrottle.value);
@@ -61,11 +68,11 @@ export default class MangaHost extends Connector {
         const url = new URL(manga.id, this.url);
         url.searchParams.set('t', Date.now());
         const data = await this.fetchDOM(url.href, 'div.chapters div.card.pop div.pop-title span');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: [manga.id, element.textContent].join('/'),
                 title: element.textContent,
-                language: 'pt'
+                language: 'pt',
             };
         });
     }

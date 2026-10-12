@@ -12,12 +12,13 @@ export default class TruyenQQ extends Connector {
         this.config = {
             throttle: {
                 label: 'Throttle Requests [ms]',
-                description: 'Enter the timespan in [ms] to delay consecuitive HTTP requests when fetching manga list',
+                description:
+                    'Enter the timespan in [ms] to delay consecuitive HTTP requests when fetching manga list',
                 input: 'numeric',
                 min: 1000,
                 max: 7500,
-                value: 1250
-            }
+                value: 1250,
+            },
         };
     }
     async _getMangaFromURI(uri) {
@@ -56,10 +57,7 @@ export default class TruyenQQ extends Connector {
     async _getChapters(manga) {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
-        const data = await this.fetchDOM(
-            request,
-            'div.works-chapter-item div.name-chap a'
-        );
+        const data = await this.fetchDOM(request, 'div.works-chapter-item div.name-chap a');
         return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),

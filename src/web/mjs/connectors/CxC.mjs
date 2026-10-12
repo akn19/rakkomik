@@ -1,14 +1,19 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
-import { sha512Hex, hexToBytes, base64ToBytes, bytesToUtf8, aesCbcDecrypt } from '../engine/Crypto.mjs';
+import {
+    sha512Hex,
+    hexToBytes,
+    base64ToBytes,
+    bytesToUtf8,
+    aesCbcDecrypt,
+} from '../engine/Crypto.mjs';
 
 export default class CxC extends Connector {
-
     constructor() {
         super();
         super.id = 'cxc';
         super.label = 'CxC - Content x Creator';
-        this.tags = [ 'webtoon', 'chinese' ];
+        this.tags = ['webtoon', 'chinese'];
         this.url = 'https://cxc.today';
         this.api = 'https://api.cxc.today';
         this.booksPerPage = 50;
@@ -16,7 +21,7 @@ export default class CxC extends Connector {
         this.auth = {
             accessToken: null,
             refreshToken: null,
-            expireTime: null
+            expireTime: null,
         };
         this.requestOptions.headers.set('accept', 'application/json, text/plain, */*');
         this.requestOptions.headers.set('content-type', 'application/json;charset=utf-8');
@@ -24,21 +29,23 @@ export default class CxC extends Connector {
         this.requestOptions.headers.set('origin', this.url + '/');
         this.requestOptions.headers.set('device', 'web');
         this.links = {
-            login: 'https://cxc.today/login'
+            login: 'https://cxc.today/login',
         };
         this.config = {
             username: {
                 label: 'E-Mail',
-                description: 'E-Mail for login with your CxC account.\nAn account is required to access 18+ content (18禁).\nA fan subscription is required to access VIP content (訂閱粉絲限定).',
+                description:
+                    'E-Mail for login with your CxC account.\nAn account is required to access 18+ content (18禁).\nA fan subscription is required to access VIP content (訂閱粉絲限定).',
                 input: 'text',
-                value: ''
+                value: '',
             },
             password: {
                 label: 'Password',
-                description: 'Password for login with your CxC account.\nAn account is required to access 18+ content (18禁).\nA fan subscription is required to access VIP content (訂閱粉絲限定).',
+                description:
+                    'Password for login with your CxC account.\nAn account is required to access 18+ content (18禁).\nA fan subscription is required to access VIP content (訂閱粉絲限定).',
                 input: 'password',
-                value: ''
-            }
+                value: '',
+            },
         };
     }
 
@@ -66,13 +73,16 @@ export default class CxC extends Connector {
     async _getMangasFromPage(page) {
         await this._login();
         try {
-            let request = new Request(`${this.api}/book?page=${page}&per_page=${this.booksPerPage}&sort_by=updated_at&work_category=1&lang=&word_count=0`, this.requestOptions);
+            let request = new Request(
+                `${this.api}/book?page=${page}&per_page=${this.booksPerPage}&sort_by=updated_at&work_category=1&lang=&word_count=0`,
+                this.requestOptions,
+            );
             let bookData = await this.fetchJSON(request);
-            bookData = bookData.data.data.filter(book => book.work_category.id == 1);
-            return bookData.map(book => {
+            bookData = bookData.data.data.filter((book) => book.work_category.id == 1);
+            return bookData.map((book) => {
                 return {
                     id: `/store/${book.store.id}/book/${book.id}`,
-                    title: book.name
+                    title: book.name,
                 };
             });
         } catch (error) {
@@ -85,7 +95,7 @@ export default class CxC extends Connector {
         let books = [];
         for (let page = 1, run = true; run; page++) {
             const booksFromPage = await this._getMangasFromPage(page);
-            booksFromPage.length > 0 ? books.push(...booksFromPage) : run = false;
+            booksFromPage.length > 0 ? books.push(...booksFromPage) : (run = false);
         }
         return books;
     }
@@ -98,16 +108,20 @@ export default class CxC extends Connector {
             chapterData = await this.fetchJSON(request);
         } catch (error) {
             if (!this.auth.accessToken) {
-                throw Error("Could not get chapters, may be age-restricted (18禁). Add an account to view chapters.");
+                throw Error(
+                    'Could not get chapters, may be age-restricted (18禁). Add an account to view chapters.',
+                );
             } else {
-                throw Error("Could not get chapters, your account may not be configured to view age-restricted works (18禁).");
+                throw Error(
+                    'Could not get chapters, your account may not be configured to view age-restricted works (18禁).',
+                );
             }
         }
         return chapterData.data.data.map((chapter, index) => {
             const chapterNum = index + 1;
             return {
                 id: `${manga.id}/chapter/${chapter.id}`,
-                title: `#${chapterNum.toString()} - ${chapter.name}`
+                title: `#${chapterNum.toString()} - ${chapter.name}`,
             };
         });
     }
@@ -119,12 +133,12 @@ export default class CxC extends Connector {
         try {
             contentData = await this.fetchJSON(request);
         } catch (error) {
-            throw Error("Could not get pages, chapter may require a fan subscription (粉絲免費).");
+            throw Error('Could not get pages, chapter may require a fan subscription (粉絲免費).');
         }
         return contentData.data.content.map((page) => {
             return this.createConnectorURI({
                 url: page.url,
-                imageKey: page.key
+                imageKey: page.key,
             });
         });
     }
@@ -139,30 +153,35 @@ export default class CxC extends Connector {
                 function (e, _) {
                     return e + String.fromCharCode(_);
                 },
-                ''
-            )
+                '',
+            ),
         );
         const token = this.auth.accessToken ? this.auth.accessToken : 'freeforcxc2021reading'; //default free content token, may change in the future
         const tokenHash = await sha512Hex(token);
         const tokenCombo = {
             key: tokenHash.slice(0, 64),
-            iv: tokenHash.slice(30, 62)
+            iv: tokenHash.slice(30, 62),
         };
         let imageComboString = (await this._decrypt(payload.imageKey, tokenCombo)).split(':');
         const imageCombo = {
             key: imageComboString[0],
-            iv: imageComboString[1]
+            iv: imageComboString[1],
         };
-        let decryptedImageResponse = (await this._decrypt(encTransformImage, imageCombo)).split(",");
+        let decryptedImageResponse = (await this._decrypt(encTransformImage, imageCombo)).split(
+            ',',
+        );
         // from https://cxc.today/worker/base64ToBlob.js
-        const e = decryptedImageResponse[0].indexOf("base64") >= 0 ? atob(decryptedImageResponse[1]) : decodeURI(decryptedImageResponse[1]);
+        const e =
+            decryptedImageResponse[0].indexOf('base64') >= 0
+                ? atob(decryptedImageResponse[1])
+                : decodeURI(decryptedImageResponse[1]);
         let n = new Uint8Array(e.length);
         for (let i = 0; i < e.length; i++) {
             n[i] = e.charCodeAt(i);
         }
         let data = {
             mimeType: response.headers.get('content-type'),
-            data: n
+            data: n,
         };
         this._applyRealMime(data);
         return data;
@@ -170,7 +189,11 @@ export default class CxC extends Connector {
 
     async _decrypt(encryptedBuffer, keyIvCombo) {
         // from https://cxc.today/worker/AESDecrypt.js
-        let decrypted = await aesCbcDecrypt(base64ToBytes(encryptedBuffer), hexToBytes(keyIvCombo.key), hexToBytes(keyIvCombo.iv));
+        let decrypted = await aesCbcDecrypt(
+            base64ToBytes(encryptedBuffer),
+            hexToBytes(keyIvCombo.key),
+            hexToBytes(keyIvCombo.iv),
+        );
         return bytesToUtf8(decrypted);
     }
 
@@ -197,9 +220,9 @@ export default class CxC extends Connector {
                         body: JSON.stringify({
                             grant_type: 'password',
                             password: this.config.password.value,
-                            username: this.config.username.value
+                            username: this.config.username.value,
                         }),
-                        headers: this.requestOptions.headers
+                        headers: this.requestOptions.headers,
                     });
                     let tokenData = await this.fetchJSON(loginRequest);
                     this.auth.accessToken = tokenData.access_token;
@@ -223,9 +246,9 @@ export default class CxC extends Connector {
                     method: 'POST',
                     body: JSON.stringify({
                         grant_type: 'refresh_token',
-                        refresh_token: this.auth.refreshToken
+                        refresh_token: this.auth.refreshToken,
                     }),
-                    headers: this.requestOptions.headers
+                    headers: this.requestOptions.headers,
                 });
                 let refreshData = await this.fetchJSON(refreshRequest);
                 this.auth.accessToken = refreshData.access_token;
@@ -234,7 +257,7 @@ export default class CxC extends Connector {
             } catch (error) {
                 this.auth.accessToken = null;
                 this.auth.refreshToken = null;
-                throw Error("Failed to refresh access token.");
+                throw Error('Failed to refresh access token.');
             }
         }
         if (this.auth.accessToken) {

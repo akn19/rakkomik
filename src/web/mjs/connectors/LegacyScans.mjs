@@ -1,7 +1,6 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class LegacyScans extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'legacyscans';
@@ -15,6 +14,6 @@ export default class LegacyScans extends WordPressMangastream {
     }
 
     async _getPages(chapter) {
-        return (await super._getPages(chapter)).map(page => this.createConnectorURI(page));
+        return (await super._getPages(chapter)).map((page) => this.createConnectorURI(page));
     }
 }

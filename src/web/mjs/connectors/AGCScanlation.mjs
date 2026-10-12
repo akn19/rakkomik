@@ -2,12 +2,11 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class AGCScanlation extends Connector {
-
     constructor() {
         super();
         super.id = 'agcscanlation';
         super.label = 'AGCScanlation';
-        this.tags = [ 'manga', 'italian', 'scanlation' ];
+        this.tags = ['manga', 'italian', 'scanlation'];
         this.url = 'https://www.agcscanlation.it';
     }
 
@@ -22,10 +21,10 @@ export default class AGCScanlation extends Connector {
         const uri = new URL('/serie.php', this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.containerprogetti > div.manga > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('.nomeserie span').textContent.trim()
+                title: element.querySelector('.nomeserie span').textContent.trim(),
             };
         });
     }
@@ -34,19 +33,24 @@ export default class AGCScanlation extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.capitoli_cont > a');
-        return data.map(element => {
-            return {
-                id: this.getRootRelativeOrAbsoluteLink(element, this.url).replace('reader.php', 'readerr.php'),
-                title: element.textContent.trim(),
-                language: '',
-            };
-        }).reverse();
+        return data
+            .map((element) => {
+                return {
+                    id: this.getRootRelativeOrAbsoluteLink(element, this.url).replace(
+                        'reader.php',
+                        'readerr.php',
+                    ),
+                    title: element.textContent.trim(),
+                    language: '',
+                };
+            })
+            .reverse();
     }
 
     async _getPages(chapter) {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, 'div.centrailcorrente > source');
-        return data.map(element => this.url + new URL(element.src).pathname);
+        return data.map((element) => this.url + new URL(element.src).pathname);
     }
 }

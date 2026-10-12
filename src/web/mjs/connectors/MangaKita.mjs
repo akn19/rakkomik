@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class MangaKita extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'mangakita';
         super.label = 'MangaKita';
-        this.tags = [ 'manga', 'indonesian' ];
+        this.tags = ['manga', 'indonesian'];
         this.url = 'https://mangakita.id';
         this.path = '/manga/list-mode/';
     }
@@ -16,9 +15,9 @@ export default class MangaKita extends WordPressMangastream {
             /[.,]5\.(jpg|png)$/i,
             /iklan\.(jpg|png)$/i,
             /zz\.(jpg|png)$/i,
-            /\.filerun\./i
+            /\.filerun\./i,
         ];
         let pageList = await super._getPages(chapter);
-        return pageList.filter(link => !fakeLinkPatterns.some(pattern => pattern.test(link)));
+        return pageList.filter((link) => !fakeLinkPatterns.some((pattern) => pattern.test(link)));
     }
 }

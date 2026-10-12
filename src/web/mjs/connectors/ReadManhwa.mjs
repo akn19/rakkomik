@@ -2,23 +2,22 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ReadManhwa extends Connector {
-
     constructor() {
         super();
         super.id = 'readmanhwa';
         super.label = 'ReadManhwa';
-        this.tags = [ 'webtoon', 'manga', 'english' ];
+        this.tags = ['webtoon', 'manga', 'english'];
         this.url = 'https://readmanhwa.com';
         this.links = {
-            login: 'https://readmanhwa.com/en/login'
+            login: 'https://readmanhwa.com/en/login',
         };
     }
 
     async _getMangas() {
         let mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length ? mangaList.push(...mangas) : run = false;
+            mangas.length ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -34,12 +33,12 @@ export default class ReadManhwa extends Connector {
         const response = await this.fetchJSON(request);
         const data = response.data;
 
-        if(!data) return [];
+        if (!data) return [];
 
-        return data.map(el => {
+        return data.map((el) => {
             return {
                 id: el.slug,
-                title: el.title
+                title: el.title,
             };
         });
     }
@@ -49,7 +48,7 @@ export default class ReadManhwa extends Connector {
         uri.searchParams.set('nsfw', true);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSON(request);
-        return data.map(el => {
+        return data.map((el) => {
             return {
                 id: el.slug,
                 title: el.name,
@@ -62,19 +61,21 @@ export default class ReadManhwa extends Connector {
         uri.searchParams.set('nsfw', true);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchJSON(request);
-        return data.images.map(el => {
+        return data.images.map((el) => {
             return el.source_url;
         });
     }
 
     async _getMangaFromURI(uri) {
         const ch = uri.pathname.split('/');
-        const slug = ch[ch.length-1];
-        const request = new Request(new URL(`/api/comics/${slug}?nsfw=true`, this.url), this.requestOptions);
+        const slug = ch[ch.length - 1];
+        const request = new Request(
+            new URL(`/api/comics/${slug}?nsfw=true`, this.url),
+            this.requestOptions,
+        );
         const data = await this.fetchJSON(request);
         const id = data.slug;
         const title = data.title;
         return new Manga(this, id, title);
     }
-
 }

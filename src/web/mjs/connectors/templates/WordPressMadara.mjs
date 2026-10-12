@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class WordPressMadara extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -30,7 +29,10 @@ export default class WordPressMadara extends Connector {
 
         this.requestOptions.method = 'POST';
         this.requestOptions.body = form.toString();
-        let request = new Request(new URL(this.path + '/wp-admin/admin-ajax.php', this.url), this.requestOptions);
+        let request = new Request(
+            new URL(this.path + '/wp-admin/admin-ajax.php', this.url),
+            this.requestOptions,
+        );
         request.headers.set('content-type', 'application/x-www-form-urlencoded');
         request.headers.set('x-referer', this.url);
         this.requestOptions.method = 'GET';
@@ -42,7 +44,7 @@ export default class WordPressMadara extends Connector {
         let mangaList = [];
         for (let page = 0, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -50,10 +52,10 @@ export default class WordPressMadara extends Connector {
     async _getMangasFromPage(page) {
         let request = this._createMangaRequest(page);
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -65,8 +67,8 @@ export default class WordPressMadara extends Connector {
             body: 'action=manga_get_chapters&manga=' + dataID,
             headers: {
                 'content-type': 'application/x-www-form-urlencoded',
-                'x-referer': this.url
-            }
+                'x-referer': this.url,
+            },
         });
         const data = await this.fetchDOM(request, this.queryChapters);
         if (data.length) {
@@ -96,14 +98,14 @@ export default class WordPressMadara extends Connector {
         if (placeholder) {
             const promises = await Promise.allSettled([
                 this._getChaptersAjax(manga.id),
-                this._getChaptersAjaxOld(placeholder.dataset.id)
+                this._getChaptersAjaxOld(placeholder.dataset.id),
             ]);
-            data = promises.find(promise => /fulfilled/i.test(promise.status)).value;
+            data = promises.find((promise) => /fulfilled/i.test(promise.status)).value;
         }
 
-        return data.map(element => {
+        return data.map((element) => {
             if (this.queryChaptersTitleBloat) {
-                [...element.querySelectorAll(this.queryChaptersTitleBloat)].forEach(bloat => {
+                [...element.querySelectorAll(this.queryChaptersTitleBloat)].forEach((bloat) => {
                     if (bloat.parentElement) {
                         bloat.parentElement.removeChild(bloat);
                     }
@@ -112,7 +114,7 @@ export default class WordPressMadara extends Connector {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
                 title: element.text.replace(manga.title, '').trim(),
-                language: ''
+                language: '',
             };
         });
     }
@@ -129,8 +131,12 @@ export default class WordPressMadara extends Connector {
             request = new Request(uri, this.requestOptions);
             data = await this.fetchDOM(request, this.queryPages);
         }
-        return data.map(element => {
-            element.src = element.dataset['url'] || element.dataset['src'] || element['srcset'] || element.src;
+        return data.map((element) => {
+            element.src =
+                element.dataset['url'] ||
+                element.dataset['src'] ||
+                element['srcset'] ||
+                element.src;
             element.setAttribute('src', element.src);
             if (element.src.includes('data:image')) {
                 return element.src.match(/data:image[^\s'"]*/)[0];
@@ -144,7 +150,7 @@ export default class WordPressMadara extends Connector {
                 return this.createConnectorURI({
                     // HACK: bypass 'i0.wp.com' image CDN to ensure original images are loaded directly from host
                     url: uri.href.replace(/\/i\d+\.wp\.com/, ''),
-                    referer: request.url
+                    referer: request.url,
                 });
             }
         });

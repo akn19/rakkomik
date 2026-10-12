@@ -43,9 +43,17 @@ const DISCOVER_SCRIPT = `
 `;
 
 function hasImageSignature(bytes) {
-    const webp = bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
-    const jpeg = bytes[0] === 0xFF && bytes[1] === 0xD8;
-    const png = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+    const webp =
+        bytes[0] === 0x52 &&
+        bytes[1] === 0x49 &&
+        bytes[2] === 0x46 &&
+        bytes[3] === 0x46 &&
+        bytes[8] === 0x57 &&
+        bytes[9] === 0x45 &&
+        bytes[10] === 0x42 &&
+        bytes[11] === 0x50;
+    const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8;
+    const png = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
     return bytes.length >= 12 && (webp || jpeg || png);
 }
 
@@ -59,17 +67,17 @@ function xorShift32(state) {
 function decryptWithXorShift32(encrypted, key, limit, highByte) {
     const bytes = new Uint8Array(encrypted);
     let state = key | 0;
-    for(let index = 0; index < Math.min(bytes.length, limit); index++) {
+    for (let index = 0; index < Math.min(bytes.length, limit); index++) {
         state = xorShift32(state);
-        bytes[index] ^= highByte ? state >>> 24 : state & 0xFF;
+        bytes[index] ^= highByte ? state >>> 24 : state & 0xff;
     }
     return bytes;
 }
 
 function decryptWithLCG(encrypted, key, limit) {
     const bytes = new Uint8Array(encrypted);
-    for(let index = 0; index < Math.min(bytes.length, limit); index++) {
-        key = Math.imul(key, 1000005) + 1234567891 | 0;
+    for (let index = 0; index < Math.min(bytes.length, limit); index++) {
+        key = (Math.imul(key, 1000005) + 1234567891) | 0;
         bytes[index] ^= key >>> 24;
     }
     return bytes;
@@ -86,11 +94,11 @@ export function decryptImage(encrypted, key, limit) {
         () => decryptWithXorShift32(encrypted, key | 1, limit, false),
         () => decryptWithXorShift32(encrypted, key, limit, false),
         () => decryptWithLCG(encrypted, key | 1, limit),
-        () => decryptWithLCG(encrypted, key, limit)
+        () => decryptWithLCG(encrypted, key, limit),
     ];
-    for(const decrypt of decryptions) {
+    for (const decrypt of decryptions) {
         const bytes = decrypt();
-        if(hasImageSignature(bytes)) {
+        if (hasImageSignature(bytes)) {
             return bytes;
         }
     }
@@ -105,11 +113,11 @@ export function scrambleOrder(count, hash, seedModifier, algorithm) {
     const xorShift = algorithm === '3';
     let state = xorShift ? salt | 1 : salt;
     const indices = Array.from({ length: Math.max(1, count) }, (_, index) => index);
-    for(let current = indices.length - 1; current > 0; current--) {
-        if(xorShift) {
+    for (let current = indices.length - 1; current > 0; current--) {
+        if (xorShift) {
             state = xorShift32(state);
         } else {
-            state = Math.imul(state, 1664525) + 1013904223 | 0;
+            state = (Math.imul(state, 1664525) + 1013904223) | 0;
         }
         const random = (state >>> 0) % (current + 1);
         [indices[current], indices[random]] = [indices[random], indices[current]];
@@ -122,12 +130,11 @@ export function scrambleOrder(count, hash, seedModifier, algorithm) {
 }
 
 export default class ComixTo extends Connector {
-
     constructor() {
         super();
         super.id = 'comixto';
         super.label = 'Comix (.to)';
-        this.tags = [ 'manga', 'manhwa', 'manhua', 'english' ];
+        this.tags = ['manga', 'manhwa', 'manhua', 'english'];
         this.url = 'https://comix.to';
     }
 
@@ -140,7 +147,11 @@ export default class ComixTo extends Connector {
      */
     async _callSite(page, body, timeout) {
         const script = `(async () => { ${DISCOVER_SCRIPT} ${body} })()`;
-        return Engine.Request.fetchUI(new Request(new URL(page, this.url), this.requestOptions), script, timeout || 120000);
+        return Engine.Request.fetchUI(
+            new Request(new URL(page, this.url), this.requestOptions),
+            script,
+            timeout || 120000,
+        );
     }
 
     _mangaHash(manga) {
@@ -155,7 +166,9 @@ export default class ComixTo extends Connector {
     }
 
     async _getMangas() {
-        return this._callSite('/', `
+        return this._callSite(
+            '/',
+            `
             const mangas = [];
             for (let page = 1; ; page++) {
                 const { items, meta } = await mangaApi.list({ page, limit: 100 });
@@ -165,12 +178,16 @@ export default class ComixTo extends Connector {
                 }
             }
             return mangas;
-        `, 3600000);
+        `,
+            3600000,
+        );
     }
 
     async _getChapters(manga) {
         const hash = this._mangaHash(manga);
-        const chapters = await this._callSite(manga.id, `
+        const chapters = await this._callSite(
+            manga.id,
+            `
             const chapters = [];
             for (let page = 1; ; page++) {
                 const { items, meta } = await mangaApi.chapters(${JSON.stringify(hash)}, { page, limit: 100, order: { number: 'desc' } });
@@ -180,25 +197,30 @@ export default class ComixTo extends Connector {
                 }
             }
             return chapters;
-        `, 600000);
+        `,
+            600000,
+        );
         return chapters.map(({ id, number, name, group, url }) => ({
             id: url || `${manga.id}/${id}-chapter-${number}`,
-            title: number + (name ? ` - ${name}` : '') + (group ? ` [${group}]` : '')
+            title: number + (name ? ` - ${name}` : '') + (group ? ` [${group}]` : ''),
         }));
     }
 
     async _getPages(chapter) {
         const chapterId = chapter.id.match(/\/(\d+)-chapter-[^/]*$/)[1];
-        const { baseUrl, items } = await this._callSite(chapter.id, `
+        const { baseUrl, items } = await this._callSite(
+            chapter.id,
+            `
             const { pages } = await http.get('/chapters/${chapterId}');
             return { baseUrl: pages.baseUrl || '', items: pages.items };
-        `);
+        `,
+        );
         const base = baseUrl.replace(/\/+$/, '');
         return items.map(({ url, s }) => {
             let link = /^https?:/.test(url) ? url : base + '/' + url.replace(/^\/+/, '');
             // V3 pages need the flag, so the server announces the scramble headers
             const isV3 = s === 1 || /[?&]v3(&|=|$)/.test(link);
-            if(isV3 && !/[?&]v3(&|=|$)/.test(link)) {
+            if (isV3 && !/[?&]v3(&|=|$)/.test(link)) {
                 link += (link.includes('?') ? '&' : '?') + 'v3';
             }
             return this.createConnectorURI({ url: link, v3: isV3 });
@@ -212,9 +234,9 @@ export default class ComixTo extends Connector {
 
         const encryptionSeed = parseInt(response.headers.get('X-Enc-Seed'), 10);
         const encryptionLimit = parseInt(response.headers.get('X-Enc-Len'), 10);
-        if(encryptionSeed && encryptionLimit) {
+        if (encryptionSeed && encryptionLimit) {
             const decrypted = decryptImage(bytes, encryptionSeed, encryptionLimit);
-            if(!decrypted) {
+            if (!decrypted) {
                 throw new Error('Failed to decrypt the image!');
             }
             bytes = decrypted;
@@ -222,17 +244,24 @@ export default class ComixTo extends Connector {
 
         const grid = response.headers.get('X-Scramble-Grid');
         const algorithm = response.headers.get('X-Scramble-Algo');
-        if(!grid || !algorithm) {
-            const data = await this._blobToBuffer(new Blob([bytes], { type: response.headers.get('Content-Type') || '' }));
+        if (!grid || !algorithm) {
+            const data = await this._blobToBuffer(
+                new Blob([bytes], { type: response.headers.get('Content-Type') || '' }),
+            );
             this._applyRealMime(data);
             return data;
         }
 
-        const [rows, columns] = grid.split('x').map(value => parseInt(value, 10));
+        const [rows, columns] = grid.split('x').map((value) => parseInt(value, 10));
         const image = await createImageBitmap(new Blob([bytes]));
         const tileWidth = Math.floor(image.width / columns);
         const tileHeight = Math.floor(image.height / rows);
-        const order = scrambleOrder(rows * columns, (response.headers.get('X-Scramble-Hash') || '').trim(), parseInt(response.headers.get('X-Scramble-Seed'), 10) || 0, algorithm);
+        const order = scrambleOrder(
+            rows * columns,
+            (response.headers.get('X-Scramble-Hash') || '').trim(),
+            parseInt(response.headers.get('X-Scramble-Seed'), 10) || 0,
+            algorithm,
+        );
         const canvas = document.createElement('canvas');
         canvas.width = image.width;
         canvas.height = image.height;
@@ -241,12 +270,22 @@ export default class ComixTo extends Connector {
         order.forEach((source, destination) => {
             context.drawImage(
                 image,
-                source % columns * tileWidth, Math.floor(source / columns) * tileHeight, tileWidth, tileHeight,
-                destination % columns * tileWidth, Math.floor(destination / columns) * tileHeight, tileWidth, tileHeight
+                (source % columns) * tileWidth,
+                Math.floor(source / columns) * tileHeight,
+                tileWidth,
+                tileHeight,
+                (destination % columns) * tileWidth,
+                Math.floor(destination / columns) * tileHeight,
+                tileWidth,
+                tileHeight,
             );
         });
-        const blob = await new Promise(resolve => {
-            canvas.toBlob(resolve, Engine.Settings.recompressionFormat.value, parseFloat(Engine.Settings.recompressionQuality.value) / 100);
+        const blob = await new Promise((resolve) => {
+            canvas.toBlob(
+                resolve,
+                Engine.Settings.recompressionFormat.value,
+                parseFloat(Engine.Settings.recompressionQuality.value) / 100,
+            );
         });
         return this._blobToBuffer(blob);
     }

@@ -5,7 +5,7 @@ export default class Atikrost extends WordPressMadara {
         super();
         super.id = 'atikrost';
         super.label = 'Atikrost';
-        this.tags = [ 'manga', 'high-quality', 'turkish' ];
+        this.tags = ['manga', 'high-quality', 'turkish'];
         this.url = 'https://atikrost.com';
         this.language = 'tr';
     }

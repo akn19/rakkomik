@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 
 // Very similar to NewsMax theme used in YouBaMangaNext
 export default class WordPressJarida extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -18,14 +17,14 @@ export default class WordPressJarida extends Connector {
             uri.searchParams.set('per_page', 100);
             let request = new Request(uri, this.requestOptions);
             let data = await this.fetchJSON(request);
-            let mangaList = data.map(category => {
+            let mangaList = data.map((category) => {
                 return {
                     id: category.id,
-                    title: category.name
+                    title: category.name,
                 };
             });
             callback(null, mangaList);
-        } catch(error) {
+        } catch (error) {
             console.error(error, this);
             callback(error, undefined);
         }
@@ -42,12 +41,12 @@ export default class WordPressJarida extends Connector {
         // NOTE: Do not use `fetchJSON`, because it will fail on HTTP response code 400
         let response = await fetch(request);
         let data = await response.json();
-        if(Array.isArray(data) && data.length > 0) {
-            let chapterList = data.map(post => {
+        if (Array.isArray(data) && data.length > 0) {
+            let chapterList = data.map((post) => {
                 return {
                     id: this.getRootRelativeOrAbsoluteLink(post.link, this.url), // post.slug
                     title: post.title.rendered.replace(manga.title, '').trim(),
-                    language: ''
+                    language: '',
                 };
             });
             let chapters = await this._getChapterListFromPages(manga, page + 1);
@@ -57,11 +56,11 @@ export default class WordPressJarida extends Connector {
         }
     }
 
-    async _getChapterList( manga, callback ) {
+    async _getChapterList(manga, callback) {
         try {
             let data = await this._getChapterListFromPages(manga);
             callback(null, data);
-        } catch(error) {
+        } catch (error) {
             console.error(error, manga);
             callback(error, undefined);
         }
@@ -71,9 +70,11 @@ export default class WordPressJarida extends Connector {
         try {
             let request = new Request(this.url + chapter.id, this.requestOptions);
             let data = await this.fetchDOM(request, 'div.entry figure.wp-block-image source');
-            let pageList = data.map(element => this.getAbsolutePath(element.dataset['lazySrc'] || element, request.url));
+            let pageList = data.map((element) =>
+                this.getAbsolutePath(element.dataset['lazySrc'] || element, request.url),
+            );
             callback(null, pageList);
-        } catch(error) {
+        } catch (error) {
             console.error(error, chapter);
             callback(error, undefined);
         }

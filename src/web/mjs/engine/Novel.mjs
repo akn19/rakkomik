@@ -10,11 +10,19 @@ const IMAGE = /<img\b[^>]*>/g;
 const IMAGE_SOURCE = /\ssrc="([^"]*)"/;
 
 function escapeAttribute(value) {
-    return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 function unescapeAttribute(value) {
-    return value.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    return value
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
 }
 
 /**
@@ -74,7 +82,7 @@ export function listNovelImages(xhtml) {
  * @returns {string} the changed content
  */
 export function replaceNovelImages(xhtml, replace) {
-    return xhtml.replace(IMAGE, tag => {
+    return xhtml.replace(IMAGE, (tag) => {
         let match = IMAGE_SOURCE.exec(tag);
         let source = match ? replace(unescapeAttribute(match[1])) : undefined;
         return source ? tag.replace(IMAGE_SOURCE, () => ` src="${escapeAttribute(source)}"`) : '';
@@ -98,13 +106,81 @@ export function replaceNovelImages(xhtml, replace) {
  * @returns {string} the XHTML fragment, empty when there is neither text nor an illustration
  */
 export function serializeNovel(root, options) {
-    const settings = Object.assign({ obstacles: '', ignoredTexts: [], protocols: ['http:', 'https:', 'data:'] }, options);
+    const settings = Object.assign(
+        { obstacles: '', ignoredTexts: [], protocols: ['http:', 'https:', 'data:'] },
+        options,
+    );
     // dropped together with everything inside of them
-    const skipped = new Set(['script', 'style', 'noscript', 'template', 'iframe', 'object', 'embed', 'canvas', 'svg', 'math', 'video', 'audio', 'source', 'track', 'map', 'form', 'input', 'button', 'select', 'textarea', 'nav', 'aside', 'ins', 'head', 'title', 'link', 'meta', 'rt', 'rp']);
+    const skipped = new Set([
+        'script',
+        'style',
+        'noscript',
+        'template',
+        'iframe',
+        'object',
+        'embed',
+        'canvas',
+        'svg',
+        'math',
+        'video',
+        'audio',
+        'source',
+        'track',
+        'map',
+        'form',
+        'input',
+        'button',
+        'select',
+        'textarea',
+        'nav',
+        'aside',
+        'ins',
+        'head',
+        'title',
+        'link',
+        'meta',
+        'rt',
+        'rp',
+    ]);
     // kept, folded into the few tags every ebook reader knows
-    const emphasis = { em: 'em', i: 'em', cite: 'em', dfn: 'em', var: 'em', strong: 'strong', b: 'strong', del: 'del', s: 'del', strike: 'del', code: 'code', kbd: 'code', samp: 'code', tt: 'code', sub: 'sub', sup: 'sup', small: 'small' };
+    const emphasis = {
+        em: 'em',
+        i: 'em',
+        cite: 'em',
+        dfn: 'em',
+        var: 'em',
+        strong: 'strong',
+        b: 'strong',
+        del: 'del',
+        s: 'del',
+        strike: 'del',
+        code: 'code',
+        kbd: 'code',
+        samp: 'code',
+        tt: 'code',
+        sub: 'sub',
+        sup: 'sup',
+        small: 'small',
+    };
     // only their content is kept
-    const inline = new Set(['a', 'abbr', 'bdi', 'bdo', 'big', 'data', 'font', 'label', 'mark', 'picture', 'q', 'ruby', 'span', 'time', 'u', 'wbr']);
+    const inline = new Set([
+        'a',
+        'abbr',
+        'bdi',
+        'bdo',
+        'big',
+        'data',
+        'font',
+        'label',
+        'mark',
+        'picture',
+        'q',
+        'ruby',
+        'span',
+        'time',
+        'u',
+        'wbr',
+    ]);
     // sites swap the address of an image in once it comes into view: the placeholder in `src` is not the image
     const lazy = ['data-src', 'data-lazy-src', 'data-original', 'data-lazy'];
     const document = root.ownerDocument;
@@ -113,21 +189,27 @@ export function serializeNovel(root, options) {
     const obstacles = new Set();
     if (settings.obstacles) {
         try {
-            Array.from(root.querySelectorAll(settings.obstacles)).forEach(element => obstacles.add(element));
+            Array.from(root.querySelectorAll(settings.obstacles)).forEach((element) =>
+                obstacles.add(element),
+            );
         } catch {
             // a selector that does not parse excludes nothing
         }
     }
 
-    const clean = value => String(value).toWellFormed()
-        // eslint-disable-next-line no-control-regex
-        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '');
-    const escapeText = value => clean(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const escapeValue = value => escapeText(value).replace(/"/g, '&quot;');
-    const visible = markup => /<img\b/.test(markup) || markup.replace(/<[^>]*>/g, '').replace(/[\s ​-‍﻿]+/g, '') !== '';
-    const tidy = markup => markup.replace(/^(?:\s|<br\/>)+|(?:\s|<br\/>)+$/g, '');
+    const clean = (value) =>
+        String(value)
+            .toWellFormed()
+            // eslint-disable-next-line no-control-regex
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '');
+    const escapeText = (value) =>
+        clean(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escapeValue = (value) => escapeText(value).replace(/"/g, '&quot;');
+    const visible = (markup) =>
+        /<img\b/.test(markup) || markup.replace(/<[^>]*>/g, '').replace(/[\s ​-‍﻿]+/g, '') !== '';
+    const tidy = (markup) => markup.replace(/^(?:\s|<br\/>)+|(?:\s|<br\/>)+$/g, '');
 
-    const hidden = element => {
+    const hidden = (element) => {
         let attribute = element.getAttribute('hidden');
         if (attribute !== null && attribute !== undefined) {
             return true;
@@ -143,11 +225,14 @@ export function serializeNovel(root, options) {
         }
     };
 
-    const ignored = element => {
-        return settings.ignoredTexts.length > 0 && settings.ignoredTexts.includes(String(element.textContent).replace(/\s+/g, ' ').trim());
+    const ignored = (element) => {
+        return (
+            settings.ignoredTexts.length > 0 &&
+            settings.ignoredTexts.includes(String(element.textContent).replace(/\s+/g, ' ').trim())
+        );
     };
 
-    const image = element => {
+    const image = (element) => {
         let width = parseInt(element.getAttribute('width'), 10);
         let height = parseInt(element.getAttribute('height'), 10);
         // tracking pixels
@@ -172,17 +257,24 @@ export function serializeNovel(root, options) {
         } catch {
             return '';
         }
-        if (!settings.protocols.includes(address.protocol) || (address.protocol === 'data:' && !/^data:image\//i.test(address.href))) {
+        if (
+            !settings.protocols.includes(address.protocol) ||
+            (address.protocol === 'data:' && !/^data:image\//i.test(address.href))
+        ) {
             return '';
         }
         return `<img src="${escapeValue(address.href)}" alt="${escapeValue(element.getAttribute('alt') || '')}"/>`;
     };
 
     // the paragraphs of a run of text and inline elements; two line breaks in a row end a paragraph
-    const flush = state => {
+    const flush = (state) => {
         let markup = state.inline;
         state.inline = '';
-        markup.split(/(?:\s*<br\/>\s*){2,}/).map(tidy).filter(visible).forEach(part => state.out.push(`<p>${part}</p>`));
+        markup
+            .split(/(?:\s*<br\/>\s*){2,}/)
+            .map(tidy)
+            .filter(visible)
+            .forEach((part) => state.out.push(`<p>${part}</p>`));
     };
 
     const walkChildren = (node, state, depth) => {
@@ -213,7 +305,9 @@ export function serializeNovel(root, options) {
         }
         if (node.nodeType === 3 || node.nodeType === 4) {
             let value = String(node.nodeValue);
-            state.inline += escapeText(state.preformatted ? value : value.replace(/[ \t\r\n\f]+/g, ' '));
+            state.inline += escapeText(
+                state.preformatted ? value : value.replace(/[ \t\r\n\f]+/g, ' '),
+            );
             return;
         }
         if (node.nodeType !== 1) {
@@ -274,7 +368,12 @@ export function serializeNovel(root, options) {
             let items = [];
             for (let index = 0; index < node.childNodes.length; index++) {
                 let item = node.childNodes[index];
-                if (item.nodeType === 1 && String(item.localName || item.nodeName).toLowerCase() === 'li' && !obstacles.has(item) && !hidden(item)) {
+                if (
+                    item.nodeType === 1 &&
+                    String(item.localName || item.nodeName).toLowerCase() === 'li' &&
+                    !obstacles.has(item) &&
+                    !hidden(item)
+                ) {
                     let content = flow(item, depth + 1);
                     if (content.length) {
                         items.push(`<li>${content.join('')}</li>`);
@@ -311,7 +410,10 @@ function waitForNovel(serialize, parameters) {
             let hasContent = length > 0 || !!(root && root.querySelector('img'));
             if (hasContent && (length === previous || Date.now() >= deadline)) {
                 try {
-                    let xhtml = serialize(root, { obstacles: parameters.obstacles, ignoredTexts: parameters.ignoredTexts });
+                    let xhtml = serialize(root, {
+                        obstacles: parameters.obstacles,
+                        ignoredTexts: parameters.ignoredTexts,
+                    });
                     if (xhtml) {
                         resolve(xhtml);
                     } else {
@@ -344,7 +446,7 @@ export function createNovelScript(contentQuery, options = {}) {
         content: contentQuery,
         obstacles: options.obstacles || '',
         ignoredTexts: options.ignoredTexts || [],
-        timeout: options.timeout || 10000
+        timeout: options.timeout || 10000,
     };
     return `(${waitForNovel})(${serializeNovel}, ${JSON.stringify(parameters)})`;
 }

@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class ScanManga extends Connector {
-
     constructor() {
         super();
         super.id = 'scanmanga';
@@ -20,20 +19,29 @@ export default class ScanManga extends Connector {
     }
 
     async _getMangas() {
-        let request = new Request(new URL('/scanlation/scan.data.json', this.url), this.requestOptions);
-        request.headers.set('x-cookie', `_ga=GA1.2.137581646.${parseInt(Date.now()/1000)}; addtl_consent=1~${new Array(647).fill().map(() => Math.floor(41 * Math.random())).join('.')}`);
+        let request = new Request(
+            new URL('/scanlation/scan.data.json', this.url),
+            this.requestOptions,
+        );
+        request.headers.set(
+            'x-cookie',
+            `_ga=GA1.2.137581646.${parseInt(Date.now() / 1000)}; addtl_consent=1~${new Array(647)
+                .fill()
+                .map(() => Math.floor(41 * Math.random()))
+                .join('.')}`,
+        );
         request.headers.set('x-referer', this.url + '/scanlation/liste_series.html');
         request.headers.set('x-requested-with', 'XMLHttpRequest');
         let data = await this.fetchJSON(request);
         let mangaList = [];
-        for(let title in data) {
+        for (let title in data) {
             let id = data[title][0];
             let slug = data[title][1] || title;
             let element = document.createElement('div');
             element.innerHTML = title;
             mangaList.push({
                 id: `/${id}/${slug}.html`,
-                title: element.textContent.trim()
+                title: element.textContent.trim(),
             });
         }
         return mangaList;
@@ -41,15 +49,18 @@ export default class ScanManga extends Connector {
 
     async _getChapters(manga) {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
-        let data = await this.fetchDOM(request, 'div.texte_volume_manga ul li.chapitre div.chapitre_nom');
+        let data = await this.fetchDOM(
+            request,
+            'div.texte_volume_manga ul li.chapitre div.chapitre_nom',
+        );
         return data
-            .filter(element => element.querySelector('a:first-of-type[href]'))
-            .map(element => {
+            .filter((element) => element.querySelector('a:first-of-type[href]'))
+            .map((element) => {
                 let anchor = element.querySelector('a:first-of-type');
                 return {
                     id: this.getRootRelativeOrAbsoluteLink(anchor, this.url),
                     title: element.textContent.trim(),
-                    language: ''
+                    language: '',
                 };
             });
     }
@@ -58,18 +69,22 @@ export default class ScanManga extends Connector {
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         let response = await fetch(request);
         let data = await response.text();
-        let baseURL = data.match(/['"](https?:\/\/lel\.scan-manga\.com:\d+\/.*?\/\d+\/\d+\/.*?)['"]/)[1];
+        let baseURL = data.match(
+            /['"](https?:\/\/lel\.scan-manga\.com:\d+\/.*?\/\d+\/\d+\/.*?)['"]/,
+        )[1];
         let regex = /['"](.*?zoneID.*?pageID.*?siteID.*?)['"]/g;
         let pageList = [];
         let match = undefined;
         // eslint-disable-next-line no-cond-assign
-        while (match = regex.exec(data)) {
+        while ((match = regex.exec(data))) {
             pageList.push(match[1]);
         }
-        return pageList.map(link => this.createConnectorURI({
-            url: baseURL + link,
-            referer: request.url
-        }));
+        return pageList.map((link) =>
+            this.createConnectorURI({
+                url: baseURL + link,
+                referer: request.url,
+            }),
+        );
     }
 
     async _getPages(chapter) {
@@ -81,7 +96,7 @@ export default class ScanManga extends Connector {
     }
 
     async _getPagesNovel(request) {
-        return [ await Engine.Request.fetchNovel(request, 'article.aLN') ];
+        return [await Engine.Request.fetchNovel(request, 'article.aLN')];
     }
 
     _handleConnectorURI(payload) {

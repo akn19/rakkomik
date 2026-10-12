@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class Alphapolis extends Connector {
-
     constructor() {
         super();
         super.id = 'alphapolis';
@@ -13,10 +12,13 @@ export default class Alphapolis extends Connector {
 
     async _getMangas() {
         let mangaList = [];
-        const request = new Request(new URL('/manga/official/search', this.url), this.requestOptions);
+        const request = new Request(
+            new URL('/manga/official/search', this.url),
+            this.requestOptions,
+        );
         const data = await this.fetchDOM(request, 'div.paginator.section span a[rel="last"]');
         const pageCount = parseInt(data[0].href.match(/(\d+)$/)[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -24,12 +26,15 @@ export default class Alphapolis extends Connector {
     }
 
     async _getMangasFromPage(page) {
-        const request = new Request(new URL(`/manga/official/search?page=${page}`, this.url), this.requestOptions);
+        const request = new Request(
+            new URL(`/manga/official/search?page=${page}`, this.url),
+            this.requestOptions,
+        );
         const data = await this.fetchDOM(request, 'div.official-manga-panel > a');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.querySelector('.title').textContent.replace('[R18]', '').trim()
+                title: element.querySelector('.title').textContent.replace('[R18]', '').trim(),
             };
         });
     }
@@ -47,10 +52,17 @@ export default class Alphapolis extends Connector {
         const data = await this.fetchDOM(request, 'viewer-manga-horizontal');
         try {
             const pages = JSON.parse(data[0].getAttribute('v-bind:pages'));
-            return pages.filter(element => typeof element != 'object' && !element.match('white_page'))
-                .map(element => {
-                    const hiresPicture = element.replace(/\/[0-9]+x[0-9]+.([\w]+)/, '/1080x1536.$1');
-                    return this.createConnectorURI({hiresPicture : hiresPicture, normalpicture : element});
+            return pages
+                .filter((element) => typeof element != 'object' && !element.match('white_page'))
+                .map((element) => {
+                    const hiresPicture = element.replace(
+                        /\/[0-9]+x[0-9]+.([\w]+)/,
+                        '/1080x1536.$1',
+                    );
+                    return this.createConnectorURI({
+                        hiresPicture: hiresPicture,
+                        normalpicture: element,
+                    });
                 });
         } catch (error) {
             throw new Error(`The chapter '${chapter.title}' is neither public, nor purchased!`);
@@ -60,10 +72,13 @@ export default class Alphapolis extends Connector {
     async _getChapters(manga) {
         const request = new Request(new URL(manga.id, this.url), this.requestOptions);
         const data = await this.fetchDOM(request, 'div.episode-unit');
-        return data.map(element => {
+        return data.map((element) => {
             return {
-                id: this.getRootRelativeOrAbsoluteLink(element.querySelector('a.read-episode'), this.url),
-                title: element.querySelector('div.title').textContent.trim()
+                id: this.getRootRelativeOrAbsoluteLink(
+                    element.querySelector('a.read-episode'),
+                    this.url,
+                ),
+                title: element.querySelector('div.title').textContent.trim(),
             };
         });
     }
@@ -80,5 +95,4 @@ export default class Alphapolis extends Connector {
         this._applyRealMime(data);
         return data;
     }
-
 }

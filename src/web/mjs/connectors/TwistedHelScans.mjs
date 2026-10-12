@@ -4,7 +4,6 @@ import FoolSlide from './templates/FoolSlide.mjs';
  *
  */
 export default class TwistedHelScans extends FoolSlide {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class TwistedHelScans extends FoolSlide {
         super();
         super.id = 'twistedhelscans';
         super.label = 'TwistedHelScans';
-        this.tags = [ 'manga', 'high-quality', 'english', 'scanlation' ];
+        this.tags = ['manga', 'high-quality', 'english', 'scanlation'];
         this.url = 'http://twistedhelscans.com';
         //this.path        = '/directory/';
         this.language = 'english';
@@ -24,14 +23,14 @@ export default class TwistedHelScans extends FoolSlide {
     /**
      *
      */
-    _getMangaList( callback ) {
-        super._getMangaList( ( error, mangas ) => {
-            if( !error && mangas instanceof Array ) {
-                mangas.forEach( m => {
-                    m.title = m.title.replace( /^(ongoing|completed|dropped)/i, '' );
-                } );
+    _getMangaList(callback) {
+        super._getMangaList((error, mangas) => {
+            if (!error && mangas instanceof Array) {
+                mangas.forEach((m) => {
+                    m.title = m.title.replace(/^(ongoing|completed|dropped)/i, '');
+                });
             }
-            callback( error, mangas );
-        } );
+            callback(error, mangas);
+        });
     }
 }

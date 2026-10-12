@@ -1,7 +1,6 @@
 import TAADD from './TAADD.mjs';
 
 export default class TenManga extends TAADD {
-
     constructor() {
         super();
         super.id = 'tenmanga';
@@ -9,7 +8,7 @@ export default class TenManga extends TAADD {
         this.tags = ['manga', 'english'];
         this.url = 'http://www.tenmanga.com';
         this.links = {
-            login: 'http://www.tenmanga.com/login'
+            login: 'http://www.tenmanga.com/login',
         };
 
         //this.bypassAdultWarning = true;
@@ -29,14 +28,17 @@ export default class TenManga extends TAADD {
         }
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             this.cfMailDecrypt(element);
-            let data = element.getElementsByClassName("chp-idx")[0].textContent;
-            let title = data.replace(new RegExp(manga.title, 'ig'), '').replace(/\s*new$/, '').trim();
+            let data = element.getElementsByClassName('chp-idx')[0].textContent;
+            let title = data
+                .replace(new RegExp(manga.title, 'ig'), '')
+                .replace(/\s*new$/, '')
+                .trim();
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
                 title: title,
-                language: ''
+                language: '',
             };
         });
     }
@@ -44,11 +46,12 @@ export default class TenManga extends TAADD {
     async _getPages(chapter) {
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryPages);
-        return[...data].map(d=>d.attributes.option_val.value)
+        return [...data]
+            .map((d) => d.attributes.option_val.value)
             .filter((item, index, arr) => {
                 return arr.indexOf(item) === index;
             })
-            .map(option => this.createConnectorURI(this.getAbsolutePath(option, request.url)));
+            .map((option) => this.createConnectorURI(this.getAbsolutePath(option, request.url)));
     }
 
     async _handleConnectorURI(payload) {

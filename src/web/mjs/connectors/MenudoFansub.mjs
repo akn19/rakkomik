@@ -4,7 +4,6 @@ import FoolSlide from './templates/FoolSlide.mjs';
  *
  */
 export default class MenudoFansub extends FoolSlide {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class MenudoFansub extends FoolSlide {
         super();
         super.id = 'menudofansub';
         super.label = 'MenudoFansub';
-        this.tags = [ 'manga', 'high-quality', 'spanish', 'scanlation' ];
+        this.tags = ['manga', 'high-quality', 'spanish', 'scanlation'];
         this.url = 'http://www.menudo-fansub.com';
         this.path = '/slide/directory/';
         this.language = 'spanish';

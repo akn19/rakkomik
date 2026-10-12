@@ -1,7 +1,6 @@
 import CoreView from './templates/CoreView.mjs';
 
 export default class SundayWebry extends CoreView {
-
     constructor() {
         super();
         super.id = 'sundaywebry';

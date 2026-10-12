@@ -17,7 +17,6 @@ import Version from './VersionInfo.mjs';
 import DiscordPresence from './engine/DiscordPresence.mjs';
 
 export default class HakuNeko {
-
     constructor(context) {
         // set global first, beause some of the engine classes access them during instantiation
         this._initializeGlobals(context);

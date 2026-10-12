@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class BacaKomik extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'bacakomik';
         super.label = 'BacaKomik';
-        this.tags = [ 'manga', 'indonesian' ];
+        this.tags = ['manga', 'indonesian'];
         this.url = 'https://bacakomik.one';
         this.path = '/daftar-komik/?list';
 

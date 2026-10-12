@@ -4,7 +4,6 @@ import MangaEden from './templates/MangaEden.mjs';
  *
  */
 export default class MangaEdenIT extends MangaEden {
-
     /**
      *
      */
@@ -12,7 +11,7 @@ export default class MangaEdenIT extends MangaEden {
         super();
         super.id = 'mangaeden-it';
         super.label = 'MangaEdenIT';
-        this.tags = [ 'manga', 'italian' ];
+        this.tags = ['manga', 'italian'];
         this.url = 'https://www.mangaeden.com';
         this.urlMangas = '/it/it-directory/';
     }

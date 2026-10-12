@@ -6,7 +6,7 @@ export default class MangaKisa extends Connector {
         super();
         super.id = 'mangakisa';
         super.label = 'MangaKisa';
-        this.tags = [ 'manga', 'webtoon', 'english' ];
+        this.tags = ['manga', 'webtoon', 'english'];
         this.url = 'https://mangakisa.com';
 
         this.path = '/all-manga';
@@ -27,10 +27,10 @@ export default class MangaKisa extends Connector {
     async _getMangas() {
         let request = new Request(new URL(this.path, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -38,10 +38,10 @@ export default class MangaKisa extends Connector {
     async _getChapters(manga) {
         let request = new Request(new URL(manga.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryChapter);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.computedName.trim()
+                title: element.computedName.trim(),
             };
         });
     }
@@ -49,6 +49,6 @@ export default class MangaKisa extends Connector {
     async _getPages(chapter) {
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
         let data = await this.fetchDOM(request, this.queryPages);
-        return data.map(element => this.getAbsolutePath(element, request.url));
+        return data.map((element) => this.getAbsolutePath(element, request.url));
     }
 }

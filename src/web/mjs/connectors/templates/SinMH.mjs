@@ -2,7 +2,6 @@ import Connector from '../../engine/Connector.mjs';
 import Manga from '../../engine/Manga.mjs';
 
 export default class SinMH extends Connector {
-
     constructor() {
         super();
         super.id = undefined;
@@ -22,7 +21,9 @@ export default class SinMH extends Connector {
     }
 
     get _queryChaptersScript() {
-        return this.queryChaptersScript || `
+        return (
+            this.queryChaptersScript ||
+            `
             new Promise(resolve => {
                 let button = document.querySelector('#checkAdult');
                 if(button) {
@@ -37,11 +38,14 @@ export default class SinMH extends Connector {
                 });
                 resolve(chapterList);
             });
-        `;
+        `
+        );
     }
 
     get _queryPagesScript() {
-        return this.queryPagesScript || `
+        return (
+            this.queryPagesScript ||
+            `
             new Promise(resolve => {
                 let pageList = [];
                 let pages = ${this.api}.getChapterImageCount();
@@ -50,7 +54,8 @@ export default class SinMH extends Connector {
                 }
                 resolve(pageList);
             });
-        `;
+        `
+        );
     }
 
     async _getMangaFromURI(uri) {
@@ -67,7 +72,7 @@ export default class SinMH extends Connector {
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangasPageCount);
         const pageCount = parseInt(data[0].href.match(this.queryMangasPageCountMatch)[1]);
-        for(let page = 1; page <= pageCount; page++) {
+        for (let page = 1; page <= pageCount; page++) {
             let mangas = await this._getMangasFromPage(page);
             mangaList.push(...mangas);
         }
@@ -78,10 +83,10 @@ export default class SinMH extends Connector {
         const uri = new URL(this.path.replace('%PAGE%', page), this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas, 3);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -96,6 +101,6 @@ export default class SinMH extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, this._queryPagesScript);
-        return data.map(page => this.createConnectorURI(page));
+        return data.map((page) => this.createConnectorURI(page));
     }
 }

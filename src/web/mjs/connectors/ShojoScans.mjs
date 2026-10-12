@@ -5,7 +5,7 @@ export default class ShojoScans extends WordPressMangastream {
         super();
         super.id = 'shojoscans';
         super.label = 'ShojoScans';
-        this.tags = [ 'manga', 'english', 'scanlation' ];
+        this.tags = ['manga', 'english', 'scanlation'];
         this.url = 'https://shojoscans.com';
         this.path = '/comics/list-mode/';
 

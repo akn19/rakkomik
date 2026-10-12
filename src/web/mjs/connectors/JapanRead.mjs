@@ -2,7 +2,6 @@ import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 
 export default class JapanRead extends Connector {
-
     constructor() {
         super();
         super.id = 'japanread';
@@ -21,7 +20,7 @@ export default class JapanRead extends Connector {
         let mangaList = [];
         for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -33,14 +32,14 @@ export default class JapanRead extends Connector {
             body: 'list_view=3',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         });
         const data = await this.fetchDOM(request, 'div.row a.manga_title');
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -48,11 +47,14 @@ export default class JapanRead extends Connector {
     async _getChaptersFromPage(manga, page) {
         const uri = new URL(manga.id, this.url);
         const request = new Request(`${uri}?page=${page}`, this.requestOptions);
-        const data = await this.fetchDOM(request, 'div.chapter-container div.chapter-row a.text-truncate');
-        return data.map(element => {
+        const data = await this.fetchDOM(
+            request,
+            'div.chapter-container div.chapter-row a.text-truncate',
+        );
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, this.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -61,7 +63,7 @@ export default class JapanRead extends Connector {
         let chapList = [];
         for (let page = 1, run = true; run; page++) {
             let chapters = await this._getChaptersFromPage(manga, page);
-            chapters.length ? chapList.push(...chapters) : run = false;
+            chapters.length ? chapList.push(...chapters) : (run = false);
         }
         return chapList;
     }
@@ -87,10 +89,12 @@ export default class JapanRead extends Connector {
         let uri = new URL(chapter.id, this.url);
         let request = new Request(uri, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script);
-        return data.map(image => this.createConnectorURI({
-            url: image,
-            referer: request.url
-        }));
+        return data.map((image) =>
+            this.createConnectorURI({
+                url: image,
+                referer: request.url,
+            }),
+        );
     }
 
     async _handleConnectorURI(payload) {

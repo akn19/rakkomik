@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class FusionScanlation extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'fusionscanlation';
         super.label = 'Fusion Scanlation';
-        this.tags = [ 'webtoon', 'spanish' ];
+        this.tags = ['webtoon', 'spanish'];
         this.url = 'https://fusionscanlation.com';
         this.path = '/proyectos/page/';
 
@@ -15,9 +14,9 @@ export default class FusionScanlation extends WordPressMangastream {
 
     async _getMangas() {
         let mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length > 0 ? mangaList.push(...mangas) : run = false;
+            mangas.length > 0 ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -26,10 +25,10 @@ export default class FusionScanlation extends WordPressMangastream {
         const uri = new URL(this.path + page, this.url);
         let request = new Request(uri, this.requestOptions);
         let data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.title.trim()
+                title: element.title.trim(),
             };
         });
     }

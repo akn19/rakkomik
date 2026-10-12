@@ -1,12 +1,11 @@
 import Connector from '../engine/Connector.mjs';
 
 export default class Migudm extends Connector {
-
     constructor() {
         super();
         super.id = 'migudm';
         super.label = '咪咕 (Migudm)';
-        this.tags = [ 'webtoon', 'chinese' ];
+        this.tags = ['webtoon', 'chinese'];
         this.url = 'https://www.migudm.cn';
 
         this.path = '/comic/list_p%PAGE%/';
@@ -17,9 +16,9 @@ export default class Migudm extends Connector {
 
     async _getMangas() {
         let mangaList = [];
-        for(let page = 1, run = true; run; page++) {
+        for (let page = 1, run = true; run; page++) {
             let mangas = await this._getMangasFromPage(page);
-            mangas.length ? mangaList.push(...mangas) : run = false;
+            mangas.length ? mangaList.push(...mangas) : (run = false);
         }
         return mangaList;
     }
@@ -28,10 +27,10 @@ export default class Migudm extends Connector {
         const uri = new URL(this.path.replace('%PAGE%', page), this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryMangas);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.text.trim()
+                title: element.text.trim(),
             };
         });
     }
@@ -40,10 +39,10 @@ export default class Migudm extends Connector {
         const uri = new URL(manga.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await this.fetchDOM(request, this.queryChapters);
-        return data.map(element => {
+        return data.map((element) => {
             return {
                 id: this.getRootRelativeOrAbsoluteLink(element, request.url),
-                title: element.title.replace(manga.title, '').trim()
+                title: element.title.replace(manga.title, '').trim(),
             };
         });
     }
@@ -64,7 +63,6 @@ export default class Migudm extends Connector {
         const uri = new URL(chapter.id, this.url);
         const request = new Request(uri, this.requestOptions);
         const data = await Engine.Request.fetchUI(request, script);
-        return data.map(element => this.getAbsolutePath(element, request.url));
+        return data.map((element) => this.getAbsolutePath(element, request.url));
     }
-
 }

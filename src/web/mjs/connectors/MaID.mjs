@@ -1,12 +1,11 @@
 import WordPressMangastream from './templates/WordPressMangastream.mjs';
 
 export default class MaID extends WordPressMangastream {
-
     constructor() {
         super();
         super.id = 'maid';
         super.label = 'MAID';
-        this.tags = [ 'manga', 'indonesian' ];
+        this.tags = ['manga', 'indonesian'];
         this.url = 'https://www.maid.my.id';
         this.path = '/manga-list/?list';
 

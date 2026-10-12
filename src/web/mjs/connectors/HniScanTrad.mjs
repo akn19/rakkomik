@@ -5,7 +5,7 @@ export default class HniScanTrad extends FoolSlide {
         super();
         super.id = 'hniscantrad';
         super.label = 'HNI-Scantrad';
-        this.tags = [ 'manga', 'french', 'scanlation' ];
+        this.tags = ['manga', 'french', 'scanlation'];
         this.url = 'http://hni-scantrad.com';
         this.path = '/lel/directory/';
     }
