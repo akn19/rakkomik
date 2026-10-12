@@ -129,10 +129,13 @@ test.describe('accessibility', () => {
             await page.getByRole('button', { name: 'Page 1' }).click();
             await expect(page.locator('img.rk-page')).toHaveCount(3);
             // the buttons of the reader fade out while reading and fade in under the pointer. Axe takes the opacity of
-            // a moment in between for the colour of the text, so it is scanned once the buttons are fully shown.
+            // a moment in between for the colour of the text, so it is scanned once the buttons are fully shown. Now and
+            // then the first move of the pointer does not reach the buttons, so it is made again until they show.
             const toolbar = page.locator('div.group', { has: page.getByText(/^Image Width:/) });
-            await toolbar.hover();
-            await expect(toolbar).toHaveCSS('opacity', '1');
+            await expect(async () => {
+                await toolbar.hover();
+                await expect(toolbar).toHaveCSS('opacity', '1', { timeout: 1000 });
+            }).toPass();
             expect(await violationsOf(page)).toEqual([]);
             // back to the thumbnails, and from there to the start page
             await page.keyboard.press('Escape');

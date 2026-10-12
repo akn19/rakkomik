@@ -1295,19 +1295,26 @@ describe('ElectronBootstrap', () => {
             expect(view.submenu.some((entry) => entry.role === 'togglefullscreen')).toBe(true);
         });
 
-        it('should offer the zoom of the window, so that the text can be made larger', async () => {
-            // the quit entry that macOS adds to this menu has its own test below
-            await withPlatform('linux', () => launch());
-            const view = applicationMenu().find((entry) => entry.role === 'viewMenu');
-            const roles = view.submenu.map((entry) => entry.role).filter(Boolean);
-            expect(roles).toEqual([
-                'togglefullscreen',
-                'toggleDevTools',
-                'zoomIn',
-                'zoomOut',
-                'resetZoom',
-            ]);
-        });
+        it.each([
+            ['darwin', ['quit']],
+            ['linux', []],
+            ['win32', []],
+        ])(
+            'should offer the zoom of the window on %s, so that the text can be made larger',
+            async (platform, more) => {
+                await withPlatform(platform, () => launch());
+                const view = applicationMenu().find((entry) => entry.role === 'viewMenu');
+                const roles = view.submenu.map((entry) => entry.role).filter(Boolean);
+                expect(roles).toEqual([
+                    'togglefullscreen',
+                    'toggleDevTools',
+                    'zoomIn',
+                    'zoomOut',
+                    'resetZoom',
+                    ...more,
+                ]);
+            },
+        );
 
         it('should offer the clipboard shortcuts and the two shortcuts for the URL of a window', async () => {
             await launch();
