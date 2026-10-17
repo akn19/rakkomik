@@ -78,6 +78,7 @@ export function createSettings(fields = {}) {
         new Emitter(),
         {
             readerEnabled: { value: true },
+            baseDirectory: { value: '/mangas' },
             // [{ category, settings: [{ input, label, description, value, min, max, options }] }]
             groups: [],
             getCategorizedSettings: () => settings.groups,
@@ -243,6 +244,7 @@ export function installEngine({ connectors = [], ready = true, engine: overrides
             loadMangaList: vi.fn(async () => []),
             showFolderContent: vi.fn(),
             folderBrowser: vi.fn(async () => undefined),
+            checkDirectory: vi.fn(async () => undefined),
         },
         ...overrides,
     };

@@ -477,6 +477,19 @@ export async function saveSettingsDraft(draft) {
     await getEngine().Settings.save();
 }
 
+/**
+ * Why the manga directory cannot take the chapters, as a message for the user: nothing is returned when it can.
+ */
+export async function mangaDirectoryProblem() {
+    const engine = getEngine();
+    try {
+        await engine.Storage.checkDirectory(engine.Settings.baseDirectory.value);
+    } catch (error) {
+        return `Cannot access the manga directory!\n\n${error.message}`;
+    }
+    return null;
+}
+
 export async function browseDirectory(currentPath) {
     return getEngine().Storage.folderBrowser(currentPath);
 }

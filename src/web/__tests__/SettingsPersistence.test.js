@@ -245,6 +245,27 @@ describe('what the folders of the settings need', () => {
         );
         expect(globalThis.alert.mock.calls[0][0]).toContain('is not a directory!');
     });
+
+    it('should warn once about a manga folder that cannot take the chapters, however often the settings are loaded', async () => {
+        globalThis.alert = vi.fn();
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const settings = start();
+        fs.writeFileSync(path.join(env.root, 'a file'), 'x');
+        fs.writeFileSync(
+            file(),
+            JSON.stringify({ baseDirectory: path.join(env.root, 'a file', 'mangas') }),
+        );
+        await settings.load();
+        await env.idle();
+        await settings.load();
+        await env.idle();
+        expect(globalThis.alert).toHaveBeenCalledTimes(1);
+        expect(globalThis.alert.mock.calls[0][0]).toContain(
+            'Cannot access the directory for "Manga Directory" from "General" settings!',
+        );
+        // the second time it is only written to the log
+        expect(console.warn).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('the settings of the connectors on disk', () => {

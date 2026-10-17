@@ -176,7 +176,7 @@ describe('App', function () {
             new App(quiet());
             let channels = electron.ipcMain.handle.mock.calls.map(([channel]) => channel);
             expect(new Set(channels).size).toBe(channels.length);
-            expect(channels).toHaveLength(28);
+            expect(channels).toHaveLength(29);
             // one of each part of the main process
             expect(channels).toEqual(
                 expect.arrayContaining([

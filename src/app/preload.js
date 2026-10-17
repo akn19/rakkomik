@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('hakuneko', {
         readFile: (p, encoding) => ipcRenderer.invoke('rakkomik:fs:readFile', p, encoding),
         stat: (p) => ipcRenderer.invoke('rakkomik:fs:stat', p),
         readdir: (p) => ipcRenderer.invoke('rakkomik:fs:readdir', p),
+        access: (p) => ipcRenderer.invoke('rakkomik:fs:access', p),
     },
     app: {
         // same contract as Electron's app.getPath: a name without a directory throws

@@ -229,6 +229,86 @@ describe('folders', () => {
         ).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
+    describe('the folder that takes the chapters', () => {
+        const refusal = (message = 'EACCES: permission denied, access') =>
+            Object.assign(new Error(message), { code: 'EACCES' });
+
+        it('should accept a folder that is there, and one that is not there yet below a folder that is', async () => {
+            setup();
+            const deep = path.join(env.mangas, 'not', 'made', 'yet');
+            // nothing of it is there, the folder of the profile that holds it is
+            await expect(env.storage.checkDirectory(deep)).resolves.toBeUndefined();
+            fs.mkdirSync(env.mangas, { recursive: true });
+            await expect(env.storage.checkDirectory(env.mangas)).resolves.toBeUndefined();
+            await expect(env.storage.checkDirectory(deep)).resolves.toBeUndefined();
+            // it only looks, the folders are made on the first write
+            expect(fs.readdirSync(env.mangas)).toEqual([]);
+        });
+
+        it('should refuse a file, and a path that goes through one', async () => {
+            setup();
+            fs.mkdirSync(env.mangas, { recursive: true });
+            const file = path.join(env.mangas, 'file.txt');
+            fs.writeFileSync(file, 'x');
+            await expect(env.storage.checkDirectory(file)).rejects.toThrow(
+                `The given path "${file}" is not a directory!`,
+            );
+            // the system says the path is no directory (ENOTDIR) or that nothing is there, so the file is found below it
+            await expect(env.storage.checkDirectory(path.join(file, 'below'))).rejects.toThrow(
+                /ENOTDIR|is not a directory/,
+            );
+        });
+
+        it('should refuse a folder that the system does not let the application use', async () => {
+            setup();
+            fs.mkdirSync(env.mangas, { recursive: true });
+            const access = vi.spyOn(env.storage.fs, 'access').mockRejectedValue(refusal());
+            await expect(env.storage.checkDirectory(env.mangas)).rejects.toThrow(
+                'EACCES: permission denied, access',
+            );
+            expect(access).toHaveBeenCalledWith(env.mangas);
+        });
+
+        it('should refuse a folder that is not there yet below one that the application cannot write into', async () => {
+            setup();
+            fs.mkdirSync(env.mangas, { recursive: true });
+            const access = vi.spyOn(env.storage.fs, 'access').mockRejectedValue(refusal());
+            await expect(
+                env.storage.checkDirectory(path.join(env.mangas, 'not-made-yet')),
+            ).rejects.toThrow('EACCES');
+            // the folder that is there was the one that was asked, not the one that is not
+            expect(access).toHaveBeenCalledTimes(1);
+            expect(access).toHaveBeenCalledWith(env.mangas);
+        });
+
+        it('should say what is wrong without the call of the main process that failed', async () => {
+            setup();
+            fs.mkdirSync(env.mangas, { recursive: true });
+            vi.spyOn(env.storage.fs, 'access').mockRejectedValue(
+                refusal(
+                    "Error invoking remote method 'rakkomik:fs:access': Error: EACCES: permission denied, access '/mnt/disk/mangas'",
+                ),
+            );
+            const failure = await env.storage.checkDirectory(env.mangas).catch((error) => error);
+            expect(failure.message).toBe("EACCES: permission denied, access '/mnt/disk/mangas'");
+        });
+
+        it('should refuse a path of which nothing is there, not even the root, and stop at the root', async () => {
+            setup();
+            const missing = Object.assign(new Error('ENOENT: no such file or directory, stat'), {
+                code: 'ENOENT',
+            });
+            const stat = vi.spyOn(env.storage.fs, 'stat').mockRejectedValue(missing);
+            const deep = path.join(env.mangas, 'a', 'b');
+            await expect(env.storage.checkDirectory(deep)).rejects.toThrow('ENOENT');
+            // the folder, then every parent up to the root
+            const root = path.parse(deep).root;
+            const levels = path.relative(root, deep).split(path.sep).length + 1;
+            expect(stat).toHaveBeenCalledTimes(levels);
+            expect(stat).toHaveBeenLastCalledWith(root);
+        });
+    });
+
     it('should tell that the folder of a manga is there by its name on the device', async () => {
         setup();
         mangaFolder('FateZero');

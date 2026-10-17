@@ -136,6 +136,34 @@ export default class Storage {
     }
 
     /**
+     * Return a promise that will be fulfilled if chapters can be stored in the given directory: it is a directory that
+     * can be read and written, or it is not there yet and the closest parent that is there is such a directory (the
+     * missing ones are created on the first write). Otherwise it is rejected with the reason.
+     */
+    async checkDirectory(path) {
+        let directory = path;
+        for (;;) {
+            try {
+                await this.directoryExist(directory);
+                await this.fs.access(directory);
+                return;
+            } catch (error) {
+                let parent = this.path.dirname(directory);
+                if (!/ENOENT/.test(error.message) || parent === directory) {
+                    // the main process says in which call it failed, which tells the user nothing
+                    throw new Error(
+                        error.message.replace(
+                            /^Error invoking remote method '[^']*': (Error: )?/,
+                            '',
+                        ),
+                    );
+                }
+                directory = parent;
+            }
+        }
+    }
+
+    /**
      * Return a promise that will be fulfilled if the corresponding manga directory exist.
      * Due to performance this method must not be used for bulk existing checks.
      */

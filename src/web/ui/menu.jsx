@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from '@tanstack/react-router';
 import {
     getSettingsDraft,
     saveSettingsDraft,
+    mangaDirectoryProblem,
     getVersionInfo,
     openExternalLink,
     browseDirectory,
@@ -300,6 +301,11 @@ export default function MenuPopup({ id, onClose }) {
         try {
             await saveSettingsDraft(draft);
             notify('Settings saved.', 'success');
+            // the settings are kept either way: the problem is only said, until it is dismissed
+            const problem = await mangaDirectoryProblem();
+            if (problem) {
+                notify(problem, 'error');
+            }
             onClose();
         } catch (error) {
             notify(`Failed to save settings: ${error.message}`, 'error');

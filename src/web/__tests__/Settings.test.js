@@ -60,6 +60,96 @@ describe('settings directory validation', () => {
         expect(globalThis.alert).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledTimes(1);
     });
+
+    describe('of the manga directory, which has to take the chapters', () => {
+        async function validateManga(error) {
+            const storage = {
+                checkDirectory: vi.fn(() => (error ? Promise.reject(error) : Promise.resolve())),
+                directoryExist: vi.fn(() => Promise.resolve()),
+            };
+            globalThis.Engine = { Storage: storage };
+            globalThis.alert = vi.fn();
+            vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+            const settings = { baseDirectory: { ...directorySetting } };
+            const value = Settings.prototype._getValidValue.call(
+                settings,
+                'General',
+                settings.baseDirectory,
+            );
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            return { value, storage };
+        }
+
+        it('should ask whether it takes them, and not only whether it is a directory', async () => {
+            const { value, storage } = await validateManga(null);
+            expect(value).toBe('/data/mangas');
+            expect(storage.checkDirectory).toHaveBeenCalledWith('/data/mangas');
+            expect(storage.directoryExist).not.toHaveBeenCalled();
+            expect(globalThis.alert).not.toHaveBeenCalled();
+        });
+
+        it('should warn with the reason, also when nothing of the path is there', async () => {
+            await validateManga(new Error("EACCES: permission denied, access '/data/mangas'"));
+            expect(globalThis.alert).toHaveBeenCalledTimes(1);
+            expect(globalThis.alert.mock.calls[0][0]).toContain(
+                'Cannot access the directory for "Manga Directory" from "General" settings!',
+            );
+            expect(globalThis.alert.mock.calls[0][0]).toContain('EACCES: permission denied');
+            await validateManga(new Error("ENOENT: no such file or directory, stat 'E:\\'"));
+            expect(globalThis.alert).toHaveBeenCalledTimes(1);
+            expect(globalThis.alert.mock.calls[0][0]).toContain('ENOENT');
+        });
+
+        it('should keep the other directories to the question whether they are a directory', async () => {
+            const storage = {
+                checkDirectory: vi.fn(() => Promise.resolve()),
+                directoryExist: vi.fn(() => Promise.resolve()),
+            };
+            globalThis.Engine = { Storage: storage };
+            const other = { label: 'Bookmarks Directory', input: 'directory', value: '/marks' };
+            Settings.prototype._getValidValue.call(
+                { baseDirectory: { ...directorySetting } },
+                'General',
+                other,
+            );
+            expect(storage.directoryExist).toHaveBeenCalledWith('/marks');
+            expect(storage.checkDirectory).not.toHaveBeenCalled();
+        });
+    });
+});
+
+describe('the directories of the settings, when the settings are loaded twice', () => {
+    // the application loads the settings when the engine starts and once more when the connectors are registered
+    it('should say what is wrong with the manga directory the first time only', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        globalThis.alert = vi.fn();
+        const storage = stubEngine({ stored: { baseDirectory: '/mnt/disk/mangas' } });
+        storage.checkDirectory.mockRejectedValue(new Error('EACCES: permission denied'));
+        const settings = createSettings();
+        await settings.load();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(globalThis.alert).toHaveBeenCalledTimes(1);
+        await settings.load();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(storage.checkDirectory).toHaveBeenCalledTimes(2);
+        expect(globalThis.alert).toHaveBeenCalledTimes(1);
+        expect(console.warn).toHaveBeenCalledTimes(1);
+        expect(settings.baseDirectory.value).toBe('/mnt/disk/mangas');
+    });
+
+    it('should say it again when the first load did not get to the directories', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        globalThis.alert = vi.fn();
+        const storage = stubEngine({ loadError: new Error('no file') });
+        storage.checkDirectory.mockRejectedValue(new Error('EACCES: permission denied'));
+        const settings = createSettings();
+        await settings.load();
+        storage.loadConfig.mockResolvedValue({ baseDirectory: '/mnt/disk/mangas' });
+        await settings.load();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(globalThis.alert).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('settings of background loaded connectors', () => {
@@ -202,6 +292,7 @@ function stubEngine({ connectors = [], stored, loadError, saveError } = {}) {
             }
         }),
         directoryExist: vi.fn(async () => undefined),
+        checkDirectory: vi.fn(async () => undefined),
     };
     globalThis.Engine = { Connectors: connectors, Storage: storage };
     return storage;

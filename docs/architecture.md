@@ -37,7 +37,7 @@ assets/icon.svg         the logo; every icon is generated from it
 |---|---|
 | `ElectronBootstrap` | window, tray, local hotkeys, URL schemes, header rule hooks, renderer bootstrap values |
 | `IpcBridge` | dialogs, shell, clipboard, window controls, cookies, proxy, post-download commands |
-| `FsBridge` | file access of the engine: `mkdir`, `readFile`, `writeFile`, `rename`, `unlink`, `stat`, `readdir` |
+| `FsBridge` | file access of the engine: `mkdir`, `readFile`, `writeFile`, `rename`, `unlink`, `stat`, `readdir`, `access` (can a directory be read, entered and written into) |
 | `FetchWindowManager` | hidden browser windows for pages that need a real browser, see [below](#requests-and-interstitials) |
 | `HeaderSurgery` | request and response header rules, applied synchronously to every request |
 | `SqliteBridge` | reads SQLite bookmark databases (imports of other downloaders) with `node:sqlite` |

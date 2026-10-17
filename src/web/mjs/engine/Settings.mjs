@@ -328,6 +328,8 @@ export default class Settings extends EventTarget {
     async load() {
         try {
             let data = await Engine.Storage.loadConfig('settings');
+            // the second load (when the connectors are registered) has said what is wrong with the directories already
+            let again = storedConnectorSettings.has(this);
             storedConnectorSettings.set(this, (data && data.connectors) || {});
             // apply general settings
             for (let key in this) {
@@ -344,7 +346,7 @@ export default class Settings extends EventTarget {
                         continue;
                     }
                     this[key].value = value;
-                    this[key].value = this._getValidValue('General', this[key]);
+                    this[key].value = this._getValidValue('General', this[key], again);
                 }
             }
             // apply settings to each connector
@@ -462,10 +464,16 @@ export default class Settings extends EventTarget {
                     return setting.max;
                 }
                 return value;
-            case types.directory:
-                Engine.Storage.directoryExist(value).catch((error) => {
-                    // A directory that does not exist yet is fine: Storage creates it on the first write.
-                    if (/ENOENT/.test(error.message)) {
+            case types.directory: {
+                // the manga directory has to take the chapters, the other ones only have to be a directory
+                let storing = setting === this.baseDirectory;
+                let check = storing
+                    ? Engine.Storage.checkDirectory(value)
+                    : Engine.Storage.directoryExist(value);
+                check.catch((error) => {
+                    // A directory that does not exist yet is fine: Storage creates it on the first write
+                    // (checkDirectory has looked at its parents, so what it rejects with is a real problem).
+                    if (!storing && /ENOENT/.test(error.message)) {
                         return;
                     }
                     let message = `WARNING: Cannot access the directory for "${setting.label}" from "${scope}" settings!\n\n${error.message}`;
@@ -476,6 +484,7 @@ export default class Settings extends EventTarget {
                     }
                 });
                 return value;
+            }
             default:
                 return value;
         }

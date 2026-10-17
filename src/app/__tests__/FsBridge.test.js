@@ -78,6 +78,7 @@ describe('FsBridge', () => {
     });
     it('should register every channel of the preload bridge, and no synchronous one', () => {
         expect(Object.keys(handlers()).sort()).toEqual([
+            'rakkomik:fs:access',
             'rakkomik:fs:mkdir',
             'rakkomik:fs:readFile',
             'rakkomik:fs:readdir',
@@ -326,6 +327,45 @@ describe('FsBridge', () => {
             await expect(handlers()['rakkomik:fs:readdir']({}, file)).rejects.toMatchObject({
                 code: 'ENOTDIR',
             });
+        });
+    });
+
+    describe('rakkomik:fs:access', () => {
+        it('should answer nothing for a directory that can be read, entered and written into', async () => {
+            await expect(handlers()['rakkomik:fs:access']({}, dir)).resolves.toBeUndefined();
+        });
+
+        it('should ask for the read, the write and the enter permission, which a directory with chapters needs', async () => {
+            const access = vi.spyOn(fs.promises, 'access');
+            try {
+                await handlers()['rakkomik:fs:access']({}, dir);
+                expect(access).toHaveBeenCalledWith(
+                    dir,
+                    fs.constants.R_OK | fs.constants.W_OK | fs.constants.X_OK,
+                );
+            } finally {
+                access.mockRestore();
+            }
+        });
+
+        it('should fail for a path that does not exist', async () => {
+            await expect(
+                handlers()['rakkomik:fs:access']({}, path.join(dir, 'ghost')),
+            ).rejects.toMatchObject({ code: 'ENOENT' });
+        });
+
+        it('should pass on the refusal of the system, with its code', async () => {
+            const refusal = Object.assign(new Error('EACCES: permission denied'), {
+                code: 'EACCES',
+            });
+            const access = vi.spyOn(fs.promises, 'access').mockRejectedValue(refusal);
+            try {
+                await expect(handlers()['rakkomik:fs:access']({}, dir)).rejects.toMatchObject({
+                    code: 'EACCES',
+                });
+            } finally {
+                access.mockRestore();
+            }
         });
     });
 

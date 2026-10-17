@@ -29,6 +29,10 @@ function realBridge() {
                 size: stats.size,
             })),
         readdir: (target) => fs.promises.readdir(target),
+        access: (target) =>
+            fs.promises
+                .access(target, fs.constants.R_OK | fs.constants.W_OK | fs.constants.X_OK)
+                .then(() => undefined),
     };
 }
 

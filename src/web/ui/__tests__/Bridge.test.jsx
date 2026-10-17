@@ -335,6 +335,23 @@ describe('saving the settings', () => {
         );
     });
 
+    describe('the manga directory after saving', () => {
+        it('should answer nothing when the directory of the settings can take the chapters', async () => {
+            engine.Settings.baseDirectory = { value: '/mnt/disk/mangas' };
+            await expect(bridge.mangaDirectoryProblem()).resolves.toBeNull();
+            expect(engine.Storage.checkDirectory).toHaveBeenCalledWith('/mnt/disk/mangas');
+        });
+
+        it('should say what is wrong with it, with the reason of the system', async () => {
+            engine.Storage.checkDirectory.mockRejectedValueOnce(
+                new Error("EACCES: permission denied, access '/mnt/disk/mangas'"),
+            );
+            await expect(bridge.mangaDirectoryProblem()).resolves.toBe(
+                "Cannot access the manga directory!\n\nEACCES: permission denied, access '/mnt/disk/mangas'",
+            );
+        });
+    });
+
     it('should draw the draft from the categories of the engine, with the values as they are now', () => {
         const ref = { input: 'text', label: 'Name', value: 'now' };
         engine.Settings.groups = [{ category: 'General', settings: [ref] }];

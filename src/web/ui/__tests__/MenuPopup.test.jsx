@@ -484,6 +484,66 @@ describe('menu popup', () => {
         });
     });
 
+    describe('the manga directory that is saved', () => {
+        async function openWithDirectory() {
+            const directory = setting({
+                input: 'directory',
+                label: 'Manga Directory',
+                value: '/mangas',
+            });
+            const view = await openMenu({ groups: [group('General', directory)] });
+            view.settings.baseDirectory = directory;
+            return view;
+        }
+
+        // the directory is chosen in the dialog of the system, the field is not typed in
+        async function choose(path) {
+            engine.Storage.folderBrowser.mockResolvedValueOnce(path);
+            fireEvent.click(within(rowOf('Manga Directory')).getByRole('button'));
+            await waitFor(() => expect(controlOf('Manga Directory').value).toBe(path));
+        }
+
+        it('should be looked at after the save, and not be mentioned when it can take the chapters', async () => {
+            const { settings, onClose } = await openWithDirectory();
+            let seenAtCheck = null;
+            engine.Storage.checkDirectory.mockImplementation(async (value) => {
+                seenAtCheck = { value, saved: settings.save.mock.calls.length };
+            });
+            await choose('/mnt/disk/mangas');
+            fireEvent.click(saveButton());
+            await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+            expect(seenAtCheck).toEqual({ value: '/mnt/disk/mangas', saved: 1 });
+            expect(screen.getByText('Settings saved.')).toBeTruthy();
+            expect(screen.queryByText(/Cannot access the manga directory/)).toBeNull();
+        });
+
+        it('should be said to be out of reach, until the message is dismissed, with the settings kept and the menu closed', async () => {
+            const { settings, onClose } = await openWithDirectory();
+            engine.Storage.checkDirectory.mockRejectedValueOnce(
+                new Error("EACCES: permission denied, access '/mnt/disk/mangas'"),
+            );
+            await choose('/mnt/disk/mangas');
+            fireEvent.click(saveButton());
+            await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+            const toast = toastOf(/Cannot access the manga directory!/);
+            expect(toast.className).toMatch(/red/);
+            expect(toast.getAttribute('role')).toBe('alert');
+            expect(toast.textContent).toContain("EACCES: permission denied, access '/mnt/disk");
+            expect(toastOf('Settings saved.').className).toMatch(/green/);
+            expect(settings.save).toHaveBeenCalledTimes(1);
+            expect(settings.baseDirectory.value).toBe('/mnt/disk/mangas');
+        });
+
+        it('should not be looked at when the settings could not be saved', async () => {
+            const { settings, onClose } = await openWithDirectory();
+            settings.save.mockRejectedValueOnce(new Error('disk is full'));
+            fireEvent.click(saveButton());
+            expect(await screen.findByText('Failed to save settings: disk is full')).toBeTruthy();
+            expect(engine.Storage.checkDirectory).not.toHaveBeenCalled();
+            expect(onClose).not.toHaveBeenCalled();
+        });
+    });
+
     describe('closing', () => {
         it('should discard the draft when the close button is used, and close', async () => {
             const name = setting({ label: 'Name', value: 'old' });

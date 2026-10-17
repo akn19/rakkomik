@@ -79,7 +79,7 @@ The settings are in the menu. The most important ones:
 
 | Setting | Meaning |
 |---|---|
-| Manga Directory | Where the downloaded chapters are stored |
+| Manga Directory | Where the downloaded chapters are stored. RakKomik says so, when it starts and after you save the settings, if it cannot read from or write into it |
 | Bookmarks Directory | Where bookmarks and chapter marks are stored (not available in portable mode) |
 | Use Sub-Directories | One sub-directory per website inside the manga directory |
 | Chapter File Format | Folder with images, comic book archive (`.cbz`) or ebook (`.epub`) |

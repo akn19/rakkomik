@@ -45,5 +45,10 @@ module.exports = class FsBridge {
         electron.ipcMain.handle('rakkomik:fs:readdir', (event, path) => {
             return fs.promises.readdir(path);
         });
+        electron.ipcMain.handle('rakkomik:fs:access', (event, path) => {
+            // what a directory needs to hold the chapters: it can be listed, entered and written into
+            const mode = fs.constants.R_OK | fs.constants.W_OK | fs.constants.X_OK;
+            return fs.promises.access(path, mode).then(() => undefined);
+        });
     }
 };

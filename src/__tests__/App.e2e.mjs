@@ -529,6 +529,44 @@ test.describe('menu and settings', () => {
         await page.getByTitle('Save settings and close menu').click();
         await expect(page.getByText('Settings saved.')).toBeVisible();
         await expect(page.getByText('About', { exact: true })).toBeHidden();
+        // the menu closes after the manga directory was looked at: a directory that takes the chapters is not mentioned
+        await expect(page.getByText(/Cannot access the manga directory/)).toHaveCount(0);
+    });
+
+    test('should say after saving that the manga directory cannot take the chapters', async ({
+        app,
+        page,
+    }) => {
+        await reload(page);
+        await connectorsReady(page);
+        const original = await page.evaluate(() => Engine.Settings.baseDirectory.value);
+        // below a file, where no system can make a directory
+        const file = path.join(app.userDirectory, 'not-a-directory');
+        fs.writeFileSync(file, 'x');
+        try {
+            await page.evaluate(
+                (value) => {
+                    Engine.Settings.baseDirectory.value = value;
+                },
+                path.join(file, 'mangas'),
+            );
+            await page.getByTitle('Toggle menu').click();
+            await page.getByTitle('Save settings and close menu').click();
+            await expect(page.getByText('Settings saved.')).toBeVisible();
+            const problem = page.getByRole('alert').filter({
+                hasText: 'Cannot access the manga directory!',
+            });
+            await expect(problem).toBeVisible();
+            // the system says the path is no directory, or that nothing is there, and then the file is said to be no directory
+            await expect(problem).toContainText(/ENOTDIR|is not a directory/);
+            await expect(page.getByText('About', { exact: true })).toBeHidden();
+        } finally {
+            await page.evaluate(async (value) => {
+                Engine.Settings.baseDirectory.value = value;
+                await Engine.Settings.save();
+            }, original);
+            fs.rmSync(file, { force: true });
+        }
     });
 
     test('should remember the theme across reloads', async ({ page }) => {
