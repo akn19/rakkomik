@@ -41,6 +41,7 @@ function fakeWindow(detections, runtimeResult = 'RESULT') {
         setSize: vi.fn(),
         center: vi.fn(),
         show: vi.fn(),
+        showInactive: vi.fn(),
         focus: vi.fn(),
         close: vi.fn(),
         isDestroyed: () => false,
@@ -416,6 +417,31 @@ describe('FetchWindowManager', () => {
             expect(win.show).not.toHaveBeenCalled();
             finish();
             await expect(result).resolves.toBe('RESULT');
+        });
+
+        it('should show the window without the focus before the script runs, when the job asks for it, and not otherwise', async () => {
+            const shown = fakeWindow([{ redirection: 'none' }]);
+            let shownBeforeScript = null;
+            const detect = shown.webContents.executeJavaScript.getMockImplementation();
+            shown.webContents.executeJavaScript.mockImplementation((script) => {
+                if (script === 'RUN') {
+                    shownBeforeScript = shown.showInactive.mock.calls.length;
+                }
+                return detect(script);
+            });
+            await expect(
+                manager._load(shown, { ...JOB, preferences: { show: true } }),
+            ).resolves.toBe('RESULT');
+            expect(shownBeforeScript).toBe(1);
+            expect(shown.showInactive).toHaveBeenCalledTimes(1);
+            expect(shown.show).not.toHaveBeenCalled();
+            expect(shown.focus).not.toHaveBeenCalled();
+
+            for (const preferences of [undefined, {}, { show: false }]) {
+                const hidden = fakeWindow([{ redirection: 'none' }]);
+                await manager._load(hidden, { ...JOB, preferences });
+                expect(hidden.showInactive).not.toHaveBeenCalled();
+            }
         });
 
         it('should not show the window after the page is done, however often the check has reloaded the page', async () => {

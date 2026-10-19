@@ -22,6 +22,10 @@ const DEFAULT_INTERACTIVE_TIMEOUT = 180000;
  *                 show the window when it takes longer than `interactiveAfter`
  * - `interactive` a human is needed: show the window and extend the deadline
  * - `error`       the site refuses the request: reject at once
+ *
+ * A job whose `preferences.show` is true has its window shown, without taking the focus, while its script runs: a
+ * check that is made for a visitor only finishes in a window that can be seen (the hidden window of a Turnstile
+ * widget waits until it is shown), and the page is one that does not run the scripts of the site.
  */
 module.exports = class FetchWindowManager {
     constructor(logger) {
@@ -183,6 +187,9 @@ module.exports = class FetchWindowManager {
                             return;
                         default: {
                             clearTimeout(reveal);
+                            if (job.preferences && job.preferences.show) {
+                                win.showInactive();
+                            }
                             const result = await win.webContents.executeJavaScript(
                                 job.runtimeScript,
                             );

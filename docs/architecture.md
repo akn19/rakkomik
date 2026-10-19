@@ -172,6 +172,15 @@ completed". The three times are properties of `Engine.Request` (`interactiveAfte
 `challengeTimeout`). Nothing solves captchas automatically. In a shown window `F12` opens the developer tools,
 `Shift+C` copies the URL and `Shift+V` loads the URL from the clipboard.
 
+**A check that a connector runs itself.** Lunar makes a visitor pass a Cloudflare Turnstile widget before it hands out
+the images of a chapter. The connector runs the widget with `Engine.Request.fetchBrowser` and the preferences
+`{ webSecurity: true, images: true, show: true }`. The widget does not finish in a hidden window, nor with the images
+or the web security of the window off, so `preferences.show` has `FetchWindowManager` show the window (`showInactive`:
+the focus stays where it is) while the script runs. The window loads a plain document of the site, its
+`manifest.json`, and not a page: the pages of that site take such a window for a browser with a blocked extension,
+show a page of their own and close the window. For the same reason the connector does not load the home page to get
+going (`_initializeConnector` does nothing).
+
 ## Names that come from the engine
 
 A few identifiers keep their historical name because the engine (`src/web/mjs`) uses them. Keep them when you work

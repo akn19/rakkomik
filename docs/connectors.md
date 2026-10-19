@@ -58,7 +58,9 @@ counted and shows only the elapsed time, so prefer the helpers.
 Create requests with `new Request(url, this.requestOptions)`; the options carry the credentials and the default
 headers. The `x-` headers (`x-referer`, `x-origin`, `x-cookie`, `x-user-agent`, ...) are turned into real headers by
 the main process, see [architecture](architecture.md#requests-and-interstitials). Interstitials are handled below
-`fetch()`; a connector does not deal with them.
+`fetch()`; a connector does not deal with them. A connector for a site that needs no cookie from its pages overrides
+`_initializeConnector()` with nothing: the default loads the home page of the site in a window to get the cookies of its
+checks, and a page that takes that window for a browser with a blocked extension (Lunar does) closes it.
 
 ## Images that need more than a link
 
