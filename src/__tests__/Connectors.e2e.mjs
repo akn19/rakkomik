@@ -204,6 +204,23 @@ const sites = [
             pageMatcher: /^https:\/\/[^/]+\/.+/,
         },
     },
+    {
+        name: 'Luvyaa',
+        parameters: {
+            connectorID: 'luvyaa',
+            mangaURL: 'https://v5.luvyaa.co/cherry-pie-recipe/',
+            chaptersAccessor: 'pop',
+        },
+        expectations: {
+            connectorClass: 'Luvyaa',
+            mangaID: '/cherry-pie-recipe/',
+            mangaTitle: 'Cherry Pie Recipe',
+            chapterID: '/cherry-pie-recipe-chapter-1/',
+            chapterTitle: 'Chapter 1',
+            pageCount: 20,
+            pageMatcher: /^https:\/\/[^/]+\/.+\.(webp|jpe?g|png)/,
+        },
+    },
 ];
 
 test.describe('connectors on the real websites', () => {
