@@ -105,8 +105,8 @@ rakkomik [OPTIONS]
 ```
 
 An application that ships with its web part, in the folder `web` next to `app.asar` (the Arch package and the
-installers), uses that folder as the default cache directory and has the update off by default. Give
-`--cache-directory=<DIR>` or `--update-url=<URL>` to choose differently; the two are independent.
+installers), copies it into the cache directory when the cache is empty, so that the first start needs no network.
+From then on the cache is kept up to date by the update, like for any other start.
 
 ## Data locations
 

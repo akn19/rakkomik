@@ -41,6 +41,79 @@ describe('CacheDirectoryManager', () => {
         });
     });
 
+    describe('seedFrom()', () => {
+        let bundled = null;
+
+        beforeEach(() => {
+            bundled = fs.mkdtempSync(path.join(os.tmpdir(), 'rakkomik-bundled-'));
+            fs.mkdirSync(path.join(bundled, 'js'));
+            fs.writeFileSync(path.join(bundled, 'index.html'), 'BUNDLED');
+            fs.writeFileSync(path.join(bundled, 'js', 'app.js'), 'bundled();');
+        });
+
+        afterEach(() => {
+            fs.rmSync(bundled, { recursive: true, force: true });
+        });
+
+        it('should copy the web part into a cache that does not exist yet', async () => {
+            const target = path.join(cache, 'not', 'there');
+            await expect(new CacheDirectoryManager(target, logger).seedFrom(bundled)).resolves.toBe(
+                true,
+            );
+            expect(fs.readFileSync(path.join(target, 'index.html'), 'utf8')).toBe('BUNDLED');
+            expect(fs.readFileSync(path.join(target, 'js', 'app.js'), 'utf8')).toBe('bundled();');
+        });
+
+        it('should have no version for the copy, so that the first update replaces it', async () => {
+            await new CacheDirectoryManager(cache, logger).seedFrom(bundled);
+            await expect(
+                new CacheDirectoryManager(cache, logger).getCurrentVersion(),
+            ).resolves.toBeUndefined();
+        });
+
+        it('should leave a cache alone that has a web part, the one that the updates keep', async () => {
+            fs.writeFileSync(path.join(cache, 'index.html'), 'UPDATED');
+            fs.writeFileSync(path.join(cache, 'version'), 'MVFK4PJJ');
+            await expect(new CacheDirectoryManager(cache, logger).seedFrom(bundled)).resolves.toBe(
+                false,
+            );
+            expect(fs.readFileSync(path.join(cache, 'index.html'), 'utf8')).toBe('UPDATED');
+            expect(fs.readFileSync(path.join(cache, 'version'), 'utf8')).toBe('MVFK4PJJ');
+            expect(fs.existsSync(path.join(cache, 'js'))).toBe(false);
+        });
+
+        it('should replace what a start that was cut off has left, and not mix it with the copy', async () => {
+            seedCache();
+            await expect(new CacheDirectoryManager(cache, logger).seedFrom(bundled)).resolves.toBe(
+                true,
+            );
+            expect(fs.readdirSync(cache).sort()).toEqual(['index.html', 'js']);
+        });
+
+        it.each([[undefined], [''], [null]])(
+            'should copy nothing when no web part ships (%j)',
+            async (directory) => {
+                await expect(
+                    new CacheDirectoryManager(cache, logger).seedFrom(directory),
+                ).resolves.toBe(false);
+                expect(fs.readdirSync(cache)).toEqual([]);
+            },
+        );
+
+        it('should not touch the web part when it is the cache directory itself', async () => {
+            await expect(
+                new CacheDirectoryManager(bundled, logger).seedFrom(bundled),
+            ).resolves.toBe(false);
+            expect(fs.readFileSync(path.join(bundled, 'index.html'), 'utf8')).toBe('BUNDLED');
+        });
+
+        it('should fail when the folder of the web part is not there', async () => {
+            await expect(
+                new CacheDirectoryManager(cache, logger).seedFrom(path.join(bundled, 'missing')),
+            ).rejects.toThrow();
+        });
+    });
+
     describe('applyUpdateArchive()', () => {
         it('should keep the existing cache when the archive is invalid', async () => {
             seedCache();

@@ -86,49 +86,39 @@ describe('App', function () {
             const resources = path.join('/opt', 'rakkomik', 'resources');
             const argv = process.argv;
 
-            beforeEach(() => {
-                electron.app.getAppPath.mockImplementation(() => path.join(resources, 'app.asar'));
-                fs.existsSync.mockImplementation(
-                    (file) => file === path.join(resources, 'web', 'index.html'),
-                );
-            });
-
             afterEach(() => {
                 electron.app.getAppPath.mockImplementation(() => '/usr/bin');
                 process.argv = argv;
             });
 
-            // the cache directory is absolute: on Windows that includes the drive of the working directory
-            it('should use it as the cache directory and leave the update off', () => {
-                let testee = new App(logger);
-                expect(testee._configuration.applicationCacheDirectory).toEqual(
-                    path.resolve(resources, 'web'),
+            // the folder is only what the cache is filled with: the cache directory and the update URL stay as they were
+            it('should leave the cache directory and the update URL as they are', () => {
+                let without = new App(logger)._configuration;
+                electron.app.getAppPath.mockImplementation(() => path.join(resources, 'app.asar'));
+                fs.existsSync.mockImplementation(
+                    (file) => file === path.join(resources, 'web', 'index.html'),
                 );
-                expect(testee._configuration.applicationUpdateURL).toEqual('DISABLED');
+                let testee = new App(logger);
+                // the directory as the configuration names it, before it is made absolute against the application
+                expect(testee._configuration._applicationCacheDirectory).toEqual(
+                    without._applicationCacheDirectory,
+                );
+                expect(testee._configuration.applicationUpdateURL).toEqual(
+                    'https://github.com/akn19/rakkomik/releases/download/web-main/latest',
+                );
             });
             it('should leave the cache directory and the update URL to the command line', () => {
+                electron.app.getAppPath.mockImplementation(() => path.join(resources, 'app.asar'));
                 process.argv = [
                     ...argv,
                     '--cache-directory=/custom/cache',
-                    '--update-url=https://example.org/latest',
+                    '--update-url=DISABLED',
                 ];
                 let testee = new App(logger);
                 expect(testee._configuration.applicationCacheDirectory).toEqual(
                     path.resolve('/custom/cache'),
                 );
-                expect(testee._configuration.applicationUpdateURL).toEqual(
-                    'https://example.org/latest',
-                );
-            });
-            it('should decide on each of the two by itself', () => {
-                process.argv = [...argv, '--update-url=https://example.org/latest'];
-                let testee = new App(logger);
-                expect(testee._configuration.applicationCacheDirectory).toEqual(
-                    path.resolve(resources, 'web'),
-                );
-                expect(testee._configuration.applicationUpdateURL).toEqual(
-                    'https://example.org/latest',
-                );
+                expect(testee._configuration.applicationUpdateURL).toEqual('DISABLED');
             });
         });
     });
@@ -362,27 +352,74 @@ describe('App', function () {
             expect(own.error).toHaveBeenCalledWith('Failed to start application!', failure);
         });
 
-        it('should not look for an update when the web part ships with the application', async () => {
-            let fetch = vi
-                .spyOn(globalThis, 'fetch')
-                .mockRejectedValue(new Error('the network must stay unused'));
-            electron.app.getAppPath.mockImplementation(() =>
-                path.join('/opt', 'rakkomik', 'resources', 'app.asar'),
-            );
-            fs.existsSync.mockImplementation(
-                (file) => file === path.join('/opt', 'rakkomik', 'resources', 'web', 'index.html'),
-            );
-            try {
-                // the real updater, which has to find the update switched off
+        describe('the web part that ships with the application', () => {
+            const resources = path.join('/opt', 'rakkomik', 'resources');
+
+            beforeEach(() => {
+                electron.app.getAppPath.mockImplementation(() => path.join(resources, 'app.asar'));
+                fs.existsSync.mockImplementation(
+                    (file) => file === path.join(resources, 'web', 'index.html'),
+                );
                 testee = new App(own);
-                fakeElectron(testee);
-                await testee.run();
-            } finally {
+                fakeParts(testee);
+                testee._cacheManager = {
+                    seedFrom: vi.fn(async (directory) => {
+                        calls.push(['seedFrom', directory]);
+                        return true;
+                    }),
+                };
+            });
+
+            afterEach(() => {
                 electron.app.getAppPath.mockImplementation(() => '/usr/bin');
-            }
-            expect(fetch).not.toHaveBeenCalled();
-            expect(own.info).toHaveBeenCalledWith('Update is disabled');
-            expect(calls.map(([step]) => step)).toEqual(['launch', 'loadHTML', 'loadURL']);
+            });
+
+            it('should be copied into the cache before the update is looked for, and the update goes on', async () => {
+                await testee.run();
+                expect(calls.map(([step]) => step)).toEqual([
+                    'launch',
+                    'loadHTML',
+                    'seedFrom',
+                    'updateCache',
+                    'loadURL',
+                ]);
+                expect(calls.find(([step]) => step === 'seedFrom')[1]).toBe(
+                    path.join(resources, 'web'),
+                );
+                expect(own.info).toHaveBeenCalledWith(
+                    'The web part of the application was copied to the cache directory',
+                );
+            });
+
+            it('should say nothing when the cache has its web part already', async () => {
+                testee._cacheManager.seedFrom.mockResolvedValue(false);
+                await testee.run();
+                expect(own.info).not.toHaveBeenCalled();
+                expect(calls.map(([step]) => step)).toContain('updateCache');
+            });
+
+            it('should look for the update, and start, when the copy fails', async () => {
+                let failure = new Error('disk is full');
+                testee._cacheManager.seedFrom.mockRejectedValue(failure);
+                await testee.run();
+                expect(own.error).toHaveBeenCalledWith(
+                    'The web part of the application could not be copied!',
+                    failure,
+                );
+                expect(calls.map(([step]) => step)).toEqual([
+                    'launch',
+                    'loadHTML',
+                    'updateCache',
+                    'loadURL',
+                ]);
+            });
+        });
+
+        it('should not copy anything when nothing ships with the application', async () => {
+            let seedFrom = vi.spyOn(testee._cacheManager, 'seedFrom');
+            await testee.run();
+            expect(seedFrom).toHaveBeenCalledWith(undefined);
+            await expect(seedFrom.mock.results[0].value).resolves.toBe(false);
         });
 
         // NOTE: the startup page is not awaited: `run()` is done when the page is requested, not when it has loaded (Electron

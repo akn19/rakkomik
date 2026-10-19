@@ -29,6 +29,34 @@ module.exports = class CacheDirectoryManager {
     }
 
     /**
+     * Fill the cache directory with a copy of the web part that ships with the application, when the cache has no web part
+     * yet (no `index.html`). A cache that has one is left alone: it is the one that the updates keep.
+     * @param {string} [directory] the folder of the web part that ships with the application
+     * @returns {Promise<boolean>} whether the copy was made
+     */
+    async seedFrom(directory) {
+        if (
+            !directory ||
+            path.resolve(directory) === path.resolve(this._applicationCacheDirectory)
+        ) {
+            return false;
+        }
+        const present = await fs
+            .access(path.join(this._applicationCacheDirectory, 'index.html'))
+            .then(
+                () => true,
+                () => false,
+            );
+        if (present) {
+            return false;
+        }
+        // what an earlier start left behind (a copy or an update that was cut off) is replaced, not mixed with the new one
+        await fs.rm(this._applicationCacheDirectory, { recursive: true, force: true });
+        await fs.cp(directory, this._applicationCacheDirectory, { recursive: true });
+        return true;
+    }
+
+    /**
      * Target path of an archive entry, refusing entries that would escape the cache directory.
      * @param {string} entry
      * @returns {string}

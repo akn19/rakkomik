@@ -134,11 +134,12 @@ are downloaded with the request options of the connector; one that fails is left
   the application checks the signature against the public key in `src/app/Configuration.js` before it extracts the
   archive over the cache directory.
 - **Packaged applications** (the Arch package and every installer) ship the web part in the folder `web` next to
-  `app.asar` (`build:web` runs before the packagers do). When that folder has an `index.html`, the application uses it
-  as its cache directory and leaves the update off (`Configuration.bundledWebDirectory`, applied in `App`); a
-  `--cache-directory` or `--update-url` on the command line wins, each on its own. Development (`electron .`) has no
-  `app.asar`, so it is not affected. Such an application does not depend on the web part release or its signing key;
-  a new version of the package or installer is what updates the web part.
+  `app.asar` (`build:web` runs before the packagers do). It is only the first content of the cache: when the cache
+  directory has no `index.html` yet, `App` copies the folder into it (`CacheDirectoryManager.seedFrom`, the folder is
+  found by `Configuration.bundledWebDirectory`), so the first start works without a network. The cache is what the
+  updates replace from then on, as for every other start. The copy has no `version`, so the first update that is
+  found replaces it. A cache that has a web part is never overwritten by the folder, also not by that of a newer
+  installer: the updates keep it up to date. Development (`electron .`) has no `app.asar` and no folder.
 
 ## Requests and interstitials
 

@@ -113,9 +113,9 @@ set. The package is kept up to date and can be built locally, and every release 
   web part (`build/web`, built from the same tag) are installed in `/usr/lib/rakkomik`, next to the icons and the
   desktop entry. The build needs network access (pnpm).
 - `rakkomik.sh` is the launcher (`/usr/bin/rakkomik`); it starts the system Electron with `app.asar`. The application
-  finds the `web` folder next to it, uses it as its cache directory and does not update it (see
-  [architecture](architecture.md#delivery-and-updates-of-the-web-part)), so a new version of the package is what
-  updates the web part. The AUR package therefore does not depend on the web part release or on its signing key.
+  finds the `web` folder next to it and copies it into its cache directory when the cache is empty (see
+  [architecture](architecture.md#delivery-and-updates-of-the-web-part)), so the first start works without the web
+  part release. The updates of the web part come from that release, like for the installers.
 - The package runs on the system `electron` package and so follows Arch's Electron releases; no Electron version is
   pinned. Keep the application compatible with the current Electron.
 - `rakkomik.desktop` is the desktop entry.

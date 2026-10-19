@@ -43,6 +43,7 @@ module.exports = class App {
             this._configuration.applicationCacheDirectory,
             this._logger,
         );
+        this._cacheManager = cacheManager;
         this._updater = new Updater(serverManager, cacheManager, this._logger);
         this._electron = new ElectronBootstrap(this._configuration, this._logger);
         new IpcBridge(this._logger).register();
@@ -54,15 +55,6 @@ module.exports = class App {
     }
 
     _getConfiguration(options) {
-        // A web part that ships with the application is used and not updated, each unless the command line says otherwise.
-        const bundled = Configuration.bundledWebDirectory;
-        if (bundled) {
-            options = {
-                ...options,
-                applicationCacheDirectory: options.applicationCacheDirectory || bundled,
-                applicationUpdateURL: options.applicationUpdateURL || 'DISABLED',
-            };
-        }
         if (Configuration.isPortableMode) {
             return new Configuration(options);
         }
@@ -74,6 +66,23 @@ module.exports = class App {
         }
         if (process.platform === 'win32') {
             return new ConfigurationWindows(options);
+        }
+    }
+
+    /**
+     * A packaged application carries its web part in the folder `web` next to `app.asar`. It is copied into the cache
+     * directory when the cache has none yet, so that the first start needs no network and does not wait for an update. After
+     * that the cache is what the updates replace, as it ever was.
+     */
+    async _seedCache() {
+        try {
+            if (await this._cacheManager.seedFrom(Configuration.bundledWebDirectory)) {
+                this._logger.info(
+                    'The web part of the application was copied to the cache directory',
+                );
+            }
+        } catch (error) {
+            this._logger.error('The web part of the application could not be copied!', error);
         }
     }
 
@@ -102,6 +111,7 @@ module.exports = class App {
             }
             await this._electron.launch();
             await this._electron.loadHTML(loadingPage);
+            await this._seedCache();
             await this._updater.updateCache(this._configuration.publicKey);
             this._electron.loadURL(this._configuration.applicationStartupURL);
         } catch (error) {

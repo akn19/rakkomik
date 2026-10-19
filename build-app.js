@@ -124,8 +124,8 @@ class ElectronPackager {
     }
 
     /**
-     * Put the web part (`pnpm run build:web`) next to `app.asar`: the packaged application finds it there, uses it
-     * and does not update it (see `Configuration.bundledWebDirectory` of the application).
+     * Put the web part (`pnpm run build:web`) next to `app.asar`: the packaged application finds it there and copies
+     * it into its cache directory when the cache is empty (see `App._seedCache`); the updates replace it from then on.
      * @param {string} resourcesDirectory the directory that holds `app.asar`
      */
     async _bundleWebPart(resourcesDirectory) {

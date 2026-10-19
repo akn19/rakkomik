@@ -7,8 +7,8 @@
 #
 # The package is self-contained. It installs the Electron shell of src/app (app.asar) and the web part
 # (engine, connectors and user interface, built from the same tag) side by side in /usr/lib/rakkomik. The
-# application finds the folder `web` next to app.asar, uses it and leaves its own updater off: a new version of
-# the package is what updates the web part. It runs on the system `electron` package and so follows Arch's
+# application finds the folder `web` next to app.asar and copies it into its cache directory when the cache is empty,
+# so the first start needs no network; the updates keep the cache from then on. It runs on the system `electron` package and so follows Arch's
 # Electron releases: no Electron version is pinned here, the application is kept compatible with the current
 # Electron instead.
 
