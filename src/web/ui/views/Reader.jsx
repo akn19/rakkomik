@@ -220,17 +220,23 @@ export default function ReaderView() {
         selectManga,
         chapterOrder,
     } = useSelection();
+    // The connector of the selection at the moment that a link is resolved. The effect below must not follow it: the panels
+    // stay beside the reader, and a connector that the user picks there would be undone at once.
+    const selectedConnectorRef = React.useRef(selectedConnectorId);
+    React.useEffect(() => {
+        selectedConnectorRef.current = selectedConnectorId;
+    });
     // Keep the panels coherent: resolving a deep link selects its connector and its manga (the links of the panels are
     // made from the connector of the selection, so a manga under the wrong one would lead to chapters that are not found).
     React.useEffect(() => {
         if (resolved) {
-            if (selectedConnectorId !== connectorId) {
+            if (selectedConnectorRef.current !== connectorId) {
                 // forgets the manga: the one of the link is selected right after
                 selectConnector(connectorId);
             }
             selectManga(resolved.manga);
         }
-    }, [resolved, connectorId, selectedConnectorId, selectConnector, selectManga]);
+    }, [resolved, connectorId, selectConnector, selectManga]);
     const chapter = resolved ? resolved.chapters[resolved.index] : null;
 
     const pagesQuery = useQuery({

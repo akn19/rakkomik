@@ -378,6 +378,32 @@ test.describe('chapters and reader', () => {
         expect(await page.evaluate(() => Engine.DownloadManager.jobs.length)).toBe(0);
     });
 
+    test('should keep the website that is picked while the thumbnails of a chapter are shown', async ({
+        page,
+    }) => {
+        await reload(page);
+        await openSeededManga(page);
+        await page
+            .locator('[role=grid] > div > div')
+            .first()
+            .getByTitle(/^Show preview/)
+            .click();
+        await expect(page.getByRole('button', { name: /^Page \d$/ })).toHaveCount(6);
+        const website = page.getByRole('button', { name: /^Website:/ });
+        await expect(website).toContainText('WestManga');
+        // the link of the reader names the website of the chapter, and the panels beside it still pick another one
+        // (the bookmarks: their list is on the device, a website would be asked for its list)
+        await pickConnector(page, 'bookmarks');
+        await expect(website).toContainText('Bookmarks');
+        // the choice stays when the page has had the time to undo it
+        await page.waitForTimeout(500);
+        await expect(website).toContainText('Bookmarks');
+        expect(await page.evaluate(() => window.location.hash)).toContain('connector=westmanga');
+        // back to the start page: the address of the reader would be loaded again by the next test
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('button', { name: /^Page \d$/ })).toHaveCount(0);
+    });
+
     test('should read a chapter: thumbnails, full-window reading, zoom, chapter order and Escape', async ({
         page,
     }) => {

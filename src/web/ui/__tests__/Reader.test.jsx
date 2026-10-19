@@ -314,6 +314,36 @@ describe('the chapter of the address', () => {
         await screen.findByText('Chapter 2');
         expect(selection.current.connectorId).toBe('site');
     });
+
+    it('should leave the connector alone that the user picks while the chapter is open: the panels stay beside the reader', async () => {
+        createLibrary();
+        const { selection } = await renderReader();
+        await screen.findByText('Chapter 2');
+        act(() => selection.current.selectConnector('other'));
+        await act(async () => undefined);
+        expect(selection.current.connectorId).toBe('other');
+        // its manga is the one that the user has not chosen yet, and it stays so
+        expect(selection.current.manga).toBeNull();
+        await act(async () => undefined);
+        expect(selection.current.connectorId).toBe('other');
+    });
+
+    it('should select the connector of the link again when the user goes to another chapter', async () => {
+        const { manga } = createLibrary();
+        const { router, selection } = await renderReader();
+        await screen.findByText('Chapter 2');
+        act(() => selection.current.selectConnector('other'));
+        await act(async () => undefined);
+        await act(async () => {
+            await router.navigate({
+                to: '/reader',
+                search: { connector: 'site', manga: 'm1', chapter: 'c3' },
+            });
+        });
+        await screen.findByText('Chapter 3');
+        expect(selection.current.connectorId).toBe('site');
+        expect(selection.current.manga).toBe(manga);
+    });
 });
 
 describe('the pages of the chapter', () => {
