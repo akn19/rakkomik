@@ -66,9 +66,14 @@ export default class WestManga extends Connector {
         super.id = 'westmanga';
         super.label = 'WestManga';
         this.tags = ['manga', 'manhua', 'manhwa', 'indonesian'];
-        this.url = 'https://v1.westmanga.my';
 
         this.config = {
+            url: {
+                label: 'URL',
+                description: `This website changes its domain regularly.\nThis is the default URL which can also be manually set by the user.`,
+                input: 'text',
+                value: 'https://v1.westmanga.my',
+            },
             username: {
                 label: 'Email',
                 description: 'Email akun WestManga kamu untuk mengakses konten mature.',
@@ -91,8 +96,23 @@ export default class WestManga extends Connector {
         Engine.Settings.addEventListener('saved', this._onSettingsChanged.bind(this));
     }
 
+    get url() {
+        // an origin, without a slash at the end: the pages and the API are asked for relative to it
+        return this.config.url.value.trim().replace(/\/+$/, '');
+    }
+
+    set url(value) {
+        if (this.config && value) {
+            this.config.url.value = value;
+            Engine.Settings.save();
+        }
+    }
+
     canHandleURI(uri) {
-        return /^https?:\/\/v1\.westmanga\.(my|top|cc)$/.test(uri.origin);
+        // the links of the earlier domains as well
+        return (
+            uri.origin === this.url || /^https?:\/\/v1\.westmanga\.(my|top|cc)$/.test(uri.origin)
+        );
     }
 
     async _getMangas() {

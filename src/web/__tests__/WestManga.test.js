@@ -190,6 +190,22 @@ describe('the API of WestManga', () => {
             /status: 404\) - Not found/,
         );
     });
+
+    it('should follow the domain of the settings, and still take the links of the earlier domains', async () => {
+        const site = createSite({
+            routes: { 'comic/solo-leveling': () => json({ data: { title: 'Solo Leveling' } }) },
+        });
+        const fetchUI = createEngine(site);
+        const connector = new WestManga.default();
+        connector.config.url.value = 'https://v2.westmanga.my/ ';
+
+        await connector.fetchAPI('comic/solo-leveling');
+
+        expect(fetchUI.mock.calls[0][0].url).toBe('https://v2.westmanga.my/robots.txt');
+        expect(connector.canHandleURI(new URL('https://v2.westmanga.my/comic/a'))).toBe(true);
+        expect(connector.canHandleURI(new URL('https://v1.westmanga.cc/comic/a'))).toBe(true);
+        expect(connector.canHandleURI(new URL('https://example.com/comic/a'))).toBe(false);
+    });
 });
 
 describe('the content of WestManga', () => {
