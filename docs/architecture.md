@@ -199,6 +199,9 @@ on the code around them; they change together with the engine or not at all.
 
 - The main window has `contextIsolation` on and `nodeIntegration` off; the preload is sandboxed and exposes only the
   bridge. Hidden windows run without Node integration.
-- The main window has `webSecurity` off: connectors fetch other sites directly from the page, which needs it.
+- The main window has `webSecurity` off: connectors fetch other sites directly from the page, which needs it. The
+  windows that load the pages of the sites (`FetchWindowManager`) have it on, as a browser does: the check of
+  Cloudflare does not finish and some pages stay blank without it. A job turns it off with
+  `preferences.webSecurity: false` (`Request.fetchUI`, 5th argument).
 - The Electron binaries of the Linux and Windows installers are hardened with fuses (see
   [development](development.md#building-the-installers)).

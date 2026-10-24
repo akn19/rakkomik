@@ -203,11 +203,13 @@ describe('installChallengeBypass', () => {
         expect(await response.text()).toBe('content');
         expect(target.originalFetch).toHaveBeenCalledTimes(2);
         expect(fetchWindows.fetchUI).toHaveBeenCalledTimes(1);
-        const [windowRequest, script, timeout] = fetchWindows.fetchUI.mock.calls[0];
+        const [windowRequest, script, timeout, images] = fetchWindows.fetchUI.mock.calls[0];
         expect(windowRequest.url).toBe('https://site.test/manga/1');
         expect(windowRequest.headers.get('x-cookie')).toBe('session=1');
         expect(script).toBe('true');
         expect(timeout).toBe(1234);
+        // the check of Cloudflare does not finish in a window without images
+        expect(images).toBe(true);
     });
 
     it('should load the origin instead of the resource for requests that are not GETs', async () => {

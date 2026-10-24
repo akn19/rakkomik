@@ -59,7 +59,8 @@ module.exports = class FetchWindowManager {
                 webPreferences: {
                     preload: preloadFile,
                     nodeIntegration: preferences.nodeIntegration || false,
-                    webSecurity: preferences.webSecurity || false,
+                    // on, as in a browser: the checks of the sites (Cloudflare) do not finish without it
+                    webSecurity: preferences.webSecurity !== false,
                     images: preferences.images || false,
                 },
             });

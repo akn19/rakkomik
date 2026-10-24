@@ -663,20 +663,19 @@ describe('FetchWindowManager', () => {
             expect(created[0].win.loadURL).toHaveBeenCalledWith(JOB.url, {});
         });
 
-        // NOTE: web security is off for the pages of the sites unless the job turns it on (the scripts of the connectors
-        // read across origins), a security-relevant default that is kept as it is. Characterisation.
-        it('should give the page of a site only what the job asks for: no Node.js, no images, no web security', async () => {
+        // web security is on, as in a browser, unless the job turns it off: the checks of the sites do not finish without it
+        it('should give the page of a site only what the job asks for: no Node.js, no images, web security', async () => {
             await manager._run(JOB);
             const { preload, ...preferences } = created[0].options.webPreferences;
             expect(preload).toBeUndefined();
             expect(preferences).toEqual({
                 nodeIntegration: false,
-                webSecurity: false,
+                webSecurity: true,
                 images: false,
             });
         });
 
-        it.each([['nodeIntegration'], ['webSecurity'], ['images']])(
+        it.each([['nodeIntegration'], ['images']])(
             'should pass on %s when the job asks for it, and only then',
             async (name) => {
                 await manager._run({ ...JOB, preferences: { [name]: true } });
@@ -687,6 +686,15 @@ describe('FetchWindowManager', () => {
                 expect(created[2].options.webPreferences[name]).toBe(false);
             },
         );
+
+        it('should keep the web security on unless the job says false, whatever else it asks for', async () => {
+            for (const preferences of [undefined, {}, { images: true }, { webSecurity: true }]) {
+                await manager._run({ ...JOB, preferences });
+                expect(created.at(-1).options.webPreferences.webSecurity).toBe(true);
+            }
+            await manager._run({ ...JOB, preferences: { webSecurity: false } });
+            expect(created.at(-1).options.webPreferences.webSecurity).toBe(false);
+        });
 
         it('should leave the isolation of the page of a site to the defaults of Electron: isolated and sandboxed', async () => {
             await manager._run({ ...JOB, preferences: { nodeIntegration: false } });

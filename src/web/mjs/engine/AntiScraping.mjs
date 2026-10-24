@@ -155,6 +155,8 @@ export function installChallengeBypass(scope, fetchWindows) {
                     new scope.Request(target, { headers: request.headers }),
                     'true',
                     fetchWindows.challengeTimeout,
+                    // the check of Cloudflare needs the images of a browser to finish
+                    true,
                 )
                 .finally(() => pending.delete(uri.origin));
             pending.set(uri.origin, attempt);

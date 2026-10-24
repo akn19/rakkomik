@@ -187,7 +187,7 @@ describe('fetchUI', () => {
             domPreparationScript: request._domPreparationScript,
             scrapingCheckScript: AntiScraping.DETECTION_SCRIPT,
             blacklist: BLACKLIST,
-            preferences: { nodeIntegration: false, webSecurity: false, images: true },
+            preferences: { nodeIntegration: false, webSecurity: true, images: true },
             timeout: 30000,
             interactiveAfter: 15000,
             interactiveTimeout: 180000,
@@ -199,9 +199,22 @@ describe('fetchUI', () => {
         await request.fetchUI(new Request('https://site.test/page'));
         expect(job(bridge)).toMatchObject({
             timeout: 60000,
-            preferences: { nodeIntegration: false, webSecurity: false, images: false },
+            preferences: { nodeIntegration: false, webSecurity: true, images: false },
         });
         expect(job(bridge).runtimeScript).toBeUndefined();
+    });
+
+    it('should leave the web security of a browser on, and let a script that reads across origins turn it off', async () => {
+        const { request, bridge } = setup();
+        const page = new Request('https://site.test/page');
+        await request.fetchUI(page);
+        expect(job(bridge).preferences.webSecurity).toBe(true);
+        await request.fetchUI(page, 'script', 1000, false, { webSecurity: false });
+        expect(job(bridge, 1).preferences).toEqual({
+            nodeIntegration: false,
+            webSecurity: false,
+            images: false,
+        });
     });
 
     it('should never give the page access to node', async () => {

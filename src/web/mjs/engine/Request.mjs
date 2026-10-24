@@ -162,9 +162,12 @@ export default class Request {
 
     /**
      * If timeout [ms] is given, the window will be kept open until timout, otherwise
-     * it will be closed after injecting the script (or after 60 seconds in case an error occured)
+     * it will be closed after injecting the script (or after 60 seconds in case an error occured).
+     * The window has the web security of a browser: the check of Cloudflare does not finish without it, and a page of a
+     * site that is not let through stays blank. A script that has to read across origins turns it off with
+     * `preferences` (`{ webSecurity: false }`).
      */
-    async fetchUI(request, injectionScript, timeout, images) {
+    async fetchUI(request, injectionScript, timeout, images, preferences) {
         return window.hakuneko.fetch({
             url: request.url,
             loadOptions: this._extractRequestOptions(request),
@@ -174,8 +177,9 @@ export default class Request {
             blacklist: Engine.Blacklist.patterns,
             preferences: {
                 nodeIntegration: false,
-                webSecurity: false,
+                webSecurity: true,
                 images: images || false,
+                ...preferences,
             },
             timeout: timeout || 60000,
             interactiveAfter: this.interactiveAfter,
