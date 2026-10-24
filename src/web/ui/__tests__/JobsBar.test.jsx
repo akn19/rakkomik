@@ -67,9 +67,9 @@ describe('download bar', () => {
         expect(container.querySelector('tbody tr').getAttribute('title')).toBe(
             'Site\nBerserk\nChapter 1',
         );
-        expect(container.querySelector('tbody tr td:nth-child(5)').getAttribute('style')).toMatch(
-            /30%/,
-        );
+        const progress = container.querySelector('tbody tr td:nth-child(5)');
+        expect(progress.textContent).toBe('30%');
+        expect(progress.querySelector('[aria-hidden] > span').style.width).toBe('30%');
     });
 
     it('should show the errors of a job in the tooltip of its button, with the hint to download again', () => {

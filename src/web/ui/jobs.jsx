@@ -78,18 +78,29 @@ export default function JobsBar({ inert }) {
                         <caption className="sr-only">
                             Download list: status, website, manga, chapter, progress
                         </caption>
+                        {/* the manga takes what is left: the website is mostly a short name, the chapter and the
+                            progress get the room that their text needs */}
+                        <colgroup>
+                            <col className="w-[1.75em]" />
+                            <col className="w-[16%]" />
+                            <col />
+                            <col className="w-[24%]" />
+                            <col className="w-[6.5em]" />
+                            <col className="w-[1.75em]" />
+                        </colgroup>
                         <tbody>
                             {jobs.map((job, index) => {
                                 const status = STATUS[job.status];
                                 const errors = (job.errors || [])
                                     .map((error) => error.toString())
                                     .join('; ');
+                                const progress = Math.min(100, Math.max(0, job.progress || 0));
                                 return (
                                     <tr
                                         key={`${job.labels.connector}/${job.labels.manga}/${job.labels.chapter}/${index}`}
                                         title={`${job.labels.connector}\n${job.labels.manga}\n${job.labels.chapter}`}
                                     >
-                                        <td className="w-6 cursor-default text-center [border-bottom:var(--job-list-row-border)]">
+                                        <td className="cursor-default text-center [border-bottom:var(--job-list-row-border)]">
                                             {status && restartable(job) && (
                                                 <button
                                                     type="button"
@@ -122,17 +133,21 @@ export default function JobsBar({ inert }) {
                                         <td className="cursor-default overflow-hidden px-[0.25em] text-ellipsis whitespace-nowrap [border-bottom:var(--job-list-row-border)]">
                                             {job.labels.chapter}
                                         </td>
-                                        <td
-                                            className="w-[4em] [border-bottom:var(--job-list-row-border)]"
-                                            style={{
-                                                background: `linear-gradient(90deg, var(--job-list-progress-color) ${job.progress || 0}%, var(--job-list-progress-background-color) 0%)`,
-                                            }}
-                                        >
-                                            <span className="sr-only">
-                                                {Math.round(job.progress || 0)}%
+                                        <td className="cursor-default px-[0.25em] whitespace-nowrap [border-bottom:var(--job-list-row-border)]">
+                                            <span
+                                                aria-hidden="true"
+                                                className="inline-block h-[0.375em] w-[calc(100%-3em)] overflow-hidden rounded-full bg-(--job-list-progress-background-color) align-middle"
+                                            >
+                                                <span
+                                                    className="block h-full rounded-full bg-(--job-list-progress-color)"
+                                                    style={{ width: `${progress}%` }}
+                                                />
+                                            </span>
+                                            <span className="inline-block w-[3em] text-right align-middle tabular-nums">
+                                                {Math.round(progress)}%
                                             </span>
                                         </td>
-                                        <td className="w-6 cursor-default text-center [border-bottom:var(--job-list-row-border)]">
+                                        <td className="cursor-default text-center [border-bottom:var(--job-list-row-border)]">
                                             {isCancelable(job) && (
                                                 <button
                                                     type="button"
