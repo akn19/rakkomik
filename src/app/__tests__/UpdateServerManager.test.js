@@ -239,6 +239,26 @@ describe('UpdateServerManager', function () {
             assert.equal(archive.length, fixture.archiveMock.archive.length);
         });
 
+        it('should tell how much of the archive arrived, and give all of it', async () => {
+            await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
+            let testee = fixture.createTestee();
+            let info = await testee.getUpdateInfo();
+            let progress = [];
+            let archive = await testee.getUpdateArchive(info, (received, total) =>
+                progress.push([received, total]),
+            );
+            await fixture.serverStop();
+            const size = fixture.archiveMock.archive.length;
+            assert.deepEqual(Buffer.from(archive), fixture.archiveMock.archive);
+            assert.ok(progress.length > 0);
+            assert.deepEqual(progress.at(-1), [size, size]);
+            assert.ok(
+                progress.every(
+                    ([received], index) => index === 0 || received > progress[index - 1][0],
+                ),
+            );
+        });
+
         it('should throw error when URL does not exist', async () => {
             let testee = fixture.createTestee();
             await fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);

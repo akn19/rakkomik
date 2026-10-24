@@ -1130,6 +1130,139 @@ describe('menu popup', () => {
     });
 });
 
+describe('menu popup: updates of the connectors and the interface', () => {
+    // a web part is named after the time of its build, in base 36 (deploy-web.js)
+    const OLD = new Date(2026, 9, 20, 9, 5).getTime().toString(36).toUpperCase();
+    const NEW = new Date(2026, 9, 24, 16, 32).getTime().toString(36).toUpperCase();
+
+    function updatingBridge(update = {}) {
+        const bridge = installBridge();
+        bridge.update = {
+            current: vi.fn(async () => OLD),
+            check: vi.fn(async () => ({
+                disabled: false,
+                available: true,
+                current: OLD,
+                latest: NEW,
+            })),
+            apply: vi.fn(async () => ({ stage: 'updated', version: NEW })),
+            restart: vi.fn(async () => undefined),
+            ...update,
+        };
+        return bridge;
+    }
+
+    const section = () => screen.getByText(/^Connectors & interface:/).parentElement.parentElement;
+    const status = () => within(section()).getByRole('status').textContent;
+
+    afterEach(() => {
+        if (window.hakuneko) {
+            delete window.hakuneko.update;
+        }
+    });
+
+    it('should say that an older application updates when it starts, with nothing to click', async () => {
+        installBridge();
+        await openMenu();
+        expect(status()).toMatch(/installs updates when it starts: restart RakKomik/);
+        expect(within(section()).queryByRole('button')).toBeNull();
+    });
+
+    it('should show the installed version, and say that it is up to date when the server has no other', async () => {
+        const bridge = updatingBridge({
+            check: vi.fn(async () => ({
+                disabled: false,
+                available: false,
+                current: OLD,
+                latest: OLD,
+            })),
+        });
+        await openMenu();
+        await waitFor(() =>
+            expect(screen.getByText(/^Connectors & interface:/).textContent).toBe(
+                'Connectors & interface: 20 Oct 2026, 09:05',
+            ),
+        );
+        fireEvent.click(within(section()).getByRole('button', { name: 'Check for updates' }));
+        await waitFor(() => expect(status()).toBe('The connectors are up to date.'));
+        expect(bridge.update.check).toHaveBeenCalledTimes(1);
+    });
+
+    it('should install a newer version with its steps, then reload the window onto it', async () => {
+        let bridge = null;
+        let proceed = null;
+        const pause = () => new Promise((resolve) => (proceed = resolve));
+        bridge = updatingBridge({
+            apply: vi.fn(async () => {
+                bridge.emit('update-progress', {
+                    stage: 'downloading',
+                    version: NEW,
+                    received: 1048576,
+                    total: 4194304,
+                });
+                await pause();
+                bridge.emit('update-progress', { stage: 'verifying', version: NEW });
+                await pause();
+                return { stage: 'updated', version: NEW };
+            }),
+        });
+        await openMenu();
+        fireEvent.click(within(section()).getByRole('button', { name: 'Check for updates' }));
+        await waitFor(() =>
+            expect(status()).toBe('A newer version is available: 24 Oct 2026, 16:32.'),
+        );
+        fireEvent.click(within(section()).getByRole('button', { name: 'Update now' }));
+        await waitFor(() => expect(status()).toBe('Downloading: 1.0 MB of 4.0 MB'));
+        expect(
+            within(section()).getByRole('progressbar', { name: 'Download of the update' }).value,
+        ).toBe(25);
+        expect(within(section()).getByRole('button', { name: 'Check for updates' }).disabled).toBe(
+            true,
+        );
+        await act(async () => proceed());
+        await waitFor(() => expect(status()).toBe('Verifying the signature …'));
+        await act(async () => proceed());
+        await waitFor(() =>
+            expect(status()).toBe('Installed. Restart to load the new connectors.'),
+        );
+        expect(screen.getByText(/^Connectors & interface:/).textContent).toBe(
+            'Connectors & interface: 24 Oct 2026, 16:32',
+        );
+        fireEvent.click(within(section()).getByRole('button', { name: 'Restart now' }));
+        expect(bridge.update.restart).toHaveBeenCalledTimes(1);
+    });
+
+    it('should say why the update server could not be asked, and try again', async () => {
+        const bridge = updatingBridge({
+            check: vi.fn(async () => ({ error: 'getaddrinfo ENOTFOUND github.com' })),
+        });
+        await openMenu();
+        fireEvent.click(within(section()).getByRole('button', { name: 'Check for updates' }));
+        await waitFor(() =>
+            expect(status()).toBe('The update failed: getaddrinfo ENOTFOUND github.com'),
+        );
+        fireEvent.click(within(section()).getByRole('button', { name: 'Try again' }));
+        await waitFor(() => expect(bridge.update.check).toHaveBeenCalledTimes(2));
+    });
+
+    it('should say why an installation failed', async () => {
+        updatingBridge({ apply: vi.fn(async () => ({ stage: 'failed', message: 'Status: 404' })) });
+        await openMenu();
+        fireEvent.click(within(section()).getByRole('button', { name: 'Check for updates' }));
+        fireEvent.click(await within(section()).findByRole('button', { name: 'Update now' }));
+        await waitFor(() => expect(status()).toBe('The update failed: Status: 404'));
+    });
+
+    it('should say that the updates are switched off', async () => {
+        updatingBridge({ check: vi.fn(async () => ({ disabled: true, available: false })) });
+        await openMenu();
+        fireEvent.click(within(section()).getByRole('button', { name: 'Check for updates' }));
+        await waitFor(() =>
+            expect(status()).toBe('Updates are switched off for this application.'),
+        );
+    });
+});
+
 describe('menu popup for the keyboard and the screen reader', () => {
     it('should be a modal dialog named Menu, with the parts under headings and the views as navigation', async () => {
         await openMenu({ groups: [group('General', setting({ label: 'Name' }))] });
@@ -1137,7 +1270,7 @@ describe('menu popup for the keyboard and the screen reader', () => {
         expect(dialog.getAttribute('aria-modal')).toBe('true');
         expect(
             screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
-        ).toEqual(['Views', 'About', 'Settings']);
+        ).toEqual(['Views', 'About', 'Updates', 'Settings']);
         expect(
             within(screen.getByRole('navigation', { name: 'Views' }))
                 .getAllByRole('button')

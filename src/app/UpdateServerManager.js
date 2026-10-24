@@ -32,9 +32,11 @@ module.exports = class UpdateServerManager {
     /**
      * Download content via HTTP(S), following redirects.
      * @param {string} uri
+     * @param {function(number, number)} [onProgress] told the bytes received so far and the size of the content (0 when
+     *   the server does not say it), after every part of the content
      * @returns {Promise<Uint8Array>}
      */
-    async _request(uri) {
+    async _request(uri, onProgress) {
         if (!uri) {
             throw new Error('Invalid request for connection to the update server!');
         }
@@ -51,7 +53,24 @@ module.exports = class UpdateServerManager {
         if (response.status !== 200) {
             throw new Error('Status: ' + response.status);
         }
-        return new Uint8Array(await response.arrayBuffer());
+        if (!onProgress || !response.body) {
+            return new Uint8Array(await response.arrayBuffer());
+        }
+        const total = Number(response.headers.get('content-length')) || 0;
+        const parts = [];
+        let received = 0;
+        for await (const part of response.body) {
+            parts.push(part);
+            received += part.length;
+            onProgress(received, total);
+        }
+        const data = new Uint8Array(received);
+        let offset = 0;
+        for (const part of parts) {
+            data.set(part, offset);
+            offset += part.length;
+        }
+        return data;
     }
 
     /**
@@ -71,9 +90,10 @@ module.exports = class UpdateServerManager {
     /**
      *
      * @param {UpdatePackageInfo} info The update package information received with getUpdateInfo()
+     * @param {function(number, number)} [onProgress] see `_request`
      * @returns {Promise<Uint8Array>} A promise that resolves with the received bytes
      */
-    getUpdateArchive(info) {
-        return this._request(info ? info.link : undefined);
+    getUpdateArchive(info, onProgress) {
+        return this._request(info ? info.link : undefined, onProgress);
     }
 };

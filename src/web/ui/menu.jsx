@@ -9,10 +9,20 @@ import {
     browseDirectory,
     browseFile,
     importBookmarksFile,
+    hasActiveDownloads,
 } from './engine.js';
+import {
+    canUpdateWebPart,
+    installedWebPart,
+    checkWebPartUpdate,
+    installWebPartUpdate,
+    restartWebPart,
+    describeWebPart,
+    megabytes,
+} from './updates.js';
 import { useToast } from './notify.jsx';
 import { useConnectors } from './connectorsState.js';
-import { useDialog } from './dialog.jsx';
+import { useDialog, ConfirmDialog } from './dialog.jsx';
 import {
     TextField,
     PasswordField,
@@ -247,6 +257,172 @@ function About() {
     );
 }
 
+// what a step of an update that is installed says (see Updater.updateCache of src/app)
+function installStep(step) {
+    switch (step.stage) {
+        case 'downloading':
+            return step.total
+                ? `Downloading: ${megabytes(step.received)} of ${megabytes(step.total)}`
+                : `Downloading: ${megabytes(step.received || 0)}`;
+        case 'verifying':
+            return 'Verifying the signature …';
+        case 'installing':
+            return 'Installing …';
+        default:
+            return 'Asking the update server …';
+    }
+}
+
+/**
+ * The connectors and the interface (the web part) are updated apart from the application: the version that is
+ * installed, whether the update server has a newer one, installing it, and reloading the window onto it. An older
+ * application only installs an update when it starts.
+ */
+function Updates() {
+    const supported = canUpdateWebPart();
+    const [installed, setInstalled] = React.useState(undefined);
+    const [state, setState] = React.useState({ phase: 'idle' });
+    const [confirmRestart, setConfirmRestart] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!supported) {
+            return undefined;
+        }
+        let live = true;
+        installedWebPart().then(
+            (version) => live && setInstalled(version),
+            () => undefined,
+        );
+        return () => {
+            live = false;
+        };
+    }, [supported]);
+
+    const check = async () => {
+        setState({ phase: 'checking' });
+        try {
+            const answer = await checkWebPartUpdate();
+            if (answer.error) {
+                setState({ phase: 'failed', message: answer.error });
+            } else if (answer.disabled) {
+                setState({ phase: 'disabled' });
+            } else {
+                setInstalled(answer.current);
+                setState({
+                    phase: answer.available ? 'available' : 'current',
+                    latest: answer.latest,
+                });
+            }
+        } catch (error) {
+            setState({ phase: 'failed', message: error.message });
+        }
+    };
+
+    const install = async () => {
+        setState({ phase: 'installing', step: { stage: 'checking' } });
+        try {
+            const last = await installWebPartUpdate((step) =>
+                setState({ phase: 'installing', step }),
+            );
+            if (last.stage === 'updated') {
+                setInstalled(last.version);
+                setState({ phase: 'installed', latest: last.version });
+            } else if (last.stage === 'current' || last.stage === 'disabled') {
+                setState({ phase: last.stage });
+            } else {
+                setState({ phase: 'failed', message: last.message });
+            }
+        } catch (error) {
+            setState({ phase: 'failed', message: error.message });
+        }
+    };
+
+    const restart = () => {
+        if (hasActiveDownloads()) {
+            setConfirmRestart(true);
+        } else {
+            restartWebPart();
+        }
+    };
+
+    const step = state.step || {};
+    const percent =
+        state.phase === 'installing' && step.stage === 'downloading' && step.total
+            ? Math.floor((100 * step.received) / step.total)
+            : null;
+    const message = !supported
+        ? 'This version of RakKomik installs updates when it starts: restart RakKomik to get the newest connectors.'
+        : {
+              idle: '',
+              checking: 'Asking the update server …',
+              current: 'The connectors are up to date.',
+              available: `A newer version is available: ${describeWebPart(state.latest)}.`,
+              installing: installStep(step),
+              installed: 'Installed. Restart to load the new connectors.',
+              failed: `The update failed: ${state.message || 'unknown error'}`,
+              disabled: 'Updates are switched off for this application.',
+          }[state.phase];
+    const action = !supported
+        ? null
+        : state.phase === 'available'
+          ? { label: 'Update now', onClick: install }
+          : state.phase === 'installed'
+            ? { label: 'Restart now', onClick: restart }
+            : state.phase === 'failed'
+              ? { label: 'Try again', onClick: check }
+              : {
+                    label: 'Check for updates',
+                    onClick: check,
+                    disabled: state.phase === 'checking' || state.phase === 'installing',
+                };
+
+    return (
+        <div className="m-[0.5em] flex items-center gap-[0.5em] bg-(--menu-credits-background-color) p-[0.5em] [border:var(--menu-control-border)]">
+            <div className="min-w-0 flex-1">
+                <div>
+                    Connectors &amp; interface:{' '}
+                    {supported
+                        ? describeWebPart(installed === undefined ? '' : installed)
+                        : 'see the start of RakKomik'}
+                </div>
+                <div role="status" className="text-(--menu-control-category-color)">
+                    {message}
+                </div>
+                {percent !== null && (
+                    <progress
+                        max={100}
+                        value={percent}
+                        aria-label="Download of the update"
+                        className="mt-[0.25em] h-[0.5em] w-full"
+                    />
+                )}
+            </div>
+            {action && (
+                <button
+                    type="button"
+                    disabled={action.disabled}
+                    onClick={action.onClick}
+                    className="rk-button shrink-0 px-[0.5em] py-[0.125em] whitespace-nowrap [border:var(--menu-control-border)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                    {action.label}
+                </button>
+            )}
+            <ConfirmDialog
+                open={confirmRestart}
+                title="Restart now?"
+                message="Downloads that wait or run stop when RakKomik reloads."
+                confirmLabel="Restart"
+                cancelLabel="Later"
+                onConfirm={() => {
+                    setConfirmRestart(false);
+                    restartWebPart();
+                }}
+                onCancel={() => setConfirmRestart(false)}
+            />
+        </div>
+    );
+}
+
 /**
  * Classic menu.html parity: the hamburger opens a popup over the browse
  * panels with the About card, the categorized settings table and the
@@ -357,6 +533,8 @@ export default function MenuPopup({ id, onClose }) {
             </nav>
             <Separator>About</Separator>
             <About />
+            <Separator>Updates</Separator>
+            <Updates />
             <Separator>Settings</Separator>
             {!ready && (
                 <p

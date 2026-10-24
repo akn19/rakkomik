@@ -389,6 +389,93 @@ describe('Updater with doubles', function () {
         expect(own.info).toHaveBeenLastCalledWith('Update Complete');
     });
 
+    it('should tell whether the server has another web part than the cache, without downloading it', async function () {
+        let { testee, serverManager } = update();
+        expect(await testee.check()).toEqual({
+            disabled: false,
+            available: true,
+            current: 'OLD',
+            latest: 'NEW',
+        });
+        expect(serverManager.getUpdateArchive).not.toHaveBeenCalled();
+
+        ({ testee } = update({ info: { version: 'OLD' } }));
+        expect((await testee.check()).available).toBe(false);
+
+        ({ testee, serverManager } = update({ server: { isDisabled: true } }));
+        expect(await testee.check()).toEqual({ disabled: true, available: false });
+        expect(serverManager.getUpdateInfo).not.toHaveBeenCalled();
+    });
+
+    it('should pass on that the server cannot be asked', async function () {
+        let { testee } = update({
+            server: { getUpdateInfo: vi.fn(async () => Promise.reject(new Error('offline'))) },
+        });
+        await expect(testee.check()).rejects.toThrow('offline');
+    });
+
+    it('should report every step of an update, with the progress of the download', async function () {
+        let reported = [];
+        let { testee } = update({
+            server: {
+                isDisabled: false,
+                getUpdateInfo: vi.fn(async () => ({
+                    version: 'NEW',
+                    validate: vi.fn(async () => true),
+                })),
+                getUpdateArchive: vi.fn(async (info, onProgress) => {
+                    onProgress(512, 1024);
+                    onProgress(1024, 1024);
+                    return new Uint8Array(1024);
+                }),
+            },
+        });
+        await testee.updateCache(PUBLIC_KEY, (status) => reported.push(status));
+        expect(reported).toEqual([
+            { stage: 'checking' },
+            { stage: 'downloading', version: 'NEW', received: 0, total: 0 },
+            { stage: 'downloading', version: 'NEW', received: 512, total: 1024 },
+            { stage: 'downloading', version: 'NEW', received: 1024, total: 1024 },
+            { stage: 'verifying', version: 'NEW' },
+            { stage: 'installing', version: 'NEW' },
+            { stage: 'updated', version: 'NEW' },
+        ]);
+    });
+
+    it('should report that the cache is up to date, with its version', async function () {
+        let reported = [];
+        let { testee } = update({ info: { version: 'OLD' } });
+        await testee.updateCache(PUBLIC_KEY, (status) => reported.push(status));
+        expect(reported).toEqual([{ stage: 'checking' }, { stage: 'current', version: 'OLD' }]);
+    });
+
+    it('should report a failed update with its reason, and that the update is switched off', async function () {
+        let reported = [];
+        let { testee } = update({
+            server: { getUpdateInfo: vi.fn(async () => Promise.reject(new Error('offline'))) },
+        });
+        await testee.updateCache(PUBLIC_KEY, (status) => reported.push(status));
+        expect(reported).toEqual([{ stage: 'checking' }, { stage: 'failed', message: 'offline' }]);
+
+        reported = [];
+        ({ testee } = update({ server: { isDisabled: true } }));
+        await testee.updateCache(PUBLIC_KEY, (status) => reported.push(status));
+        expect(reported).toEqual([{ stage: 'disabled' }]);
+    });
+
+    it('should go on with the update when the steps cannot be shown', async function () {
+        let { testee, cacheManager } = update();
+        await testee.updateCache(PUBLIC_KEY, () => {
+            throw new Error('no page');
+        });
+        expect(cacheManager.applyUpdateArchive).toHaveBeenCalled();
+        expect(own.warn).toHaveBeenCalledWith(
+            'The step of the update could not be shown',
+            expect.any(Error),
+        );
+        expect(own.error).not.toHaveBeenCalled();
+    });
+
     it('should not download anything when the cache has the version of the server', async function () {
         let { testee } = update({ info: { version: 'OLD' } });
         await testee.updateCache(PUBLIC_KEY);

@@ -69,6 +69,10 @@ const TABLE = [
     ['presence.ensureStarted', [], 'rakkomik:presence:ensureStarted'],
     ['presence.setActivity', [{ details: 'x' }], 'rakkomik:presence:setActivity'],
     ['presence.clearAndDestroy', [], 'rakkomik:presence:clearAndDestroy'],
+    ['update.current', [], 'rakkomik:update:current'],
+    ['update.check', [], 'rakkomik:update:check'],
+    ['update.apply', [], 'rakkomik:update:apply'],
+    ['update.restart', [], 'rakkomik:update:restart'],
 ];
 
 describe('preload', () => {
@@ -143,6 +147,7 @@ describe('preload', () => {
                 sqlite: ['query'],
                 pdf: ['render'],
                 presence: ['clearAndDestroy', 'ensureStarted', 'setActivity'],
+                update: ['apply', 'check', 'current', 'restart'],
                 on: 'function',
                 send: 'function',
             });
@@ -310,6 +315,7 @@ describe('preload', () => {
                 'SqliteBridge',
                 'PdfBridge',
                 'FetchWindowManager',
+                'UpdateBridge',
             ];
             for (const name of bridges) {
                 const Bridge = require(`../${name}`);
@@ -329,6 +335,7 @@ describe('preload', () => {
             'login',
             'close',
             'quit',
+            'update-progress',
         ];
 
         it.each(ALLOWED)('should subscribe to %s', (channel) => {
@@ -367,6 +374,7 @@ describe('preload', () => {
                 'sqlite',
                 'pdf',
                 'presence',
+                'update',
                 'closed',
                 'quit-now',
                 'message',

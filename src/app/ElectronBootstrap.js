@@ -481,6 +481,21 @@ module.exports = class ElectronBootstrap {
     }
 
     /**
+     * Hand a step of the start (see Updater.updateCache) to the page that the window shows meanwhile (see App), which
+     * shows it with its `showStatus`. A page that cannot take it does not stop the start.
+     * @param {object} status
+     * @returns {Promise}
+     */
+    showStartupStatus(status) {
+        if (!this._window) {
+            return Promise.resolve();
+        }
+        return this._window.webContents
+            .executeJavaScript(`window.showStatus && window.showStatus(${JSON.stringify(status)})`)
+            .catch((error) => this._logger.warn('The start page could not show a step', error));
+    }
+
+    /**
      * The main window shows the application and nothing else: a page that takes it to another origin (a link, a script)
      * would get the whole preload bridge there. Navigation that the application starts itself (`loadURL`) and navigation
      * inside of the document (a hash) do not raise this event.

@@ -1539,6 +1539,46 @@ describe('ElectronBootstrap', () => {
         });
     });
 
+    describe('showStartupStatus()', () => {
+        beforeEach(async () => {
+            await launch();
+            mainWindow().webContents.executeJavaScript = vi.fn(async () => undefined);
+        });
+
+        it('should hand the step to the showStatus of the page', async () => {
+            await bootstrap.showStartupStatus({
+                stage: 'failed',
+                message: 'a "quoted" </script> reason',
+            });
+            const [script] = mainWindow().webContents.executeJavaScript.mock.calls[0];
+            const showStatus = vi.fn();
+            new Function('window', script)({ showStatus });
+            expect(showStatus).toHaveBeenCalledWith({
+                stage: 'failed',
+                message: 'a "quoted" </script> reason',
+            });
+        });
+
+        it('should not stop the start when the page cannot take the step', async () => {
+            mainWindow().webContents.executeJavaScript.mockRejectedValue(new Error('navigated'));
+            const warn = vi.spyOn(bootstrap._logger, 'warn').mockImplementation(() => undefined);
+            await expect(
+                bootstrap.showStartupStatus({ stage: 'starting' }),
+            ).resolves.toBeUndefined();
+            expect(warn).toHaveBeenCalledWith(
+                'The start page could not show a step',
+                expect.any(Error),
+            );
+        });
+
+        it('should do nothing without a window', async () => {
+            bootstrap._window = null;
+            await expect(
+                bootstrap.showStartupStatus({ stage: 'starting' }),
+            ).resolves.toBeUndefined();
+        });
+    });
+
     describe('loadURL() and loadHTML()', () => {
         beforeEach(async () => {
             await launch();

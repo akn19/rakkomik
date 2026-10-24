@@ -166,7 +166,7 @@ describe('App', function () {
             new App(quiet());
             let channels = electron.ipcMain.handle.mock.calls.map(([channel]) => channel);
             expect(new Set(channels).size).toBe(channels.length);
-            expect(channels).toHaveLength(29);
+            expect(channels).toHaveLength(33);
             // one of each part of the main process
             expect(channels).toEqual(
                 expect.arrayContaining([
@@ -176,6 +176,7 @@ describe('App', function () {
                     'rakkomik:presence:ensureStarted',
                     'rakkomik:sqlite:query',
                     'rakkomik:pdf:render',
+                    'rakkomik:update:check',
                 ]),
             );
         });
@@ -234,6 +235,9 @@ describe('App', function () {
                 loadURL: vi.fn(async (url) => {
                     calls.push(['loadURL', url]);
                 }),
+                showStartupStatus: vi.fn(async (status) => {
+                    calls.push(['showStartupStatus', status]);
+                }),
             };
         }
 
@@ -273,18 +277,54 @@ describe('App', function () {
                 'launch',
                 'loadHTML',
                 'updateCache',
+                'showStartupStatus',
                 'loadURL',
             ]);
+            expect(calls[3][1]).toEqual({ stage: 'starting' });
             expect(own.error).not.toHaveBeenCalled();
         });
 
-        it('should show a loading page that says what is going on', async () => {
+        it('should show a loading page with the version of the application, that takes the steps of the update', async () => {
             await testee.run();
             let html = calls.find(([step]) => step === 'loadHTML')[1];
-            expect(html).toContain('Checking for Update');
-            // a document of its own, in a language, with a progress bar that a screen reader can name
+            expect(html).toBe(App.startupPage(require('../package.json').version));
+            expect(html).toContain(`Version ${require('../package.json').version}`);
+            // a document of its own, in a language, with a status and a progress bar that a screen reader can name
             expect(html).toContain('<html lang="en">');
-            expect(html).toMatch(/<progress aria-label="[^"]+"><\/progress>/);
+            expect(html).toContain('role="status"');
+            expect(html).toMatch(/role="progressbar" aria-label="[^"]+"/);
+            expect(html).toContain('window.showStatus');
+        });
+
+        it('should hand every step of the update to the page, then say that the application starts', async () => {
+            testee._updater.updateCache = vi.fn(async (key, report) => {
+                report({ stage: 'checking' });
+                report({ stage: 'current', version: 'V1' });
+            });
+            await testee.run();
+            expect(
+                calls.filter(([step]) => step === 'showStartupStatus').map(([, status]) => status),
+            ).toEqual([
+                { stage: 'checking' },
+                { stage: 'current', version: 'V1' },
+                { stage: 'starting' },
+            ]);
+            expect(calls.at(-1)[0]).toBe('loadURL');
+        });
+
+        it('should leave the reason of a failed update on the screen for a moment before it starts', async () => {
+            testee._failureNotice = 40;
+            let failed = 0;
+            testee._updater.updateCache = vi.fn(async (key, report) => {
+                report({ stage: 'failed', message: 'offline' });
+                failed = Date.now();
+            });
+            testee._electron.loadURL = vi.fn(async () => {
+                calls.push(['loadURL', Date.now() - failed]);
+            });
+            await testee.run();
+            expect(calls.at(-1)[1]).toBeGreaterThanOrEqual(35);
+            expect(own.error).not.toHaveBeenCalled();
         });
 
         it('should check the update against the public key of the configuration and start the startup URL', async () => {
@@ -381,6 +421,7 @@ describe('App', function () {
                     'loadHTML',
                     'seedFrom',
                     'updateCache',
+                    'showStartupStatus',
                     'loadURL',
                 ]);
                 expect(calls.find(([step]) => step === 'seedFrom')[1]).toBe(
@@ -410,6 +451,7 @@ describe('App', function () {
                     'launch',
                     'loadHTML',
                     'updateCache',
+                    'showStartupStatus',
                     'loadURL',
                 ]);
             });

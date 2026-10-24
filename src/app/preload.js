@@ -79,6 +79,13 @@ contextBridge.exposeInMainWorld('hakuneko', {
         setActivity: (status) => ipcRenderer.invoke('rakkomik:presence:setActivity', status),
         clearAndDestroy: () => ipcRenderer.invoke('rakkomik:presence:clearAndDestroy'),
     },
+    // updates of the web part while the application runs (UpdateBridge); their steps arrive as `update-progress`
+    update: {
+        current: () => ipcRenderer.invoke('rakkomik:update:current'),
+        check: () => ipcRenderer.invoke('rakkomik:update:check'),
+        apply: () => ipcRenderer.invoke('rakkomik:update:apply'),
+        restart: () => ipcRenderer.invoke('rakkomik:update:restart'),
+    },
     // Main-to-renderer subscriptions (whitelisted channels only).
     on: (channel, listener) => {
         const allowed = [
@@ -88,6 +95,7 @@ contextBridge.exposeInMainWorld('hakuneko', {
             'login',
             'close',
             'quit',
+            'update-progress',
         ];
         if (!allowed.includes(channel)) {
             throw new Error(`IPC channel "${channel}" is not allowed!`);
