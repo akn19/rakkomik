@@ -402,7 +402,7 @@ function Updates() {
                     type="button"
                     disabled={action.disabled}
                     onClick={action.onClick}
-                    className="rk-button shrink-0 px-[0.5em] py-[0.125em] whitespace-nowrap [border:var(--menu-control-border)] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rk-button shrink-0 px-[0.5em] text-(--menu-credits-link-color) py-[0.125em] whitespace-nowrap [border:var(--menu-control-border)] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                     {action.label}
                 </button>
