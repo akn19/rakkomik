@@ -8,9 +8,10 @@ export default class WestManga extends Connector {
         super.id = 'westmanga';
         super.label = 'WestManga';
         this.tags = ['manga', 'manhua', 'manhwa', 'indonesian'];
-        this.url = 'https://v1.westmanga.cc';
+        this.url = 'https://v1.westmanga.my';
         this.api = {
-            url: 'https://data.mantweh.online/api/',
+            // the API is on the host of the website (it was on a host of its own, data.mantweh.online)
+            url: this.url + '/api/',
             nonce: 'wm-api-request',
             accessKey: 'WM_WEB_FRONT_END',
             secretKey: 'xxxoidj',
@@ -37,6 +38,10 @@ export default class WestManga extends Connector {
         // Memicu proses login saat HakuNeko dimuat atau saat pengaturan disimpan
         Engine.Settings.addEventListener('loaded', this._onSettingsChanged.bind(this));
         Engine.Settings.addEventListener('saved', this._onSettingsChanged.bind(this));
+    }
+
+    canHandleURI(uri) {
+        return /^https?:\/\/v1\.westmanga\.(my|top|cc)$/.test(uri.origin);
     }
 
     async _getMangas() {
@@ -81,7 +86,8 @@ export default class WestManga extends Connector {
         const {
             data: { images },
         } = await this.fetchAPI(`v/${chapter.id}`);
-        return images;
+        // a link that is not absolute is on the host of the website
+        return images.map((image) => new URL(image, this.url).href);
     }
 
     async _getMangaFromURI(uri) {
@@ -138,7 +144,9 @@ export default class WestManga extends Connector {
         const headers = {
             ...this.requestOptions.headers,
             'Content-Type': 'application/json',
-            Referer: this.url,
+            // what the website sends to its own API: a foreign origin gets the block page of the site
+            'x-referer': this.url + '/',
+            'x-origin': this.url,
             'X-Wm-Request-Time': timestamp,
             'X-Wm-Accses-Key': this.api.accessKey,
             'X-Wm-Request-Signature': signature,
@@ -178,7 +186,8 @@ export default class WestManga extends Connector {
 
         const headers = {
             ...this.requestOptions.headers,
-            Referer: this.url,
+            'x-referer': this.url + '/',
+            'x-origin': this.url,
             'X-Wm-Request-Time': timestamp,
             'X-Wm-Accses-Key': this.api.accessKey,
             'X-Wm-Request-Signature': signature,
