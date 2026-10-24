@@ -24,7 +24,8 @@ version of the application**: nobody edits the `version` of `package.json` or `s
 To release, tag a commit whose run is green and push the tag (`git tag vX.Y.Z && git push origin vX.Y.Z`).
 
 The builds take the version from the tag. `scripts/set-version.js` writes it into both files of the checkout before
-the installers and the Arch package are built (and the `PKGBUILD` does the same for the AUR package), so the
+the installers and the Arch package are built (and the `PKGBUILD` of the Arch package does the same when it builds
+from the tag), so the
 installers carry it in their names and metadata and `app.asar` in its `package.json`. A run without a tag (a local
 build, or a run from the Actions tab on a branch) carries the version that the files have.
 
@@ -40,7 +41,7 @@ build, or a run from the Actions tab on a branch) carries the version that the f
    official Arch Linux image) and, when all of them succeeded, attaches them to the release: `.exe` and `.zip` for
    Windows, `.deb` and `.rpm` for Linux and `.dmg` for macOS, each for x86-64 and ARM64, and one `.pkg.tar.zst` for
    Arch Linux (the same package for every architecture, it runs on the `electron` package of the system);
-5. publishes [the AUR package](#aur-package), once that is switched on;
+5. publishes [the AUR package](#aur-package) `rakkomik-bin`, when that is switched on;
 6. when the installers are attached, commits the version of the tag to the two files on the default branch
    (`chore(release): set the version to X.Y.Z`, by `github-actions[bot]`), so that they say which release was the last.
    It does nothing when the tag is not in the history of the default branch, or when its number is not greater than
@@ -101,12 +102,18 @@ applications built before it reject the archives with the new signature until th
 
 ## AUR package
 
-Publishing to the AUR is **switched off** for now: the job `aur` of `release.yml` only runs when the repository variable
-`PUBLISH_AUR` is `true` (Settings, Secrets and variables, Actions, Variables) and the secret `AUR_SSH_PRIVATE_KEY` is
-set. The package is kept up to date and can be built locally, and every release has it attached as a `.pkg.tar.zst`
-(`sudo pacman -U`), so Arch users do not have to wait for the AUR.
+The [AUR](https://aur.archlinux.org) has the package prebuilt as
+[`rakkomik-bin`](https://aur.archlinux.org/packages/rakkomik-bin). The job `aur` of `release.yml` publishes it when the
+repository variable `PUBLISH_AUR` is `true` (Settings, Secrets and variables, Actions, Variables) and the secret
+`AUR_SSH_PRIVATE_KEY` is set. Every release also has the Arch package attached as a `.pkg.tar.zst` (`sudo pacman -U`).
+The AUR package `rakkomik`, which built the release from source, is not published any more.
 
-`packaging/aur` holds the package of the [AUR](https://aur.archlinux.org):
+`packaging/aur-bin/PKGBUILD` is the AUR package. It downloads `rakkomik-<version>-1-any.pkg.tar.zst` of the release
+and installs its files (`usr`) as they are, without the metadata of pacman, so it has no build dependencies. It
+`provides` and `conflicts` with `rakkomik`, the name of the package it repacks.
+
+`packaging/aur` holds the Arch package that the job `arch` of `build-app.yml` builds (through
+`scripts/build-arch.sh`) and every release has attached:
 
 - `PKGBUILD` builds from the git tag (`git+https://github.com/akn19/rakkomik.git#tag=v$pkgver`) and the package is
   self-contained: `app.asar` (the shell `src/app`, packed by `scripts/pack-app.js` like the installers pack it) and the
@@ -123,10 +130,12 @@ set. The package is kept up to date and can be built locally, and every release 
   source, `RAKKOMIK_BRANCH` the branch name that the About dialog shows (`v$pkgver` otherwise) and
   `RAKKOMIK_PNPM_STORE` the store of pnpm.
 
-When it is switched on, `release.yml` sets `pkgver` from the tag, lets the deploy action fill in the checksums of the local files
-(`updpkgsums`), build the package once in a clean Arch container (`makepkg --syncdeps`) and push the files and the
-generated `.SRCINFO` to `ssh://aur@aur.archlinux.org/rakkomik.git`. The first push creates the package when the name
-is free.
+Once the installers are attached, `release.yml` sets `pkgver` of `packaging/aur-bin/PKGBUILD` from the tag, lets the
+deploy action fill in the checksum of the download (`updpkgsums`), build the package once in a clean Arch container
+(`makepkg --syncdeps`) and push the `PKGBUILD` and the generated `.SRCINFO` to
+`ssh://aur@aur.archlinux.org/rakkomik-bin.git`. The first push creates the package when the name is free. The job
+takes the `PKGBUILD` of the workflow's commit and not of the tag, so a release from before `packaging/aur-bin` is
+published by running the workflow by hand from the default branch with that tag.
 
 **Build the package locally** with `pnpm run build:arch`, see [development](development.md#building-the-arch-package).
 It runs this `PKGBUILD` on a copy of the working tree. Check the result with `namcap build/rakkomik-*.pkg.tar.zst`:
@@ -140,7 +149,7 @@ Repository settings, _Secrets and variables_, _Actions_:
 |---|---|---|
 | `RAKKOMIK_PRIVATE_KEY` | `ci.yml` (job `publish-web`) | PEM private key that signs the web part |
 | `RAKKOMIK_PASSPHRASE` | `ci.yml` (job `publish-web`) | passphrase of that key |
-| `AUR_SSH_PRIVATE_KEY` | `release.yml` (job `aur`, switched off) | private SSH key whose public half is added to the AUR account |
+| `AUR_SSH_PRIVATE_KEY` | `release.yml` (job `aur`) | private SSH key whose public half is added to the AUR account |
 
 The repository variable `PUBLISH_AUR` (`true`) switches the job `aur` on; it is off while the variable is not set.
 
@@ -155,8 +164,9 @@ immutable) and `KSXGitHub/github-actions-deploy-aur`, which receives the AUR key
 - _the step that commits the version fails with a rejected push_: the default branch does not accept pushes of the
   workflow (see above), or it moved in the very moment; run the workflow again by hand with the tag, or set the
   version of the files yourself.
-- _AUR job fails in `makepkg`_ (the job runs only when it is switched on): reproduce it with `pnpm run build:arch`; the
-  log of the action shows the build output.
+- _AUR job fails in `updpkgsums` or `makepkg`_: the release has no `rakkomik-<version>-1-any.pkg.tar.zst` (the job
+  `archlinux` failed, or the installers were not attached), or its package does not install; reproduce the package
+  with `pnpm run build:arch`. The log of the action shows the build output.
 - _AUR push is rejected_: the key is not registered in the AUR account, or the package belongs to another account.
 - _an installer job fails_: the log shows the packager; re-run the failed job, and _Attach the installers_ runs once
   all platforms succeeded. Reproduce a package locally with `pnpm run build:win`, `pnpm run build:mac` or

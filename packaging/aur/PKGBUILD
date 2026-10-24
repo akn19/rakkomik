@@ -1,7 +1,8 @@
 # Maintainer: akn19 <akn19@users.noreply.github.com>
 #
-# Published by .github/workflows/release.yml: the workflow sets pkgver to the release tag, the deploy
-# action fills in the checksums of the local files (updpkgsums) and pushes this directory to the AUR.
+# Builds the Arch package that every release has attached (job `arch` of .github/workflows/build-app.yml, through
+# scripts/build-arch.sh). It is not published to the AUR itself: the AUR gets the package prebuilt as
+# `rakkomik-bin` (packaging/aur-bin), which installs the file of the release.
 # `pnpm run build:arch` builds the same package from a working tree: RAKKOMIK_SOURCE then replaces the git tag,
 # RAKKOMIK_BRANCH the branch name that the About dialog shows and RAKKOMIK_PNPM_STORE the store of pnpm.
 #

@@ -4,8 +4,9 @@
 #   pnpm run build:arch                           ->  build/rakkomik-<version>-1-any.pkg.tar.zst
 #   sudo pacman -U build/rakkomik-*.pkg.tar.zst   ->  installs it
 #
-# It runs the PKGBUILD of the AUR package (packaging/aur) on a snapshot of the working tree instead of the release
-# tag, so the package built here is the package the AUR delivers. node and npm come from the PATH (they need not be
+# It runs the PKGBUILD of the Arch package (packaging/aur) on a snapshot of the working tree instead of the release
+# tag, so the package built here is the package that a release has attached and the AUR package rakkomik-bin
+# installs. node and npm come from the PATH (they need not be
 # pacman packages), the PKGBUILD installs pnpm from npm itself, and the pnpm store of the project is reused when pnpm
 # is on the PATH, so only the first build downloads the dependencies.
 set -euo pipefail

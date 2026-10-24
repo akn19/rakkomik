@@ -38,11 +38,13 @@ It is not meant to be a mass downloader to stock up thousands of chapters that w
 
 ## Installation
 
-**Arch Linux:** the package is in the AUR as [`rakkomik`](https://aur.archlinux.org/packages/rakkomik): install it
-with an AUR helper (`paru -S rakkomik` or `yay -S rakkomik`), or clone `https://aur.archlinux.org/rakkomik.git` and run
-`makepkg -si` in it. The AUR page shows another maintainer because the package is published through a borrowed AUR
-account; it is still the package of this repository (`packaging/aur`), and the release workflow updates it for every
-tagged release. It builds the release from its tag and runs on the system `electron` package.
+**Arch Linux:** the package is in the AUR as [`rakkomik-bin`](https://aur.archlinux.org/packages/rakkomik-bin):
+install it with an AUR helper (`paru -S rakkomik-bin` or `yay -S rakkomik-bin`), or clone
+`https://aur.archlinux.org/rakkomik-bin.git` and run `makepkg -si` in it. It is prebuilt: it installs the package of
+the release, so nothing is built and no build dependencies are installed, and it runs on the system `electron`
+package. The AUR page shows another maintainer because the package is published through a borrowed AUR account; it
+is still the package of this repository (`packaging/aur-bin`), and the release workflow updates it for every tagged
+release.
 
 Every tagged release also has the built package attached on the
 [releases page](https://github.com/akn19/rakkomik/releases): download `rakkomik-<version>-1-any.pkg.tar.zst` and
