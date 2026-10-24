@@ -168,3 +168,7 @@ jobs:
           # build the package once before it is published (installs its dependencies in the action's container)
           test: true
           test_flags: --clean --cleanbuild --syncdeps --noconfirm
+          # With assets the action commits everything in its copy of the AUR repository (`git add --all`), where makepkg
+          # leaves the clone of the source and the built package: the AUR refuses them (no file larger than 488 KiB).
+          # This ignore list keeps only the files of the package (the action adds PKGBUILD and .SRCINFO in any case).
+          post_process: printf '%s\n' '*' '!PKGBUILD' '!.SRCINFO' '!rakkomik.sh' '!rakkomik.desktop' > .gitignore
