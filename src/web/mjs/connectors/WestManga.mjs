@@ -1,6 +1,64 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
-import { hmacSha256Hex } from '../engine/Crypto.mjs';
+import { base64ToBytes } from '../engine/Crypto.mjs';
+
+// The helpers of a script that runs in a page of the website (see `_runInPage`). `api(endpoint, init)` asks the API the
+// way the website does: with the visit token that the website gives its pages (header X-WM-Visit, fetched again when the
+// API says that it is no longer valid) and the login, if there is one. `image(url)` reads an image as base64. A response
+// that is the check of Cloudflare stops the script as `challenged`.
+const PAGE_HELPERS = `
+    const challenged = (response) => {
+        if (response.headers.get('cf-mitigated') === 'challenge') {
+            throw Object.assign(new Error('The check of the website has not been passed'), { challenged: true });
+        }
+    };
+    let visit;
+    const visitToken = async () => {
+        const response = await fetch('/api/visit-token');
+        challenged(response);
+        const { token } = await response.json();
+        return token;
+    };
+    const api = async (endpoint, init = {}, retries = 2) => {
+        visit = visit || (await visitToken());
+        const headers = { ...init.headers, 'X-WM-Visit': visit };
+        if (authorization) {
+            headers.Authorization = authorization;
+        }
+        const response = await fetch('/api/' + endpoint, { ...init, headers });
+        challenged(response);
+        // the website limits the requests of a visitor (the list of the comics above all), for up to an hour
+        if (response.status === 429) {
+            const minutes = Math.ceil(Number(response.headers.get('retry-after')) / 60);
+            throw new Error('WestManga limits the requests, try again ' + (minutes > 0 ? 'in ' + minutes + ' minutes' : 'later'));
+        }
+        const expired = response.headers.has('X-WM-Visit-Error');
+        if (retries > 0 && (expired || response.status >= 500)) {
+            visit = expired ? undefined : visit;
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return api(endpoint, init, retries - 1);
+        }
+        const data = await response.json().catch(() => undefined);
+        if (!response.ok) {
+            const message = data && data.message ? ' - ' + data.message : '';
+            throw new Error('Failed to receive content from "' + response.url + '" (status: ' + response.status + ')' + message);
+        }
+        return data;
+    };
+    const image = async (url) => {
+        const response = await fetch(url);
+        challenged(response);
+        if (!response.ok) {
+            throw new Error('Failed to receive content from "' + url + '" (status: ' + response.status + ')');
+        }
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        let binary = '';
+        for (let index = 0; index < bytes.length; index += 0x8000) {
+            binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+        }
+        return { type: response.headers.get('content-type'), base64: btoa(binary) };
+    };
+`;
 
 export default class WestManga extends Connector {
     constructor() {
@@ -9,13 +67,6 @@ export default class WestManga extends Connector {
         super.label = 'WestManga';
         this.tags = ['manga', 'manhua', 'manhwa', 'indonesian'];
         this.url = 'https://v1.westmanga.my';
-        this.api = {
-            // the API is on the host of the website (it was on a host of its own, data.mantweh.online)
-            url: this.url + '/api/',
-            nonce: 'wm-api-request',
-            accessKey: 'WM_WEB_FRONT_END',
-            secretKey: 'xxxoidj',
-        };
 
         this.config = {
             username: {
@@ -45,25 +96,26 @@ export default class WestManga extends Connector {
     }
 
     async _getMangas() {
-        const mangaList = [];
-        for (let page = 1; ; page++) {
-            const { data, paginator } = await this.fetchAPI(
-                `contents?page=${page}&per_page=20&type=Comic`,
-            );
-            if (!data || !data.length) {
-                break;
+        // the API gives 25 titles a page: all pages are asked for in one window
+        const comics = await this._runInPage(
+            `const comics = [];
+            for (let page = 1; ; page++) {
+                const { data, paginator } = await api('contents?page=' + page + '&per_page=25&type=Comic');
+                if (!data || !data.length) {
+                    break;
+                }
+                comics.push(...data.map(({ slug, title }) => ({ slug, title })));
+                if (!paginator || paginator.current_page >= paginator.last_page) {
+                    break;
+                }
             }
-            mangaList.push(
-                ...data.map(({ slug, title }) => ({
-                    id: slug,
-                    title: title.replace(/bahasa indonesia/i, '').trim(),
-                })),
-            );
-            if (!paginator || paginator.current_page >= paginator.last_page) {
-                break;
-            }
-        }
-        return mangaList;
+            return comics;`,
+            15 * 60 * 1000,
+        );
+        return comics.map(({ slug, title }) => ({
+            id: slug,
+            title: title.replace(/bahasa indonesia/i, '').trim(),
+        }));
     }
 
     async _getChapters(manga) {
@@ -86,8 +138,15 @@ export default class WestManga extends Connector {
         const {
             data: { images },
         } = await this.fetchAPI(`v/${chapter.id}`);
-        // a link that is not absolute is on the host of the website
-        return images.map((image) => new URL(image, this.url).href);
+        // a link that is not absolute is on the host of the website, and only its pages get the image
+        return images.map((image) => this.createConnectorURI(new URL(image, this.url).href));
+    }
+
+    async _handleConnectorURI(payload) {
+        const { type, base64 } = await this._runInPage(`return image(${JSON.stringify(payload)});`);
+        const data = { mimeType: type, data: base64ToBytes(base64) };
+        this._applyRealMime(data);
+        return data;
     }
 
     async _getMangaFromURI(uri) {
@@ -130,38 +189,14 @@ export default class WestManga extends Connector {
             return Promise.resolve();
         }
 
-        const url = new URL('auth/login', this.api.url);
-        const timestamp = `${Date.now()}`.slice(0, -3);
-        const signature = await this.generateHMAC256(
-            this.api.nonce,
-            timestamp,
-            'POST',
-            url.pathname,
-            this.api.accessKey,
-            this.api.secretKey,
+        const body = JSON.stringify({ email: username, password: password });
+        const data = await this._runInPage(
+            `return api('auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: ${JSON.stringify(body)},
+            });`,
         );
-
-        const headers = {
-            ...this.requestOptions.headers,
-            'Content-Type': 'application/json',
-            // what the website sends to its own API: a foreign origin gets the block page of the site
-            'x-referer': this.url + '/',
-            'x-origin': this.url,
-            'X-Wm-Request-Time': timestamp,
-            'X-Wm-Accses-Key': this.api.accessKey,
-            'X-Wm-Request-Signature': signature,
-        };
-
-        const request = new Request(url, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify({
-                email: username,
-                password: password,
-            }),
-        });
-
-        const data = await this.fetchJSON(request);
 
         if (data && data.access_token) {
             this.token = data.access_token;
@@ -172,41 +207,44 @@ export default class WestManga extends Connector {
         }
     }
 
-    async fetchAPI(endpoint, isGenre = false) {
-        const url = new URL(endpoint, this.api.url);
-        const timestamp = `${Date.now()}`.slice(0, -3);
-        const signature = await this.generateHMAC256(
-            this.api.nonce,
-            timestamp,
-            'GET',
-            url.pathname,
-            this.api.accessKey,
-            this.api.secretKey,
-        );
-
-        const headers = {
-            ...this.requestOptions.headers,
-            'x-referer': this.url + '/',
-            'x-origin': this.url,
-            'X-Wm-Request-Time': timestamp,
-            'X-Wm-Accses-Key': this.api.accessKey,
-            'X-Wm-Request-Signature': signature,
-        };
-
-        // Jika request bukan untuk Genre dan kita punya token (sudah sukses login)
-        if (!isGenre && this.token) {
-            headers.Authorization = `Bearer ${this.token}`;
-        }
-
-        const request = new Request(url, {
-            ...this.requestOptions,
-            headers,
-        });
-
-        return this.fetchJSON(request);
+    async fetchAPI(endpoint) {
+        return this._runInPage(`return api(${JSON.stringify(endpoint)});`);
     }
 
-    async generateHMAC256(data, ...keyData) {
-        return hmacSha256Hex(data, keyData.join(''));
+    /**
+     * The API and the images of the website answer its own pages only, so `body` runs in a page of the website: a light
+     * one (robots.txt) in a hidden window, with the helpers of PAGE_HELPERS. Its result is returned. When the check of the
+     * website (Cloudflare) has not been passed yet, it is passed on the home page first, which needs the images for it.
+     */
+    async _runInPage(body, timeout) {
+        const script = `(async () => {
+            const authorization = ${JSON.stringify(this.token ? 'Bearer ' + this.token : null)};
+            ${PAGE_HELPERS}
+            try {
+                return { result: await (async () => { ${body} })() };
+            } catch (error) {
+                return { error: error.message, challenged: error.challenged === true };
+            }
+        })()`;
+        const run = () =>
+            Engine.Request.fetchUI(
+                new Request(new URL('/robots.txt', this.url), this.requestOptions),
+                script,
+                timeout,
+            );
+        let answer = await run();
+        if (answer.challenged) {
+            await Engine.Request.fetchUI(
+                new Request(new URL('/', this.url), this.requestOptions),
+                'true',
+                Engine.Request.challengeTimeout,
+                true,
+            );
+            answer = await run();
+        }
+        if (answer.error) {
+            throw new Error(answer.error);
+        }
+        return answer.result;
     }
 }
