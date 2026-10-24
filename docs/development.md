@@ -188,7 +188,7 @@ installs pnpm 12 from npm itself, because the package of Arch has reported an ol
 which the project (`engines`) refuses.
 
 `scripts/build-arch.sh` copies the working tree, uncommitted changes included, into a throwaway git checkout and runs
-the `PKGBUILD` of the Arch package (`packaging/aur`) on it, with `RAKKOMIK_SOURCE` in place of the release tag. So the
+the `PKGBUILD` of the Arch package (`packaging/arch`) on it, with `RAKKOMIK_SOURCE` in place of the release tag. So the
 package built here is the package that a release has attached and the AUR package `rakkomik-bin` installs. It reuses the pnpm store of the project, which makes a build take
 about half a minute once the dependencies have been downloaded. The package holds the Electron shell and the web part
 and runs on the system `electron`, see [releasing](releasing.md#aur-package).

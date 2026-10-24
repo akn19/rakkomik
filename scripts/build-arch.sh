@@ -4,11 +4,11 @@
 #   pnpm run build:arch                           ->  build/rakkomik-<version>-1-any.pkg.tar.zst
 #   sudo pacman -U build/rakkomik-*.pkg.tar.zst   ->  installs it
 #
-# It runs the PKGBUILD of the Arch package (packaging/aur) on a snapshot of the working tree instead of the release
+# It runs the PKGBUILD of the Arch package (packaging/arch) on a snapshot of the working tree instead of the release
 # tag, so the package built here is the package that a release has attached and the AUR package rakkomik-bin
-# installs. node and npm come from the PATH (they need not be
-# pacman packages), the PKGBUILD installs pnpm from npm itself, and the pnpm store of the project is reused when pnpm
-# is on the PATH, so only the first build downloads the dependencies.
+# installs. node and npm come from the PATH (they need not be pacman packages), the PKGBUILD installs pnpm from npm
+# itself, and the pnpm store of the project is reused when pnpm is on the PATH, so only the first build downloads the
+# dependencies.
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -51,7 +51,7 @@ commit=$(git -C "$work/source" rev-parse HEAD)
 
 package="$work/package"
 mkdir "$package"
-cp packaging/aur/PKGBUILD packaging/aur/rakkomik.sh packaging/aur/rakkomik.desktop "$package/"
+cp packaging/arch/PKGBUILD packaging/arch/rakkomik.sh packaging/arch/rakkomik.desktop "$package/"
 sed -i "s/^pkgver=.*/pkgver=$version/" "$package/PKGBUILD"
 
 # --nodeps: the makedepends (git, nodejs and npm) are checked above as commands, not as pacman packages

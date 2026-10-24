@@ -112,7 +112,7 @@ The AUR package `rakkomik`, which built the release from source, is not publishe
 and installs its files (`usr`) as they are, without the metadata of pacman, so it has no build dependencies. It
 `provides` and `conflicts` with `rakkomik`, the name of the package it repacks.
 
-`packaging/aur` holds the Arch package that the job `arch` of `build-app.yml` builds (through
+`packaging/arch` holds the Arch package that the job `arch` of `build-app.yml` builds (through
 `scripts/build-arch.sh`) and every release has attached:
 
 - `PKGBUILD` builds from the git tag (`git+https://github.com/akn19/rakkomik.git#tag=v$pkgver`) and the package is

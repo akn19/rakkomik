@@ -15,7 +15,7 @@ src/web/ui              React user interface (bundled by Vite into ui/dist)
 src/web/img             connector icons (img/connectors) and logos
 src/__tests__           end-to-end tests (Playwright); unit tests live next to the code in __tests__ folders
 redist                  packaging skeletons and installer images
-packaging/aur           the Arch package that the releases have attached
+packaging/arch          the Arch package that the releases have attached
 packaging/aur-bin       the AUR package rakkomik-bin, which installs that package prebuilt
 scripts                 icon generator, dependency gate, vendoring of browser builds, PE resources
 assets/icon.svg         the logo; every icon is generated from it

@@ -20,7 +20,7 @@ function git(...args) {
 /**
  * The name of the checkout: its branch, or the tag of a detached checkout (CI builds a release from its tag).
  * RAKKOMIK_BRANCH names it when the checkout has a made-up branch, like the one makepkg checks a release tag out on
- * (packaging/aur/PKGBUILD).
+ * (packaging/arch/PKGBUILD).
  */
 function checkoutName() {
     if (process.env.RAKKOMIK_BRANCH) {

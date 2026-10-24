@@ -2,7 +2,7 @@
  * Writes the version of a release into `package.json` and `src/app/package.json`, the two files that the application
  * takes its version from: the installers carry the first in their names and metadata, and the shell in app.asar the
  * second. The version of a release is its tag, so it is not typed twice: the workflows run this on the checkout of a
- * tag before they build, and the PKGBUILD of the AUR package does the same.
+ * tag before they build, and the PKGBUILD of the Arch package does the same.
  *
  *   node scripts/set-version.js v1.2.3      (the tag, or just 1.2.3)
  *   node scripts/set-version.js --if-newer v1.2.3

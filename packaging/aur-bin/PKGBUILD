@@ -5,7 +5,7 @@
 # AUR as the package `rakkomik-bin`.
 #
 # The package is prebuilt, so nothing is built and no build dependencies are installed: it is the Arch package that every
-# release has attached (rakkomik-<version>-1-any.pkg.tar.zst, built by packaging/aur/PKGBUILD in build-app.yml), and its
+# release has attached (rakkomik-<version>-1-any.pkg.tar.zst, built by packaging/arch/PKGBUILD in build-app.yml), and its
 # files are installed as they are. It runs on the system `electron` package, like the package it repacks.
 
 pkgname=rakkomik-bin
