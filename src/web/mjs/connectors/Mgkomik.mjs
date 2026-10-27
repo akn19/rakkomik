@@ -11,7 +11,8 @@ export default class Mgkomik extends Connector {
 
         this.queryMangas = 'a.manga-title';
         this.queryChapters = '#chapterList a.chapter-link';
-        this.queryPages = '#readingContent source';
+        // the pages are the images of the reader (they were `source` elements before)
+        this.queryPages = '#readingContent img';
         this.queryTitleForURI = 'meta[property="og:title"], h1#mangaTitle, h1.manga-title';
 
         this.requestOptions.headers.set('x-referer', this.url + '/');
