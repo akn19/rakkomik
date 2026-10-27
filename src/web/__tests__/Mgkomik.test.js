@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-// MGKOMIK (web1.mgkomik.cc): the pages of a chapter are the images of the reader (#readingContent img) since the site
-// changed in October 2026, as the extension of Keiyoushi (id/mgkomik) has it. The markup here is the one of the site.
+// MGKOMIK (web1.mgkomik.cc): the pages of a chapter are the images of the reader (#readingContent), the chapters the
+// links of #chapterList. The site answers with the markup that it had on 2026-10-28, and the page goes through fetchDOM
+// as in the application: createDOM turns every `img` into a `source` there.
 
 let Mgkomik = null;
 
@@ -9,20 +10,27 @@ beforeAll(async () => {
 });
 
 afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
 });
 
 const CHAPTER = 'https://web1.mgkomik.cc/komik/50kg-no-cinderella/chapter-32/';
 
-// a page of the site: its body is what fetchDOM answers
+// the site: every request gets a page with this body
 function site(body) {
-    const connector = new Mgkomik();
-    const dom = new DOMParser().parseFromString(
-        `<html><head><title>MGKOMIK</title></head><body>${body}</body></html>`,
-        'text/html',
+    vi.stubGlobal(
+        'fetch',
+        vi.fn(
+            async () =>
+                new Response(
+                    `<html><head><title>MGKOMIK</title></head><body>${body}</body></html>`,
+                    {
+                        headers: { 'content-type': 'text/html; charset=utf-8' },
+                    },
+                ),
+        ),
     );
-    connector.fetchDOM = vi.fn(async () => [dom.body]);
-    return connector;
+    return new Mgkomik();
 }
 
 const payloadOf = (uri) =>
