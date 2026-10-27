@@ -347,21 +347,28 @@ export default function MangaPanel({ readerEnabled }) {
                               ? 'Click to remove the selected manga from the bookmark list'
                               : 'Click to add the selected manga to the bookmark list'
                     }
-                    className="relative cursor-pointer text-(--bookmark-button-default-color) [filter:drop-shadow(var(--bookmark-button-shadow))] disabled:cursor-default"
+                    className="cursor-pointer text-(--bookmark-button-default-color) [filter:drop-shadow(var(--bookmark-button-shadow))] disabled:cursor-default"
                 >
-                    <Icon name="star" size={16} filled />
-                    {selectedManga && (
-                        <span
-                            className={
-                                'absolute -right-[3px] -bottom-[3px] rounded-full bg-(--control-background-color) ' +
-                                (bookmarked
-                                    ? 'text-(--bookmark-button-delete-color)'
-                                    : 'text-(--bookmark-button-add-color)')
-                            }
-                        >
-                            <Icon name={bookmarked ? 'minusCircle' : 'plusCircle'} size={9} />
-                        </span>
-                    )}
+                    {/* the badge sits on the corner of the star: the button around it is larger (a target of 24 pixels) */}
+                    <span className="relative mx-auto block size-4">
+                        <Icon name="star" size={16} filled className="block" />
+                        {selectedManga && (
+                            <span
+                                className={
+                                    'absolute -right-[3px] -bottom-[3px] flex rounded-full bg-(--control-background-color) ' +
+                                    (bookmarked
+                                        ? 'text-(--bookmark-button-delete-color)'
+                                        : 'text-(--bookmark-button-add-color)')
+                                }
+                            >
+                                <Icon
+                                    name={bookmarked ? 'minusCircle' : 'plusCircle'}
+                                    size={9}
+                                    className="block"
+                                />
+                            </span>
+                        )}
+                    </span>
                 </button>
             </div>
             <div
