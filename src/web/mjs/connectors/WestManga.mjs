@@ -30,7 +30,10 @@ const PAGE_HELPERS = `
         // the website limits the requests of a visitor (the list of the comics above all), for up to an hour
         if (response.status === 429) {
             const minutes = Math.ceil(Number(response.headers.get('retry-after')) / 60);
-            throw new Error('WestManga limits the requests, try again ' + (minutes > 0 ? 'in ' + minutes + ' minutes' : 'later'));
+            throw Object.assign(
+                new Error('WestManga limits the requests, try again ' + (minutes > 0 ? 'in ' + minutes + ' minutes' : 'later')),
+                { limited: true },
+            );
         }
         const expired = response.headers.has('X-WM-Visit-Error');
         if (retries > 0 && (expired || response.status >= 500)) {
@@ -115,27 +118,79 @@ export default class WestManga extends Connector {
         );
     }
 
+    /**
+     * The list of the comics, built up over the updates: the API gives 25 titles a page and answers 429 for an hour after
+     * about 250 requests, while the whole list has some 275 pages. An update with a stored list asks for the comics that
+     * were added last (newest first) until a page holds a title that is known, and adds them to the list. A list that is not
+     * complete yet (the first update, or one that the limit stopped) goes on in A-Z order from about where it ended. When
+     * the limit stops an update, what arrived is kept, and the next update goes on from there.
+     */
     async _getMangas() {
-        // the API gives 25 titles a page: all pages are asked for in one window
-        const comics = await this._runInPage(
-            `const comics = [];
-            for (let page = 1; ; page++) {
-                const { data, paginator } = await api('contents?page=' + page + '&per_page=25&type=Comic');
-                if (!data || !data.length) {
-                    break;
+        const stored = await Engine.Storage.loadMangaList(this.id).catch(() => undefined);
+        const known = Array.isArray(stored) ? stored : [];
+        const { comics, total, limited } = await this._runInPage(
+            `const known = new Set(${JSON.stringify(known.map((manga) => manga.id))});
+            const comics = [];
+            let total = 0;
+            let limited = null;
+            // the comics of a page that are not known yet; whether all of them were new
+            const take = (data) => {
+                const fresh = data.filter(({ slug }) => !known.has(slug));
+                fresh.forEach(({ slug, title }) => {
+                    known.add(slug);
+                    comics.push({ slug, title });
+                });
+                return fresh.length === data.length;
+            };
+            const list = async (order, page) => {
+                const { data, paginator } = await api('contents?page=' + page + '&per_page=25&type=Comic&orderBy=' + order);
+                total = (paginator && paginator.total) || total;
+                return { data: data || [], last: !paginator || paginator.current_page >= paginator.last_page };
+            };
+            try {
+                if (known.size > 0) {
+                    for (let page = 1; ; page++) {
+                        const { data, last } = await list('Added', page);
+                        if (!take(data) || last || data.length === 0) {
+                            break;
+                        }
+                    }
                 }
-                comics.push(...data.map(({ slug, title }) => ({ slug, title })));
-                if (!paginator || paginator.current_page >= paginator.last_page) {
-                    break;
+                if (known.size === 0 || known.size < total) {
+                    // two pages before the point where the list ended: titles may have moved since
+                    for (let page = Math.max(1, Math.floor(${known.length} / 25) - 1); ; page++) {
+                        const { data, last } = await list('Az', page);
+                        take(data);
+                        if (last || data.length === 0) {
+                            break;
+                        }
+                    }
                 }
+            } catch (error) {
+                if (!error.limited) {
+                    throw error;
+                }
+                limited = error.message;
             }
-            return comics;`,
+            return { comics, total, limited };`,
             15 * 60 * 1000,
         );
-        return comics.map(({ slug, title }) => ({
-            id: slug,
-            title: title.replace(/bahasa indonesia/i, '').trim(),
-        }));
+        const mangas = [
+            ...known,
+            ...comics.map(({ slug, title }) => ({
+                id: slug,
+                title: title.replace(/bahasa indonesia/i, '').trim(),
+            })),
+        ];
+        if (limited) {
+            if (comics.length === 0) {
+                throw new Error(limited);
+            }
+            console.warn(
+                `${this.label}: ${mangas.length} of ${total} comics so far. ${limited} to get the rest.`,
+            );
+        }
+        return mangas;
     }
 
     async _getChapters(manga) {
