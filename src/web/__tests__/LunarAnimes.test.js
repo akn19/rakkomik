@@ -413,6 +413,21 @@ describe('the flight data of Next.js', () => {
         ).toEqual(SEEDS);
     });
 
+    it('should join the pushes before it reads the rows: a row can be cut anywhere, also in text that comes as base64', () => {
+        const rows = row(1, component(RECORDED.decoy)) + row(2, component(real));
+        const cut = rows.length - 40;
+        const tail = Buffer.from(rows.slice(cut)).toString('base64');
+        expect(
+            Lunar.extractSeeds([
+                'self.__next_f.push([0])',
+                script(rows.slice(0, 25)),
+                script(rows.slice(25, cut)),
+                `self.__next_f.push(${JSON.stringify([2, 'not of the stream'])})`,
+                `self.__next_f.push(${JSON.stringify([3, tail])})`,
+            ]),
+        ).toEqual(SEEDS);
+    });
+
     it('should take the push of a script that comes later, and of a row that sits in the same text as a decoy', () => {
         expect(
             Lunar.extractSeeds([
@@ -641,6 +656,7 @@ function createSite({
     const site = {
         log: [],
         viewed: new Set(),
+        unlocked: new Set(),
         cleared: new Set(),
         thumbprints: [],
         attempts: [],
@@ -706,7 +722,7 @@ function createSite({
         site.thumbprints.push(proof.thumbprint);
         const path = url.pathname;
         if (path === '/api/captcha/config') {
-            return jsonResponse({ reader_primary_sitekey: 'KEY-OF-THE-SITE' });
+            return jsonResponse({ manga_turnstile_sitekey: 'KEY-OF-THE-SITE' });
         }
         if (path === '/api/manga/search') {
             const pageNumber = Number(url.searchParams.get('page'));
@@ -726,8 +742,9 @@ function createSite({
                 site.passwords || { has_series_password: false, chapter_passwords: [] },
             );
         }
-        if (path.startsWith('/api/manga/rating/status/')) {
-            return jsonResponse({ has_rated: false });
+        if (path.startsWith('/api/manga/chapter-lock/')) {
+            site.unlocked.add(path.split('/').pop());
+            return jsonResponse({ locked: false });
         }
         if (path === '/api/manga/chapter/view') {
             const { slug, chapter, language } = JSON.parse(await request.text());
@@ -741,17 +758,18 @@ function createSite({
             site.tokens.push(read);
             const challenge = request.headers.get('Catch-Me-If-You-Can-Monkey');
             site.turnstileHeaders.push([challenge, request.headers.get('Which-Monkey')]);
+            // a token of the check is made for the nonce of the token of the chapter (cData of the check)
             if (
                 challenge &&
                 request.headers.get('Which-Monkey') === 'turnstile' &&
-                /^check-\d+$/.test(challenge)
+                challenge === `check-${challenge.split('-')[1].split(':')[0]}:${read.nonce}`
             ) {
                 site.challenges.push(challenge);
                 site.cleared.add(`${proof.thumbprint}/${read.slug}`);
             }
             const real =
                 site.cleared.has(`${proof.thumbprint}/${read.slug}`) &&
-                site.viewed.has(`${read.slug}/${read.chapter}/${language || 'en'}`) &&
+                site.unlocked.has(read.slug) &&
                 site.decoys-- <= 0;
             const list = real
                 ? listOfImages(read.slug, read.chapter)
@@ -783,7 +801,10 @@ function createSite({
 // the check of Cloudflare: a window that gives a token, and the engine that opens it
 function stubEngine() {
     let count = 0;
-    const fetchBrowser = vi.fn(async () => `check-${++count}`);
+    const fetchBrowser = vi.fn(async (request, preload, code) => {
+        const nonce = /cData: "([^"]*)"/.exec(code)[1];
+        return `check-${++count}:${nonce}`;
+    });
     globalThis.Engine = { Request: { fetchBrowser, fetchUI: vi.fn() } };
     return { fetchBrowser };
 }
@@ -990,23 +1011,29 @@ describe('LunarAnimes', () => {
             expect(preload).toBeUndefined();
             expect(code).toContain('"KEY-OF-THE-SITE"');
             expect(code).toContain('challenges.cloudflare.com/turnstile/v0/api.js');
+            // the check is the one of the reader, for the token of this chapter
+            expect(code).toContain("action: 'read'");
+            expect(code).toContain(`cData: ${JSON.stringify(site.tokens[0].nonce)}`);
             expect(preferences).toEqual({ webSecurity: true, images: true, show: true });
             expect(timeout).toBe(90000);
-            expect(site.turnstileHeaders).toEqual([['check-1', 'turnstile']]);
+            expect(site.turnstileHeaders).toEqual([
+                [`check-1:${site.tokens[0].nonce}`, 'turnstile'],
+            ]);
         });
 
-        it('should ask the site to count the view before the images are asked for: the images are fake without it', async () => {
+        it('should open the lock of the chapter before the images are asked for (they are fake without it), and count the view after', async () => {
             const site = createSite();
             stubEngine();
             await createConnector()._getPages(chapterOf('the-cliff', '1'));
             const asked = site.log.filter((entry) => entry.includes('/api/'));
-            expect(asked.slice(0, 3)).toEqual([
-                'GET api.lunarx.to/api/manga/rating/status/the-cliff/1',
-                'POST api.lunarx.to/api/manga/chapter/view',
+            expect(asked.slice(0, 2)).toEqual([
+                'GET api.lunarx.to/api/manga/chapter-lock/the-cliff',
                 'GET api.lunarx.to/api/captcha/config',
             ]);
-            expect(asked[3]).toMatch(/^GET api\.lunarx\.to\/api\/manga\/r\/[A-Za-z0-9_-]+$/);
+            expect(asked[2]).toMatch(/^GET api\.lunarx\.to\/api\/manga\/r\/[A-Za-z0-9_-]+$/);
+            expect(asked[3]).toBe('POST api.lunarx.to/api/manga/chapter/view');
             expect(asked).toHaveLength(4);
+            expect([...site.viewed]).toEqual(['the-cliff/1/en']);
         });
 
         it('should ask for the language when it is not English, in the address of the page and of the API', async () => {
@@ -1100,7 +1127,14 @@ describe('LunarAnimes', () => {
             const uris = await createConnector()._getPages(chapterOf('the-cliff', '1'));
             expect(uris).toHaveLength(3);
             expect(fetchBrowser).toHaveBeenCalledTimes(2);
-            expect(site.challenges).toEqual(['check-1', 'check-2']);
+            expect(site.challenges.map((challenge) => challenge.split(':')[0])).toEqual([
+                'check-1',
+                'check-2',
+            ]);
+            // each check was made for the token that it went with
+            expect(site.challenges.map((challenge) => challenge.split(':')[1])).toEqual(
+                site.tokens.slice(-2).map((token) => token.nonce),
+            );
             // the first answer was made for the first key, the second one for another key
             const keys = site.thumbprints.filter(
                 (thumbprint, index, all) => all.indexOf(thumbprint) === index,
@@ -1217,19 +1251,27 @@ describe('LunarAnimes', () => {
             },
         );
 
-        it('should take the key of the check that the site names, and the one that it knew before when it does not', async () => {
+        it('should take the key of the check that the site names, once, and say so when it names none', async () => {
             const site = createSite();
             stubEngine();
             const connector = createConnector();
             await connector._getPages(chapterOf('the-cliff', '1'));
+            await connector._getPages(chapterOf('other', '1'));
             expect(connector._siteKey).toBe('KEY-OF-THE-SITE');
+            expect(site.log.filter((entry) => entry.includes('captcha'))).toHaveLength(1);
             const other = createConnector();
             vi.stubGlobal(
                 'fetch',
-                vi.fn(async () => new Response('', { status: 500 })),
+                vi.fn(
+                    async () =>
+                        new Response(JSON.stringify({ reader_primary_sitekey: 'OLD' }), {
+                            headers: { 'content-type': 'application/json' },
+                        }),
+                ),
             );
-            await expect(other._loadSiteKey()).resolves.toBe('0x4AAAAAAEweOgJ6zfOKhkgq');
-            expect(site.log.filter((entry) => entry.includes('captcha'))).toHaveLength(1);
+            await expect(other._loadSiteKey()).rejects.toThrow(
+                'The site gave no key for its check!',
+            );
         });
 
         it('should keep the referrer of the page of the chapter for an image that is not on the CDN of the site', async () => {

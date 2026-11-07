@@ -23,7 +23,6 @@ const NONCE_LENGTH = 12;
 const PROOF_HEADER = 'cant-catch-this-monkey';
 // the images that are made up for a visitor who is not verified
 const DECOY_PATH = '/api/cdn/p/';
-const FALLBACK_SITE_KEY = '0x4AAAAAAEweOgJ6zfOKhkgq';
 const DEFAULT_CLEARANCE_TTL = 300;
 const CLEARANCE_MARGIN = 30;
 
@@ -486,17 +485,30 @@ function findInPayload(payload, predicate) {
 export function extractSeeds(scripts) {
     const chunks = new Map();
     const models = new Map();
-    const payloads = [];
+    // every push is a slice of one stream, cut anywhere (often in the middle of a row): the slices are joined before the
+    // rows are read. `[1, text]` carries text, `[3, base64]` bytes; the other kinds are no data of the stream.
+    const stream = [];
     for (const script of scripts.filter((text) => text.includes('self.__next_f.push'))) {
         try {
             const pushed = JSON.parse(FLIGHT_PUSH.exec(script)[1]);
-            if (typeof pushed[1] === 'string') {
-                payloads.push(...readFlightRows(pushed[1], chunks, models));
+            if (typeof pushed[1] !== 'string') {
+                continue;
+            }
+            if (pushed[0] === 1) {
+                stream.push(utf8ToBytes(pushed[1]));
+            } else if (pushed[0] === 3) {
+                stream.push(base64ToBytes(pushed[1]));
             }
         } catch {
             /* a script of another kind */
         }
     }
+    const bytes = new Uint8Array(stream.reduce((size, part) => size + part.length, 0));
+    stream.reduce((offset, part) => {
+        bytes.set(part, offset);
+        return offset + part.length;
+    }, 0);
+    const payloads = readFlightRows(bytesToUtf8(bytes), chunks, models);
     for (const payload of payloads) {
         const props = findInPayload(resolveReferences(payload, chunks, models), isSeedProps);
         if (props) {
@@ -817,37 +829,42 @@ export default class LunarAnimes extends Connector {
     // ================================ Pages ================================
 
     /**
-     * Required requests: without them the images that come back are fake.
+     * A request whose answer does not matter, only that the site has been asked.
      */
-    async _viewChapter(slug, number, language) {
-        for (const request of [
-            [`${this.apiUrl}/api/manga/rating/status/${slug}/${number}`, {}],
-            [
-                `${this.apiUrl}/api/manga/chapter/view`,
-                {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ slug, chapter: number, language }),
-                },
-            ],
-        ]) {
-            try {
-                const response = await this._api(...request);
-                await response.arrayBuffer();
-            } catch {
-                /* the answer does not matter, only that the site has been asked */
-            }
+    async _notify(url, init = {}) {
+        try {
+            const response = await this._api(url, init);
+            await response.arrayBuffer();
+        } catch {
+            /* nothing to do */
         }
+    }
+
+    /**
+     * Required before the list of the images is asked for: without it the list is fake.
+     */
+    _unlockChapter(slug) {
+        return this._notify(`${this.apiUrl}/api/manga/chapter-lock/${slug}`);
+    }
+
+    /**
+     * The view of the chapter, counted once its images arrived (as the reader of the site does).
+     */
+    _countView(slug, number, language) {
+        return this._notify(`${this.apiUrl}/api/manga/chapter/view`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ slug, chapter: number, language }),
+        });
     }
 
     async _loadSiteKey() {
         if (!this._siteKey) {
-            try {
-                const config = await this._apiJSON(`${this.apiUrl}/api/captcha/config`);
-                this._siteKey = config.reader_primary_sitekey || FALLBACK_SITE_KEY;
-            } catch {
-                this._siteKey = FALLBACK_SITE_KEY;
+            const config = await this._apiJSON(`${this.apiUrl}/api/captcha/config`);
+            if (!config.manga_turnstile_sitekey) {
+                throw new Error('The site gave no key for its check!');
             }
+            this._siteKey = config.manga_turnstile_sitekey;
         }
         return this._siteKey;
     }
@@ -856,10 +873,11 @@ export default class LunarAnimes extends Connector {
      * The check of the site (Cloudflare Turnstile) runs in a window on a plain document of the site (its manifest): the pages of
      * the site take a window of this kind for one with an extension and show a page of their own instead. The window is shown
      * while it runs, because the check does not finish in a hidden one, and it keeps the web security and the images that the
-     * check needs.
+     * check needs. The token is bound to the nonce of the token of the chapter (action `read`), as in the reader of the site.
+     * @param {string} nonce
      * @returns {Promise<string>} the token of the check
      */
-    async _solveTurnstile() {
+    async _solveTurnstile(nonce) {
         const siteKey = await this._loadSiteKey();
         const script = `
             new Promise((resolve, reject) => {
@@ -870,6 +888,8 @@ export default class LunarAnimes extends Connector {
                     try {
                         window.turnstile.render(document.getElementById('check'), {
                             sitekey: ${JSON.stringify(siteKey)},
+                            action: 'read',
+                            cData: ${JSON.stringify(nonce)},
                             appearance: 'always',
                             callback: (token) => resolve(token),
                             'error-callback': (code) => reject(new Error('The check of the site failed (code: ' + code + ')')),
@@ -931,8 +951,9 @@ export default class LunarAnimes extends Connector {
         });
     }
 
-    async _fetchChapter(seeds, slug, number, language, turnstileToken) {
+    async _fetchChapter(seeds, slug, number, language, withTurnstile) {
         const { token, nonce } = mintToken(seeds, slug, number);
+        const turnstileToken = withTurnstile ? await this._solveTurnstile(nonce) : null;
         const query = language === 'en' ? '' : `?language=${encodeURIComponent(language)}`;
         const headers = {};
         if (turnstileToken) {
@@ -984,29 +1005,24 @@ export default class LunarAnimes extends Connector {
         const seeds = extractSeeds(inlineScripts(await response.text()));
 
         const result = await this._inTurn(async () => {
-            await this._viewChapter(slug, number, language);
+            await this._unlockChapter(slug);
             let answer = await this._fetchChapter(
                 seeds,
                 slug,
                 number,
                 language,
-                (await this._hasClearance(slug)) ? null : await this._solveTurnstile(),
+                !(await this._hasClearance(slug)),
             );
             if (this._needsRevalidation(answer)) {
                 this._clearances.delete(slug);
                 this._proofKey = undefined;
-                answer = await this._fetchChapter(
-                    seeds,
-                    slug,
-                    number,
-                    language,
-                    await this._solveTurnstile(),
-                );
+                answer = await this._fetchChapter(seeds, slug, number, language, true);
             }
             if (this._needsRevalidation(answer)) {
                 throw new Error('Could not load images. The check of the site was not accepted.');
             }
             await this._markCleared(slug, answer.cache_ttl);
+            await this._countView(slug, number, language);
             return answer;
         });
 
