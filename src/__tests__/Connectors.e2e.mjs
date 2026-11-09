@@ -221,6 +221,24 @@ const sites = [
             pageMatcher: /^https:\/\/[^/]+\/.+\.(webp|jpe?g|png)/,
         },
     },
+    {
+        name: 'Kaguya',
+        parameters: {
+            connectorID: 'kaguya',
+            mangaURL: 'https://01.kaguya.re/comic/i-want-to-work-quietly',
+            chaptersAccessor: { id: 'cmw94i0jk6ad5cxkgmvk39sma' },
+        },
+        expectations: {
+            connectorClass: 'Kaguya',
+            mangaID: 'i-want-to-work-quietly',
+            mangaTitle: 'I Want To Work Quietly',
+            chapterID: 'cmw94i0jk6ad5cxkgmvk39sma',
+            chapterTitle: 'Chapter 47',
+            pageCount: 57,
+            pageMatcher:
+                /^https:\/\/tsuki\.kaguya\.re\/api\/v1\/media\/chapter\/deliver\?token=[\w.%-]+$/,
+        },
+    },
 ];
 
 test.describe('connectors on the real websites', () => {
