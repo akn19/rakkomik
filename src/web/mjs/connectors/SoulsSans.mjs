@@ -7,8 +7,8 @@ export default class SoulsSans extends Connector {
         super.id = 'soulscans';
         super.label = 'Soul Scans';
         this.tags = ['manga', 'manhwa', 'manhua', 'indonesian'];
-        this.url = 'https://v1.soulscans.org';
-        this.api = 'https://img.soulscans.org/api/';
+        this.url = 'https://v1.soulscans.asia';
+        this.api = 'https://img.soulscans.asia/api/';
     }
 
     async _getMangaFromURI(uri) {
