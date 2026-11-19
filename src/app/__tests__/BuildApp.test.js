@@ -142,7 +142,7 @@ describe('the RPM', () => {
             const build = commands.find((command) => command.startsWith('rpmbuild'));
             expect(build).toContain(` --target ${target} `);
             expect(build).toMatch(
-                /^rpmbuild -bb --noclean --target \S+ --define "_topdir .+[\\/]package" --define "buildroot %\{_topdir\}" --define "_binary_payload w9\.xzdio" ".+specfile\.spec"$/,
+                /^rpmbuild -bb --noclean --target \S+ --define "_topdir .+[\\/]package" --define "_binary_payload w9\.xzdio" ".+specfile\.spec"$/,
             );
             // the package is moved from the directory of its architecture, whichever that is
             expect(commands.find((command) => command.startsWith('mv'))).toContain('/RPMS/*/*.rpm');
@@ -982,10 +982,14 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
                 'AutoReqProv: no',
                 '',
             ]);
-            // the files of the package come from the find in the staging folder, in the order of the sections of a specification
+            // the files of the package come from the find in the staging folder, in the order of the sections of a specification;
+            // %install takes them from the top directory into the buildroot, which rpmbuild chooses (rpm 6 ignores a define of it)
             expect(spec.slice(11).filter((line) => line !== '')).toEqual([
                 '%description',
                 config.description.long,
+                '%install',
+                'mkdir -p "%{buildroot}"',
+                'cp -a "%{_topdir}/usr" "%{buildroot}/"',
                 '%files',
                 `%dir /usr/lib/${config.name.package}/`,
                 ...files,
@@ -1208,7 +1212,7 @@ describe.skipIf(process.platform === 'win32')('the files of the Linux packages',
                     'rpm --version',
                     `find "${folder}" -type f -iname "*.so" -exec chmod -x {} \\;`,
                     `cd "${root}" && find usr -type f -exec echo /{} \\;`,
-                    `rpmbuild -bb --noclean --target ${target} --define "_topdir $(pwd)/${root}" --define "buildroot %{_topdir}" --define "_binary_payload w9.xzdio" "${path.join('build', 'specfile.spec')}"`,
+                    `rpmbuild -bb --noclean --target ${target} --define "_topdir $(pwd)/${root}" --define "_binary_payload w9.xzdio" "${path.join('build', 'specfile.spec')}"`,
                     `mv -f ${root}/RPMS/*/*.rpm ${root}.rpm`,
                 ]);
                 expect(specificationWhileBuilding).toContain(`Name: ${name}`);
