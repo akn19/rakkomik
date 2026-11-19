@@ -349,9 +349,10 @@ class ElectronPackagerLinux extends ElectronPackager {
         await fs.promises.rm(rpm, { recursive: true, force: true });
         // the target names the architecture of the package: without it the RPM of ARM64 is built for the host. The
         // payload is compressed with xz instead of the gzip that rpmbuild falls back to (a quarter smaller); every rpm
-        // since 4.7 (2009) reads it
+        // since 4.7 (2009) reads it. The files are in the top directory: the %install of the specification takes them
+        // from there into the buildroot of rpmbuild (rpm 6 no longer lets a define put the buildroot elsewhere)
         await this._executeCommand(
-            `rpmbuild -bb --noclean --target ${this._architecture.rpm} --define "_topdir $(pwd)/${this._dirBuildRoot}" --define "buildroot %{_topdir}" --define "_binary_payload w9.xzdio" "${specs}"`,
+            `rpmbuild -bb --noclean --target ${this._architecture.rpm} --define "_topdir $(pwd)/${this._dirBuildRoot}" --define "_binary_payload w9.xzdio" "${specs}"`,
         );
         await this._executeCommand(`mv -f ${this._dirBuildRoot}/RPMS/*/*.rpm ${rpm}`);
         await fs.promises.rm(specs, { recursive: true, force: true });
@@ -569,6 +570,10 @@ class ElectronPackagerLinux extends ElectronPackager {
             '',
             '%description',
             this._configuration.description.long,
+            '',
+            '%install',
+            'mkdir -p "%{buildroot}"',
+            'cp -a "%{_topdir}/usr" "%{buildroot}/"',
             '',
             '%files',
             `%dir /usr/lib/${this._configuration.name.package}/`,
