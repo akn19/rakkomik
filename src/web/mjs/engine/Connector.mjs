@@ -41,8 +41,9 @@ export default class Connector {
             method: 'GET',
             mode: 'cors',
             redirect: 'follow',
-            // include credentials to apply cookies from browser window
-            credentials: 'same-origin', // 'include',
+            // include credentials to apply cookies from browser window: the page is not the origin of the websites, and
+            // since Chromium 156 (Electron 45) 'same-origin' leaves the cookies out even without web security
+            credentials: 'include',
             headers: new Headers(),
         };
         this.requestOptions.headers.set(

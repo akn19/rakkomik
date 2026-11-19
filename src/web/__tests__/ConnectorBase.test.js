@@ -98,7 +98,7 @@ describe('a connector', () => {
             method: 'GET',
             mode: 'cors',
             redirect: 'follow',
-            credentials: 'same-origin',
+            credentials: 'include',
         });
         expect(requestOptions.headers).toBeInstanceOf(Headers);
         // what a browser asks for when it navigates

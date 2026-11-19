@@ -74,7 +74,7 @@ describe('fetchJSON', () => {
             url: 'https://site.test/api',
             method: 'GET',
             mode: 'cors',
-            credentials: 'same-origin',
+            credentials: 'include',
             redirect: 'follow',
         });
         expect(request.headers.get('x-referer')).toBe('https://site.test/');
@@ -233,7 +233,7 @@ describe('fetchGraphQL', () => {
             url: 'https://site.test/graphql',
             method: 'POST',
             mode: 'cors',
-            credentials: 'same-origin',
+            credentials: 'include',
             redirect: 'follow',
         });
         expect(request.headers.get('content-type')).toBe('application/json');
