@@ -239,6 +239,24 @@ const sites = [
                 /^https:\/\/tsuki\.kaguya\.re\/api\/v1\/media\/chapter\/deliver\?token=[\w.%-]+$/,
         },
     },
+    {
+        name: 'Shinigami ID',
+        parameters: {
+            connectorID: 'shinigamiid',
+            mangaURL: 'https://s1.shinigami.mx/series/c0f1d049-ff7f-474d-8c6a-3a55e4c44147',
+            chaptersAccessor: { id: '6938aacf-42c9-4880-bc3e-dc4ddaeb0834' },
+        },
+        expectations: {
+            connectorClass: 'ShinigamiID',
+            mangaID: 'c0f1d049-ff7f-474d-8c6a-3a55e4c44147',
+            mangaTitle: 'Demonic Emperor',
+            chapterID: '6938aacf-42c9-4880-bc3e-dc4ddaeb0834',
+            chapterTitle: 'Chapter 938',
+            pageCount: 9,
+            pageMatcher:
+                /^https:\/\/cdn\.shinigami\.gg\/chapter\/manga_[0-9a-f-]+\/chapter_[0-9a-f-]+\/[\w-]+\.(jpe?g|png|webp)$/,
+        },
+    },
 ];
 
 test.describe('connectors on the real websites', () => {
