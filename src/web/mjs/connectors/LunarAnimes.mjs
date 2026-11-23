@@ -10,10 +10,13 @@ import {
 } from '../engine/Crypto.mjs';
 
 /*
- * Lunar (https://lunarx.to) protects the images of a chapter: the page of the chapter hands out two seed strings, a token
- * made from them names the chapter, and the answer is an encrypted list of the images. The proof of a key pair that the
- * client makes up by itself goes with every request to the API, and a Turnstile token is needed from time to time.
- * This is the port of the extension of Keiyoushi (all/lunaranime: LunarAnime, LunarDecryptor, LunarSerenity, LunarAnimeDto).
+ * Lunar (https://lunarx.to) protects the images of a chapter: a client component of the page of the chapter makes two seed
+ * strings (its code runs in a window of the site), a token made from them names the chapter, and the answer is an encrypted
+ * list of the images. The request of that list carries the proof of a key pair that the client makes up by itself (only that
+ * one: a key that signed other requests gets fake images), and a Turnstile token from time to time. Some images come with a
+ * veil: patches that cover the banners burned into them, drawn over the image as the reader of the site does.
+ * This is the port of the extension of Keiyoushi (all/lunaranime: LunarAnime, LunarDecryptor, LunarSerenity, VeilInterceptor,
+ * Dto, lunar-seed-runtime.js).
  */
 
 const SEPARATOR = '\u0001';
@@ -23,6 +26,12 @@ const NONCE_LENGTH = 12;
 const PROOF_HEADER = 'cant-catch-this-monkey';
 // the images that are made up for a visitor who is not verified
 const DECOY_PATH = '/api/cdn/p/';
+// the pages between the pages (advertisements): a real list has them, a fake one has none
+const INTERSTITIAL_PATH = '/api/manga/pg/';
+// the vault answers 503 while it prepares a file: the reader of the site asks again after 600 ms, 1200 ms, ...
+const RETRY_STEP = 600;
+const PAGE_RETRIES = 4;
+const VEIL_RETRIES = 3;
 const DEFAULT_CLEARANCE_TTL = 300;
 const CLEARANCE_MARGIN = 30;
 
@@ -38,12 +47,6 @@ p { max-width: 28em; margin: 0; text-align: center; }
 <div id="check"></div>
 <p>This window closes when the check is done. If the check asks for something, do it here.</p>
 </body></html>`;
-
-const HEADER_SIZE = 7;
-const HEADER_FIELDS = 6;
-const HEADER_VERSION = '3';
-const MAX_OPCODE = 7;
-const MAGIC = [167, 62, 145];
 
 // ============================== Encoding ===============================
 
@@ -62,18 +65,6 @@ function base64Decode(text) {
     return base64ToBytes(clean.padEnd(Math.ceil(clean.length / 4) * 4, '='));
 }
 
-/**
- * Like Kotlin's String.toIntOrNull(radix): an optional sign and the digits, nothing when it is no 32 bit number.
- */
-function toIntOrNull(text, radix) {
-    const digits = radix === 16 ? '[0-9a-fA-F]' : '[0-9]';
-    if (!new RegExp(`^[+-]?${digits}+$`).test(text)) {
-        return null;
-    }
-    const value = parseInt(text, radix);
-    return value >= -2147483648 && value <= 2147483647 ? value : null;
-}
-
 function randomInt(bound) {
     return crypto.getRandomValues(new Uint32Array(1))[0] % bound;
 }
@@ -86,437 +77,393 @@ function randomString(length, random) {
     return text;
 }
 
-// ================================ Seeds ================================
-
-function latin1(bytes, offset, length) {
-    return String.fromCharCode(...bytes.slice(offset, offset + length));
-}
-
-/**
- * The header prop is masked with a rolling key that comes from its own name: it tells how the other props are put
- * together (a seed, the factors of a generator of numbers, the steps of a small program and the names of the props).
- */
-function parseSeedHeader(name, value) {
-    let decoded;
-    try {
-        decoded = base64Decode([...value].reverse().join(''));
-    } catch {
-        return null;
-    }
-    let nameHash = 0;
-    for (const char of name) {
-        nameHash = (31 * nameHash + char.charCodeAt(0)) & 0xff;
-    }
-    const parts = Array.from(decoded, (byte, index) =>
-        String.fromCharCode(byte ^ ((nameHash + 37 * index) & 0xff)),
-    )
-        .join('')
-        .split('|');
-    if (parts.length !== HEADER_FIELDS || parts[0] !== HEADER_VERSION) {
-        return null;
-    }
-    const seed = toIntOrNull(parts[1], 16);
-    const multiplier = toIntOrNull(parts[2], 16);
-    const increment = toIntOrNull(parts[3], 16);
-    if (seed === null || multiplier === null || increment === null) {
-        return null;
-    }
-    const programText = parts[4];
-    if (!programText || programText.length % 3 !== 0) {
-        return null;
-    }
-    const program = [];
-    for (let index = 0; index < programText.length; index += 3) {
-        const operation = toIntOrNull(programText.substring(index, index + 1), 16);
-        const argument = toIntOrNull(programText.substring(index + 1, index + 3), 16);
-        if (operation === null || argument === null || operation > MAX_OPCODE) {
-            return null;
-        }
-        program.push([operation, argument]);
-    }
-    const names = parts[5].split('.').filter((entry) => entry);
-    if (!names.length) {
-        return null;
-    }
-    return { seed, multiplier, increment, program, names };
-}
-
-function runProgram(program, value, index, state) {
-    let number = value & 0xff;
-    for (const [operation, argument] of [...program].reverse()) {
-        switch (operation) {
-            case 0:
-                number ^= argument;
-                break;
-            case 1:
-                number -= argument;
-                break;
-            case 2: {
-                const shift = argument & 7 || 1;
-                number = ((number & 0xff) >>> shift) | (number << (8 - shift));
-                break;
-            }
-            case 3:
-                number = ((number & 15) << 4) | ((number & 0xff) >>> 4);
-                break;
-            case 4:
-                number ^= state;
-                break;
-            case 5:
-                number ^= (index * (1 | argument) + argument) & 0xff;
-                break;
-            case 6:
-                number = ~number;
-                break;
-            default:
-                number = argument - number;
-        }
-        number &= 0xff;
-    }
-    return number;
-}
-
-/**
- * The named props make up one hex string. Each byte of it is chained to the one before and to a generator of numbers
- * that the header names, and then it is run backwards through the program of the header.
- */
-function decodeSeedBytes(header, props) {
-    const hex = header.names.map((entry) => props[entry] ?? '').join('');
-    if (hex.length < 2 || hex.length % 2 !== 0) {
-        return null;
-    }
-    const bytes = [];
-    let state = header.seed & 0xff;
-    let previous = 0;
-    for (let index = 0; index < hex.length; index += 2) {
-        const current = toIntOrNull(hex.substring(index, index + 2), 16);
-        if (current === null) {
-            return null;
-        }
-        state = (Math.imul(state, header.multiplier) + header.increment) & 0xff;
-        bytes.push(runProgram(header.program, current ^ previous, index / 2, state));
-        previous = current;
-    }
-    return bytes;
-}
-
-/**
- * Several decoy sets of props are drawn next to the real one: a decoy fails to make a header, or misses the magic bytes.
- * @param {Object<string, string>} props
- * @returns {{axis: string, pitch: string}|null}
- */
-export function decodeSeeds(props) {
-    for (const [name, value] of Object.entries(props)) {
-        const header = parseSeedHeader(name, value);
-        const bytes = header && decodeSeedBytes(header, props);
-        if (!bytes || bytes.length < HEADER_SIZE) {
-            continue;
-        }
-        if (MAGIC.some((magic, index) => bytes[index] !== magic)) {
-            return null;
-        }
-        const axisLength = (bytes[3] << 8) | bytes[4];
-        const pitchLength = (bytes[5] << 8) | bytes[6];
-        if (
-            axisLength <= 0 ||
-            pitchLength <= 0 ||
-            HEADER_SIZE + axisLength + pitchLength > bytes.length
-        ) {
-            return null;
-        }
-        return {
-            axis: latin1(bytes, HEADER_SIZE, axisLength),
-            pitch: latin1(bytes, HEADER_SIZE + axisLength, pitchLength),
-        };
-    }
-    return null;
-}
-
-function isSeedProps(element) {
-    return (
-        element !== null &&
-        typeof element === 'object' &&
-        !Array.isArray(element) &&
-        Object.keys(element).length > 0 &&
-        Object.values(element).every((value) => typeof value === 'string') &&
-        decodeSeeds(element) !== null
-    );
-}
-
 // ========================= Flight data of Next.js ==========================
 
 const FLIGHT_PUSH = /self\.__next_f\.push\(\s*(\[[\s\S]*\])\s*\)\s*;?\s*$/;
+const NEWLINE = 0x0a;
+const COLON = 0x3a;
+const COMMA = 0x2c;
+const TEXT_ROW = 0x54;
 
 /**
- * The value at the start of the text and the position behind it: found only when it is made of JSON.
- */
-function parseJsonAt(text, start) {
-    let depth = 0;
-    let inString = false;
-    let escape = false;
-    let index = start;
-    while (index < text.length) {
-        const char = text[index++];
-        if (escape) {
-            escape = false;
-            continue;
-        }
-        if (char === '\\' && inString) {
-            escape = true;
-            continue;
-        }
-        if (char === '"') {
-            inString = !inString;
-            continue;
-        }
-        if (inString) {
-            continue;
-        }
-        if (char === '{' || char === '[') {
-            depth++;
-        } else if ((char === '}' || char === ']') && --depth === 0) {
-            return parseJsonSafe(text.substring(start, index), index);
-        }
-        if (depth === 0 && /\s/.test(char)) {
-            return parseJsonSafe(text.substring(start, index - 1), index);
-        }
-    }
-    return { found: false, end: index };
-}
-
-function parseJsonSafe(text, end) {
-    try {
-        return { found: true, value: JSON.parse(text), end };
-    } catch {
-        return { found: false, end };
-    }
-}
-
-/**
- * The rows of the flight data of one push: `<id>:<JSON>` for a model, `<id>:T<length>,<text>` for a long text, where the
- * length is the one of the text in UTF-8.
- */
-function readFlightRows(body, chunks, models) {
-    const payloads = [];
-    let position = 0;
-    while (position < body.length) {
-        const colon = body.indexOf(':', position);
-        if (colon === -1) {
-            break;
-        }
-        const id = body.substring(position, colon);
-        if (!/^[0-9a-fA-F]+$/.test(id)) {
-            position++;
-            continue;
-        }
-        position = colon + 1;
-        if (position >= body.length) {
-            break;
-        }
-        if (body[position] === 'T') {
-            position++;
-            const comma = body.indexOf(',', position);
-            const length = comma === -1 ? null : toIntOrNull(body.substring(position, comma), 16);
-            if (length === null) {
-                break;
-            }
-            position = comma + 1;
-            const start = position;
-            let bytes = 0;
-            while (position < body.length && bytes < length) {
-                const code = body.charCodeAt(position);
-                if (code < 0x80) {
-                    bytes += 1;
-                } else if (code < 0x800) {
-                    bytes += 2;
-                } else if (code >= 0xd800 && code <= 0xdbff) {
-                    // a character of two halves is four bytes, and the second half is taken along
-                    bytes += 4;
-                    position++;
-                } else {
-                    bytes += 3;
-                }
-                position++;
-            }
-            const text = body.substring(start, position);
-            chunks.set(id, text);
-            const parsed = parseJsonSafe(text, position);
-            if (parsed.found) {
-                payloads.push(parsed.value);
-            }
-        } else {
-            const parsed = parseJsonAt(body, position);
-            if (parsed.found) {
-                payloads.push(parsed.value);
-                models.set(id, parsed.value);
-            }
-            position = parsed.end;
-        }
-    }
-    return payloads;
-}
-
-function walkReference(value, segment) {
-    if (Array.isArray(value)) {
-        // an element of React is ["$", type, key, props]
-        if (value.length >= 4 && value[0] === '$') {
-            const named = { type: 1, key: 2, props: 3 }[segment];
-            if (named !== undefined) {
-                return value[named];
-            }
-        }
-        const index = toIntOrNull(segment, 10);
-        return index === null ? undefined : value[index];
-    }
-    if (value !== null && typeof value === 'object') {
-        return value[segment];
-    }
-    return undefined;
-}
-
-function resolveModel(reference, chunks, models, resolving) {
-    const segments = reference.split(':');
-    const id = segments[0];
-    if (segments.length === 1 && chunks.has(id)) {
-        return chunks.get(id);
-    }
-    if (resolving.has(id) || !models.has(id)) {
-        return undefined;
-    }
-    const guard = new Set(resolving).add(id);
-    let value = models.get(id);
-    for (const segment of segments.slice(1)) {
-        if (typeof value === 'string' && value.startsWith('$')) {
-            value = resolveReferences(value, chunks, models, guard);
-        }
-        value = walkReference(value, segment);
-        if (value === undefined) {
-            return undefined;
-        }
-    }
-    return resolveReferences(value, chunks, models, guard);
-}
-
-function resolveEntries(id, chunks, models, resolving, asMap) {
-    const entries = models.get(id);
-    if (resolving.has(id) || !Array.isArray(entries)) {
-        return undefined;
-    }
-    const resolved = resolveReferences(entries, chunks, models, new Set(resolving).add(id));
-    if (!asMap) {
-        return resolved;
-    }
-    return Object.fromEntries(
-        resolved
-            .filter((pair) => Array.isArray(pair) && pair.length === 2)
-            .map(([key, value]) => [String(key), value]),
-    );
-}
-
-/**
- * What the markers of React Flight stand for: an escaped dollar sign, `undefined`, a date, a big number, a map, a set, and
- * the reference to a model or to a text that was outlined into a row of its own.
- */
-function resolveReferences(element, chunks, models, resolving = new Set()) {
-    if (Array.isArray(element)) {
-        return element.map((entry) => resolveReferences(entry, chunks, models, resolving));
-    }
-    if (element !== null && typeof element === 'object') {
-        return Object.fromEntries(
-            Object.entries(element).map(([key, value]) => [
-                key,
-                resolveReferences(value, chunks, models, resolving),
-            ]),
-        );
-    }
-    if (typeof element !== 'string' || !element.startsWith('$') || element.length < 2) {
-        return element;
-    }
-    if (element === '$undefined') {
-        return null;
-    }
-    if (['$Infinity', '$-Infinity', '$NaN', '$-0'].includes(element)) {
-        return element.substring(1);
-    }
-    let resolved;
-    switch (element[1]) {
-        case '$':
-        case 'D':
-        case 'n':
-            return element.substring(element[1] === '$' ? 1 : 2);
-        case 'Q':
-            resolved = resolveEntries(element.substring(2), chunks, models, resolving, true);
-            break;
-        case 'W':
-            resolved = resolveEntries(element.substring(2), chunks, models, resolving, false);
-            break;
-        case 'L':
-        case '@':
-            resolved = resolveModel(element.substring(2), chunks, models, resolving);
-            break;
-        default:
-            resolved = resolveModel(element.substring(1), chunks, models, resolving);
-    }
-    return resolved === undefined ? element : resolved;
-}
-
-function findInPayload(payload, predicate) {
-    if (payload === null || typeof payload !== 'object') {
-        return undefined;
-    }
-    if (predicate(payload)) {
-        return payload;
-    }
-    for (const child of Array.isArray(payload) ? payload : Object.values(payload)) {
-        const found = findInPayload(child, predicate);
-        if (found !== undefined) {
-            return found;
-        }
-    }
-    return undefined;
-}
-
-/**
- * The seeds are no field of their own: they arrive as the props of a component of the reader, under names that change with
- * each response, in the flight data that Next.js puts into the scripts of the page.
+ * The rows of the flight data of a page, in their order: `<id>:<value>`, where a value is a line, or `T<length>,<text>`
+ * with the length of the text in bytes of UTF-8. Every push is a slice of one stream, cut anywhere (often in the middle
+ * of a row), so the slices are joined first: `[1, text]` carries text, `[3, base64]` bytes, the other kinds no data.
  * @param {string[]} scripts the text of the scripts of the page that have no source
- * @returns {{axis: string, pitch: string}}
+ * @returns {{id: string, value: string}[]}
  */
-export function extractSeeds(scripts) {
-    const chunks = new Map();
-    const models = new Map();
-    // every push is a slice of one stream, cut anywhere (often in the middle of a row): the slices are joined before the
-    // rows are read. `[1, text]` carries text, `[3, base64]` bytes; the other kinds are no data of the stream.
-    const stream = [];
+export function flightRows(scripts) {
+    const parts = [];
     for (const script of scripts.filter((text) => text.includes('self.__next_f.push'))) {
         try {
-            const pushed = JSON.parse(FLIGHT_PUSH.exec(script)[1]);
-            if (typeof pushed[1] !== 'string') {
-                continue;
-            }
-            if (pushed[0] === 1) {
-                stream.push(utf8ToBytes(pushed[1]));
-            } else if (pushed[0] === 3) {
-                stream.push(base64ToBytes(pushed[1]));
+            const pushed = JSON.parse(FLIGHT_PUSH.exec(script.trim())[1]);
+            if (pushed[0] === 1 && typeof pushed[1] === 'string') {
+                parts.push(utf8ToBytes(pushed[1]));
+            } else if (pushed[0] === 3 && typeof pushed[1] === 'string') {
+                parts.push(base64ToBytes(pushed[1]));
             }
         } catch {
             /* a script of another kind */
         }
     }
-    const bytes = new Uint8Array(stream.reduce((size, part) => size + part.length, 0));
-    stream.reduce((offset, part) => {
+    const bytes = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+    parts.reduce((offset, part) => {
         bytes.set(part, offset);
         return offset + part.length;
     }, 0);
-    const payloads = readFlightRows(bytesToUtf8(bytes), chunks, models);
-    for (const payload of payloads) {
-        const props = findInPayload(resolveReferences(payload, chunks, models), isSeedProps);
+
+    const rows = [];
+    let position = 0;
+    while (position < bytes.length) {
+        if (bytes[position] === NEWLINE) {
+            position++;
+            continue;
+        }
+        const colon = bytes.indexOf(COLON, position);
+        if (colon === -1) {
+            break;
+        }
+        const id = bytesToUtf8(bytes.subarray(position, colon));
+        position = colon + 1;
+        let end;
+        if (bytes[position] === TEXT_ROW) {
+            const comma = bytes.indexOf(COMMA, position);
+            const length = parseInt(bytesToUtf8(bytes.subarray(position + 1, comma)), 16);
+            position = comma + 1;
+            end = Math.min(bytes.length, position + (Number.isNaN(length) ? 0 : length));
+        } else {
+            end = bytes.indexOf(NEWLINE, position);
+            end = end === -1 ? bytes.length : end;
+        }
+        rows.push({ id, value: bytesToUtf8(bytes.subarray(position, end)) });
+        position = end;
+    }
+    return rows;
+}
+
+// ================================ Seeds ================================
+
+/**
+ * The props of an element of a client component (`["$", "$L<id>", key, props]`) that can be the seeds: texts only.
+ */
+function seedProps(element) {
+    if (element.length !== 4 || element[0] !== '$') {
+        return null;
+    }
+    if (typeof element[1] !== 'string' || !element[1].startsWith('$L')) {
+        return null;
+    }
+    const props = element[3];
+    if (props === null || typeof props !== 'object' || Array.isArray(props)) {
+        return null;
+    }
+    const values = Object.values(props);
+    return values.length > 0 && values.every((value) => typeof value === 'string') ? props : null;
+}
+
+function forEachSeedElement(element, visit) {
+    if (Array.isArray(element)) {
+        const props = seedProps(element);
         if (props) {
-            return decodeSeeds(props);
+            visit(element[1].substring(2), props);
+        }
+        element.forEach((entry) => forEachSeedElement(entry, visit));
+    } else if (element !== null && typeof element === 'object') {
+        Object.values(element).forEach((entry) => forEachSeedElement(entry, visit));
+    }
+}
+
+// the row of an id that is in effect at a row: the ids repeat across the flight streams of a page
+function rowBefore(rows, id, index) {
+    for (let at = index - 1; at >= 0; at--) {
+        if (rows[at].id === id) {
+            return { at, value: rows[at].value };
         }
     }
-    throw new Error('Failed to find payload seeds!');
+    return null;
 }
+
+/**
+ * The client component of a reference: its row is `I[<module id>, [<chunks>], ...]`, and a chunk is a path or a reference
+ * (`$<id>`) to a row that holds the path.
+ */
+function componentAt(rows, id, index, pageUrl) {
+    const row = rowBefore(rows, id, index);
+    if (!row || !row.value.startsWith('I[')) {
+        return null;
+    }
+    let reference;
+    try {
+        reference = JSON.parse(row.value.substring(1));
+    } catch {
+        return null;
+    }
+    const chunkUrls = [];
+    for (const chunk of reference[1] || []) {
+        let path = chunk;
+        if (chunk.startsWith('$')) {
+            const holder = rowBefore(rows, chunk.substring(1), row.at);
+            try {
+                path = holder && JSON.parse(holder.value);
+            } catch {
+                path = null;
+            }
+        }
+        if (typeof path !== 'string') {
+            return null;
+        }
+        chunkUrls.push(new URL(path, pageUrl).href);
+    }
+    return { moduleId: reference[0], chunkUrls };
+}
+
+/**
+ * The seeds come from a client component of the reader: it is given props under names that change with each response, and
+ * its code makes the two seeds of them. These are the components of the page that are given texts only, each with its
+ * code (module and chunks) and the props that it was given, the ones given the most first.
+ * @param {{id: string, value: string}[]} rows the rows of the flight data of the page
+ * @param {string} pageUrl the address of the page, that the paths of the chunks are relative to
+ * @returns {{moduleId: *, chunkUrls: string[], candidates: Object<string, string>[]}[]}
+ */
+export function seedGroups(rows, pageUrl) {
+    const groups = new Map();
+    rows.forEach((row, index) => {
+        if (!row.value.startsWith('[') && !row.value.startsWith('{')) {
+            return;
+        }
+        let element;
+        try {
+            element = JSON.parse(row.value);
+        } catch {
+            return;
+        }
+        forEachSeedElement(element, (reference, props) => {
+            const component = componentAt(rows, reference, index, pageUrl);
+            if (!component) {
+                return;
+            }
+            const key = JSON.stringify([component.moduleId, component.chunkUrls]);
+            if (!groups.has(key)) {
+                groups.set(key, { ...component, candidates: [] });
+            }
+            groups.get(key).candidates.push(props);
+        });
+    });
+    const size = (group) =>
+        group.candidates.reduce((sum, props) => sum + Object.keys(props).length, 0);
+    return [...groups.values()].sort((a, b) => size(b) - size(a));
+}
+
+/**
+ * Runs in a page of the site with the groups of `seedGroups`: it loads the chunks of a component into a registry of its
+ * own (they register with TURBOPACK.push), runs the module of the component with what the code of a component needs,
+ * calls it with each of the props, and takes the two texts that the component hands on as `(0, axis)` and `(1, pitch)`.
+ * It answers `[axis, pitch]`, or `null`. The script of the extension of Keiyoushi (all/lunaranime, lunar-seed-runtime.js).
+ */
+export const SEED_RUNTIME = String.raw`(function (groups) {
+    const registry = {};
+    const cache = {};
+    const captured = [null, null];
+    const wrapped = new WeakSet();
+    const loaded = new Set();
+    let activeUrls = [];
+    let activeIndex = -1;
+
+    function record(args) {
+        if (args.length >= 2 && typeof args[1] === 'string') {
+            if (args[0] === 0) {
+                captured[0] = args[1];
+            } else if (args[0] === 1) {
+                captured[1] = args[1];
+            }
+        }
+    }
+
+    function wrap(namespace) {
+        if (!namespace || wrapped.has(namespace)) {
+            return namespace;
+        }
+        wrapped.add(namespace);
+        const keys = Object.keys(namespace);
+        for (let i = 0; i < keys.length; i++) {
+            const original = namespace[keys[i]];
+            if (typeof original === 'function') {
+                namespace[keys[i]] = new Proxy(original, {
+                    apply(target, self, args) {
+                        record(args);
+                        return Reflect.apply(target, self, args);
+                    },
+                });
+            }
+        }
+        return namespace;
+    }
+
+    function loadNext() {
+        while (activeIndex >= 0) {
+            const url = activeUrls[activeIndex];
+            activeIndex -= 1;
+            if (loaded.has(url)) {
+                continue;
+            }
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', url, false);
+            xhr.send();
+            if (xhr.status >= 200 && xhr.status < 300) {
+                loaded.add(url);
+                (0, eval)(xhr.responseText);
+                return true;
+            }
+            return false;
+        }
+        return false;
+    }
+
+    function ensure(id) {
+        while (!registry[id]) {
+            if (!loadNext()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function standin(id) {
+        return new Proxy(
+            {},
+            {
+                get(target, name) {
+                    if (typeof name !== 'string') {
+                        return undefined;
+                    }
+                    if (/^use(Layout|Insertion)?Effect$/.test(name)) {
+                        return (effect) => {
+                            effect();
+                        };
+                    }
+                    if (name === 'useMemo') {
+                        return (fn) => fn();
+                    }
+                    if (name === 'useState') {
+                        return (init) => [typeof init === 'function' ? init() : init, () => {}];
+                    }
+                    if (name === 'useRef') {
+                        return (init) => ({ current: init });
+                    }
+                    if (/^use/.test(name) || name === 'memo' || name === 'forwardRef') {
+                        return (value) => value;
+                    }
+                    if (ensure(id)) {
+                        return importNs(id)[name];
+                    }
+                    return undefined;
+                },
+            },
+        );
+    }
+
+    function run(id) {
+        if (cache[id]) {
+            return cache[id];
+        }
+        const factory = registry[id];
+        if (!factory) {
+            const empty = { esm: {}, cjs: undefined, usedS: false };
+            cache[id] = empty;
+            return empty;
+        }
+        const esm = {};
+        let usedS = false;
+        const moduleObject = { exports: {} };
+        const current = {};
+        cache[id] = current;
+        const context = {
+            i(dependency) {
+                return importNs(dependency);
+            },
+            r(dependency) {
+                ensure(dependency);
+                const dep = run(dependency);
+                return dep.usedS ? dep.esm : dep.cjs;
+            },
+            s(list) {
+                usedS = true;
+                for (let k = 0; k < list.length; k += 3) {
+                    esm[list[k]] = list[k + 2];
+                }
+            },
+            v(value) {
+                moduleObject.exports = value;
+            },
+            e: globalThis,
+            g: globalThis,
+            A(dependency) {
+                return {
+                    then() {
+                        return importNs(dependency);
+                    },
+                };
+            },
+            n: undefined,
+            L: '',
+        };
+        factory(context, moduleObject, moduleObject);
+        current.esm = esm;
+        current.cjs = moduleObject.exports;
+        current.usedS = usedS;
+        return current;
+    }
+
+    function importNs(id) {
+        if (!registry[id]) {
+            return standin(id);
+        }
+        const module = run(id);
+        if (module.usedS) {
+            return wrap(module.esm);
+        }
+        const namespace = wrap(module.cjs);
+        if (namespace && namespace.default === undefined) {
+            namespace.default = namespace;
+        }
+        return namespace;
+    }
+
+    globalThis.TURBOPACK = {
+        push(entry) {
+            for (let k = 1; k < entry.length; k += 2) {
+                registry[entry[k]] = entry[k + 1];
+            }
+        },
+    };
+
+    for (let g = 0; g < groups.length; g++) {
+        const group = groups[g];
+        activeUrls = group.chunkUrls;
+        activeIndex = group.chunkUrls.length - 1;
+        if (!ensure(group.moduleId)) {
+            continue;
+        }
+        const component = run(group.moduleId).esm.default;
+        if (typeof component !== 'function') {
+            continue;
+        }
+        const candidates = group.candidates;
+        for (let i = 0; i < candidates.length; i++) {
+            captured[0] = null;
+            captured[1] = null;
+            try {
+                component(candidates[i]);
+            } catch (error) {
+                continue;
+            }
+            if (captured[0] && captured[1]) {
+                return [captured[0], captured[1]];
+            }
+        }
+    }
+    return null;
+})`;
 
 /**
  * The text of the scripts of a page that have no source. What is inside of a script is raw text, so it cannot hold a closing tag.
@@ -549,20 +496,33 @@ function blendKey(axis, pitch) {
 }
 
 /**
+ * The nonce of a token: it goes into the key of the answer (`unpackSession`) and into the check of the site.
+ */
+export function newNonce(random = randomInt) {
+    return randomString(NONCE_LENGTH, random);
+}
+
+/**
  * `mint()` of the bundle of the site: a payload with the time that names the chapter, encrypted with a stream of the blended
- * key. The nonce goes into the key of the answer, so the caller has to keep it for `unpackSession`.
+ * key.
  * @param {{axis: string, pitch: string}} seeds
  * @param {string} slug
  * @param {string} chapter
+ * @param {string} nonce see `newNonce`
  * @param {{now?: number, random?: function(number): number}} [options] a clock and a source of random numbers
- * @returns {{token: string, nonce: string}}
+ * @returns {string} the token
  */
-export function mintToken(seeds, slug, chapter, { now = Date.now(), random = randomInt } = {}) {
+export function mintToken(
+    seeds,
+    slug,
+    chapter,
+    nonce,
+    { now = Date.now(), random = randomInt } = {},
+) {
     const key = blendKey(seeds.axis, seeds.pitch);
     if (!key.length) {
         throw new Error('Failed to derive chapter key!');
     }
-    const nonce = randomString(NONCE_LENGTH, random);
     const timestamp = Math.floor(now / 1000).toString(16);
     const payload = `${timestamp}|${nonce}|${slug}|${chapter}|${randomString(6, random)}`;
     const offset = random(256);
@@ -575,7 +535,7 @@ export function mintToken(seeds, slug, chapter, { now = Date.now(), random = ran
                 0xff,
         );
     }
-    return { token: base64UrlEncode(Uint8Array.from(bytes)), nonce };
+    return base64UrlEncode(Uint8Array.from(bytes));
 }
 
 /**
@@ -650,6 +610,76 @@ export async function createProof(key, method, url, now = Date.now()) {
     return `${input}.${base64UrlEncode(new Uint8Array(signature))}`;
 }
 
+// ================================= Veil =================================
+
+const VEIL_NUMBER = (text) => {
+    const value = Number(text);
+    if (text === undefined || text === '' || !Number.isFinite(value)) {
+        throw new Error('Failed to parse page veil!');
+    }
+    return value;
+};
+
+/**
+ * The veil of a page is an SVG of the size of the page with patches: images (base64) at their place. It is made by the
+ * server, so its attributes are read as they come.
+ * @param {string} svg
+ * @returns {{width: number, height: number, patches: {x: number, y: number, width: number, height: number, bytes: Uint8Array}[]}|null}
+ */
+export function parseVeil(svg) {
+    const attributes = (tag) =>
+        Object.fromEntries(
+            [...tag.matchAll(/([\w:-]+)\s*=\s*"([^"]*)"/g)].map(([, name, value]) => [name, value]),
+        );
+    const root = /<svg\b[^>]*>/i.exec(svg);
+    if (!root) {
+        return null;
+    }
+    const size = attributes(root[0]);
+    return {
+        width: VEIL_NUMBER(size.width),
+        height: VEIL_NUMBER(size.height),
+        patches: [...svg.matchAll(/<image\b[^>]*>/gi)].map(([tag]) => {
+            const patch = attributes(tag);
+            const href = patch['xlink:href'] || patch.href || '';
+            return {
+                x: VEIL_NUMBER(patch.x),
+                y: VEIL_NUMBER(patch.y),
+                width: VEIL_NUMBER(patch.width),
+                height: VEIL_NUMBER(patch.height),
+                bytes: base64ToBytes(href.substring(href.indexOf('base64,') + 7)),
+            };
+        }),
+    };
+}
+
+/**
+ * The patches of a veil drawn over the banners burned into the page, scaled from the size of the veil to the size of the
+ * image, as the reader of the site does. The result is a JPEG.
+ * @param {Blob} image
+ * @param {ReturnType<typeof parseVeil>} veil
+ * @returns {Promise<Blob>}
+ */
+export async function drawVeil(image, veil) {
+    const page = await createImageBitmap(image);
+    const canvas = new OffscreenCanvas(page.width, page.height);
+    const context = canvas.getContext('2d');
+    context.drawImage(page, 0, 0);
+    const scaleX = page.width / veil.width;
+    const scaleY = page.height / veil.height;
+    for (const patch of veil.patches) {
+        const bitmap = await createImageBitmap(new Blob([patch.bytes]));
+        context.drawImage(
+            bitmap,
+            patch.x * scaleX,
+            patch.y * scaleY,
+            patch.width * scaleX,
+            patch.height * scaleY,
+        );
+    }
+    return canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+}
+
 // ================================ Connector ================================
 
 export default class LunarAnimes extends Connector {
@@ -670,9 +700,11 @@ export default class LunarAnimes extends Connector {
         this._siteKey = undefined;
         // the chapters that run together are asked one after the other, so that a verification is shared
         this._turn = Promise.resolve();
-        // keiyoushi: rateLimit(2) for the hosts of the API and the CDN
-        this._starts = [];
-        this._gate = Promise.resolve();
+        // keiyoushi: rateLimit(2) for the host of the API, rateLimit(4) for the CDN
+        this._limits = {
+            api: { perSecond: 2, starts: [], gate: Promise.resolve() },
+            cdn: { perSecond: 4, starts: [], gate: Promise.resolve() },
+        };
     }
 
     canHandleURI(uri) {
@@ -689,18 +721,20 @@ export default class LunarAnimes extends Connector {
     // ============================== Requests ===============================
 
     /**
-     * Two requests in a second, to the API and to the CDN.
+     * Two requests in a second to the API, four to the CDN.
+     * @param {'api'|'cdn'} [host]
      */
-    _throttle() {
-        const turn = this._gate.then(async () => {
+    _throttle(host = 'api') {
+        const limit = this._limits[host];
+        const turn = limit.gate.then(async () => {
             const now = Date.now();
-            this._starts = this._starts.filter((start) => now - start < 1000);
-            if (this._starts.length >= 2) {
-                await this.wait(1000 - (now - this._starts[0]));
+            limit.starts = limit.starts.filter((start) => now - start < 1000);
+            if (limit.starts.length >= limit.perSecond) {
+                await this.wait(1000 - (now - limit.starts[0]));
             }
-            this._starts.push(Date.now());
+            limit.starts.push(Date.now());
         });
-        this._gate = turn.catch(() => undefined);
+        limit.gate = turn.catch(() => undefined);
         return turn;
     }
 
@@ -715,23 +749,30 @@ export default class LunarAnimes extends Connector {
     }
 
     /**
-     * A request to the API with the proof. When the server turns the key down (403 that says "validate") the site makes a new
-     * key pair, and so does this: the request is sent once more.
+     * A request to the API. Only the request of the list of the images carries the proof (`proof`), as in the reader of the
+     * site: a key that signed other requests gets fake images. When the server turns the key down (403 that says
+     * "validate") the site makes a new key pair, and so does this: the request is sent once more.
      */
-    async _api(url, { method = 'GET', body, headers = {} } = {}, again = true) {
-        await this._throttle();
-        const key = await this._ensureProofKey();
+    async _api(url, { method = 'GET', body, headers = {}, proof = false } = {}, again = true) {
+        await this._throttle('api');
         const all = new Headers(this.requestOptions.headers);
         for (const [name, value] of Object.entries(headers)) {
             all.set(name, value);
         }
-        all.set(PROOF_HEADER, await createProof(key, method, url));
+        if (proof) {
+            all.set(PROOF_HEADER, await createProof(await this._ensureProofKey(), method, url));
+        }
         const response = await this._countedFetch(
             new Request(url, { ...this.requestOptions, method, headers: all, body }),
         );
-        if (again && response.status === 403 && /validate/i.test(await response.clone().text())) {
+        if (
+            proof &&
+            again &&
+            response.status === 403 &&
+            /validate/i.test(await response.clone().text())
+        ) {
             this._proofKey = undefined;
-            return this._api(url, { method, body, headers }, false);
+            return this._api(url, { method, body, headers, proof }, false);
         }
         return response;
     }
@@ -858,6 +899,30 @@ export default class LunarAnimes extends Connector {
         });
     }
 
+    /**
+     * The seeds of a chapter: its page names the client components that are given texts only (`seedGroups`), and the code
+     * of the site makes the seeds of them in a window of the site (`SEED_RUNTIME`), on a plain document (its manifest).
+     * @param {string} html the page of the chapter
+     * @param {string} pageUrl its address
+     * @returns {Promise<{axis: string, pitch: string}>}
+     */
+    async _seeds(html, pageUrl) {
+        const groups = seedGroups(flightRows(inlineScripts(html)), pageUrl);
+        if (groups.length === 0) {
+            throw new Error('Failed to find payload seeds!');
+        }
+        const request = new Request(this.url + '/manifest.json', this.requestOptions);
+        const pair = await Engine.Request.fetchUI(
+            request,
+            `(${SEED_RUNTIME})(${JSON.stringify(groups)})`,
+            15000,
+        );
+        if (!Array.isArray(pair) || !pair[0] || !pair[1]) {
+            throw new Error('Failed to find payload seeds!');
+        }
+        return { axis: pair[0], pitch: pair[1] };
+    }
+
     async _loadSiteKey() {
         if (!this._siteKey) {
             const config = await this._apiJSON(`${this.apiUrl}/api/captcha/config`);
@@ -952,17 +1017,33 @@ export default class LunarAnimes extends Connector {
     }
 
     async _fetchChapter(seeds, slug, number, language, withTurnstile) {
-        const { token, nonce } = mintToken(seeds, slug, number);
+        const nonce = newNonce();
         const turnstileToken = withTurnstile ? await this._solveTurnstile(nonce) : null;
+        // made after the check: a token made long before the request gets fake images
+        const token = mintToken(seeds, slug, number, nonce);
         const query = language === 'en' ? '' : `?language=${encodeURIComponent(language)}`;
         const headers = {};
         if (turnstileToken) {
             headers['Catch-Me-If-You-Can-Monkey'] = turnstileToken;
             headers['Which-Monkey'] = 'turnstile';
         }
-        const answer = await this._apiJSON(`${this.apiUrl}/api/manga/r/${token}${query}`, {
-            headers,
-        });
+        const url = `${this.apiUrl}/api/manga/r/${token}${query}`;
+        const response = await this._api(url, { headers, proof: true });
+        if (!response.ok) {
+            const refusal = await response
+                .clone()
+                .json()
+                .catch(() => undefined);
+            if (response.status === 403 && refusal && refusal.is_points_locked) {
+                throw new Error(
+                    'This chapter is unlocked with ad points: log in on the website and unlock it there.',
+                );
+            }
+            throw new Error(
+                `Failed to receive content from "${url}" (status: ${response.status}) - ${response.statusText}`,
+            );
+        }
+        const answer = await response.json();
         const sessionData = answer.data && answer.data.session_data;
         if (!sessionData) {
             throw new Error('session_data is empty');
@@ -971,12 +1052,28 @@ export default class LunarAnimes extends Connector {
         return JSON.parse(await unpackSession(sessionData, seeds, nonce, key.thumbprint));
     }
 
+    /**
+     * The pages of a list without the pages between them, each with its veil (the address of its patches, if any).
+     */
+    _realPages(result) {
+        const veils = result.veil || [];
+        return ((result.data && result.data.images) || [])
+            .map((url, index) => ({ url, veil: veils[index] || undefined }))
+            .filter(({ url }) => !url.includes(INTERSTITIAL_PATH));
+    }
+
+    /**
+     * A fake list: the server wants the check again, names no manga, has none of the pages between the pages, or has only
+     * made-up images (`every` is true for no images at all, which is as good as only fake ones).
+     */
     _needsRevalidation(result) {
         const images = (result.data && result.data.images) || [];
-        // `every` is true for no images at all, which is as good as only fake ones
+        const pages = this._realPages(result);
         return (
             result.cache_status === 'revalidate' ||
-            images.every((image) => image.includes(DECOY_PATH))
+            result.slug === 'unknown' ||
+            pages.length === images.length ||
+            pages.every(({ url }) => url.includes(DECOY_PATH))
         );
     }
 
@@ -1002,7 +1099,7 @@ export default class LunarAnimes extends Connector {
                 `Failed to fetch chapter page: ${response.status} ${response.statusText}`,
             );
         }
-        const seeds = extractSeeds(inlineScripts(await response.text()));
+        const seeds = await this._seeds(await response.text(), chapterUrl);
 
         const result = await this._inTurn(async () => {
             await this._unlockChapter(slug);
@@ -1027,16 +1124,42 @@ export default class LunarAnimes extends Connector {
         });
 
         const cdnHost = new URL(this.cdnUrl).host;
-        return result.data.images.map((url) => {
+        return this._realPages(result).map(({ url, veil }) => {
             // the CDN wants the site as referrer, any other host the page of the chapter
             const referer = new URL(url).host === cdnHost ? this.url + '/' : chapterUrl;
-            return this.createConnectorURI({ url, referer });
+            const payload = { url, referer };
+            if (veil) {
+                payload.veil = new URL(veil, this.apiUrl).href;
+            }
+            return this.createConnectorURI(payload);
         });
     }
 
+    /**
+     * A file of the vault, asked again while it answers 503 (the reader of the site waits 600 ms, 1200 ms, ...).
+     */
+    async _fromVault(request, retries) {
+        let response = await fetch(request.clone());
+        for (let attempt = 0; attempt < retries && response.status === 503; attempt++) {
+            await this.wait(RETRY_STEP * (attempt + 1));
+            response = await fetch(request.clone());
+        }
+        return response;
+    }
+
     async _handleConnectorURI(payload) {
-        if (new URL(payload.url).host === new URL(this.cdnUrl).host) {
-            await this._throttle();
+        const cdn = new URL(payload.url).host === new URL(this.cdnUrl).host;
+        let veil = null;
+        if (payload.veil) {
+            await this._throttle('api');
+            const response = await this._fromVault(
+                new Request(payload.veil, this.requestOptions),
+                VEIL_RETRIES,
+            );
+            veil = response.ok ? parseVeil(await response.text()) : null;
+        }
+        if (cdn) {
+            await this._throttle('cdn');
         }
         const request = new Request(payload.url, this.requestOptions);
         request.headers.set('x-referer', payload.referer);
@@ -1044,12 +1167,13 @@ export default class LunarAnimes extends Connector {
             'Accept',
             'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
         );
-        const response = await fetch(request);
+        const response = await this._fromVault(request, cdn ? PAGE_RETRIES : 0);
         if (!response.ok) {
             throw new Error(
                 `Failed to receive content from "${payload.url}" (status: ${response.status}) - ${response.statusText}`,
             );
         }
-        return this._blobToBuffer(await response.blob());
+        const image = await response.blob();
+        return this._blobToBuffer(veil ? await drawVeil(image, veil) : image);
     }
 }

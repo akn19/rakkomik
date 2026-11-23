@@ -1,43 +1,9 @@
-// Lunar (lunarx.to): the seeds that the page of a chapter hands out, the token and the session of the chapter, the proof
-// of the key pair that goes with every request to the API, and the connector as a whole against a site that does its side
-// of all this. The recorded props are the ones that the real page sent on 2026-10-19: the token made from the seeds that
-// they hold was accepted by the real server. The rest is written independently of the connector, after the extension of
-// Keiyoushi (all/lunaranime) and with `node:crypto`, so that a mistake of the connector cannot be a mistake of the test.
-
-// the props of the reader that the real page sent: one set that holds the seeds and one decoy, that has the same shape
-const RECORDED = {
-    real: {
-        bhchw: 'da31fd9c58e9695b5bc4c98c394d1d00cf141f6dfbdb67cda522a8d9e80a816256ca34ba0eeb8a51cfe53d2cdb5e4258737dee9db0d1a6f50e633c7648a7688a972922cc788b8e3749c1e677159922db87e7de01f29127ae001e777968ec25df2814ee46fe5c79a438ffac96',
-        uvgpx: '616ce0086e89855ba3c7cc1d792740b08cc965abba19c1b32cbc9ceef15452c6fd3f5ade1d9911c08b47b3097ea615ed66cd8ab599116164ae02112dad854ad17bb1ba6901fdb416d46a19e9a7943bfbce735848600646579795999f628eced87413c9294ea5682f25011b25',
-        dphyjdffuz:
-            '6dc754851cfbc1c0c30dade3a6de0ff576e233dc91606f910b4b3cf8149b8ef81bcba24cc269da3581c559541009253720cd02bb7090cf6e134cfa4f41d93052cab892aae56ec610cdec0234a971e58f7c16f9dd6e16af558582609b433d8d50b45a681cef3fa2978b63eb69',
-        ilopmo: 'b883f7e26cf8d6f78bd3fbc18ba43295edf0ccf7c284d8b19d71bc3bd4659ce0db0dfdca5f758ed583d04e16a0fc45c285f7fd02e445f70570e3d2974b01b8ee37a990bfd5f76c532548cf3623495f8b6304301cf7ebd77ec22c67e4100cd5511175b3d5a6dfdfaf6bd6e8',
-        safkebpl:
-            'b25bc4aa49f1191cfe140bc58183b3f33d4a488da1b5c6a25623ba00e6fa50be8a94e9582b4ba079c896a5658d2c95d5012d0b956abd045c855a895a47a0f16dcc5da89f8f418b2a6effd60820ddf6dc295054dd6553692f44581afba461a1ef870b79f4584b019713bc7',
-        ufynclz: '=kM/AQDaWTqxqzQXmRM5caLUJQny435st1Qccj6kw62Dg0YoWGQORJn2lOOTzwEO',
-    },
-    decoy: {
-        urcdfd: '0c62af8b5b20c73125a83d0db60d4211fe827f7c68c4c67e2c640a66100a9db71dae76ab7a1cb4b1adb5498b468a44278f838902211f',
-        psxtqfquy:
-            '26e1836698e2616845a61ed8398a629d049b6840f4b06833dcf1e1f86f91f8bff5a21f6073ff6c95abe70753a204f87be455efd81cfd',
-        othwwlfjos:
-            '937b84959d3399aaf83e670ea23034285594da8750a20a19151b61c5902c8bc46f5f4bb1a9bec0466292c0c0ce4828a94148b466fb0c',
-        rcagjuabjed:
-            'f05f8be0e352042361a50a1392e7fe4512d648fc873ea3c50ba2f3a1aa10a0934bfafcac9e2da7bbf9c26a6c4e05394497ce504ae916',
-        rpehqxkvh:
-            '9c1dc88427d54d92cc4d579f09765cc5d3d86cace54736d2a8e663a99197769324f0abd2d97bdd90620df72030abdb5e0cae22031724',
-        kwlfiokl:
-            '96df1e3948990618e08a59e276e8f2983e416a751e6761abbff7144cc3bcba5b647df18c19ea21fad9ac7ff2e4c0a3ffb7b694b59',
-        svqtmfrbj:
-            '0abde533a46cfb38eeb341f0c7103304b7efb0823e8466e99811a0f6b8f62d1df17346379457b73317ce4399a899ab15b538337afcbd41',
-        gpyaymspku:
-            'r+87Co1Ybuqxh/iFgF4oCPRLCh3np+YBiM0aZer5KQSAuNIp4TAJQRz0M6vF8BRNq799B9CEw8rhj2FeUI46NOPC8xVnm38v',
-    },
-    seeds: {
-        axis: '9MbRt2wELLNpyssYQuJwpVi8V9oC5qtfN3Qe0LdIA0e8FZpLFPlLQk2dibuPUqFR8',
-        pitch: 'SK40gohxA3fbP6CHCeVU6GnatOGKM92L1JXaLlYkkZ1emwhp9eT3iDYunveYdceyldKGH',
-    },
-};
+// Lunar (lunarx.to): the flight data of the page of a chapter and the client component that makes the seeds of it (run by
+// the script of the site, here against a chunk of Turbopack that does what the code of the site does), the token and the
+// session of the chapter, the proof of the key pair that goes with the request of the list of the images only, the veils of
+// the pages, and the connector as a whole against a site that does its side of all this. The rest is written independently
+// of the connector, after the extension of Keiyoushi (all/lunaranime) and with `node:crypto`, so that a mistake of the
+// connector cannot be a mistake of the test.
 
 const nodeCrypto = require('node:crypto');
 
@@ -64,127 +30,14 @@ const ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
 const sha256 = (data) => nodeCrypto.createHash('sha256').update(data).digest();
 const base64Url = (bytes) => Buffer.from(bytes).toString('base64url');
 const fromBase64Url = (text) => Buffer.from(text, 'base64url');
-const latin1 = (text) => Array.from(text, (char) => char.charCodeAt(0));
 
 // seeds with characters that are more than ASCII, as the bytes of the page are
 const SEEDS = { axis: 'k3Zq9xW1ébT7ÿmPaR2sD', pitch: 'Qe5\u0080Lw8YhN4ÃuJc6VgB1oXzF' };
 
-// ============================== the hiding of the seeds ==============================
-
-const PROGRAM = [
-    [0, 0x5a],
-    [4, 0],
-    [2, 3],
-    [1, 0x11],
-    [5, 0x23],
-    [6, 0],
-    [3, 0],
-    [7, 0x80],
-];
-
-// What the page does to a byte that it hides: the steps of the program, each the reverse of what the reader of the seeds
-// does with it (that is why the program is run from its first step here and from its last one there).
-function hide(operation, argument, value, index, state) {
-    switch (operation) {
-        case 0:
-            return value ^ argument;
-        case 1:
-            return (value + argument) & 0xff;
-        case 2: {
-            const shift = argument & 7 || 1;
-            return ((value << shift) | (value >>> (8 - shift))) & 0xff;
-        }
-        case 3:
-            return ((value & 15) << 4) | (value >>> 4);
-        case 4:
-            return value ^ state;
-        case 5:
-            return value ^ ((index * (1 | argument) + argument) & 0xff);
-        case 6:
-            return ~value & 0xff;
-        default:
-            return (argument - value) & 0xff;
-    }
-}
-
-function nameHash(name) {
-    let hash = 0;
-    for (const char of name) {
-        hash = (31 * hash + char.charCodeAt(0)) & 0xff;
-    }
-    return hash;
-}
-
-/**
- * The props of the reader that hold the seeds: the bytes are chained to each other and to a generator of numbers, hidden by
- * the program and cut into the props that the header names; the header is masked with a key that comes from the name of
- * its own prop, and written backwards in base64.
- */
-function encodeSeedProps(
-    seeds,
-    {
-        program = PROGRAM,
-        seed = 0x2b,
-        multiplier = 0x45,
-        increment = 0x1f,
-        headerName = 'hdr',
-        names = ['pa', 'pb', 'pc'],
-        version = '3',
-        magic = [167, 62, 145],
-        lengths = [seeds.axis.length, seeds.pitch.length],
-    } = {},
-) {
-    const plain = [
-        ...magic,
-        lengths[0] >> 8,
-        lengths[0] & 255,
-        lengths[1] >> 8,
-        lengths[1] & 255,
-        ...latin1(seeds.axis),
-        ...latin1(seeds.pitch),
-    ];
-    let state = seed & 0xff;
-    let previous = 0;
-    const cipher = plain.map((byte, index) => {
-        state = (state * multiplier + increment) & 0xff;
-        let value = byte;
-        for (const [operation, argument] of program) {
-            value = hide(operation, argument, value, index, state);
-        }
-        const current = value ^ previous;
-        previous = current;
-        return current;
-    });
-    const hex = cipher.map((byte) => byte.toString(16).padStart(2, '0')).join('');
-    const size = Math.ceil(hex.length / names.length / 2) * 2;
-    const props = {};
-    names.forEach((name, index) => {
-        props[name] = hex.slice(index * size, (index + 1) * size);
-    });
-    const header = [
-        version,
-        seed.toString(16),
-        multiplier.toString(16),
-        increment.toString(16),
-        program
-            .map(
-                ([operation, argument]) =>
-                    operation.toString(16) + argument.toString(16).padStart(2, '0'),
-            )
-            .join(''),
-        names.join('.'),
-    ].join('|');
-    const masked = Buffer.from(
-        latin1(header).map((code, index) => code ^ ((nameHash(headerName) + 37 * index) & 0xff)),
-    );
-    props[headerName] = [...masked.toString('base64')].reverse().join('');
-    return props;
-}
-
 // ============================== the flight data of Next.js ==============================
 
 const row = (id, value) => `${id}:${JSON.stringify(value)}\n`;
-const component = (props) => ['$', '$L1', null, props];
+const element = (reference, props) => ['$', `$L${reference}`, null, props];
 const script = (rows) => `self.__next_f.push(${JSON.stringify([1, rows])})`;
 
 function page(rows, { before = '' } = {}) {
@@ -195,6 +48,79 @@ function page(rows, { before = '' } = {}) {
         `<script>${script(rows)}</script></body></html>`
     );
 }
+
+// ============================ the code of the site ============================
+
+// The client component that makes the seeds (module 5) and the module that it hands them to (9), in a chunk of Turbopack,
+// as the code of the site has them: the component makes the seeds of the props that the real page gives it, and fails for
+// the decoys. The page names the chunk through a row that holds its path, and a second chunk of the component.
+const SEED_MODULE = 5;
+const CHUNK = '/_next/static/chunks/seed-0a1b.js';
+const OTHER_CHUNK = '/_next/static/chunks/other-2c3d.js';
+
+function seedChunk() {
+    return `(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["seed",
+        ${SEED_MODULE}, (e, m) => {
+            const store = e.i(9);
+            e.s(['default', 0, (props) => {
+                if (props.kind !== 'reader') { throw new Error('a decoy'); }
+                store.put(0, props.left + props.right);
+                store.put(1, props.pitch);
+            }]);
+        },
+        9, (e, m) => { e.s(['put', 0, (index, value) => value]); }
+    ]);`;
+}
+
+// the props of the page: the real ones carry the seeds, cut apart, and the decoys have the same names
+const realProps = (seeds) => ({
+    kind: 'reader',
+    left: seeds.axis.slice(0, 5),
+    right: seeds.axis.slice(5),
+    pitch: seeds.pitch,
+});
+const decoyProps = { kind: 'banner', left: 'x', right: 'y', pitch: 'z' };
+
+// the rows of the page of a chapter: the path of the chunk, the client reference of the component, a decoy and the reader
+function chapterRows(seeds) {
+    return (
+        row(1, CHUNK) +
+        `2:I[${SEED_MODULE},["$1","${OTHER_CHUNK}"],"default"]\n` +
+        row(3, element(2, decoyProps)) +
+        row(4, ['$', 'div', null, { children: [element(2, realProps(seeds))] }])
+    );
+}
+
+/**
+ * The script of the connector run as a window of the site runs it: `XMLHttpRequest` gives the chunks of `chunks`
+ * (address -> text), any other address answers 404.
+ */
+function runInPage(code, chunks) {
+    class Request {
+        open(method, url) {
+            this.url = url;
+        }
+        send() {
+            const text = chunks[this.url];
+            this.status = text === undefined ? 404 : 200;
+            this.responseText = text || '';
+        }
+    }
+    const before = globalThis.XMLHttpRequest;
+    globalThis.XMLHttpRequest = Request;
+    try {
+        return (0, eval)(code);
+    } finally {
+        globalThis.XMLHttpRequest = before;
+        delete globalThis.TURBOPACK;
+    }
+}
+
+const siteChunks = () => ({
+    [`https://lunarx.to${CHUNK}`]: seedChunk(),
+    [`https://lunarx.to${OTHER_CHUNK}`]:
+        '(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["other"]);',
+});
 
 // ================================== the token ==================================
 
@@ -284,70 +210,6 @@ function readProof(request) {
 
 // ===================================== tests =====================================
 
-describe('the seeds of the page', () => {
-    it('should find the seeds in the props that the real page sent, and not in a decoy', () => {
-        expect(Lunar.decodeSeeds(RECORDED.real)).toEqual(RECORDED.seeds);
-        expect(Lunar.decodeSeeds(RECORDED.decoy)).toBeNull();
-    });
-
-    it('should hand over bytes of any value as the characters of the seeds', () => {
-        const props = encodeSeedProps(SEEDS);
-        expect(Lunar.decodeSeeds(props)).toEqual(SEEDS);
-        expect(latin1(SEEDS.axis + SEEDS.pitch).some((code) => code > 127)).toBe(true);
-    });
-
-    it.each([
-        ['another seed of the generator', { seed: 0xfe }],
-        [
-            'a multiplier and an increment that run over',
-            { multiplier: 0x7fffffff, increment: 0x7ffffff1 },
-        ],
-        ['a header prop that is not the first one', { headerName: 'zz' }],
-        ['one prop that holds all of the bytes', { names: ['solo'] }],
-        ['many props', { names: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] }],
-        ['a program of one step', { program: [[4, 0]] }],
-        [
-            'every step of the program',
-            { program: [0, 1, 2, 3, 4, 5, 6, 7].map((step) => [step, 0x90 + step]) },
-        ],
-        ['a shift of 8 that is read as 1', { program: [[2, 8]] }],
-    ])('should read the seeds from %s', (name, options) => {
-        expect(Lunar.decodeSeeds(encodeSeedProps(SEEDS, options))).toEqual(SEEDS);
-    });
-
-    it('should read seeds of more than 255 characters, the lengths have two bytes', () => {
-        const long = { axis: 'a'.repeat(300), pitch: 'b'.repeat(7) };
-        expect(Lunar.decodeSeeds(encodeSeedProps(long))).toEqual(long);
-    });
-
-    it('should find the header among props that are noise', () => {
-        const props = { first: 'zzzz', ...encodeSeedProps(SEEDS), last: '12' };
-        expect(Lunar.decodeSeeds(props)).toEqual(SEEDS);
-    });
-
-    it.each([
-        ['another version of the header', { version: '4' }],
-        ['bytes that are no seeds', { magic: [1, 2, 3] }],
-        [
-            'a length that goes beyond the bytes',
-            { lengths: [SEEDS.axis.length + 50, SEEDS.pitch.length] },
-        ],
-        ['a length of 0', { lengths: [0, SEEDS.pitch.length] }],
-        ['a step that the program does not know', { program: [[8, 1]] }],
-    ])('should find no seeds with %s', (name, options) => {
-        expect(Lunar.decodeSeeds(encodeSeedProps(SEEDS, options))).toBeNull();
-    });
-
-    it('should find no seeds when the props it names are not there, or are cut in the middle of a byte', () => {
-        const props = encodeSeedProps(SEEDS, { names: ['pa', 'pb'] });
-        expect(Lunar.decodeSeeds({ ...props, pa: undefined })).toBeNull();
-        expect(Lunar.decodeSeeds({ ...props, pb: props.pb.slice(0, -1) })).toBeNull();
-        expect(Lunar.decodeSeeds({ ...props, pb: 'not hex!' })).toBeNull();
-        expect(Lunar.decodeSeeds({})).toBeNull();
-        expect(Lunar.decodeSeeds({ only: 'abc' })).toBeNull();
-    });
-});
-
 describe('the scripts of a page', () => {
     it('should give the text of the scripts that have no source, whatever the case and the attributes', () => {
         const html =
@@ -363,112 +225,129 @@ describe('the scripts of a page', () => {
 });
 
 describe('the flight data of Next.js', () => {
-    const real = encodeSeedProps(SEEDS);
-
-    it('should find the seeds among the decoys of the real page', () => {
-        const rows = row(2, component(RECORDED.decoy)) + row(3, component(RECORDED.real));
-        expect(Lunar.extractSeeds(Lunar.inlineScripts(page(rows)))).toEqual(RECORDED.seeds);
-    });
-
-    it('should find them deep in the props of other components', () => {
-        const rows = row(2, [
-            '$',
-            'div',
-            null,
-            { children: [['$', '$L9', null, { deep: { props: real } }]] },
+    it('should read the rows of the page, a text row by the length of its bytes in UTF-8', () => {
+        const rows =
+            row(1, ['$', 'div', null, {}]) +
+            `2:T9,${'日本語'}` +
+            `3:T6,${'😀'}ab\n` +
+            '4:I[7,["/a.js"],"default"]\n' +
+            row('a', 'text');
+        expect(Lunar.flightRows([script(rows)])).toEqual([
+            { id: '1', value: '["$","div",null,{}]' },
+            { id: '2', value: '日本語' },
+            { id: '3', value: '😀ab' },
+            { id: '4', value: 'I[7,["/a.js"],"default"]' },
+            { id: 'a', value: '"text"' },
         ]);
-        expect(Lunar.extractSeeds([script(rows)])).toEqual(SEEDS);
-    });
-
-    it('should follow a prop that was moved out of the props into a text of its own', () => {
-        const moved = { ...real, pa: '$7' };
-        // the text counts the bytes that it has in UTF-8: the rows before it have more bytes than characters
-        const rows =
-            `3:T9,${'日本語'}\n` +
-            `4:T6,${'😀'}ab\n` +
-            `7:T${Buffer.byteLength(real.pa).toString(16)},${real.pa}\n` +
-            row(8, component(moved));
-        expect(Lunar.extractSeeds([script(rows)])).toEqual(SEEDS);
-    });
-
-    it('should follow a prop that is a reference to a model, and an escaped dollar sign', () => {
-        const rows = row(5, real.pb) + row(6, component({ ...real, pb: '$5', note: '$$5' }));
-        expect(Lunar.extractSeeds([script(rows)])).toEqual(SEEDS);
-    });
-
-    it('should not take props for the seeds when one of them is not a text, as `undefined` is not', () => {
-        const rows =
-            row(6, component({ ...real, gone: '$undefined' })) +
-            row(7, component({ ...real, count: 3 }));
-        expect(() => Lunar.extractSeeds([script(rows)])).toThrow('Failed to find payload seeds!');
-    });
-
-    it('should leave the rows alone that are no JSON, and the scripts that are no flight data', () => {
-        const rows =
-            'b:I["123",["a.js"],"default"]\nHL["/_next/a.css","style"]\n' +
-            row(1, '$Sreact.fragment') +
-            row(2, component(real));
-        expect(
-            Lunar.extractSeeds(['window.x = 1', 'self.__next_f.push(oops)', script(rows)]),
-        ).toEqual(SEEDS);
     });
 
     it('should join the pushes before it reads the rows: a row can be cut anywhere, also in text that comes as base64', () => {
-        const rows = row(1, component(RECORDED.decoy)) + row(2, component(real));
+        const rows = chapterRows(SEEDS);
         const cut = rows.length - 40;
         const tail = Buffer.from(rows.slice(cut)).toString('base64');
         expect(
-            Lunar.extractSeeds([
+            Lunar.flightRows([
                 'self.__next_f.push([0])',
                 script(rows.slice(0, 25)),
                 script(rows.slice(25, cut)),
                 `self.__next_f.push(${JSON.stringify([2, 'not of the stream'])})`,
                 `self.__next_f.push(${JSON.stringify([3, tail])})`,
+                'window.x = 1',
+                'self.__next_f.push(oops)',
             ]),
-        ).toEqual(SEEDS);
+        ).toEqual(Lunar.flightRows([script(rows)]));
     });
 
-    it('should take the push of a script that comes later, and of a row that sits in the same text as a decoy', () => {
+    it('should name the client components that are given texts only, with their chunks and props, the most props first', () => {
+        const rows = Lunar.flightRows(Lunar.inlineScripts(page(chapterRows(SEEDS))));
+        const groups = Lunar.seedGroups(rows, 'https://lunarx.to/manga/the-cliff/1?lang=en');
+        expect(groups).toEqual([
+            {
+                moduleId: SEED_MODULE,
+                chunkUrls: [`https://lunarx.to${CHUNK}`, `https://lunarx.to${OTHER_CHUNK}`],
+                candidates: [decoyProps, realProps(SEEDS)],
+            },
+        ]);
+    });
+
+    it('should take the reference that is in effect at the row, as the ids repeat across the flight streams', () => {
+        const rows = Lunar.flightRows([
+            script(
+                '2:I[11,["/first.js"],"default"]\n' +
+                    row(3, element(2, { a: 'one' })) +
+                    '2:I[12,["/second.js"],"default"]\n' +
+                    row(4, element(2, { b: 'two', c: 'three' })),
+            ),
+        ]);
+        const groups = Lunar.seedGroups(rows, 'https://lunarx.to/manga/x/1');
+        expect(groups.map((group) => [group.moduleId, group.chunkUrls, group.candidates])).toEqual([
+            [12, ['https://lunarx.to/second.js'], [{ b: 'two', c: 'three' }]],
+            [11, ['https://lunarx.to/first.js'], [{ a: 'one' }]],
+        ]);
+    });
+
+    it('should leave out elements that are no client components, props that are not all texts, and references that it cannot find', () => {
+        const rows = Lunar.flightRows([
+            script(
+                '2:I[11,["/a.js"],"default"]\n' +
+                    row(3, ['$', 'div', null, { a: 'html' }]) +
+                    row(4, element(2, { count: 3 })) +
+                    row(5, element(2, {})) +
+                    row(6, element(9, { a: 'no reference' })) +
+                    row(7, element(3, { a: 'no client reference' })) +
+                    '8:I[11,["$99"],"default"]\n' +
+                    row(9, element(8, { a: 'a chunk that names no row' })) +
+                    '10:{"broken"\n',
+            ),
+        ]);
+        expect(Lunar.seedGroups(rows, 'https://lunarx.to/')).toEqual([]);
+    });
+});
+
+describe('the code of the site that makes the seeds', () => {
+    const groups = () =>
+        Lunar.seedGroups(
+            Lunar.flightRows([script(chapterRows(SEEDS))]),
+            'https://lunarx.to/manga/the-cliff/1',
+        );
+
+    it('should run the component with its props and take what it hands on: the decoys fail, the reader gives the seeds', () => {
+        const pair = runInPage(
+            `(${Lunar.SEED_RUNTIME})(${JSON.stringify(groups())})`,
+            siteChunks(),
+        );
+        expect(pair).toEqual([SEEDS.axis, SEEDS.pitch]);
+    });
+
+    it('should give nothing when no component makes the seeds, or its code cannot be loaded', () => {
+        const decoys = groups().map((group) => ({ ...group, candidates: [decoyProps] }));
         expect(
-            Lunar.extractSeeds([
-                script(row(1, component(RECORDED.decoy))),
-                script(row(2, component(real))),
-            ]),
-        ).toEqual(SEEDS);
-    });
-
-    it('should say that it found no seeds', () => {
-        expect(() => Lunar.extractSeeds([])).toThrow('Failed to find payload seeds!');
-        expect(() => Lunar.extractSeeds([script(row(1, component(RECORDED.decoy)))])).toThrow(
-            'Failed to find payload seeds!',
-        );
-        expect(() => Lunar.extractSeeds([`self.__next_f.push([1, 5])`])).toThrow(
-            'Failed to find payload seeds!',
-        );
+            runInPage(`(${Lunar.SEED_RUNTIME})(${JSON.stringify(decoys)})`, siteChunks()),
+        ).toBeNull();
+        expect(runInPage(`(${Lunar.SEED_RUNTIME})(${JSON.stringify(groups())})`, {})).toBeNull();
     });
 });
 
 describe('the token of a chapter', () => {
-    // the numbers that the random generator gives, in the order that Kotlin asks for them: the nonce, the tail, the offset
+    // the numbers that the random generator gives, in the order that Kotlin asks for them: the tail, the offset
     const scripted = (values) => {
         let index = 0;
         return (bound) => values[index++] % bound;
     };
-    const NONCE = [0, 1, 2, 25, 26, 27, 51, 52, 53, 61, 30, 40];
+    const NONCE = 'abcZABwxy9el';
     const TAIL = [5, 15, 25, 35, 45, 55];
     const text = (indexes) => indexes.map((index) => ALPHABET[index]).join('');
 
     it('should make the token that the reference makes, from the same time, nonce and offset', () => {
         const now = Date.UTC(2026, 9, 19, 12, 0, 0, 999);
-        const { token, nonce } = Lunar.mintToken(SEEDS, 'the-cliff', '1.5', {
+        const token = Lunar.mintToken(SEEDS, 'the-cliff', '1.5', NONCE, {
             now,
-            random: scripted([...NONCE, ...TAIL, 200]),
+            random: scripted([...TAIL, 200]),
         });
-        expect(nonce).toBe(text(NONCE));
         expect(token).toBe(
             referenceToken(SEEDS, 'the-cliff', '1.5', {
                 now,
-                nonce: text(NONCE),
+                nonce: NONCE,
                 tail: text(TAIL),
                 offset: 200,
             }),
@@ -477,39 +356,47 @@ describe('the token of a chapter', () => {
 
     it('should name the chapter, the time and the nonce in a payload that the server can read', () => {
         const now = Date.UTC(2026, 9, 19, 12, 0, 0);
-        const { token, nonce } = Lunar.mintToken(SEEDS, 'sea-song', '12', { now });
+        const token = Lunar.mintToken(SEEDS, 'sea-song', '12', NONCE, { now });
         expect(readToken(SEEDS, token)).toEqual({
             timestamp: Math.floor(now / 1000),
-            nonce,
+            nonce: NONCE,
             slug: 'sea-song',
             chapter: '12',
             tail: expect.stringMatching(/^[a-zA-Z0-9]{6}$/),
         });
-        expect(nonce).toMatch(/^[a-zA-Z0-9]{12}$/);
     });
 
-    it('should use the clock of the machine and a new nonce for every token, in the alphabet of URLs', () => {
-        const first = Lunar.mintToken(SEEDS, 'a', '1');
-        const second = Lunar.mintToken(SEEDS, 'a', '1');
-        expect(first.nonce).not.toBe(second.nonce);
-        expect(first.token).toMatch(/^[A-Za-z0-9_-]+$/);
-        expect(Math.abs(readToken(SEEDS, first.token).timestamp - Date.now() / 1000)).toBeLessThan(
-            5,
+    it('should make nonces of twelve characters of the alphabet, a new one every time', () => {
+        const first = Lunar.newNonce();
+        expect(first).toMatch(/^[a-zA-Z0-9]{12}$/);
+        expect(Lunar.newNonce()).not.toBe(first);
+        expect(Lunar.newNonce(scripted([0, 1, 2, 25, 26, 27, 51, 52, 53, 61, 30, 40]))).toBe(
+            text([0, 1, 2, 25, 26, 27, 51, 52, 53, 61, 30, 40]),
         );
     });
 
+    it('should use the clock of the machine, in the alphabet of URLs', () => {
+        const token = Lunar.mintToken(SEEDS, 'a', '1', NONCE);
+        expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
+        expect(Math.abs(readToken(SEEDS, token).timestamp - Date.now() / 1000)).toBeLessThan(5);
+    });
+
     it('should make a token that only the seeds of the page can read', () => {
-        const { token } = Lunar.mintToken(SEEDS, 'a', '1');
+        const token = Lunar.mintToken(SEEDS, 'a', '1', NONCE);
         expect(readToken({ axis: SEEDS.axis, pitch: 'other' }, token).slug).not.toBe('a');
     });
 
     it('should keep the offset at any value, also when the bytes of the payload would be more than 255', () => {
         for (const offset of [0, 1, 255]) {
-            const { token, nonce } = Lunar.mintToken(SEEDS, 'x', '9', {
-                random: scripted([...NONCE, ...TAIL, offset]),
+            const token = Lunar.mintToken(SEEDS, 'x', '9', NONCE, {
+                random: scripted([...TAIL, offset]),
             });
             expect(fromBase64Url(token)[0]).toBe(offset);
-            expect(readToken(SEEDS, token)).toMatchObject({ slug: 'x', chapter: '9', nonce });
+            expect(readToken(SEEDS, token)).toMatchObject({
+                slug: 'x',
+                chapter: '9',
+                nonce: NONCE,
+            });
         }
     });
 });
@@ -643,17 +530,28 @@ describe('the proof of the key', () => {
 
 // ================================ the connector ================================
 
-// What the site does, as far as the connector sees it: the pages, the API with its proof, the check of Cloudflare
-// that is accepted when its token is one of the tokens that the stub of the check made, and the CDN.
+// the chunks of the code of the site that the window of the seeds is given (see stubEngine)
+let currentChunks = {};
+
+// What the site does, as far as the connector sees it: the pages, the API with the proof on the list of the images, the
+// check of Cloudflare that is accepted when its token is one of the tokens that the stub of the check made, the pages
+// between the pages and the veils of the list, and the vault, which answers 503 while it prepares a file.
 function createSite({
     ttl = 300,
     images = null,
+    veils = null,
     mangas = [],
     rejectProofs = 0,
     decoys = 0,
+    busy = 0,
+    pointsLocked = false,
     seeds = SEEDS,
 } = {}) {
+    currentChunks = siteChunks();
     const site = {
+        tainted: new Set(),
+        busy,
+        veilRequests: [],
         log: [],
         viewed: new Set(),
         unlocked: new Set(),
@@ -666,6 +564,7 @@ function createSite({
         turnstileHeaders: [],
         rejectProofs,
         decoys,
+        pointsLocked,
         referers: [],
         accepts: [],
     };
@@ -687,17 +586,16 @@ function createSite({
         if (url.host === 'lunarx.to') {
             const [, , slug, chapter] = url.pathname.split('/');
             site.pages = [...(site.pages || []), `${slug}/${chapter}?${url.searchParams}`];
-            const props = encodeSeedProps(seeds);
-            const html = page(
-                row(2, component(RECORDED.decoy)) +
-                    row(3, component(props)) +
-                    row(4, component(RECORDED.decoy)),
-            );
+            const html = page(chapterRows(seeds));
             return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
         }
         if (url.host === 'vault.lunarx.to' || url.host === 'img.other.test') {
             site.referers.push(request.headers.get('x-referer'));
             site.accepts.push(request.headers.get('accept'));
+            if (url.host === 'vault.lunarx.to' && site.busy > 0) {
+                site.busy--;
+                return new Response('preparing', { status: 503 });
+            }
             if (url.pathname.endsWith('/missing.png')) {
                 return new Response('no', { status: 404, statusText: 'Not Found' });
             }
@@ -705,22 +603,20 @@ function createSite({
                 headers: { 'content-type': 'image/png' },
             });
         }
-        // the API
-        const proof = readProof(request);
-        site.attempts.push(proof && proof.x);
-        const valid =
-            proof &&
-            proof.signed &&
-            proof.header.alg === 'ES256' &&
-            proof.header.typ === 'dpop+jwt' &&
-            proof.payload.htm === request.method &&
-            proof.payload.htu === proof.target;
-        if (!valid || site.rejectProofs > 0) {
-            site.rejectProofs = Math.max(0, site.rejectProofs - 1);
-            return new Response('Please validate your session first', { status: 403 });
-        }
-        site.thumbprints.push(proof.thumbprint);
+        // the API: the reader signs the list of the images only, and a key that signed anything else gets fake images
         const path = url.pathname;
+        const proof = readProof(request);
+        if (!path.startsWith('/api/manga/r/') && proof) {
+            site.tainted.add(proof.thumbprint);
+        }
+        if (path.startsWith('/api/manga/veil/')) {
+            site.veilRequests.push(path);
+            return new Response(
+                '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="400" height="600">' +
+                    '<image x="10" y="20" width="100" height="50" xlink:href="data:image/png;base64,UEFUQ0g="/></svg>',
+                { headers: { 'content-type': 'image/svg+xml' } },
+            );
+        }
         if (path === '/api/captcha/config') {
             return jsonResponse({ manga_turnstile_sitekey: 'KEY-OF-THE-SITE' });
         }
@@ -752,6 +648,22 @@ function createSite({
             return jsonResponse({ success: true });
         }
         if (path.startsWith('/api/manga/r/')) {
+            site.attempts.push(proof && proof.x);
+            const valid =
+                proof &&
+                proof.signed &&
+                proof.header.alg === 'ES256' &&
+                proof.header.typ === 'dpop+jwt' &&
+                proof.payload.htm === request.method &&
+                proof.payload.htu === proof.target;
+            if (!valid || site.rejectProofs > 0) {
+                site.rejectProofs = Math.max(0, site.rejectProofs - 1);
+                return new Response('Please validate your session first', { status: 403 });
+            }
+            site.thumbprints.push(proof.thumbprint);
+            if (site.pointsLocked) {
+                return jsonResponse({ is_points_locked: true, message: 'Unlock with points' }, 403);
+            }
             const read = readToken(seeds, path.split('/').pop());
             const language = url.searchParams.get('language');
             site.languages.push(language);
@@ -770,12 +682,18 @@ function createSite({
             const real =
                 site.cleared.has(`${proof.thumbprint}/${read.slug}`) &&
                 site.unlocked.has(read.slug) &&
+                !site.tainted.has(proof.thumbprint) &&
                 site.decoys-- <= 0;
+            // a real list has a page between the pages (an advertisement), and the veils go with the pages
+            const pages = listOfImages(read.slug, read.chapter);
             const list = real
-                ? listOfImages(read.slug, read.chapter)
+                ? [pages[0], 'https://api.lunarx.to/api/manga/pg/ad-1', ...pages.slice(1)]
                 : [1, 2].map((number) => `https://api.lunarx.to/api/cdn/p/fake${number}.png`);
+            const veil = real && veils ? [veils[0], null, ...veils.slice(1)] : undefined;
             const session = JSON.stringify({
                 data: { images: list },
+                slug: real ? read.slug : 'unknown',
+                veil,
                 cache_status: real ? 'fresh' : 'revalidate',
                 cache_ttl: real ? ttl : undefined,
             });
@@ -805,8 +723,10 @@ function stubEngine() {
         const nonce = /cData: "([^"]*)"/.exec(code)[1];
         return `check-${++count}:${nonce}`;
     });
-    globalThis.Engine = { Request: { fetchBrowser, fetchUI: vi.fn() } };
-    return { fetchBrowser };
+    // the window of the seeds runs the script of the connector with the code of the site
+    const fetchUI = vi.fn(async (request, code) => runInPage(code, currentChunks));
+    globalThis.Engine = { Request: { fetchBrowser, fetchUI } };
+    return { fetchBrowser, fetchUI };
 }
 
 function createConnector() {
@@ -858,7 +778,7 @@ describe('LunarAnimes', () => {
             title: `Manga ${index}`,
         }));
 
-        it('should list the mangas of all the pages of the search, with the proof, two requests in a second', async () => {
+        it('should list the mangas of all the pages of the search, without the proof, two requests in a second', async () => {
             const site = createSite({ mangas });
             const connector = createConnector();
             const list = await connector._getMangas();
@@ -875,6 +795,7 @@ describe('LunarAnimes', () => {
                 'https://api.lunarx.to/api/manga/search?page=1&limit=30&sort=relevance',
             );
             expect(request.headers.get('x-referer')).toBe('https://lunarx.to/');
+            expect(request.headers.has('cant-catch-this-monkey')).toBe(false);
         });
 
         it('should count the requests of the update of the list', async () => {
@@ -991,7 +912,7 @@ describe('LunarAnimes', () => {
     describe('the pages of a chapter', () => {
         it('should hand over the images of the chapter once the check of the site is done', async () => {
             const site = createSite();
-            const { fetchBrowser } = stubEngine();
+            const { fetchBrowser, fetchUI } = stubEngine();
             const connector = createConnector();
             const uris = await connector._getPages(chapterOf('the-cliff', '1'));
             expect(uris.map((uri) => payloadOf(uri))).toEqual(
@@ -1019,6 +940,49 @@ describe('LunarAnimes', () => {
             expect(site.turnstileHeaders).toEqual([
                 [`check-1:${site.tokens[0].nonce}`, 'turnstile'],
             ]);
+            // the seeds are made by the code of the site, in a window of the site that runs none of its pages
+            expect(fetchUI).toHaveBeenCalledTimes(1);
+            const [seedsRequest, seedsCode, seedsTimeout] = fetchUI.mock.calls[0];
+            expect(seedsRequest.url).toBe('https://lunarx.to/manifest.json');
+            expect(seedsCode.startsWith(`(${Lunar.SEED_RUNTIME})(`)).toBe(true);
+            expect(seedsTimeout).toBe(15000);
+        });
+
+        it('should leave out the pages between the pages, and give a page its veil from the API', async () => {
+            createSite({ veils: [null, '/api/manga/veil/2.svg', ''] });
+            stubEngine();
+            const uris = await createConnector()._getPages(chapterOf('the-cliff', '1'));
+            expect(uris.map((uri) => payloadOf(uri))).toEqual([
+                {
+                    url: 'https://vault.lunarx.to/cdn/the-cliff/1/1.png',
+                    referer: 'https://lunarx.to/',
+                },
+                {
+                    url: 'https://vault.lunarx.to/cdn/the-cliff/1/2.png',
+                    referer: 'https://lunarx.to/',
+                    veil: 'https://api.lunarx.to/api/manga/veil/2.svg',
+                },
+                {
+                    url: 'https://vault.lunarx.to/cdn/the-cliff/1/3.png',
+                    referer: 'https://lunarx.to/',
+                },
+            ]);
+        });
+
+        it('should say that a chapter is unlocked with ad points', async () => {
+            createSite({ pointsLocked: true });
+            stubEngine();
+            await expect(createConnector()._getPages(chapterOf('the-cliff', '1'))).rejects.toThrow(
+                'This chapter is unlocked with ad points: log in on the website and unlock it there.',
+            );
+        });
+
+        it('should say that it found no seeds when the code of the site makes none', async () => {
+            createSite();
+            stubEngine().fetchUI.mockResolvedValue(null);
+            await expect(createConnector()._getPages(chapterOf('the-cliff', '1'))).rejects.toThrow(
+                'Failed to find payload seeds!',
+            );
         });
 
         it('should open the lock of the chapter before the images are asked for (they are fake without it), and count the view after', async () => {
@@ -1046,16 +1010,17 @@ describe('LunarAnimes', () => {
             expect(uris).toHaveLength(3);
         });
 
-        it('should answer to the server with a proof on every request to the API, and with none to the page', async () => {
-            createSite();
+        it('should sign the request of the list of the images only: a key that signed anything else gets fake images', async () => {
+            const site = createSite();
             stubEngine();
             await createConnector()._getPages(chapterOf('the-cliff', '1'));
             for (const [request] of fetch.mock.calls) {
                 const url = new URL(request.url);
                 expect(request.headers.has('cant-catch-this-monkey')).toBe(
-                    url.host === 'api.lunarx.to',
+                    url.pathname.startsWith('/api/manga/r/'),
                 );
             }
+            expect(site.tainted.size).toBe(0);
         });
 
         it('should make the check once for the chapters of a manga, and again for the ones of another', async () => {
@@ -1169,8 +1134,12 @@ describe('LunarAnimes', () => {
             stubEngine();
             const uris = await createConnector()._getPages(chapterOf('the-cliff', '1'));
             expect(uris).toHaveLength(3);
-            // the first request was sent again, with a proof of a key pair that is new, and the new one was kept
-            expect(fetch.mock.calls[1][0].url).toBe(fetch.mock.calls[2][0].url);
+            // the request of the list was sent again, with a proof of a key pair that is new, and the new one was kept
+            const lists = fetch.mock.calls
+                .map(([request]) => request.url)
+                .filter((url) => url.includes('/api/manga/r/'));
+            expect(lists).toHaveLength(2);
+            expect(lists[0]).toBe(lists[1]);
             expect(site.attempts[0]).toBeDefined();
             expect(site.attempts[1]).not.toBe(site.attempts[0]);
             expect(new Set(site.attempts).size).toBe(2);
@@ -1315,23 +1284,116 @@ describe('LunarAnimes', () => {
             );
         });
 
-        it('should wait when more than two images are asked for in a second, the images of the CDN only', async () => {
+        it('should wait when more than four images are asked for in a second, the images of the CDN only', async () => {
             vi.useFakeTimers({ toFake: ['Date'] });
             vi.setSystemTime(Date.UTC(2026, 9, 19, 12, 0, 0));
             createSite();
             const connector = createConnector();
             const get = (url) =>
                 connector._handleConnectorURI({ url, referer: 'https://lunarx.to/' });
-            await get('https://img.other.test/a.png');
-            await get('https://img.other.test/b.png');
-            await get('https://img.other.test/c.png');
+            for (const name of ['a', 'b', 'c', 'd', 'e']) {
+                await get(`https://img.other.test/${name}.png`);
+            }
             expect(connector.wait).not.toHaveBeenCalled();
-            await get('https://vault.lunarx.to/cdn/1.png');
-            await get('https://vault.lunarx.to/cdn/2.png');
+            for (const number of [1, 2, 3, 4]) {
+                await get(`https://vault.lunarx.to/cdn/${number}.png`);
+            }
             expect(connector.wait).not.toHaveBeenCalled();
-            await get('https://vault.lunarx.to/cdn/3.png');
+            await get('https://vault.lunarx.to/cdn/5.png');
             expect(connector.wait).toHaveBeenCalledTimes(1);
             expect(connector.wait).toHaveBeenCalledWith(1000);
+        });
+
+        it('should ask the vault again while it prepares a file, 600 ms longer each time', async () => {
+            createSite({ busy: 2 });
+            const connector = createConnector();
+            const image = await connector._handleConnectorURI({
+                url: 'https://vault.lunarx.to/cdn/a/1.png',
+                referer: 'https://lunarx.to/',
+            });
+            expect(Array.from(image.data)).toEqual([137, 80, 78, 71, 1]);
+            expect(connector.wait.mock.calls).toEqual([[600], [1200]]);
+        });
+
+        it('should give up on a file that the vault keeps preparing', async () => {
+            createSite({ busy: 10 });
+            const connector = createConnector();
+            await expect(
+                connector._handleConnectorURI({
+                    url: 'https://vault.lunarx.to/cdn/a/1.png',
+                    referer: 'https://lunarx.to/',
+                }),
+            ).rejects.toThrow('(status: 503)');
+            expect(connector.wait).toHaveBeenCalledTimes(4);
+        });
+
+        it('should draw the patches of the veil over the page, scaled to its size, and give a JPEG', async () => {
+            const site = createSite();
+            const drawn = [];
+            const bitmaps = [];
+            vi.stubGlobal(
+                'createImageBitmap',
+                vi.fn(async (blob) => {
+                    const bytes = new Uint8Array(await blob.arrayBuffer());
+                    const bitmap = { width: 800, height: 1200, bytes: Array.from(bytes) };
+                    bitmaps.push(bitmap);
+                    return bitmap;
+                }),
+            );
+            vi.stubGlobal(
+                'OffscreenCanvas',
+                class {
+                    constructor(width, height) {
+                        this.size = [width, height];
+                    }
+                    getContext() {
+                        return { drawImage: (...args) => drawn.push(args) };
+                    }
+                    async convertToBlob(options) {
+                        this.options = options;
+                        return new Blob([new Uint8Array([255, 216, 255])], { type: options.type });
+                    }
+                },
+            );
+            const image = await createConnector()._handleConnectorURI({
+                url: 'https://vault.lunarx.to/cdn/a/2.png',
+                referer: 'https://lunarx.to/',
+                veil: 'https://api.lunarx.to/api/manga/veil/2.svg',
+            });
+            expect(site.veilRequests).toEqual(['/api/manga/veil/2.svg']);
+            expect(image.mimeType).toBe('image/jpeg');
+            expect(Array.from(image.data)).toEqual([255, 216, 255]);
+            // the page, then the patch of the veil (400 x 600) at its place on the page (800 x 1200)
+            expect(bitmaps[1].bytes).toEqual(Array.from(Buffer.from('PATCH')));
+            expect(drawn).toEqual([
+                [bitmaps[0], 0, 0],
+                [bitmaps[1], 20, 40, 200, 100],
+            ]);
+        });
+
+        it('should read a veil, and refuse one with a number that it cannot read', () => {
+            const veil = Lunar.parseVeil(
+                '<svg width="800" height="1200"><image x="1.5" y="2" width="3" height="4" href="data:image/png;base64,AQID"/>' +
+                    '<image x="0" y="0" width="1" height="1" xlink:href="data:image/webp;base64,BAU="/></svg>',
+            );
+            expect({
+                ...veil,
+                patches: veil.patches.map((patch) => ({
+                    ...patch,
+                    bytes: Array.from(patch.bytes),
+                })),
+            }).toEqual({
+                width: 800,
+                height: 1200,
+                patches: [
+                    { x: 1.5, y: 2, width: 3, height: 4, bytes: [1, 2, 3] },
+                    { x: 0, y: 0, width: 1, height: 1, bytes: [4, 5] },
+                ],
+            });
+            expect(Lunar.parseVeil('not an svg')).toBeNull();
+            expect(() => Lunar.parseVeil('<svg width="a" height="1"></svg>')).toThrow(
+                'Failed to parse page veil!',
+            );
         });
     });
 
